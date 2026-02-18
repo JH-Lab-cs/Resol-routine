@@ -7,6 +7,38 @@ const Set<String> _allowedSkills = {'LISTENING', 'READING'};
 const Set<String> _allowedTracks = {'M3', 'H1', 'H2', 'H3'};
 const Set<String> _allowedTurnSpeakers = {'S1', 'S2', 'N'};
 
+class SeedLimits {
+  const SeedLimits({
+    this.maxJsonBytes = 10 * 1024 * 1024,
+    this.maxScripts = 2000,
+    this.maxPassages = 2000,
+    this.maxQuestions = 10000,
+    this.maxVocabulary = 30000,
+    this.maxSentencesPerScript = 200,
+    this.maxTurnsPerScript = 200,
+    this.maxSentencesPerPassage = 200,
+    this.maxSentenceTextLen = 600,
+    this.maxPromptLen = 800,
+    this.maxOptionTextLen = 220,
+    this.maxWhyCorrectKoLen = 4000,
+    this.maxWhyWrongKoLen = 1500,
+  });
+
+  final int maxJsonBytes;
+  final int maxScripts;
+  final int maxPassages;
+  final int maxQuestions;
+  final int maxVocabulary;
+  final int maxSentencesPerScript;
+  final int maxTurnsPerScript;
+  final int maxSentencesPerPassage;
+  final int maxSentenceTextLen;
+  final int maxPromptLen;
+  final int maxOptionTextLen;
+  final int maxWhyCorrectKoLen;
+  final int maxWhyWrongKoLen;
+}
+
 class SeedContentPack {
   const SeedContentPack({
     required this.id,
@@ -32,7 +64,18 @@ class SeedContentPack {
   final List<SeedQuestion> questions;
   final List<SeedVocabItem> vocabulary;
 
-  static SeedContentPack parse(String rawJson) {
+  static SeedContentPack parse(
+    String rawJson, {
+    SeedLimits limits = const SeedLimits(),
+  }) {
+    final jsonByteLength = utf8.encode(rawJson).length;
+    if (jsonByteLength > limits.maxJsonBytes) {
+      throw FormatException(
+        'Content pack JSON exceeds maxJsonBytes '
+        '(${limits.maxJsonBytes}): $jsonByteLength bytes.',
+      );
+    }
+
     final decoded = jsonDecode(rawJson);
     if (decoded is! JsonMap) {
       throw const FormatException(
@@ -40,46 +83,76 @@ class SeedContentPack {
       );
     }
 
-    return SeedContentPack.fromJson(decoded);
+    return SeedContentPack.fromJson(decoded, limits: limits);
   }
 
-  factory SeedContentPack.fromJson(JsonMap json) {
+  factory SeedContentPack.fromJson(
+    JsonMap json, {
+    SeedLimits limits = const SeedLimits(),
+  }) {
     final packJson = _readMap(json, 'pack');
 
     final scriptsJson = _readList(json, 'scripts');
+    if (scriptsJson.length > limits.maxScripts) {
+      throw FormatException(
+        'The number of scripts exceeds maxScripts '
+        '(${limits.maxScripts}): ${scriptsJson.length}.',
+      );
+    }
     final scripts = <SeedScript>[];
     for (var i = 0; i < scriptsJson.length; i++) {
       scripts.add(
         SeedScript.fromJson(
           _readMapFromDynamic(scriptsJson[i], 'scripts[$i]'),
           path: 'scripts[$i]',
+          limits: limits,
         ),
       );
     }
 
     final passagesJson = _readList(json, 'passages');
+    if (passagesJson.length > limits.maxPassages) {
+      throw FormatException(
+        'The number of passages exceeds maxPassages '
+        '(${limits.maxPassages}): ${passagesJson.length}.',
+      );
+    }
     final passages = <SeedPassage>[];
     for (var i = 0; i < passagesJson.length; i++) {
       passages.add(
         SeedPassage.fromJson(
           _readMapFromDynamic(passagesJson[i], 'passages[$i]'),
           path: 'passages[$i]',
+          limits: limits,
         ),
       );
     }
 
     final questionsJson = _readList(json, 'questions');
+    if (questionsJson.length > limits.maxQuestions) {
+      throw FormatException(
+        'The number of questions exceeds maxQuestions '
+        '(${limits.maxQuestions}): ${questionsJson.length}.',
+      );
+    }
     final questions = <SeedQuestion>[];
     for (var i = 0; i < questionsJson.length; i++) {
       questions.add(
         SeedQuestion.fromJson(
           _readMapFromDynamic(questionsJson[i], 'questions[$i]'),
           path: 'questions[$i]',
+          limits: limits,
         ),
       );
     }
 
     final vocabularyJson = _readList(json, 'vocabulary');
+    if (vocabularyJson.length > limits.maxVocabulary) {
+      throw FormatException(
+        'The number of vocabulary entries exceeds maxVocabulary '
+        '(${limits.maxVocabulary}): ${vocabularyJson.length}.',
+      );
+    }
     final vocabulary = <SeedVocabItem>[];
     for (var i = 0; i < vocabularyJson.length; i++) {
       vocabulary.add(
@@ -210,11 +283,21 @@ class SeedScript {
   Set<String> get sentenceIdSet =>
       sentences.map((SeedSentence sentence) => sentence.id).toSet();
 
-  factory SeedScript.fromJson(JsonMap json, {required String path}) {
+  factory SeedScript.fromJson(
+    JsonMap json, {
+    required String path,
+    required SeedLimits limits,
+  }) {
     final sentencesJson = _readList(json, 'sentences', parentPath: path);
     if (sentencesJson.isEmpty) {
       throw FormatException(
         '"$path.sentences" must contain at least one item.',
+      );
+    }
+    if (sentencesJson.length > limits.maxSentencesPerScript) {
+      throw FormatException(
+        '"$path.sentences" exceeds maxSentencesPerScript '
+        '(${limits.maxSentencesPerScript}): ${sentencesJson.length}.',
       );
     }
 
@@ -224,6 +307,7 @@ class SeedScript {
         SeedSentence.fromJson(
           _readMapFromDynamic(sentencesJson[i], '$path.sentences[$i]'),
           path: '$path.sentences[$i]',
+          maxTextLength: limits.maxSentenceTextLen,
         ),
       );
     }
@@ -239,6 +323,12 @@ class SeedScript {
     final turnsJson = _readList(json, 'turns', parentPath: path);
     if (turnsJson.isEmpty) {
       throw FormatException('"$path.turns" must contain at least one item.');
+    }
+    if (turnsJson.length > limits.maxTurnsPerScript) {
+      throw FormatException(
+        '"$path.turns" exceeds maxTurnsPerScript '
+        '(${limits.maxTurnsPerScript}): ${turnsJson.length}.',
+      );
     }
 
     final turns = <SeedTurn>[];
@@ -287,11 +377,21 @@ class SeedPassage {
   Set<String> get sentenceIdSet =>
       sentences.map((SeedSentence sentence) => sentence.id).toSet();
 
-  factory SeedPassage.fromJson(JsonMap json, {required String path}) {
+  factory SeedPassage.fromJson(
+    JsonMap json, {
+    required String path,
+    required SeedLimits limits,
+  }) {
     final sentencesJson = _readList(json, 'sentences', parentPath: path);
     if (sentencesJson.isEmpty) {
       throw FormatException(
         '"$path.sentences" must contain at least one item.',
+      );
+    }
+    if (sentencesJson.length > limits.maxSentencesPerPassage) {
+      throw FormatException(
+        '"$path.sentences" exceeds maxSentencesPerPassage '
+        '(${limits.maxSentencesPerPassage}): ${sentencesJson.length}.',
       );
     }
 
@@ -301,6 +401,7 @@ class SeedPassage {
         SeedSentence.fromJson(
           _readMapFromDynamic(sentencesJson[i], '$path.sentences[$i]'),
           path: '$path.sentences[$i]',
+          maxTextLength: limits.maxSentenceTextLen,
         ),
       );
     }
@@ -347,7 +448,11 @@ class SeedQuestion {
   final int order;
   final SeedExplanation explanation;
 
-  factory SeedQuestion.fromJson(JsonMap json, {required String path}) {
+  factory SeedQuestion.fromJson(
+    JsonMap json, {
+    required String path,
+    required SeedLimits limits,
+  }) {
     final skill = _readEnum(
       json,
       'skill',
@@ -362,7 +467,12 @@ class SeedQuestion {
     if (skill == 'READING' && !RegExp(r'^R\d+$').hasMatch(typeTag)) {
       throw FormatException('"$path.typeTag" must match R<digit...>.');
     }
-    final optionsMap = _readOptionMap(json, 'options', parentPath: path);
+    final optionsMap = _readOptionMap(
+      json,
+      'options',
+      parentPath: path,
+      maxValueLength: limits.maxOptionTextLen,
+    );
     final answerKey = _readEnum(
       json,
       'answerKey',
@@ -389,13 +499,19 @@ class SeedQuestion {
       ),
       passageId: _readNullableString(json, 'passageId', parentPath: path),
       scriptId: _readNullableString(json, 'scriptId', parentPath: path),
-      prompt: _readString(json, 'prompt', parentPath: path),
+      prompt: _readString(
+        json,
+        'prompt',
+        parentPath: path,
+        maxLength: limits.maxPromptLen,
+      ),
       options: optionsMap,
       answerKey: answerKey,
       order: _readNonNegativeInt(json, 'order', parentPath: path),
       explanation: SeedExplanation.fromJson(
         _readMap(json, 'explanation', parentPath: path),
         path: '$path.explanation',
+        limits: limits,
       ),
     );
   }
@@ -420,7 +536,11 @@ class SeedExplanation {
   final String? structureNotesKo;
   final Object? glossKo;
 
-  factory SeedExplanation.fromJson(JsonMap json, {required String path}) {
+  factory SeedExplanation.fromJson(
+    JsonMap json, {
+    required String path,
+    required SeedLimits limits,
+  }) {
     final evidenceSentenceIds = _readStringList(
       json,
       'evidenceSentenceIds',
@@ -432,12 +552,22 @@ class SeedExplanation {
       );
     }
 
-    final whyWrongMap = _readOptionMap(json, 'whyWrongKo', parentPath: path);
+    final whyWrongMap = _readOptionMap(
+      json,
+      'whyWrongKo',
+      parentPath: path,
+      maxValueLength: limits.maxWhyWrongKoLen,
+    );
 
     return SeedExplanation(
       id: _readString(json, 'id', parentPath: path),
       evidenceSentenceIds: evidenceSentenceIds,
-      whyCorrectKo: _readString(json, 'whyCorrectKo', parentPath: path),
+      whyCorrectKo: _readString(
+        json,
+        'whyCorrectKo',
+        parentPath: path,
+        maxLength: limits.maxWhyCorrectKoLen,
+      ),
       whyWrongKo: whyWrongMap,
       vocabNotes: _readOptionalJsonValue(json, 'vocabNotes', parentPath: path),
       structureNotesKo: _readNullableString(
@@ -456,10 +586,19 @@ class SeedSentence {
   final String id;
   final String text;
 
-  factory SeedSentence.fromJson(JsonMap json, {required String path}) {
+  factory SeedSentence.fromJson(
+    JsonMap json, {
+    required String path,
+    required int maxTextLength,
+  }) {
     return SeedSentence(
       id: _readString(json, 'id', parentPath: path),
-      text: _readString(json, 'text', parentPath: path),
+      text: _readString(
+        json,
+        'text',
+        parentPath: path,
+        maxLength: maxTextLength,
+      ),
     );
   }
 }
@@ -617,10 +756,20 @@ List<Object?> _readList(JsonMap map, String key, {String? parentPath}) {
   throw FormatException('Expected "$path" to be a JSON array.');
 }
 
-String _readString(JsonMap map, String key, {String? parentPath}) {
+String _readString(
+  JsonMap map,
+  String key, {
+  String? parentPath,
+  int? maxLength,
+}) {
   final path = parentPath == null ? key : '$parentPath.$key';
   final value = map[key];
   if (value is String && value.trim().isNotEmpty) {
+    if (maxLength != null && value.length > maxLength) {
+      throw FormatException(
+        'Expected "$path" length to be <= $maxLength, got ${value.length}.',
+      );
+    }
     return value;
   }
   throw FormatException('Expected "$path" to be a non-empty string.');
@@ -706,6 +855,7 @@ Map<String, String> _readOptionMap(
   JsonMap map,
   String key, {
   String? parentPath,
+  int? maxValueLength,
 }) {
   final path = parentPath == null ? key : '$parentPath.$key';
   final rawMap = _readMap(map, key, parentPath: parentPath);
@@ -723,6 +873,12 @@ Map<String, String> _readOptionMap(
     if (rawValue is! String || rawValue.trim().isEmpty) {
       throw FormatException(
         'Expected "$path.$optionKey" to be a non-empty string.',
+      );
+    }
+    if (maxValueLength != null && rawValue.length > maxValueLength) {
+      throw FormatException(
+        'Expected "$path.$optionKey" length to be <= $maxValueLength, '
+        'got ${rawValue.length}.',
       );
     }
     parsed[optionKey] = rawValue;

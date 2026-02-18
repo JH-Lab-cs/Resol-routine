@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:resol_routine/core/database/app_database.dart';
 import 'package:resol_routine/features/content_pack/data/content_pack_seeder.dart';
+import 'package:resol_routine/features/content_pack/data/models/content_pack_seed.dart';
 
 void main() {
   group('ContentPackSeeder', () {
@@ -113,6 +114,50 @@ void main() {
       );
 
       expect(() => seeder.seedOnFirstLaunch(), throwsA(isA<FormatException>()));
+    });
+
+    test('rejects scripts length over injected maxScripts limit', () async {
+      final decoded = jsonDecode(starterPackJson) as Map<String, Object?>;
+      final scripts = List<Object?>.from(decoded['scripts'] as List<Object?>);
+      scripts.add(Map<String, Object?>.from(scripts.first! as JsonMap));
+      decoded['scripts'] = scripts;
+
+      final overLimitJson = jsonEncode(decoded);
+      final seeder = ContentPackSeeder(
+        database: database,
+        source: MemoryContentPackSource(overLimitJson),
+        limits: const SeedLimits(maxScripts: 1),
+      );
+
+      expect(
+        () => seeder.seedOnFirstLaunch(),
+        throwsA(
+          isA<FormatException>().having(
+            (error) => error.message,
+            'message',
+            contains('maxScripts'),
+          ),
+        ),
+      );
+    });
+
+    test('rejects option text over injected maxOptionTextLen limit', () async {
+      final seeder = ContentPackSeeder(
+        database: database,
+        source: MemoryContentPackSource(starterPackJson),
+        limits: const SeedLimits(maxOptionTextLen: 5),
+      );
+
+      expect(
+        () => seeder.seedOnFirstLaunch(),
+        throwsA(
+          isA<FormatException>().having(
+            (error) => error.message,
+            'message',
+            contains('options'),
+          ),
+        ),
+      );
     });
 
     test('enforces unique dayKey for daily sessions', () async {

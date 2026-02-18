@@ -38,11 +38,13 @@ class ContentPackSeeder {
   const ContentPackSeeder({
     required AppDatabase database,
     required ContentPackSource source,
+    this.limits = const SeedLimits(),
   }) : _database = database,
        _source = source;
 
   final AppDatabase _database;
   final ContentPackSource _source;
+  final SeedLimits limits;
 
   Future<void> seedOnFirstLaunch() async {
     if (await _database.hasAnyContentPacks()) {
@@ -67,7 +69,7 @@ class ContentPackSeeder {
   Future<SeedContentPack> _loadAndValidate() async {
     try {
       final rawJson = await _source.load();
-      return SeedContentPack.parse(rawJson);
+      return SeedContentPack.parse(rawJson, limits: limits);
     } on FormatException catch (error, stackTrace) {
       developer.log(
         'Content pack JSON failed validation.',
