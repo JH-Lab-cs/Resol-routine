@@ -1456,7 +1456,7 @@ class $QuestionsTable extends Questions
     type: DriftSqlType.string,
     requiredDuringInsert: true,
     $customConstraints:
-        'NOT NULL CHECK (skill IN (\'LISTENING\', \'READING\', \'VOCAB\'))',
+        'NOT NULL CHECK (skill IN (\'LISTENING\', \'READING\'))',
   );
   static const VerificationMeta _typeTagMeta = const VerificationMeta(
     'typeTag',

@@ -59,7 +59,7 @@ class Questions extends Table {
 
   TextColumn get id => text().withLength(min: 1, max: 80)();
   TextColumn get skill => text().customConstraint(
-    "NOT NULL CHECK (skill IN ('LISTENING', 'READING', 'VOCAB'))",
+    "NOT NULL CHECK (skill IN ('LISTENING', 'READING'))",
   )();
   TextColumn get typeTag => text().withLength(min: 2, max: 16)();
   TextColumn get track => text().customConstraint(
@@ -85,13 +85,12 @@ class Questions extends Table {
 
   @override
   List<String> get customConstraints => [
-    'CHECK ((passage_id IS NOT NULL AND script_id IS NULL) OR '
-        '(passage_id IS NULL AND script_id IS NOT NULL))',
-    "CHECK ((skill != 'LISTENING') OR (script_id IS NOT NULL AND passage_id IS NULL))",
-    "CHECK ((skill != 'READING') OR (passage_id IS NOT NULL AND script_id IS NULL))",
+    "CHECK ("
+        "(skill = 'LISTENING' AND script_id IS NOT NULL AND passage_id IS NULL) OR "
+        "(skill = 'READING' AND passage_id IS NOT NULL AND script_id IS NULL)"
+        ")",
     "CHECK ((skill != 'LISTENING') OR (type_tag GLOB 'L[0-9]*'))",
     "CHECK ((skill != 'READING') OR (type_tag GLOB 'R[0-9]*'))",
-    "CHECK ((skill != 'VOCAB') OR (type_tag GLOB 'V[0-9]*'))",
   ];
 
   @override

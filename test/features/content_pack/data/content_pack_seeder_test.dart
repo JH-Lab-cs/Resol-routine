@@ -101,6 +101,20 @@ void main() {
       expect(await database.countVocabSrsState(), 3);
     });
 
+    test('rejects unsupported skill values in seed questions', () async {
+      final invalidJson = starterPackJson.replaceFirst(
+        '"skill": "LISTENING"',
+        '"skill": "VOCAB"',
+      );
+
+      final seeder = ContentPackSeeder(
+        database: database,
+        source: MemoryContentPackSource(invalidJson),
+      );
+
+      expect(() => seeder.seedOnFirstLaunch(), throwsA(isA<FormatException>()));
+    });
+
     test('enforces unique dayKey for daily sessions', () async {
       await database
           .into(database.dailySessions)

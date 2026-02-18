@@ -14,15 +14,15 @@
       "sentences": [
         {
           "id": "ls_001",
-          "text": "S1: I need fruit for tomorrow's class picnic."
+          "text": "I need fruit for tomorrow's class picnic."
         },
         {
           "id": "ls_002",
-          "text": "S2: Then get strawberries first before they sell out."
+          "text": "Then get strawberries first before they sell out."
         },
         {
           "id": "ls_003",
-          "text": "S1: Good idea. I will buy apples after that."
+          "text": "Good idea. I will buy apples after that."
         }
       ],
       "turns": [
@@ -59,7 +59,7 @@
           "max": 1.03
         },
         "pitchRange": {
-          "min": -1.2,
+          "min": 0.0,
           "max": 1.2
         },
         "voiceRoles": {

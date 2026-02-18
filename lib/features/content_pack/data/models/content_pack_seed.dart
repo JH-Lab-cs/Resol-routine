@@ -3,7 +3,7 @@ import 'dart:convert';
 typedef JsonMap = Map<String, Object?>;
 
 const Set<String> _optionKeys = {'A', 'B', 'C', 'D', 'E'};
-const Set<String> _allowedSkills = {'LISTENING', 'READING', 'VOCAB'};
+const Set<String> _allowedSkills = {'LISTENING', 'READING'};
 const Set<String> _allowedTracks = {'M3', 'H1', 'H2', 'H3'};
 const Set<String> _allowedTurnSpeakers = {'S1', 'S2', 'N'};
 
@@ -362,10 +362,6 @@ class SeedQuestion {
     if (skill == 'READING' && !RegExp(r'^R\d+$').hasMatch(typeTag)) {
       throw FormatException('"$path.typeTag" must match R<digit...>.');
     }
-    if (skill == 'VOCAB' && !RegExp(r'^V\d+$').hasMatch(typeTag)) {
-      throw FormatException('"$path.typeTag" must match V<digit...>.');
-    }
-
     final optionsMap = _readOptionMap(json, 'options', parentPath: path);
     final answerKey = _readEnum(
       json,
@@ -518,14 +514,25 @@ class SeedTtsPlan {
       'pauseRangeMs',
       parentPath: path,
       requireNonNegative: true,
+      minBound: 100,
+      maxBound: 3000,
     );
     final rateRange = _readNumericRange(
       json,
       'rateRange',
       parentPath: path,
       minExclusiveZero: true,
+      minBound: 0.7,
+      maxBound: 1.3,
     );
-    final pitchRange = _readNumericRange(json, 'pitchRange', parentPath: path);
+    final pitchRange = _readNumericRange(
+      json,
+      'pitchRange',
+      parentPath: path,
+      requireNonNegative: true,
+      minBound: 0.0,
+      maxBound: 2.0,
+    );
 
     final voiceRoles = _readMap(json, 'voiceRoles', parentPath: path);
     for (final role in _allowedTurnSpeakers) {
@@ -730,6 +737,8 @@ JsonMap _readNumericRange(
   String? parentPath,
   bool requireNonNegative = false,
   bool minExclusiveZero = false,
+  double? minBound,
+  double? maxBound,
 }) {
   final path = parentPath == null ? key : '$parentPath.$key';
   final raw = _readMap(map, key, parentPath: parentPath);
@@ -755,6 +764,14 @@ JsonMap _readNumericRange(
 
   if (minExclusiveZero && (minDouble <= 0 || maxDouble <= 0)) {
     throw FormatException('Expected "$path" values to be > 0.');
+  }
+
+  if (minBound != null && minDouble < minBound) {
+    throw FormatException('Expected "$path.min" to be >= $minBound.');
+  }
+
+  if (maxBound != null && maxDouble > maxBound) {
+    throw FormatException('Expected "$path.max" to be <= $maxBound.');
   }
 
   return {'min': minValue, 'max': maxValue};
