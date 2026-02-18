@@ -1,0 +1,20 @@
+* text=auto eol=lf
+
+*.png -text
+*.jpg -text
+*.jpeg -text
+*.gif -text
+*.webp -text
+*.ico -text
+*.pdf -text
+*.ttf -text
+*.otf -text
+*.woff -text
+*.woff2 -text
+*.jar -text
+*.keystore -text
+*.db -text
+*.sqlite -text
+*.so -text
+*.dylib -text
+*.dll -text
