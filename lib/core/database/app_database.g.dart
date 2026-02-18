@@ -15,10 +15,7 @@ class $ContentPacksTable extends ContentPacks
     'id',
     aliasedName,
     false,
-    additionalChecks: GeneratedColumn.checkTextLength(
-      minTextLength: 1,
-      maxTextLength: 80,
-    ),
+    additionalChecks: GeneratedColumn.checkTextLength(minTextLength: 1),
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
@@ -40,10 +37,7 @@ class $ContentPacksTable extends ContentPacks
     'locale',
     aliasedName,
     false,
-    additionalChecks: GeneratedColumn.checkTextLength(
-      minTextLength: 2,
-      maxTextLength: 16,
-    ),
+    additionalChecks: GeneratedColumn.checkTextLength(minTextLength: 2),
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
@@ -53,10 +47,7 @@ class $ContentPacksTable extends ContentPacks
     'title',
     aliasedName,
     false,
-    additionalChecks: GeneratedColumn.checkTextLength(
-      minTextLength: 1,
-      maxTextLength: 150,
-    ),
+    additionalChecks: GeneratedColumn.checkTextLength(minTextLength: 1),
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
@@ -79,10 +70,7 @@ class $ContentPacksTable extends ContentPacks
     'checksum',
     aliasedName,
     false,
-    additionalChecks: GeneratedColumn.checkTextLength(
-      minTextLength: 1,
-      maxTextLength: 150,
-    ),
+    additionalChecks: GeneratedColumn.checkTextLength(minTextLength: 1),
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
@@ -541,10 +529,7 @@ class $PassagesTable extends Passages with TableInfo<$PassagesTable, Passage> {
     'id',
     aliasedName,
     false,
-    additionalChecks: GeneratedColumn.checkTextLength(
-      minTextLength: 1,
-      maxTextLength: 80,
-    ),
+    additionalChecks: GeneratedColumn.checkTextLength(minTextLength: 1),
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
@@ -569,17 +554,15 @@ class $PassagesTable extends Passages with TableInfo<$PassagesTable, Passage> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
-  static const VerificationMeta _sentencesJsonMeta = const VerificationMeta(
-    'sentencesJson',
-  );
   @override
-  late final GeneratedColumn<String> sentencesJson = GeneratedColumn<String>(
+  late final GeneratedColumnWithTypeConverter<List<Sentence>, String>
+  sentencesJson = GeneratedColumn<String>(
     'sentences_json',
     aliasedName,
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: true,
-  );
+  ).withConverter<List<Sentence>>($PassagesTable.$convertersentencesJson);
   static const VerificationMeta _orderIndexMeta = const VerificationMeta(
     'orderIndex',
   );
@@ -644,17 +627,6 @@ class $PassagesTable extends Passages with TableInfo<$PassagesTable, Passage> {
         title.isAcceptableOrUnknown(data['title']!, _titleMeta),
       );
     }
-    if (data.containsKey('sentences_json')) {
-      context.handle(
-        _sentencesJsonMeta,
-        sentencesJson.isAcceptableOrUnknown(
-          data['sentences_json']!,
-          _sentencesJsonMeta,
-        ),
-      );
-    } else if (isInserting) {
-      context.missing(_sentencesJsonMeta);
-    }
     if (data.containsKey('order_index')) {
       context.handle(
         _orderIndexMeta,
@@ -690,10 +662,12 @@ class $PassagesTable extends Passages with TableInfo<$PassagesTable, Passage> {
         DriftSqlType.string,
         data['${effectivePrefix}title'],
       ),
-      sentencesJson: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}sentences_json'],
-      )!,
+      sentencesJson: $PassagesTable.$convertersentencesJson.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}sentences_json'],
+        )!,
+      ),
       orderIndex: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}order_index'],
@@ -709,13 +683,16 @@ class $PassagesTable extends Passages with TableInfo<$PassagesTable, Passage> {
   $PassagesTable createAlias(String alias) {
     return $PassagesTable(attachedDatabase, alias);
   }
+
+  static TypeConverter<List<Sentence>, String> $convertersentencesJson =
+      const SentencesConverter();
 }
 
 class Passage extends DataClass implements Insertable<Passage> {
   final String id;
   final String packId;
   final String? title;
-  final String sentencesJson;
+  final List<Sentence> sentencesJson;
   final int orderIndex;
   final DateTime createdAt;
   const Passage({
@@ -734,7 +711,11 @@ class Passage extends DataClass implements Insertable<Passage> {
     if (!nullToAbsent || title != null) {
       map['title'] = Variable<String>(title);
     }
-    map['sentences_json'] = Variable<String>(sentencesJson);
+    {
+      map['sentences_json'] = Variable<String>(
+        $PassagesTable.$convertersentencesJson.toSql(sentencesJson),
+      );
+    }
     map['order_index'] = Variable<int>(orderIndex);
     map['created_at'] = Variable<DateTime>(createdAt);
     return map;
@@ -762,7 +743,7 @@ class Passage extends DataClass implements Insertable<Passage> {
       id: serializer.fromJson<String>(json['id']),
       packId: serializer.fromJson<String>(json['packId']),
       title: serializer.fromJson<String?>(json['title']),
-      sentencesJson: serializer.fromJson<String>(json['sentencesJson']),
+      sentencesJson: serializer.fromJson<List<Sentence>>(json['sentencesJson']),
       orderIndex: serializer.fromJson<int>(json['orderIndex']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
     );
@@ -774,7 +755,7 @@ class Passage extends DataClass implements Insertable<Passage> {
       'id': serializer.toJson<String>(id),
       'packId': serializer.toJson<String>(packId),
       'title': serializer.toJson<String?>(title),
-      'sentencesJson': serializer.toJson<String>(sentencesJson),
+      'sentencesJson': serializer.toJson<List<Sentence>>(sentencesJson),
       'orderIndex': serializer.toJson<int>(orderIndex),
       'createdAt': serializer.toJson<DateTime>(createdAt),
     };
@@ -784,7 +765,7 @@ class Passage extends DataClass implements Insertable<Passage> {
     String? id,
     String? packId,
     Value<String?> title = const Value.absent(),
-    String? sentencesJson,
+    List<Sentence>? sentencesJson,
     int? orderIndex,
     DateTime? createdAt,
   }) => Passage(
@@ -842,7 +823,7 @@ class PassagesCompanion extends UpdateCompanion<Passage> {
   final Value<String> id;
   final Value<String> packId;
   final Value<String?> title;
-  final Value<String> sentencesJson;
+  final Value<List<Sentence>> sentencesJson;
   final Value<int> orderIndex;
   final Value<DateTime> createdAt;
   final Value<int> rowid;
@@ -859,7 +840,7 @@ class PassagesCompanion extends UpdateCompanion<Passage> {
     required String id,
     required String packId,
     this.title = const Value.absent(),
-    required String sentencesJson,
+    required List<Sentence> sentencesJson,
     required int orderIndex,
     this.createdAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -891,7 +872,7 @@ class PassagesCompanion extends UpdateCompanion<Passage> {
     Value<String>? id,
     Value<String>? packId,
     Value<String?>? title,
-    Value<String>? sentencesJson,
+    Value<List<Sentence>>? sentencesJson,
     Value<int>? orderIndex,
     Value<DateTime>? createdAt,
     Value<int>? rowid,
@@ -920,7 +901,9 @@ class PassagesCompanion extends UpdateCompanion<Passage> {
       map['title'] = Variable<String>(title.value);
     }
     if (sentencesJson.present) {
-      map['sentences_json'] = Variable<String>(sentencesJson.value);
+      map['sentences_json'] = Variable<String>(
+        $PassagesTable.$convertersentencesJson.toSql(sentencesJson.value),
+      );
     }
     if (orderIndex.present) {
       map['order_index'] = Variable<int>(orderIndex.value);
@@ -960,10 +943,7 @@ class $ScriptsTable extends Scripts with TableInfo<$ScriptsTable, Script> {
     'id',
     aliasedName,
     false,
-    additionalChecks: GeneratedColumn.checkTextLength(
-      minTextLength: 1,
-      maxTextLength: 80,
-    ),
+    additionalChecks: GeneratedColumn.checkTextLength(minTextLength: 1),
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
@@ -979,39 +959,33 @@ class $ScriptsTable extends Scripts with TableInfo<$ScriptsTable, Script> {
       'REFERENCES content_packs (id) ON DELETE CASCADE',
     ),
   );
-  static const VerificationMeta _sentencesJsonMeta = const VerificationMeta(
-    'sentencesJson',
-  );
   @override
-  late final GeneratedColumn<String> sentencesJson = GeneratedColumn<String>(
+  late final GeneratedColumnWithTypeConverter<List<Sentence>, String>
+  sentencesJson = GeneratedColumn<String>(
     'sentences_json',
     aliasedName,
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: true,
-  );
-  static const VerificationMeta _turnsJsonMeta = const VerificationMeta(
-    'turnsJson',
-  );
+  ).withConverter<List<Sentence>>($ScriptsTable.$convertersentencesJson);
   @override
-  late final GeneratedColumn<String> turnsJson = GeneratedColumn<String>(
-    'turns_json',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _ttsPlanJsonMeta = const VerificationMeta(
-    'ttsPlanJson',
-  );
+  late final GeneratedColumnWithTypeConverter<List<Turn>, String> turnsJson =
+      GeneratedColumn<String>(
+        'turns_json',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: true,
+      ).withConverter<List<Turn>>($ScriptsTable.$converterturnsJson);
   @override
-  late final GeneratedColumn<String> ttsPlanJson = GeneratedColumn<String>(
-    'tts_plan_json',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
+  late final GeneratedColumnWithTypeConverter<TtsPlan, String> ttsPlanJson =
+      GeneratedColumn<String>(
+        'tts_plan_json',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: true,
+      ).withConverter<TtsPlan>($ScriptsTable.$converterttsPlanJson);
   static const VerificationMeta _orderIndexMeta = const VerificationMeta(
     'orderIndex',
   );
@@ -1071,36 +1045,6 @@ class $ScriptsTable extends Scripts with TableInfo<$ScriptsTable, Script> {
     } else if (isInserting) {
       context.missing(_packIdMeta);
     }
-    if (data.containsKey('sentences_json')) {
-      context.handle(
-        _sentencesJsonMeta,
-        sentencesJson.isAcceptableOrUnknown(
-          data['sentences_json']!,
-          _sentencesJsonMeta,
-        ),
-      );
-    } else if (isInserting) {
-      context.missing(_sentencesJsonMeta);
-    }
-    if (data.containsKey('turns_json')) {
-      context.handle(
-        _turnsJsonMeta,
-        turnsJson.isAcceptableOrUnknown(data['turns_json']!, _turnsJsonMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_turnsJsonMeta);
-    }
-    if (data.containsKey('tts_plan_json')) {
-      context.handle(
-        _ttsPlanJsonMeta,
-        ttsPlanJson.isAcceptableOrUnknown(
-          data['tts_plan_json']!,
-          _ttsPlanJsonMeta,
-        ),
-      );
-    } else if (isInserting) {
-      context.missing(_ttsPlanJsonMeta);
-    }
     if (data.containsKey('order_index')) {
       context.handle(
         _orderIndexMeta,
@@ -1132,18 +1076,24 @@ class $ScriptsTable extends Scripts with TableInfo<$ScriptsTable, Script> {
         DriftSqlType.string,
         data['${effectivePrefix}pack_id'],
       )!,
-      sentencesJson: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}sentences_json'],
-      )!,
-      turnsJson: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}turns_json'],
-      )!,
-      ttsPlanJson: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}tts_plan_json'],
-      )!,
+      sentencesJson: $ScriptsTable.$convertersentencesJson.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}sentences_json'],
+        )!,
+      ),
+      turnsJson: $ScriptsTable.$converterturnsJson.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}turns_json'],
+        )!,
+      ),
+      ttsPlanJson: $ScriptsTable.$converterttsPlanJson.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}tts_plan_json'],
+        )!,
+      ),
       orderIndex: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}order_index'],
@@ -1159,14 +1109,21 @@ class $ScriptsTable extends Scripts with TableInfo<$ScriptsTable, Script> {
   $ScriptsTable createAlias(String alias) {
     return $ScriptsTable(attachedDatabase, alias);
   }
+
+  static TypeConverter<List<Sentence>, String> $convertersentencesJson =
+      const SentencesConverter();
+  static TypeConverter<List<Turn>, String> $converterturnsJson =
+      const TurnsConverter();
+  static TypeConverter<TtsPlan, String> $converterttsPlanJson =
+      const TtsPlanConverter();
 }
 
 class Script extends DataClass implements Insertable<Script> {
   final String id;
   final String packId;
-  final String sentencesJson;
-  final String turnsJson;
-  final String ttsPlanJson;
+  final List<Sentence> sentencesJson;
+  final List<Turn> turnsJson;
+  final TtsPlan ttsPlanJson;
   final int orderIndex;
   final DateTime createdAt;
   const Script({
@@ -1183,9 +1140,21 @@ class Script extends DataClass implements Insertable<Script> {
     final map = <String, Expression>{};
     map['id'] = Variable<String>(id);
     map['pack_id'] = Variable<String>(packId);
-    map['sentences_json'] = Variable<String>(sentencesJson);
-    map['turns_json'] = Variable<String>(turnsJson);
-    map['tts_plan_json'] = Variable<String>(ttsPlanJson);
+    {
+      map['sentences_json'] = Variable<String>(
+        $ScriptsTable.$convertersentencesJson.toSql(sentencesJson),
+      );
+    }
+    {
+      map['turns_json'] = Variable<String>(
+        $ScriptsTable.$converterturnsJson.toSql(turnsJson),
+      );
+    }
+    {
+      map['tts_plan_json'] = Variable<String>(
+        $ScriptsTable.$converterttsPlanJson.toSql(ttsPlanJson),
+      );
+    }
     map['order_index'] = Variable<int>(orderIndex);
     map['created_at'] = Variable<DateTime>(createdAt);
     return map;
@@ -1211,9 +1180,9 @@ class Script extends DataClass implements Insertable<Script> {
     return Script(
       id: serializer.fromJson<String>(json['id']),
       packId: serializer.fromJson<String>(json['packId']),
-      sentencesJson: serializer.fromJson<String>(json['sentencesJson']),
-      turnsJson: serializer.fromJson<String>(json['turnsJson']),
-      ttsPlanJson: serializer.fromJson<String>(json['ttsPlanJson']),
+      sentencesJson: serializer.fromJson<List<Sentence>>(json['sentencesJson']),
+      turnsJson: serializer.fromJson<List<Turn>>(json['turnsJson']),
+      ttsPlanJson: serializer.fromJson<TtsPlan>(json['ttsPlanJson']),
       orderIndex: serializer.fromJson<int>(json['orderIndex']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
     );
@@ -1224,9 +1193,9 @@ class Script extends DataClass implements Insertable<Script> {
     return <String, dynamic>{
       'id': serializer.toJson<String>(id),
       'packId': serializer.toJson<String>(packId),
-      'sentencesJson': serializer.toJson<String>(sentencesJson),
-      'turnsJson': serializer.toJson<String>(turnsJson),
-      'ttsPlanJson': serializer.toJson<String>(ttsPlanJson),
+      'sentencesJson': serializer.toJson<List<Sentence>>(sentencesJson),
+      'turnsJson': serializer.toJson<List<Turn>>(turnsJson),
+      'ttsPlanJson': serializer.toJson<TtsPlan>(ttsPlanJson),
       'orderIndex': serializer.toJson<int>(orderIndex),
       'createdAt': serializer.toJson<DateTime>(createdAt),
     };
@@ -1235,9 +1204,9 @@ class Script extends DataClass implements Insertable<Script> {
   Script copyWith({
     String? id,
     String? packId,
-    String? sentencesJson,
-    String? turnsJson,
-    String? ttsPlanJson,
+    List<Sentence>? sentencesJson,
+    List<Turn>? turnsJson,
+    TtsPlan? ttsPlanJson,
     int? orderIndex,
     DateTime? createdAt,
   }) => Script(
@@ -1307,9 +1276,9 @@ class Script extends DataClass implements Insertable<Script> {
 class ScriptsCompanion extends UpdateCompanion<Script> {
   final Value<String> id;
   final Value<String> packId;
-  final Value<String> sentencesJson;
-  final Value<String> turnsJson;
-  final Value<String> ttsPlanJson;
+  final Value<List<Sentence>> sentencesJson;
+  final Value<List<Turn>> turnsJson;
+  final Value<TtsPlan> ttsPlanJson;
   final Value<int> orderIndex;
   final Value<DateTime> createdAt;
   final Value<int> rowid;
@@ -1326,9 +1295,9 @@ class ScriptsCompanion extends UpdateCompanion<Script> {
   ScriptsCompanion.insert({
     required String id,
     required String packId,
-    required String sentencesJson,
-    required String turnsJson,
-    required String ttsPlanJson,
+    required List<Sentence> sentencesJson,
+    required List<Turn> turnsJson,
+    required TtsPlan ttsPlanJson,
     required int orderIndex,
     this.createdAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -1363,9 +1332,9 @@ class ScriptsCompanion extends UpdateCompanion<Script> {
   ScriptsCompanion copyWith({
     Value<String>? id,
     Value<String>? packId,
-    Value<String>? sentencesJson,
-    Value<String>? turnsJson,
-    Value<String>? ttsPlanJson,
+    Value<List<Sentence>>? sentencesJson,
+    Value<List<Turn>>? turnsJson,
+    Value<TtsPlan>? ttsPlanJson,
     Value<int>? orderIndex,
     Value<DateTime>? createdAt,
     Value<int>? rowid,
@@ -1392,13 +1361,19 @@ class ScriptsCompanion extends UpdateCompanion<Script> {
       map['pack_id'] = Variable<String>(packId.value);
     }
     if (sentencesJson.present) {
-      map['sentences_json'] = Variable<String>(sentencesJson.value);
+      map['sentences_json'] = Variable<String>(
+        $ScriptsTable.$convertersentencesJson.toSql(sentencesJson.value),
+      );
     }
     if (turnsJson.present) {
-      map['turns_json'] = Variable<String>(turnsJson.value);
+      map['turns_json'] = Variable<String>(
+        $ScriptsTable.$converterturnsJson.toSql(turnsJson.value),
+      );
     }
     if (ttsPlanJson.present) {
-      map['tts_plan_json'] = Variable<String>(ttsPlanJson.value);
+      map['tts_plan_json'] = Variable<String>(
+        $ScriptsTable.$converterttsPlanJson.toSql(ttsPlanJson.value),
+      );
     }
     if (orderIndex.present) {
       map['order_index'] = Variable<int>(orderIndex.value);
@@ -1440,10 +1415,7 @@ class $QuestionsTable extends Questions
     'id',
     aliasedName,
     false,
-    additionalChecks: GeneratedColumn.checkTextLength(
-      minTextLength: 1,
-      maxTextLength: 80,
-    ),
+    additionalChecks: GeneratedColumn.checkTextLength(minTextLength: 1),
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
@@ -1466,10 +1438,7 @@ class $QuestionsTable extends Questions
     'type_tag',
     aliasedName,
     false,
-    additionalChecks: GeneratedColumn.checkTextLength(
-      minTextLength: 2,
-      maxTextLength: 16,
-    ),
+    additionalChecks: GeneratedColumn.checkTextLength(minTextLength: 2),
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
@@ -1530,24 +1499,19 @@ class $QuestionsTable extends Questions
     'prompt',
     aliasedName,
     false,
-    additionalChecks: GeneratedColumn.checkTextLength(
-      minTextLength: 1,
-      maxTextLength: 2000,
-    ),
+    additionalChecks: GeneratedColumn.checkTextLength(minTextLength: 1),
     type: DriftSqlType.string,
     requiredDuringInsert: true,
-  );
-  static const VerificationMeta _optionsJsonMeta = const VerificationMeta(
-    'optionsJson',
   );
   @override
-  late final GeneratedColumn<String> optionsJson = GeneratedColumn<String>(
-    'options_json',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
+  late final GeneratedColumnWithTypeConverter<OptionMap, String> optionsJson =
+      GeneratedColumn<String>(
+        'options_json',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: true,
+      ).withConverter<OptionMap>($QuestionsTable.$converteroptionsJson);
   static const VerificationMeta _answerKeyMeta = const VerificationMeta(
     'answerKey',
   );
@@ -1656,17 +1620,6 @@ class $QuestionsTable extends Questions
     } else if (isInserting) {
       context.missing(_promptMeta);
     }
-    if (data.containsKey('options_json')) {
-      context.handle(
-        _optionsJsonMeta,
-        optionsJson.isAcceptableOrUnknown(
-          data['options_json']!,
-          _optionsJsonMeta,
-        ),
-      );
-    } else if (isInserting) {
-      context.missing(_optionsJsonMeta);
-    }
     if (data.containsKey('answer_key')) {
       context.handle(
         _answerKeyMeta,
@@ -1724,10 +1677,12 @@ class $QuestionsTable extends Questions
         DriftSqlType.string,
         data['${effectivePrefix}prompt'],
       )!,
-      optionsJson: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}options_json'],
-      )!,
+      optionsJson: $QuestionsTable.$converteroptionsJson.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}options_json'],
+        )!,
+      ),
       answerKey: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}answer_key'],
@@ -1743,6 +1698,9 @@ class $QuestionsTable extends Questions
   $QuestionsTable createAlias(String alias) {
     return $QuestionsTable(attachedDatabase, alias);
   }
+
+  static TypeConverter<OptionMap, String> $converteroptionsJson =
+      const OptionMapConverter();
 }
 
 class Question extends DataClass implements Insertable<Question> {
@@ -1754,7 +1712,7 @@ class Question extends DataClass implements Insertable<Question> {
   final String? passageId;
   final String? scriptId;
   final String prompt;
-  final String optionsJson;
+  final OptionMap optionsJson;
   final String answerKey;
   final int orderIndex;
   const Question({
@@ -1785,7 +1743,11 @@ class Question extends DataClass implements Insertable<Question> {
       map['script_id'] = Variable<String>(scriptId);
     }
     map['prompt'] = Variable<String>(prompt);
-    map['options_json'] = Variable<String>(optionsJson);
+    {
+      map['options_json'] = Variable<String>(
+        $QuestionsTable.$converteroptionsJson.toSql(optionsJson),
+      );
+    }
     map['answer_key'] = Variable<String>(answerKey);
     map['order_index'] = Variable<int>(orderIndex);
     return map;
@@ -1825,7 +1787,7 @@ class Question extends DataClass implements Insertable<Question> {
       passageId: serializer.fromJson<String?>(json['passageId']),
       scriptId: serializer.fromJson<String?>(json['scriptId']),
       prompt: serializer.fromJson<String>(json['prompt']),
-      optionsJson: serializer.fromJson<String>(json['optionsJson']),
+      optionsJson: serializer.fromJson<OptionMap>(json['optionsJson']),
       answerKey: serializer.fromJson<String>(json['answerKey']),
       orderIndex: serializer.fromJson<int>(json['orderIndex']),
     );
@@ -1842,7 +1804,7 @@ class Question extends DataClass implements Insertable<Question> {
       'passageId': serializer.toJson<String?>(passageId),
       'scriptId': serializer.toJson<String?>(scriptId),
       'prompt': serializer.toJson<String>(prompt),
-      'optionsJson': serializer.toJson<String>(optionsJson),
+      'optionsJson': serializer.toJson<OptionMap>(optionsJson),
       'answerKey': serializer.toJson<String>(answerKey),
       'orderIndex': serializer.toJson<int>(orderIndex),
     };
@@ -1857,7 +1819,7 @@ class Question extends DataClass implements Insertable<Question> {
     Value<String?> passageId = const Value.absent(),
     Value<String?> scriptId = const Value.absent(),
     String? prompt,
-    String? optionsJson,
+    OptionMap? optionsJson,
     String? answerKey,
     int? orderIndex,
   }) => Question(
@@ -1953,7 +1915,7 @@ class QuestionsCompanion extends UpdateCompanion<Question> {
   final Value<String?> passageId;
   final Value<String?> scriptId;
   final Value<String> prompt;
-  final Value<String> optionsJson;
+  final Value<OptionMap> optionsJson;
   final Value<String> answerKey;
   final Value<int> orderIndex;
   final Value<int> rowid;
@@ -1980,7 +1942,7 @@ class QuestionsCompanion extends UpdateCompanion<Question> {
     this.passageId = const Value.absent(),
     this.scriptId = const Value.absent(),
     required String prompt,
-    required String optionsJson,
+    required OptionMap optionsJson,
     required String answerKey,
     required int orderIndex,
     this.rowid = const Value.absent(),
@@ -2032,7 +1994,7 @@ class QuestionsCompanion extends UpdateCompanion<Question> {
     Value<String?>? passageId,
     Value<String?>? scriptId,
     Value<String>? prompt,
-    Value<String>? optionsJson,
+    Value<OptionMap>? optionsJson,
     Value<String>? answerKey,
     Value<int>? orderIndex,
     Value<int>? rowid,
@@ -2081,7 +2043,9 @@ class QuestionsCompanion extends UpdateCompanion<Question> {
       map['prompt'] = Variable<String>(prompt.value);
     }
     if (optionsJson.present) {
-      map['options_json'] = Variable<String>(optionsJson.value);
+      map['options_json'] = Variable<String>(
+        $QuestionsTable.$converteroptionsJson.toSql(optionsJson.value),
+      );
     }
     if (answerKey.present) {
       map['answer_key'] = Variable<String>(answerKey.value);
@@ -2127,10 +2091,7 @@ class $ExplanationsTable extends Explanations
     'id',
     aliasedName,
     false,
-    additionalChecks: GeneratedColumn.checkTextLength(
-      minTextLength: 1,
-      maxTextLength: 80,
-    ),
+    additionalChecks: GeneratedColumn.checkTextLength(minTextLength: 1),
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
@@ -2148,16 +2109,17 @@ class $ExplanationsTable extends Explanations
       'REFERENCES questions (id) ON DELETE CASCADE',
     ),
   );
-  static const VerificationMeta _evidenceSentenceIdsJsonMeta =
-      const VerificationMeta('evidenceSentenceIdsJson');
   @override
-  late final GeneratedColumn<String> evidenceSentenceIdsJson =
+  late final GeneratedColumnWithTypeConverter<List<String>, String>
+  evidenceSentenceIdsJson =
       GeneratedColumn<String>(
         'evidence_sentence_ids_json',
         aliasedName,
         false,
         type: DriftSqlType.string,
         requiredDuringInsert: true,
+      ).withConverter<List<String>>(
+        $ExplanationsTable.$converterevidenceSentenceIdsJson,
       );
   static const VerificationMeta _whyCorrectKoMeta = const VerificationMeta(
     'whyCorrectKo',
@@ -2167,24 +2129,19 @@ class $ExplanationsTable extends Explanations
     'why_correct_ko',
     aliasedName,
     false,
-    additionalChecks: GeneratedColumn.checkTextLength(
-      minTextLength: 1,
-      maxTextLength: 4000,
-    ),
+    additionalChecks: GeneratedColumn.checkTextLength(minTextLength: 1),
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _whyWrongKoJsonMeta = const VerificationMeta(
-    'whyWrongKoJson',
-  );
   @override
-  late final GeneratedColumn<String> whyWrongKoJson = GeneratedColumn<String>(
+  late final GeneratedColumnWithTypeConverter<OptionMap, String>
+  whyWrongKoJson = GeneratedColumn<String>(
     'why_wrong_ko_json',
     aliasedName,
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: true,
-  );
+  ).withConverter<OptionMap>($ExplanationsTable.$converterwhyWrongKoJson);
   static const VerificationMeta _vocabNotesJsonMeta = const VerificationMeta(
     'vocabNotesJson',
   );
@@ -2267,17 +2224,6 @@ class $ExplanationsTable extends Explanations
     } else if (isInserting) {
       context.missing(_questionIdMeta);
     }
-    if (data.containsKey('evidence_sentence_ids_json')) {
-      context.handle(
-        _evidenceSentenceIdsJsonMeta,
-        evidenceSentenceIdsJson.isAcceptableOrUnknown(
-          data['evidence_sentence_ids_json']!,
-          _evidenceSentenceIdsJsonMeta,
-        ),
-      );
-    } else if (isInserting) {
-      context.missing(_evidenceSentenceIdsJsonMeta);
-    }
     if (data.containsKey('why_correct_ko')) {
       context.handle(
         _whyCorrectKoMeta,
@@ -2288,17 +2234,6 @@ class $ExplanationsTable extends Explanations
       );
     } else if (isInserting) {
       context.missing(_whyCorrectKoMeta);
-    }
-    if (data.containsKey('why_wrong_ko_json')) {
-      context.handle(
-        _whyWrongKoJsonMeta,
-        whyWrongKoJson.isAcceptableOrUnknown(
-          data['why_wrong_ko_json']!,
-          _whyWrongKoJsonMeta,
-        ),
-      );
-    } else if (isInserting) {
-      context.missing(_whyWrongKoJsonMeta);
     }
     if (data.containsKey('vocab_notes_json')) {
       context.handle(
@@ -2354,18 +2289,24 @@ class $ExplanationsTable extends Explanations
         DriftSqlType.string,
         data['${effectivePrefix}question_id'],
       )!,
-      evidenceSentenceIdsJson: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}evidence_sentence_ids_json'],
-      )!,
+      evidenceSentenceIdsJson: $ExplanationsTable
+          .$converterevidenceSentenceIdsJson
+          .fromSql(
+            attachedDatabase.typeMapping.read(
+              DriftSqlType.string,
+              data['${effectivePrefix}evidence_sentence_ids_json'],
+            )!,
+          ),
       whyCorrectKo: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}why_correct_ko'],
       )!,
-      whyWrongKoJson: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}why_wrong_ko_json'],
-      )!,
+      whyWrongKoJson: $ExplanationsTable.$converterwhyWrongKoJson.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}why_wrong_ko_json'],
+        )!,
+      ),
       vocabNotesJson: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}vocab_notes_json'],
@@ -2389,14 +2330,19 @@ class $ExplanationsTable extends Explanations
   $ExplanationsTable createAlias(String alias) {
     return $ExplanationsTable(attachedDatabase, alias);
   }
+
+  static TypeConverter<List<String>, String> $converterevidenceSentenceIdsJson =
+      const StringListConverter();
+  static TypeConverter<OptionMap, String> $converterwhyWrongKoJson =
+      const OptionMapConverter();
 }
 
 class Explanation extends DataClass implements Insertable<Explanation> {
   final String id;
   final String questionId;
-  final String evidenceSentenceIdsJson;
+  final List<String> evidenceSentenceIdsJson;
   final String whyCorrectKo;
-  final String whyWrongKoJson;
+  final OptionMap whyWrongKoJson;
   final String? vocabNotesJson;
   final String? structureNotesKo;
   final String? glossKoJson;
@@ -2417,11 +2363,19 @@ class Explanation extends DataClass implements Insertable<Explanation> {
     final map = <String, Expression>{};
     map['id'] = Variable<String>(id);
     map['question_id'] = Variable<String>(questionId);
-    map['evidence_sentence_ids_json'] = Variable<String>(
-      evidenceSentenceIdsJson,
-    );
+    {
+      map['evidence_sentence_ids_json'] = Variable<String>(
+        $ExplanationsTable.$converterevidenceSentenceIdsJson.toSql(
+          evidenceSentenceIdsJson,
+        ),
+      );
+    }
     map['why_correct_ko'] = Variable<String>(whyCorrectKo);
-    map['why_wrong_ko_json'] = Variable<String>(whyWrongKoJson);
+    {
+      map['why_wrong_ko_json'] = Variable<String>(
+        $ExplanationsTable.$converterwhyWrongKoJson.toSql(whyWrongKoJson),
+      );
+    }
     if (!nullToAbsent || vocabNotesJson != null) {
       map['vocab_notes_json'] = Variable<String>(vocabNotesJson);
     }
@@ -2463,11 +2417,11 @@ class Explanation extends DataClass implements Insertable<Explanation> {
     return Explanation(
       id: serializer.fromJson<String>(json['id']),
       questionId: serializer.fromJson<String>(json['questionId']),
-      evidenceSentenceIdsJson: serializer.fromJson<String>(
+      evidenceSentenceIdsJson: serializer.fromJson<List<String>>(
         json['evidenceSentenceIdsJson'],
       ),
       whyCorrectKo: serializer.fromJson<String>(json['whyCorrectKo']),
-      whyWrongKoJson: serializer.fromJson<String>(json['whyWrongKoJson']),
+      whyWrongKoJson: serializer.fromJson<OptionMap>(json['whyWrongKoJson']),
       vocabNotesJson: serializer.fromJson<String?>(json['vocabNotesJson']),
       structureNotesKo: serializer.fromJson<String?>(json['structureNotesKo']),
       glossKoJson: serializer.fromJson<String?>(json['glossKoJson']),
@@ -2480,11 +2434,11 @@ class Explanation extends DataClass implements Insertable<Explanation> {
     return <String, dynamic>{
       'id': serializer.toJson<String>(id),
       'questionId': serializer.toJson<String>(questionId),
-      'evidenceSentenceIdsJson': serializer.toJson<String>(
+      'evidenceSentenceIdsJson': serializer.toJson<List<String>>(
         evidenceSentenceIdsJson,
       ),
       'whyCorrectKo': serializer.toJson<String>(whyCorrectKo),
-      'whyWrongKoJson': serializer.toJson<String>(whyWrongKoJson),
+      'whyWrongKoJson': serializer.toJson<OptionMap>(whyWrongKoJson),
       'vocabNotesJson': serializer.toJson<String?>(vocabNotesJson),
       'structureNotesKo': serializer.toJson<String?>(structureNotesKo),
       'glossKoJson': serializer.toJson<String?>(glossKoJson),
@@ -2495,9 +2449,9 @@ class Explanation extends DataClass implements Insertable<Explanation> {
   Explanation copyWith({
     String? id,
     String? questionId,
-    String? evidenceSentenceIdsJson,
+    List<String>? evidenceSentenceIdsJson,
     String? whyCorrectKo,
-    String? whyWrongKoJson,
+    OptionMap? whyWrongKoJson,
     Value<String?> vocabNotesJson = const Value.absent(),
     Value<String?> structureNotesKo = const Value.absent(),
     Value<String?> glossKoJson = const Value.absent(),
@@ -2592,9 +2546,9 @@ class Explanation extends DataClass implements Insertable<Explanation> {
 class ExplanationsCompanion extends UpdateCompanion<Explanation> {
   final Value<String> id;
   final Value<String> questionId;
-  final Value<String> evidenceSentenceIdsJson;
+  final Value<List<String>> evidenceSentenceIdsJson;
   final Value<String> whyCorrectKo;
-  final Value<String> whyWrongKoJson;
+  final Value<OptionMap> whyWrongKoJson;
   final Value<String?> vocabNotesJson;
   final Value<String?> structureNotesKo;
   final Value<String?> glossKoJson;
@@ -2615,9 +2569,9 @@ class ExplanationsCompanion extends UpdateCompanion<Explanation> {
   ExplanationsCompanion.insert({
     required String id,
     required String questionId,
-    required String evidenceSentenceIdsJson,
+    required List<String> evidenceSentenceIdsJson,
     required String whyCorrectKo,
-    required String whyWrongKoJson,
+    required OptionMap whyWrongKoJson,
     this.vocabNotesJson = const Value.absent(),
     this.structureNotesKo = const Value.absent(),
     this.glossKoJson = const Value.absent(),
@@ -2658,9 +2612,9 @@ class ExplanationsCompanion extends UpdateCompanion<Explanation> {
   ExplanationsCompanion copyWith({
     Value<String>? id,
     Value<String>? questionId,
-    Value<String>? evidenceSentenceIdsJson,
+    Value<List<String>>? evidenceSentenceIdsJson,
     Value<String>? whyCorrectKo,
-    Value<String>? whyWrongKoJson,
+    Value<OptionMap>? whyWrongKoJson,
     Value<String?>? vocabNotesJson,
     Value<String?>? structureNotesKo,
     Value<String?>? glossKoJson,
@@ -2693,14 +2647,18 @@ class ExplanationsCompanion extends UpdateCompanion<Explanation> {
     }
     if (evidenceSentenceIdsJson.present) {
       map['evidence_sentence_ids_json'] = Variable<String>(
-        evidenceSentenceIdsJson.value,
+        $ExplanationsTable.$converterevidenceSentenceIdsJson.toSql(
+          evidenceSentenceIdsJson.value,
+        ),
       );
     }
     if (whyCorrectKo.present) {
       map['why_correct_ko'] = Variable<String>(whyCorrectKo.value);
     }
     if (whyWrongKoJson.present) {
-      map['why_wrong_ko_json'] = Variable<String>(whyWrongKoJson.value);
+      map['why_wrong_ko_json'] = Variable<String>(
+        $ExplanationsTable.$converterwhyWrongKoJson.toSql(whyWrongKoJson.value),
+      );
     }
     if (vocabNotesJson.present) {
       map['vocab_notes_json'] = Variable<String>(vocabNotesJson.value);
@@ -3588,10 +3546,7 @@ class $VocabMasterTable extends VocabMaster
     'id',
     aliasedName,
     false,
-    additionalChecks: GeneratedColumn.checkTextLength(
-      minTextLength: 1,
-      maxTextLength: 80,
-    ),
+    additionalChecks: GeneratedColumn.checkTextLength(minTextLength: 1),
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
@@ -3601,10 +3556,7 @@ class $VocabMasterTable extends VocabMaster
     'lemma',
     aliasedName,
     false,
-    additionalChecks: GeneratedColumn.checkTextLength(
-      minTextLength: 1,
-      maxTextLength: 120,
-    ),
+    additionalChecks: GeneratedColumn.checkTextLength(minTextLength: 1),
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
@@ -3625,10 +3577,7 @@ class $VocabMasterTable extends VocabMaster
     'meaning',
     aliasedName,
     false,
-    additionalChecks: GeneratedColumn.checkTextLength(
-      minTextLength: 1,
-      maxTextLength: 400,
-    ),
+    additionalChecks: GeneratedColumn.checkTextLength(minTextLength: 1),
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
@@ -5568,7 +5517,7 @@ typedef $$PassagesTableCreateCompanionBuilder =
       required String id,
       required String packId,
       Value<String?> title,
-      required String sentencesJson,
+      required List<Sentence> sentencesJson,
       required int orderIndex,
       Value<DateTime> createdAt,
       Value<int> rowid,
@@ -5578,7 +5527,7 @@ typedef $$PassagesTableUpdateCompanionBuilder =
       Value<String> id,
       Value<String> packId,
       Value<String?> title,
-      Value<String> sentencesJson,
+      Value<List<Sentence>> sentencesJson,
       Value<int> orderIndex,
       Value<DateTime> createdAt,
       Value<int> rowid,
@@ -5645,9 +5594,10 @@ class $$PassagesTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get sentencesJson => $composableBuilder(
+  ColumnWithTypeConverterFilters<List<Sentence>, List<Sentence>, String>
+  get sentencesJson => $composableBuilder(
     column: $table.sentencesJson,
-    builder: (column) => ColumnFilters(column),
+    builder: (column) => ColumnWithTypeConverterFilters(column),
   );
 
   ColumnFilters<int> get orderIndex => $composableBuilder(
@@ -5782,10 +5732,11 @@ class $$PassagesTableAnnotationComposer
   GeneratedColumn<String> get title =>
       $composableBuilder(column: $table.title, builder: (column) => column);
 
-  GeneratedColumn<String> get sentencesJson => $composableBuilder(
-    column: $table.sentencesJson,
-    builder: (column) => column,
-  );
+  GeneratedColumnWithTypeConverter<List<Sentence>, String> get sentencesJson =>
+      $composableBuilder(
+        column: $table.sentencesJson,
+        builder: (column) => column,
+      );
 
   GeneratedColumn<int> get orderIndex => $composableBuilder(
     column: $table.orderIndex,
@@ -5875,7 +5826,7 @@ class $$PassagesTableTableManager
                 Value<String> id = const Value.absent(),
                 Value<String> packId = const Value.absent(),
                 Value<String?> title = const Value.absent(),
-                Value<String> sentencesJson = const Value.absent(),
+                Value<List<Sentence>> sentencesJson = const Value.absent(),
                 Value<int> orderIndex = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -5893,7 +5844,7 @@ class $$PassagesTableTableManager
                 required String id,
                 required String packId,
                 Value<String?> title = const Value.absent(),
-                required String sentencesJson,
+                required List<Sentence> sentencesJson,
                 required int orderIndex,
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -5996,9 +5947,9 @@ typedef $$ScriptsTableCreateCompanionBuilder =
     ScriptsCompanion Function({
       required String id,
       required String packId,
-      required String sentencesJson,
-      required String turnsJson,
-      required String ttsPlanJson,
+      required List<Sentence> sentencesJson,
+      required List<Turn> turnsJson,
+      required TtsPlan ttsPlanJson,
       required int orderIndex,
       Value<DateTime> createdAt,
       Value<int> rowid,
@@ -6007,9 +5958,9 @@ typedef $$ScriptsTableUpdateCompanionBuilder =
     ScriptsCompanion Function({
       Value<String> id,
       Value<String> packId,
-      Value<String> sentencesJson,
-      Value<String> turnsJson,
-      Value<String> ttsPlanJson,
+      Value<List<Sentence>> sentencesJson,
+      Value<List<Turn>> turnsJson,
+      Value<TtsPlan> ttsPlanJson,
       Value<int> orderIndex,
       Value<DateTime> createdAt,
       Value<int> rowid,
@@ -6069,20 +6020,23 @@ class $$ScriptsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get sentencesJson => $composableBuilder(
+  ColumnWithTypeConverterFilters<List<Sentence>, List<Sentence>, String>
+  get sentencesJson => $composableBuilder(
     column: $table.sentencesJson,
-    builder: (column) => ColumnFilters(column),
+    builder: (column) => ColumnWithTypeConverterFilters(column),
   );
 
-  ColumnFilters<String> get turnsJson => $composableBuilder(
+  ColumnWithTypeConverterFilters<List<Turn>, List<Turn>, String>
+  get turnsJson => $composableBuilder(
     column: $table.turnsJson,
-    builder: (column) => ColumnFilters(column),
+    builder: (column) => ColumnWithTypeConverterFilters(column),
   );
 
-  ColumnFilters<String> get ttsPlanJson => $composableBuilder(
-    column: $table.ttsPlanJson,
-    builder: (column) => ColumnFilters(column),
-  );
+  ColumnWithTypeConverterFilters<TtsPlan, TtsPlan, String> get ttsPlanJson =>
+      $composableBuilder(
+        column: $table.ttsPlanJson,
+        builder: (column) => ColumnWithTypeConverterFilters(column),
+      );
 
   ColumnFilters<int> get orderIndex => $composableBuilder(
     column: $table.orderIndex,
@@ -6218,18 +6172,20 @@ class $$ScriptsTableAnnotationComposer
   GeneratedColumn<String> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
-  GeneratedColumn<String> get sentencesJson => $composableBuilder(
-    column: $table.sentencesJson,
-    builder: (column) => column,
-  );
+  GeneratedColumnWithTypeConverter<List<Sentence>, String> get sentencesJson =>
+      $composableBuilder(
+        column: $table.sentencesJson,
+        builder: (column) => column,
+      );
 
-  GeneratedColumn<String> get turnsJson =>
+  GeneratedColumnWithTypeConverter<List<Turn>, String> get turnsJson =>
       $composableBuilder(column: $table.turnsJson, builder: (column) => column);
 
-  GeneratedColumn<String> get ttsPlanJson => $composableBuilder(
-    column: $table.ttsPlanJson,
-    builder: (column) => column,
-  );
+  GeneratedColumnWithTypeConverter<TtsPlan, String> get ttsPlanJson =>
+      $composableBuilder(
+        column: $table.ttsPlanJson,
+        builder: (column) => column,
+      );
 
   GeneratedColumn<int> get orderIndex => $composableBuilder(
     column: $table.orderIndex,
@@ -6318,9 +6274,9 @@ class $$ScriptsTableTableManager
               ({
                 Value<String> id = const Value.absent(),
                 Value<String> packId = const Value.absent(),
-                Value<String> sentencesJson = const Value.absent(),
-                Value<String> turnsJson = const Value.absent(),
-                Value<String> ttsPlanJson = const Value.absent(),
+                Value<List<Sentence>> sentencesJson = const Value.absent(),
+                Value<List<Turn>> turnsJson = const Value.absent(),
+                Value<TtsPlan> ttsPlanJson = const Value.absent(),
                 Value<int> orderIndex = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -6338,9 +6294,9 @@ class $$ScriptsTableTableManager
               ({
                 required String id,
                 required String packId,
-                required String sentencesJson,
-                required String turnsJson,
-                required String ttsPlanJson,
+                required List<Sentence> sentencesJson,
+                required List<Turn> turnsJson,
+                required TtsPlan ttsPlanJson,
                 required int orderIndex,
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -6443,7 +6399,7 @@ typedef $$QuestionsTableCreateCompanionBuilder =
       Value<String?> passageId,
       Value<String?> scriptId,
       required String prompt,
-      required String optionsJson,
+      required OptionMap optionsJson,
       required String answerKey,
       required int orderIndex,
       Value<int> rowid,
@@ -6458,7 +6414,7 @@ typedef $$QuestionsTableUpdateCompanionBuilder =
       Value<String?> passageId,
       Value<String?> scriptId,
       Value<String> prompt,
-      Value<String> optionsJson,
+      Value<OptionMap> optionsJson,
       Value<String> answerKey,
       Value<int> orderIndex,
       Value<int> rowid,
@@ -6584,9 +6540,10 @@ class $$QuestionsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get optionsJson => $composableBuilder(
+  ColumnWithTypeConverterFilters<OptionMap, OptionMap, String>
+  get optionsJson => $composableBuilder(
     column: $table.optionsJson,
-    builder: (column) => ColumnFilters(column),
+    builder: (column) => ColumnWithTypeConverterFilters(column),
   );
 
   ColumnFilters<String> get answerKey => $composableBuilder(
@@ -6826,10 +6783,11 @@ class $$QuestionsTableAnnotationComposer
   GeneratedColumn<String> get prompt =>
       $composableBuilder(column: $table.prompt, builder: (column) => column);
 
-  GeneratedColumn<String> get optionsJson => $composableBuilder(
-    column: $table.optionsJson,
-    builder: (column) => column,
-  );
+  GeneratedColumnWithTypeConverter<OptionMap, String> get optionsJson =>
+      $composableBuilder(
+        column: $table.optionsJson,
+        builder: (column) => column,
+      );
 
   GeneratedColumn<String> get answerKey =>
       $composableBuilder(column: $table.answerKey, builder: (column) => column);
@@ -6977,7 +6935,7 @@ class $$QuestionsTableTableManager
                 Value<String?> passageId = const Value.absent(),
                 Value<String?> scriptId = const Value.absent(),
                 Value<String> prompt = const Value.absent(),
-                Value<String> optionsJson = const Value.absent(),
+                Value<OptionMap> optionsJson = const Value.absent(),
                 Value<String> answerKey = const Value.absent(),
                 Value<int> orderIndex = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -7005,7 +6963,7 @@ class $$QuestionsTableTableManager
                 Value<String?> passageId = const Value.absent(),
                 Value<String?> scriptId = const Value.absent(),
                 required String prompt,
-                required String optionsJson,
+                required OptionMap optionsJson,
                 required String answerKey,
                 required int orderIndex,
                 Value<int> rowid = const Value.absent(),
@@ -7164,9 +7122,9 @@ typedef $$ExplanationsTableCreateCompanionBuilder =
     ExplanationsCompanion Function({
       required String id,
       required String questionId,
-      required String evidenceSentenceIdsJson,
+      required List<String> evidenceSentenceIdsJson,
       required String whyCorrectKo,
-      required String whyWrongKoJson,
+      required OptionMap whyWrongKoJson,
       Value<String?> vocabNotesJson,
       Value<String?> structureNotesKo,
       Value<String?> glossKoJson,
@@ -7177,9 +7135,9 @@ typedef $$ExplanationsTableUpdateCompanionBuilder =
     ExplanationsCompanion Function({
       Value<String> id,
       Value<String> questionId,
-      Value<String> evidenceSentenceIdsJson,
+      Value<List<String>> evidenceSentenceIdsJson,
       Value<String> whyCorrectKo,
-      Value<String> whyWrongKoJson,
+      Value<OptionMap> whyWrongKoJson,
       Value<String?> vocabNotesJson,
       Value<String?> structureNotesKo,
       Value<String?> glossKoJson,
@@ -7225,9 +7183,10 @@ class $$ExplanationsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get evidenceSentenceIdsJson => $composableBuilder(
+  ColumnWithTypeConverterFilters<List<String>, List<String>, String>
+  get evidenceSentenceIdsJson => $composableBuilder(
     column: $table.evidenceSentenceIdsJson,
-    builder: (column) => ColumnFilters(column),
+    builder: (column) => ColumnWithTypeConverterFilters(column),
   );
 
   ColumnFilters<String> get whyCorrectKo => $composableBuilder(
@@ -7235,9 +7194,10 @@ class $$ExplanationsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get whyWrongKoJson => $composableBuilder(
+  ColumnWithTypeConverterFilters<OptionMap, OptionMap, String>
+  get whyWrongKoJson => $composableBuilder(
     column: $table.whyWrongKoJson,
-    builder: (column) => ColumnFilters(column),
+    builder: (column) => ColumnWithTypeConverterFilters(column),
   );
 
   ColumnFilters<String> get vocabNotesJson => $composableBuilder(
@@ -7369,7 +7329,8 @@ class $$ExplanationsTableAnnotationComposer
   GeneratedColumn<String> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
-  GeneratedColumn<String> get evidenceSentenceIdsJson => $composableBuilder(
+  GeneratedColumnWithTypeConverter<List<String>, String>
+  get evidenceSentenceIdsJson => $composableBuilder(
     column: $table.evidenceSentenceIdsJson,
     builder: (column) => column,
   );
@@ -7379,10 +7340,11 @@ class $$ExplanationsTableAnnotationComposer
     builder: (column) => column,
   );
 
-  GeneratedColumn<String> get whyWrongKoJson => $composableBuilder(
-    column: $table.whyWrongKoJson,
-    builder: (column) => column,
-  );
+  GeneratedColumnWithTypeConverter<OptionMap, String> get whyWrongKoJson =>
+      $composableBuilder(
+        column: $table.whyWrongKoJson,
+        builder: (column) => column,
+      );
 
   GeneratedColumn<String> get vocabNotesJson => $composableBuilder(
     column: $table.vocabNotesJson,
@@ -7456,9 +7418,10 @@ class $$ExplanationsTableTableManager
               ({
                 Value<String> id = const Value.absent(),
                 Value<String> questionId = const Value.absent(),
-                Value<String> evidenceSentenceIdsJson = const Value.absent(),
+                Value<List<String>> evidenceSentenceIdsJson =
+                    const Value.absent(),
                 Value<String> whyCorrectKo = const Value.absent(),
-                Value<String> whyWrongKoJson = const Value.absent(),
+                Value<OptionMap> whyWrongKoJson = const Value.absent(),
                 Value<String?> vocabNotesJson = const Value.absent(),
                 Value<String?> structureNotesKo = const Value.absent(),
                 Value<String?> glossKoJson = const Value.absent(),
@@ -7480,9 +7443,9 @@ class $$ExplanationsTableTableManager
               ({
                 required String id,
                 required String questionId,
-                required String evidenceSentenceIdsJson,
+                required List<String> evidenceSentenceIdsJson,
                 required String whyCorrectKo,
-                required String whyWrongKoJson,
+                required OptionMap whyWrongKoJson,
                 Value<String?> vocabNotesJson = const Value.absent(),
                 Value<String?> structureNotesKo = const Value.absent(),
                 Value<String?> glossKoJson = const Value.absent(),

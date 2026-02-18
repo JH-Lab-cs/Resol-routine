@@ -5,6 +5,8 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:resol_routine/core/database/app_database.dart';
+import 'package:resol_routine/core/database/converters/json_models.dart';
+import 'package:resol_routine/core/database/db_text_limits.dart';
 import 'package:resol_routine/features/content_pack/data/content_pack_seeder.dart';
 import 'package:resol_routine/features/content_pack/data/models/content_pack_seed.dart';
 
@@ -41,7 +43,7 @@ void main() {
       expect(await database.countVocabSrsState(), 3);
     });
 
-    test('writes exam question fields and fixed A-E options', () async {
+    test('writes typed JSON columns for quiz and content data', () async {
       final seeder = ContentPackSeeder(
         database: database,
         source: MemoryContentPackSource(starterPackJson),
@@ -50,38 +52,37 @@ void main() {
       await seeder.seedOnFirstLaunch();
 
       final rows = await database.select(database.questions).get();
-
       expect(rows.length, 2);
 
       final listening = rows.firstWhere(
         (row) => row.id == 'question_listening_001',
       );
       expect(listening.skill, 'LISTENING');
-      expect(listening.typeTag, 'L1');
-      expect(listening.track, 'M3');
-      expect(listening.difficulty, 2);
-      expect(listening.scriptId, 'script_listening_001');
-      expect(listening.passageId, isNull);
+      expect(listening.optionsJson, isA<OptionMap>());
+      expect(listening.optionsJson.byKey('B'), 'Strawberries');
       expect(listening.answerKey, 'B');
-
-      final listeningOptions =
-          jsonDecode(listening.optionsJson) as Map<String, Object?>;
-      expect(listeningOptions.keys.toSet(), {'A', 'B', 'C', 'D', 'E'});
 
       final reading = rows.firstWhere(
         (row) => row.id == 'question_reading_001',
       );
       expect(reading.skill, 'READING');
-      expect(reading.typeTag, 'R1');
-      expect(reading.track, 'H1');
-      expect(reading.difficulty, 2);
-      expect(reading.passageId, 'passage_reading_001');
-      expect(reading.scriptId, isNull);
+      expect(
+        reading.optionsJson.byKey('A'),
+        'Gloves and a reusable water bottle',
+      );
       expect(reading.answerKey, 'A');
 
-      final readingOptions =
-          jsonDecode(reading.optionsJson) as Map<String, Object?>;
-      expect(readingOptions.keys.toSet(), {'A', 'B', 'C', 'D', 'E'});
+      final script = await database.select(database.scripts).getSingle();
+      expect(script.sentencesJson.first.id, 'ls_001');
+      expect(script.turnsJson.first.speaker, 'S1');
+      expect(script.ttsPlanJson.pitchRange.min, greaterThanOrEqualTo(0.0));
+
+      final explanations = await database.select(database.explanations).get();
+      final listeningExplanation = explanations.firstWhere(
+        (row) => row.id == 'explanation_listening_001',
+      );
+      expect(listeningExplanation.whyWrongKoJson.byKey('A'), isNotEmpty);
+      expect(listeningExplanation.evidenceSentenceIdsJson, contains('ls_002'));
     });
 
     test('does not duplicate records when called more than once', () async {
@@ -117,15 +118,14 @@ void main() {
     });
 
     test('rejects scripts length over injected maxScripts limit', () async {
-      final decoded = jsonDecode(starterPackJson) as Map<String, Object?>;
-      final scripts = List<Object?>.from(decoded['scripts'] as List<Object?>);
-      scripts.add(Map<String, Object?>.from(scripts.first! as JsonMap));
+      final decoded = _decodePack(starterPackJson);
+      final scripts = List<Object?>.from(decoded['scripts']! as List<Object?>);
+      scripts.add(jsonDecode(jsonEncode(scripts.first)) as Object?);
       decoded['scripts'] = scripts;
 
-      final overLimitJson = jsonEncode(decoded);
       final seeder = ContentPackSeeder(
         database: database,
-        source: MemoryContentPackSource(overLimitJson),
+        source: MemoryContentPackSource(jsonEncode(decoded)),
         limits: const SeedLimits(maxScripts: 1),
       );
 
@@ -160,6 +160,60 @@ void main() {
       );
     });
 
+    test('rejects title longer than DB text limit', () async {
+      final decoded = _decodePack(starterPackJson);
+      final pack = Map<String, Object?>.from(
+        decoded['pack']! as Map<String, Object?>,
+      );
+      pack['title'] = 'T' * (DbTextLimits.titleMax + 1);
+      decoded['pack'] = pack;
+
+      final seeder = ContentPackSeeder(
+        database: database,
+        source: MemoryContentPackSource(jsonEncode(decoded)),
+      );
+
+      expect(
+        () => seeder.seedOnFirstLaunch(),
+        throwsA(
+          isA<FormatException>().having(
+            (error) => error.message,
+            'message',
+            contains('pack.title'),
+          ),
+        ),
+      );
+    });
+
+    test('rejects prompt longer than DB text limit', () async {
+      final decoded = _decodePack(starterPackJson);
+      final questions = List<Object?>.from(
+        decoded['questions']! as List<Object?>,
+      );
+      final firstQuestion = Map<String, Object?>.from(
+        questions.first! as Map<String, Object?>,
+      );
+      firstQuestion['prompt'] = 'P' * (DbTextLimits.promptMax + 1);
+      questions[0] = firstQuestion;
+      decoded['questions'] = questions;
+
+      final seeder = ContentPackSeeder(
+        database: database,
+        source: MemoryContentPackSource(jsonEncode(decoded)),
+      );
+
+      expect(
+        () => seeder.seedOnFirstLaunch(),
+        throwsA(
+          isA<FormatException>().having(
+            (error) => error.message,
+            'message',
+            contains('questions[0].prompt'),
+          ),
+        ),
+      );
+    });
+
     test('enforces unique dayKey for daily sessions', () async {
       await database
           .into(database.dailySessions)
@@ -173,4 +227,12 @@ void main() {
       );
     });
   });
+}
+
+Map<String, Object?> _decodePack(String rawJson) {
+  final decoded = jsonDecode(rawJson);
+  if (decoded is! Map<String, Object?>) {
+    throw const FormatException('Expected root JSON object.');
+  }
+  return decoded;
 }

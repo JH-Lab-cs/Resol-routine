@@ -39,12 +39,15 @@ class ContentPackSeeder {
     required AppDatabase database,
     required ContentPackSource source,
     this.limits = const SeedLimits(),
+    this.insertChunkSize = 500,
   }) : _database = database,
-       _source = source;
+       _source = source,
+       assert(insertChunkSize > 0);
 
   final AppDatabase _database;
   final ContentPackSource _source;
   final SeedLimits limits;
+  final int insertChunkSize;
 
   Future<void> seedOnFirstLaunch() async {
     if (await _database.hasAnyContentPacks()) {
@@ -92,7 +95,7 @@ class ContentPackSeeder {
   Future<void> _insertPack(SeedContentPack seedPack) async {
     await _database
         .into(_database.contentPacks)
-        .insertOnConflictUpdate(
+        .insert(
           ContentPacksCompanion(
             id: Value(seedPack.id),
             version: Value(seedPack.version),
@@ -106,144 +109,135 @@ class ContentPackSeeder {
   }
 
   Future<void> _insertScripts(SeedContentPack seedPack) async {
-    for (final script in seedPack.scripts) {
-      final sentencePayload = [
-        for (final sentence in script.sentences)
-          {'id': sentence.id, 'text': sentence.text},
-      ];
-      final turnPayload = [
-        for (final turn in script.turns)
-          {'speaker': turn.speaker, 'sentenceIds': turn.sentenceIds},
-      ];
+    final rows = <Insertable<Script>>[
+      for (final script in seedPack.scripts)
+        ScriptsCompanion(
+          id: Value(script.id),
+          packId: Value(seedPack.id),
+          sentencesJson: Value(script.sentences),
+          turnsJson: Value(script.turns),
+          ttsPlanJson: Value(script.ttsPlan),
+          orderIndex: Value(script.order),
+        ),
+    ];
 
-      await _database
-          .into(_database.scripts)
-          .insertOnConflictUpdate(
-            ScriptsCompanion(
-              id: Value(script.id),
-              packId: Value(seedPack.id),
-              sentencesJson: Value(jsonEncode(sentencePayload)),
-              turnsJson: Value(jsonEncode(turnPayload)),
-              ttsPlanJson: Value(
-                jsonEncode({
-                  'repeatPolicy': script.ttsPlan.repeatPolicy,
-                  'pauseRangeMs': script.ttsPlan.pauseRangeMs,
-                  'rateRange': script.ttsPlan.rateRange,
-                  'pitchRange': script.ttsPlan.pitchRange,
-                  'voiceRoles': script.ttsPlan.voiceRoles,
-                }),
-              ),
-              orderIndex: Value(script.order),
-            ),
-          );
-    }
+    await _insertAllChunked(_database.scripts, rows);
   }
 
   Future<void> _insertPassages(SeedContentPack seedPack) async {
-    for (final passage in seedPack.passages) {
-      final sentencePayload = [
-        for (final sentence in passage.sentences)
-          {'id': sentence.id, 'text': sentence.text},
-      ];
+    final rows = <Insertable<Passage>>[
+      for (final passage in seedPack.passages)
+        PassagesCompanion(
+          id: Value(passage.id),
+          packId: Value(seedPack.id),
+          title: Value(passage.title),
+          sentencesJson: Value(passage.sentences),
+          orderIndex: Value(passage.order),
+        ),
+    ];
 
-      await _database
-          .into(_database.passages)
-          .insertOnConflictUpdate(
-            PassagesCompanion(
-              id: Value(passage.id),
-              packId: Value(seedPack.id),
-              title: Value(passage.title),
-              sentencesJson: Value(jsonEncode(sentencePayload)),
-              orderIndex: Value(passage.order),
-            ),
-          );
-    }
+    await _insertAllChunked(_database.passages, rows);
   }
 
   Future<void> _insertQuestionsAndExplanations(SeedContentPack seedPack) async {
-    for (final question in seedPack.questions) {
-      await _database
-          .into(_database.questions)
-          .insertOnConflictUpdate(
-            QuestionsCompanion(
-              id: Value(question.id),
-              skill: Value(question.skill),
-              typeTag: Value(question.typeTag),
-              track: Value(question.track),
-              difficulty: Value(question.difficulty),
-              passageId: Value(question.passageId),
-              scriptId: Value(question.scriptId),
-              prompt: Value(question.prompt),
-              optionsJson: Value(jsonEncode(question.options)),
-              answerKey: Value(question.answerKey),
-              orderIndex: Value(question.order),
-            ),
-          );
+    final questionRows = <Insertable<Question>>[
+      for (final question in seedPack.questions)
+        QuestionsCompanion(
+          id: Value(question.id),
+          skill: Value(question.skill),
+          typeTag: Value(question.typeTag),
+          track: Value(question.track),
+          difficulty: Value(question.difficulty),
+          passageId: Value(question.passageId),
+          scriptId: Value(question.scriptId),
+          prompt: Value(question.prompt),
+          optionsJson: Value(question.options),
+          answerKey: Value(question.answerKey),
+          orderIndex: Value(question.order),
+        ),
+    ];
 
-      final explanation = question.explanation;
-      await _database
-          .into(_database.explanations)
-          .insertOnConflictUpdate(
-            ExplanationsCompanion(
-              id: Value(explanation.id),
-              questionId: Value(question.id),
-              evidenceSentenceIdsJson: Value(
-                jsonEncode(explanation.evidenceSentenceIds),
-              ),
-              whyCorrectKo: Value(explanation.whyCorrectKo),
-              whyWrongKoJson: Value(jsonEncode(explanation.whyWrongKo)),
-              vocabNotesJson: Value(
-                _encodeNullableJson(explanation.vocabNotes),
-              ),
-              structureNotesKo: Value(explanation.structureNotesKo),
-              glossKoJson: Value(_encodeNullableJson(explanation.glossKo)),
-            ),
-          );
-    }
+    await _insertAllChunked(_database.questions, questionRows);
+
+    final explanationRows = <Insertable<Explanation>>[
+      for (final question in seedPack.questions)
+        ExplanationsCompanion(
+          id: Value(question.explanation.id),
+          questionId: Value(question.id),
+          evidenceSentenceIdsJson: Value(
+            question.explanation.evidenceSentenceIds,
+          ),
+          whyCorrectKo: Value(question.explanation.whyCorrectKo),
+          whyWrongKoJson: Value(question.explanation.whyWrongKo),
+          vocabNotesJson: Value(
+            _encodeNullableJson(question.explanation.vocabNotes),
+          ),
+          structureNotesKo: Value(question.explanation.structureNotesKo),
+          glossKoJson: Value(_encodeNullableJson(question.explanation.glossKo)),
+        ),
+    ];
+
+    await _insertAllChunked(_database.explanations, explanationRows);
   }
 
   Future<void> _insertVocabulary(SeedContentPack seedPack) async {
-    for (final vocab in seedPack.vocabulary) {
-      await _database
-          .into(_database.vocabMaster)
-          .insertOnConflictUpdate(
-            VocabMasterCompanion(
-              id: Value(vocab.id),
-              lemma: Value(vocab.lemma),
-              pos: Value(vocab.partOfSpeech),
-              meaning: Value(vocab.meaning),
-              example: Value(vocab.example),
-              ipa: Value(vocab.ipa),
-            ),
-          );
+    final vocabMasterRows = <Insertable<VocabMasterData>>[
+      for (final vocab in seedPack.vocabulary)
+        VocabMasterCompanion(
+          id: Value(vocab.id),
+          lemma: Value(vocab.lemma),
+          pos: Value(vocab.partOfSpeech),
+          meaning: Value(vocab.meaning),
+          example: Value(vocab.example),
+          ipa: Value(vocab.ipa),
+        ),
+    ];
+    await _insertAllChunked(_database.vocabMaster, vocabMasterRows);
 
-      await _database
-          .into(_database.vocabUser)
-          .insert(
-            VocabUserCompanion(
-              vocabId: Value(vocab.id),
-              familiarity: const Value(0),
-              isBookmarked: const Value(false),
-              updatedAt: Value(DateTime.now().toUtc()),
-            ),
-            mode: InsertMode.insertOrIgnore,
-          );
+    final now = DateTime.now().toUtc();
+    final vocabUserRows = <Insertable<VocabUserData>>[
+      for (final vocab in seedPack.vocabulary)
+        VocabUserCompanion(
+          vocabId: Value(vocab.id),
+          familiarity: const Value(0),
+          isBookmarked: const Value(false),
+          updatedAt: Value(now),
+        ),
+    ];
+    await _insertAllChunked(_database.vocabUser, vocabUserRows);
 
-      await _database
-          .into(_database.vocabSrsState)
-          .insert(
-            VocabSrsStateCompanion(
-              vocabId: Value(vocab.id),
-              dueAt: Value(DateTime.now().toUtc()),
-              intervalDays: const Value(1),
-              easeFactor: const Value(2.5),
-              repetition: const Value(0),
-              lapses: const Value(0),
-              suspended: const Value(false),
-              updatedAt: Value(DateTime.now().toUtc()),
-            ),
-            mode: InsertMode.insertOrIgnore,
-          );
+    final vocabSrsRows = <Insertable<VocabSrsStateData>>[
+      for (final vocab in seedPack.vocabulary)
+        VocabSrsStateCompanion(
+          vocabId: Value(vocab.id),
+          dueAt: Value(now),
+          intervalDays: const Value(1),
+          easeFactor: const Value(2.5),
+          repetition: const Value(0),
+          lapses: const Value(0),
+          suspended: const Value(false),
+          updatedAt: Value(now),
+        ),
+    ];
+    await _insertAllChunked(_database.vocabSrsState, vocabSrsRows);
+  }
+
+  Future<void> _insertAllChunked<T extends Table, D>(
+    TableInfo<T, D> table,
+    List<Insertable<D>> rows,
+  ) async {
+    if (rows.isEmpty) {
+      return;
+    }
+
+    for (var start = 0; start < rows.length; start += insertChunkSize) {
+      final end = (start + insertChunkSize > rows.length)
+          ? rows.length
+          : start + insertChunkSize;
+      final chunk = rows.sublist(start, end);
+      await _database.batch((Batch b) {
+        b.insertAll(table, chunk);
+      });
     }
   }
 
@@ -251,7 +245,6 @@ class ContentPackSeeder {
     if (value == null) {
       return null;
     }
-
     return jsonEncode(value);
   }
 }

@@ -1,16 +1,22 @@
 import 'package:drift/drift.dart';
 
+import '../converters/json_converters.dart';
+import '../db_text_limits.dart';
+
 class ContentPacks extends Table {
   @override
   String get tableName => 'content_packs';
 
-  TextColumn get id => text().withLength(min: 1, max: 80)();
+  TextColumn get id => text().withLength(min: 1, max: DbTextLimits.idMax)();
   IntColumn get version =>
       integer().customConstraint('NOT NULL CHECK (version >= 1)')();
-  TextColumn get locale => text().withLength(min: 2, max: 16)();
-  TextColumn get title => text().withLength(min: 1, max: 150)();
+  TextColumn get locale =>
+      text().withLength(min: 2, max: DbTextLimits.localeMax)();
+  TextColumn get title =>
+      text().withLength(min: 1, max: DbTextLimits.titleMax)();
   TextColumn get description => text().nullable()();
-  TextColumn get checksum => text().withLength(min: 1, max: 150)();
+  TextColumn get checksum =>
+      text().withLength(min: 1, max: DbTextLimits.checksumMax)();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
 
@@ -22,11 +28,11 @@ class Passages extends Table {
   @override
   String get tableName => 'passages';
 
-  TextColumn get id => text().withLength(min: 1, max: 80)();
+  TextColumn get id => text().withLength(min: 1, max: DbTextLimits.idMax)();
   TextColumn get packId =>
       text().references(ContentPacks, #id, onDelete: KeyAction.cascade)();
   TextColumn get title => text().nullable()();
-  TextColumn get sentencesJson => text()();
+  TextColumn get sentencesJson => text().map(const SentencesConverter())();
   IntColumn get orderIndex =>
       integer().customConstraint('NOT NULL CHECK (order_index >= 0)')();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
@@ -39,12 +45,12 @@ class Scripts extends Table {
   @override
   String get tableName => 'scripts';
 
-  TextColumn get id => text().withLength(min: 1, max: 80)();
+  TextColumn get id => text().withLength(min: 1, max: DbTextLimits.idMax)();
   TextColumn get packId =>
       text().references(ContentPacks, #id, onDelete: KeyAction.cascade)();
-  TextColumn get sentencesJson => text()();
-  TextColumn get turnsJson => text()();
-  TextColumn get ttsPlanJson => text()();
+  TextColumn get sentencesJson => text().map(const SentencesConverter())();
+  TextColumn get turnsJson => text().map(const TurnsConverter())();
+  TextColumn get ttsPlanJson => text().map(const TtsPlanConverter())();
   IntColumn get orderIndex =>
       integer().customConstraint('NOT NULL CHECK (order_index >= 0)')();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
@@ -57,11 +63,12 @@ class Questions extends Table {
   @override
   String get tableName => 'questions';
 
-  TextColumn get id => text().withLength(min: 1, max: 80)();
+  TextColumn get id => text().withLength(min: 1, max: DbTextLimits.idMax)();
   TextColumn get skill => text().customConstraint(
     "NOT NULL CHECK (skill IN ('LISTENING', 'READING'))",
   )();
-  TextColumn get typeTag => text().withLength(min: 2, max: 16)();
+  TextColumn get typeTag =>
+      text().withLength(min: 2, max: DbTextLimits.typeTagMax)();
   TextColumn get track => text().customConstraint(
     "NOT NULL CHECK (track IN ('M3', 'H1', 'H2', 'H3'))",
   )();
@@ -75,8 +82,9 @@ class Questions extends Table {
   )();
   TextColumn get scriptId =>
       text().nullable().references(Scripts, #id, onDelete: KeyAction.cascade)();
-  TextColumn get prompt => text().withLength(min: 1, max: 2000)();
-  TextColumn get optionsJson => text()();
+  TextColumn get prompt =>
+      text().withLength(min: 1, max: DbTextLimits.promptMax)();
+  TextColumn get optionsJson => text().map(const OptionMapConverter())();
   TextColumn get answerKey => text().customConstraint(
     "NOT NULL CHECK (answer_key IN ('A', 'B', 'C', 'D', 'E'))",
   )();
@@ -101,12 +109,14 @@ class Explanations extends Table {
   @override
   String get tableName => 'explanations';
 
-  TextColumn get id => text().withLength(min: 1, max: 80)();
+  TextColumn get id => text().withLength(min: 1, max: DbTextLimits.idMax)();
   TextColumn get questionId =>
       text().references(Questions, #id, onDelete: KeyAction.cascade)();
-  TextColumn get evidenceSentenceIdsJson => text()();
-  TextColumn get whyCorrectKo => text().withLength(min: 1, max: 4000)();
-  TextColumn get whyWrongKoJson => text()();
+  TextColumn get evidenceSentenceIdsJson =>
+      text().map(const StringListConverter())();
+  TextColumn get whyCorrectKo =>
+      text().withLength(min: 1, max: DbTextLimits.whyCorrectKoMax)();
+  TextColumn get whyWrongKoJson => text().map(const OptionMapConverter())();
   TextColumn get vocabNotesJson => text().nullable()();
   TextColumn get structureNotesKo => text().nullable()();
   TextColumn get glossKoJson => text().nullable()();
@@ -157,10 +167,12 @@ class VocabMaster extends Table {
   @override
   String get tableName => 'vocab_master';
 
-  TextColumn get id => text().withLength(min: 1, max: 80)();
-  TextColumn get lemma => text().withLength(min: 1, max: 120)();
+  TextColumn get id => text().withLength(min: 1, max: DbTextLimits.idMax)();
+  TextColumn get lemma =>
+      text().withLength(min: 1, max: DbTextLimits.lemmaMax)();
   TextColumn get pos => text().nullable()();
-  TextColumn get meaning => text().withLength(min: 1, max: 400)();
+  TextColumn get meaning =>
+      text().withLength(min: 1, max: DbTextLimits.meaningMax)();
   TextColumn get example => text().nullable()();
   TextColumn get ipa => text().nullable()();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
