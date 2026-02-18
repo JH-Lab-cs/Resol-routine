@@ -1,0 +1,81 @@
+{
+  "pack": {
+    "id": "starter_pack_daily_routine_en_001",
+    "version": 1,
+    "locale": "en-US",
+    "title": "Starter Pack: Daily Routines",
+    "description": "A beginner pack for short listening and reading practice.",
+    "checksum": "sha256:sample-starter-pack-v1"
+  },
+  "passages": [
+    {
+      "id": "passage_morning_001",
+      "title": "Morning Routine",
+      "body": "I wake up at seven, make coffee, and review my English words before breakfast.",
+      "order": 0,
+      "difficulty": 1,
+      "scripts": [
+        {
+          "id": "script_morning_001",
+          "speaker": "Mia",
+          "text": "I wake up at seven every morning.",
+          "order": 0
+        },
+        {
+          "id": "script_morning_002",
+          "speaker": "Mia",
+          "text": "After coffee, I review ten words.",
+          "order": 1
+        }
+      ],
+      "questions": [
+        {
+          "id": "question_morning_001",
+          "prompt": "What does Mia do after coffee?",
+          "type": "multiple_choice",
+          "options": [
+            "She goes back to sleep.",
+            "She reviews ten words.",
+            "She watches TV."
+          ],
+          "answer": [
+            "She reviews ten words."
+          ],
+          "order": 0,
+          "explanations": [
+            {
+              "id": "explanation_morning_001",
+              "body": "The script states that she reviews ten words after coffee."
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "vocabulary": [
+    {
+      "id": "vocab_wake_up",
+      "lemma": "wake up",
+      "pos": "verb",
+      "meaning": "to stop sleeping",
+      "example": "I wake up at seven every day.",
+      "ipa": "/weik ʌp/"
+    },
+    {
+      "id": "vocab_review",
+      "lemma": "review",
+      "pos": "verb",
+      "meaning": "to study again to remember",
+      "example": "I review ten words after breakfast.",
+      "ipa": "/rɪˈvjuː/"
+    },
+    {
+      "id": "vocab_routine",
+      "lemma": "routine",
+      "pos": "noun",
+      "meaning": "a sequence of regular actions",
+      "example": "A morning routine can improve consistency.",
+      "ipa": "/ruːˈtiːn/"
+    }
+  ]
+}
