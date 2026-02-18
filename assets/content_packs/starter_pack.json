@@ -1,81 +1,202 @@
 {
   "pack": {
-    "id": "starter_pack_daily_routine_en_001",
+    "id": "starter_pack_exam_ready_en_001",
     "version": 1,
     "locale": "en-US",
-    "title": "Starter Pack: Daily Routines",
-    "description": "A beginner pack for short listening and reading practice.",
-    "checksum": "sha256:sample-starter-pack-v1"
+    "title": "Starter Pack: Exam Basics",
+    "description": "A baseline pack with one listening and one reading question.",
+    "checksum": "sha256:starter-pack-exam-ready-v1"
   },
-  "passages": [
+  "scripts": [
     {
-      "id": "passage_morning_001",
-      "title": "Morning Routine",
-      "body": "I wake up at seven, make coffee, and review my English words before breakfast.",
+      "id": "script_listening_001",
       "order": 0,
-      "difficulty": 1,
-      "scripts": [
+      "sentences": [
         {
-          "id": "script_morning_001",
-          "speaker": "Mia",
-          "text": "I wake up at seven every morning.",
-          "order": 0
+          "id": "ls_001",
+          "text": "S1: I need fruit for tomorrow's class picnic."
         },
         {
-          "id": "script_morning_002",
-          "speaker": "Mia",
-          "text": "After coffee, I review ten words.",
-          "order": 1
+          "id": "ls_002",
+          "text": "S2: Then get strawberries first before they sell out."
+        },
+        {
+          "id": "ls_003",
+          "text": "S1: Good idea. I will buy apples after that."
         }
       ],
-      "questions": [
+      "turns": [
         {
-          "id": "question_morning_001",
-          "prompt": "What does Mia do after coffee?",
-          "type": "multiple_choice",
-          "options": [
-            "She goes back to sleep.",
-            "She reviews ten words.",
-            "She watches TV."
-          ],
-          "answer": [
-            "She reviews ten words."
-          ],
-          "order": 0,
-          "explanations": [
-            {
-              "id": "explanation_morning_001",
-              "body": "The script states that she reviews ten words after coffee."
-            }
+          "speaker": "S1",
+          "sentenceIds": [
+            "ls_001"
           ]
+        },
+        {
+          "speaker": "S2",
+          "sentenceIds": [
+            "ls_002"
+          ]
+        },
+        {
+          "speaker": "S1",
+          "sentenceIds": [
+            "ls_003"
+          ]
+        }
+      ],
+      "ttsPlan": {
+        "repeatPolicy": {
+          "mode": "per_turn",
+          "repeatCount": 1
+        },
+        "pauseRangeMs": {
+          "min": 350,
+          "max": 650
+        },
+        "rateRange": {
+          "min": 0.95,
+          "max": 1.03
+        },
+        "pitchRange": {
+          "min": -1.2,
+          "max": 1.2
+        },
+        "voiceRoles": {
+          "S1": "en-US-Standard-C",
+          "S2": "en-US-Standard-E",
+          "N": "en-US-Standard-A"
+        }
+      }
+    }
+  ],
+  "passages": [
+    {
+      "id": "passage_reading_001",
+      "title": "Community Garden Notice",
+      "order": 0,
+      "sentences": [
+        {
+          "id": "rs_001",
+          "text": "The community garden will open one hour earlier this Saturday."
+        },
+        {
+          "id": "rs_002",
+          "text": "Volunteers should bring gloves and a reusable water bottle."
+        },
+        {
+          "id": "rs_003",
+          "text": "New members can register at the front desk before noon."
         }
       ]
     }
   ],
+  "questions": [
+    {
+      "id": "question_listening_001",
+      "skill": "LISTENING",
+      "typeTag": "L1",
+      "track": "M3",
+      "difficulty": 2,
+      "passageId": null,
+      "scriptId": "script_listening_001",
+      "prompt": "What will S1 buy first?",
+      "options": {
+        "A": "Apples",
+        "B": "Strawberries",
+        "C": "Bananas",
+        "D": "Bread",
+        "E": "Orange juice"
+      },
+      "answerKey": "B",
+      "order": 0,
+      "explanation": {
+        "id": "explanation_listening_001",
+        "evidenceSentenceIds": [
+          "ls_002"
+        ],
+        "whyCorrectKo": "S2가 딸기를 먼저 사라고 직접 말한다.",
+        "whyWrongKo": {
+          "A": "사과는 그 다음에 사겠다고 말한다.",
+          "B": "정답이다. 먼저 사야 한다고 언급된다.",
+          "C": "바나나는 대화에서 언급되지 않는다.",
+          "D": "빵은 대화에서 언급되지 않는다.",
+          "E": "오렌지 주스는 대화에서 언급되지 않는다."
+        },
+        "vocabNotes": {
+          "sell out": "품절되다"
+        },
+        "structureNotesKo": "조언 표현(Then get ...)을 근거로 의도를 파악한다.",
+        "glossKo": {
+          "strawberries": "딸기"
+        }
+      }
+    },
+    {
+      "id": "question_reading_001",
+      "skill": "READING",
+      "typeTag": "R1",
+      "track": "H1",
+      "difficulty": 2,
+      "passageId": "passage_reading_001",
+      "scriptId": null,
+      "prompt": "What should volunteers bring?",
+      "options": {
+        "A": "Gloves and a reusable water bottle",
+        "B": "A printed ID card",
+        "C": "A gardening textbook",
+        "D": "A lunchbox from home",
+        "E": "A metal ladder"
+      },
+      "answerKey": "A",
+      "order": 1,
+      "explanation": {
+        "id": "explanation_reading_001",
+        "evidenceSentenceIds": [
+          "rs_002"
+        ],
+        "whyCorrectKo": "지문 두 번째 문장에서 준비물을 명시한다.",
+        "whyWrongKo": {
+          "A": "정답이다. 장갑과 재사용 물병을 가져오라고 되어 있다.",
+          "B": "신분증 카드는 지문에 없다.",
+          "C": "교재 준비 지시는 없다.",
+          "D": "점심 관련 지시는 없다.",
+          "E": "사다리 언급은 없다."
+        },
+        "vocabNotes": {
+          "reusable": "재사용 가능한"
+        },
+        "structureNotesKo": "세부 정보 문제이므로 특정 문장(rs_002)을 직접 대조한다.",
+        "glossKo": {
+          "volunteers": "자원봉사자"
+        }
+      }
+    }
+  ],
   "vocabulary": [
     {
-      "id": "vocab_wake_up",
-      "lemma": "wake up",
+      "id": "vocab_sell_out",
+      "lemma": "sell out",
       "pos": "verb",
-      "meaning": "to stop sleeping",
-      "example": "I wake up at seven every day.",
-      "ipa": "/weik ʌp/"
+      "meaning": "to have no more of something to sell",
+      "example": "Tickets can sell out quickly.",
+      "ipa": "/sel aʊt/"
     },
     {
-      "id": "vocab_review",
-      "lemma": "review",
-      "pos": "verb",
-      "meaning": "to study again to remember",
-      "example": "I review ten words after breakfast.",
-      "ipa": "/rɪˈvjuː/"
+      "id": "vocab_reusable",
+      "lemma": "reusable",
+      "pos": "adjective",
+      "meaning": "able to be used again",
+      "example": "Bring a reusable bottle.",
+      "ipa": "/riːˈjuːzəbl/"
     },
     {
-      "id": "vocab_routine",
-      "lemma": "routine",
-      "pos": "noun",
-      "meaning": "a sequence of regular actions",
-      "example": "A morning routine can improve consistency.",
-      "ipa": "/ruːˈtiːn/"
+      "id": "vocab_register",
+      "lemma": "register",
+      "pos": "verb",
+      "meaning": "to record your name for an activity",
+      "example": "New members can register at the front desk.",
+      "ipa": "/ˈredʒɪstər/"
     }
   ]
 }

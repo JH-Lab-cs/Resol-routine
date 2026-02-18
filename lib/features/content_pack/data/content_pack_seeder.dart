@@ -57,7 +57,9 @@ class ContentPackSeeder {
       }
 
       await _insertPack(seedPack);
+      await _insertScripts(seedPack);
       await _insertPassages(seedPack);
+      await _insertQuestionsAndExplanations(seedPack);
       await _insertVocabulary(seedPack);
     });
   }
@@ -101,8 +103,47 @@ class ContentPackSeeder {
         );
   }
 
+  Future<void> _insertScripts(SeedContentPack seedPack) async {
+    for (final script in seedPack.scripts) {
+      final sentencePayload = [
+        for (final sentence in script.sentences)
+          {'id': sentence.id, 'text': sentence.text},
+      ];
+      final turnPayload = [
+        for (final turn in script.turns)
+          {'speaker': turn.speaker, 'sentenceIds': turn.sentenceIds},
+      ];
+
+      await _database
+          .into(_database.scripts)
+          .insertOnConflictUpdate(
+            ScriptsCompanion(
+              id: Value(script.id),
+              packId: Value(seedPack.id),
+              sentencesJson: Value(jsonEncode(sentencePayload)),
+              turnsJson: Value(jsonEncode(turnPayload)),
+              ttsPlanJson: Value(
+                jsonEncode({
+                  'repeatPolicy': script.ttsPlan.repeatPolicy,
+                  'pauseRangeMs': script.ttsPlan.pauseRangeMs,
+                  'rateRange': script.ttsPlan.rateRange,
+                  'pitchRange': script.ttsPlan.pitchRange,
+                  'voiceRoles': script.ttsPlan.voiceRoles,
+                }),
+              ),
+              orderIndex: Value(script.order),
+            ),
+          );
+    }
+  }
+
   Future<void> _insertPassages(SeedContentPack seedPack) async {
     for (final passage in seedPack.passages) {
+      final sentencePayload = [
+        for (final sentence in passage.sentences)
+          {'id': sentence.id, 'text': sentence.text},
+      ];
+
       await _database
           .into(_database.passages)
           .insertOnConflictUpdate(
@@ -110,57 +151,52 @@ class ContentPackSeeder {
               id: Value(passage.id),
               packId: Value(seedPack.id),
               title: Value(passage.title),
-              body: Value(passage.body),
+              sentencesJson: Value(jsonEncode(sentencePayload)),
               orderIndex: Value(passage.order),
-              difficulty: Value(passage.difficulty),
+            ),
+          );
+    }
+  }
+
+  Future<void> _insertQuestionsAndExplanations(SeedContentPack seedPack) async {
+    for (final question in seedPack.questions) {
+      await _database
+          .into(_database.questions)
+          .insertOnConflictUpdate(
+            QuestionsCompanion(
+              id: Value(question.id),
+              skill: Value(question.skill),
+              typeTag: Value(question.typeTag),
+              track: Value(question.track),
+              difficulty: Value(question.difficulty),
+              passageId: Value(question.passageId),
+              scriptId: Value(question.scriptId),
+              prompt: Value(question.prompt),
+              optionsJson: Value(jsonEncode(question.options)),
+              answerKey: Value(question.answerKey),
+              orderIndex: Value(question.order),
             ),
           );
 
-      for (final script in passage.scripts) {
-        await _database
-            .into(_database.scripts)
-            .insertOnConflictUpdate(
-              ScriptsCompanion(
-                id: Value(script.id),
-                passageId: Value(passage.id),
-                speaker: Value(script.speaker),
-                textBody: Value(script.text),
-                orderIndex: Value(script.order),
+      final explanation = question.explanation;
+      await _database
+          .into(_database.explanations)
+          .insertOnConflictUpdate(
+            ExplanationsCompanion(
+              id: Value(explanation.id),
+              questionId: Value(question.id),
+              evidenceSentenceIdsJson: Value(
+                jsonEncode(explanation.evidenceSentenceIds),
               ),
-            );
-      }
-
-      for (final question in passage.questions) {
-        await _database
-            .into(_database.questions)
-            .insertOnConflictUpdate(
-              QuestionsCompanion(
-                id: Value(question.id),
-                passageId: Value(passage.id),
-                prompt: Value(question.prompt),
-                questionType: Value(question.type),
-                optionsJson: Value(
-                  question.options == null
-                      ? null
-                      : jsonEncode(question.options),
-                ),
-                answerJson: Value(jsonEncode(question.answer)),
-                orderIndex: Value(question.order),
+              whyCorrectKo: Value(explanation.whyCorrectKo),
+              whyWrongKoJson: Value(jsonEncode(explanation.whyWrongKo)),
+              vocabNotesJson: Value(
+                _encodeNullableJson(explanation.vocabNotes),
               ),
-            );
-
-        for (final explanation in question.explanations) {
-          await _database
-              .into(_database.explanations)
-              .insertOnConflictUpdate(
-                ExplanationsCompanion(
-                  id: Value(explanation.id),
-                  questionId: Value(question.id),
-                  body: Value(explanation.body),
-                ),
-              );
-        }
-      }
+              structureNotesKo: Value(explanation.structureNotesKo),
+              glossKoJson: Value(_encodeNullableJson(explanation.glossKo)),
+            ),
+          );
     }
   }
 
@@ -207,5 +243,13 @@ class ContentPackSeeder {
             mode: InsertMode.insertOrIgnore,
           );
     }
+  }
+
+  String? _encodeNullableJson(Object? value) {
+    if (value == null) {
+      return null;
+    }
+
+    return jsonEncode(value);
   }
 }

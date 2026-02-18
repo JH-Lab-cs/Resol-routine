@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:drift/native.dart';
@@ -31,10 +32,55 @@ void main() {
       await seeder.seedOnFirstLaunch();
 
       expect(await database.countContentPacks(), 1);
+      expect(await database.countScripts(), 1);
       expect(await database.countPassages(), 1);
-      expect(await database.countQuestions(), 1);
+      expect(await database.countQuestions(), 2);
+      expect(await database.countExplanations(), 2);
       expect(await database.countVocabMaster(), 3);
       expect(await database.countVocabSrsState(), 3);
+    });
+
+    test('writes exam question fields and fixed A-E options', () async {
+      final seeder = ContentPackSeeder(
+        database: database,
+        source: MemoryContentPackSource(starterPackJson),
+      );
+
+      await seeder.seedOnFirstLaunch();
+
+      final rows = await database.select(database.questions).get();
+
+      expect(rows.length, 2);
+
+      final listening = rows.firstWhere(
+        (row) => row.id == 'question_listening_001',
+      );
+      expect(listening.skill, 'LISTENING');
+      expect(listening.typeTag, 'L1');
+      expect(listening.track, 'M3');
+      expect(listening.difficulty, 2);
+      expect(listening.scriptId, 'script_listening_001');
+      expect(listening.passageId, isNull);
+      expect(listening.answerKey, 'B');
+
+      final listeningOptions =
+          jsonDecode(listening.optionsJson) as Map<String, Object?>;
+      expect(listeningOptions.keys.toSet(), {'A', 'B', 'C', 'D', 'E'});
+
+      final reading = rows.firstWhere(
+        (row) => row.id == 'question_reading_001',
+      );
+      expect(reading.skill, 'READING');
+      expect(reading.typeTag, 'R1');
+      expect(reading.track, 'H1');
+      expect(reading.difficulty, 2);
+      expect(reading.passageId, 'passage_reading_001');
+      expect(reading.scriptId, isNull);
+      expect(reading.answerKey, 'A');
+
+      final readingOptions =
+          jsonDecode(reading.optionsJson) as Map<String, Object?>;
+      expect(readingOptions.keys.toSet(), {'A', 'B', 'C', 'D', 'E'});
     });
 
     test('does not duplicate records when called more than once', () async {
@@ -47,10 +93,25 @@ void main() {
       await seeder.seedOnFirstLaunch();
 
       expect(await database.countContentPacks(), 1);
+      expect(await database.countScripts(), 1);
       expect(await database.countPassages(), 1);
-      expect(await database.countQuestions(), 1);
+      expect(await database.countQuestions(), 2);
+      expect(await database.countExplanations(), 2);
       expect(await database.countVocabMaster(), 3);
       expect(await database.countVocabSrsState(), 3);
+    });
+
+    test('enforces unique dayKey for daily sessions', () async {
+      await database
+          .into(database.dailySessions)
+          .insert(DailySessionsCompanion.insert(dayKey: 20260218));
+
+      expect(
+        () => database
+            .into(database.dailySessions)
+            .insert(DailySessionsCompanion.insert(dayKey: 20260218)),
+        throwsA(isA<Object>()),
+      );
     });
   });
 }

@@ -25,13 +25,10 @@ class Passages extends Table {
   TextColumn get id => text().withLength(min: 1, max: 80)();
   TextColumn get packId =>
       text().references(ContentPacks, #id, onDelete: KeyAction.cascade)();
-  TextColumn get title => text().withLength(min: 1, max: 150)();
-  TextColumn get body => text().withLength(min: 1, max: 4000)();
+  TextColumn get title => text().nullable()();
+  TextColumn get sentencesJson => text()();
   IntColumn get orderIndex =>
       integer().customConstraint('NOT NULL CHECK (order_index >= 0)')();
-  IntColumn get difficulty => integer().customConstraint(
-    'NOT NULL CHECK (difficulty BETWEEN 1 AND 5)',
-  )();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 
   @override
@@ -43,13 +40,14 @@ class Scripts extends Table {
   String get tableName => 'scripts';
 
   TextColumn get id => text().withLength(min: 1, max: 80)();
-  TextColumn get passageId =>
-      text().references(Passages, #id, onDelete: KeyAction.cascade)();
-  TextColumn get speaker => text().withLength(min: 1, max: 80)();
-  TextColumn get textBody =>
-      text().named('text').withLength(min: 1, max: 2000)();
+  TextColumn get packId =>
+      text().references(ContentPacks, #id, onDelete: KeyAction.cascade)();
+  TextColumn get sentencesJson => text()();
+  TextColumn get turnsJson => text()();
+  TextColumn get ttsPlanJson => text()();
   IntColumn get orderIndex =>
       integer().customConstraint('NOT NULL CHECK (order_index >= 0)')();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 
   @override
   Set<Column<Object>> get primaryKey => {id};
@@ -60,14 +58,41 @@ class Questions extends Table {
   String get tableName => 'questions';
 
   TextColumn get id => text().withLength(min: 1, max: 80)();
-  TextColumn get passageId =>
-      text().references(Passages, #id, onDelete: KeyAction.cascade)();
+  TextColumn get skill => text().customConstraint(
+    "NOT NULL CHECK (skill IN ('LISTENING', 'READING', 'VOCAB'))",
+  )();
+  TextColumn get typeTag => text().withLength(min: 2, max: 16)();
+  TextColumn get track => text().customConstraint(
+    "NOT NULL CHECK (track IN ('M3', 'H1', 'H2', 'H3'))",
+  )();
+  IntColumn get difficulty => integer().customConstraint(
+    'NOT NULL CHECK (difficulty BETWEEN 1 AND 5)',
+  )();
+  TextColumn get passageId => text().nullable().references(
+    Passages,
+    #id,
+    onDelete: KeyAction.cascade,
+  )();
+  TextColumn get scriptId =>
+      text().nullable().references(Scripts, #id, onDelete: KeyAction.cascade)();
   TextColumn get prompt => text().withLength(min: 1, max: 2000)();
-  TextColumn get questionType => text().withLength(min: 1, max: 40)();
-  TextColumn get optionsJson => text().nullable()();
-  TextColumn get answerJson => text()();
+  TextColumn get optionsJson => text()();
+  TextColumn get answerKey => text().customConstraint(
+    "NOT NULL CHECK (answer_key IN ('A', 'B', 'C', 'D', 'E'))",
+  )();
   IntColumn get orderIndex =>
       integer().customConstraint('NOT NULL CHECK (order_index >= 0)')();
+
+  @override
+  List<String> get customConstraints => [
+    'CHECK ((passage_id IS NOT NULL AND script_id IS NULL) OR '
+        '(passage_id IS NULL AND script_id IS NOT NULL))',
+    "CHECK ((skill != 'LISTENING') OR (script_id IS NOT NULL AND passage_id IS NULL))",
+    "CHECK ((skill != 'READING') OR (passage_id IS NOT NULL AND script_id IS NULL))",
+    "CHECK ((skill != 'LISTENING') OR (type_tag GLOB 'L[0-9]*'))",
+    "CHECK ((skill != 'READING') OR (type_tag GLOB 'R[0-9]*'))",
+    "CHECK ((skill != 'VOCAB') OR (type_tag GLOB 'V[0-9]*'))",
+  ];
 
   @override
   Set<Column<Object>> get primaryKey => {id};
@@ -80,11 +105,21 @@ class Explanations extends Table {
   TextColumn get id => text().withLength(min: 1, max: 80)();
   TextColumn get questionId =>
       text().references(Questions, #id, onDelete: KeyAction.cascade)();
-  TextColumn get body => text().withLength(min: 1, max: 4000)();
+  TextColumn get evidenceSentenceIdsJson => text()();
+  TextColumn get whyCorrectKo => text().withLength(min: 1, max: 4000)();
+  TextColumn get whyWrongKoJson => text()();
+  TextColumn get vocabNotesJson => text().nullable()();
+  TextColumn get structureNotesKo => text().nullable()();
+  TextColumn get glossKoJson => text().nullable()();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 
   @override
   Set<Column<Object>> get primaryKey => {id};
+
+  @override
+  List<Set<Column<Object>>> get uniqueKeys => [
+    {questionId},
+  ];
 }
 
 class DailySessions extends Table {
@@ -92,7 +127,9 @@ class DailySessions extends Table {
   String get tableName => 'daily_sessions';
 
   IntColumn get id => integer().autoIncrement()();
-  DateTimeColumn get sessionDate => dateTime().unique()();
+  IntColumn get dayKey => integer().customConstraint(
+    'NOT NULL UNIQUE CHECK (day_key BETWEEN 19000101 AND 29991231)',
+  )();
   IntColumn get plannedItems => integer().withDefault(const Constant(0))();
   IntColumn get completedItems => integer().withDefault(const Constant(0))();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();

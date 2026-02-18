@@ -565,24 +565,18 @@ class $PassagesTable extends Passages with TableInfo<$PassagesTable, Passage> {
   late final GeneratedColumn<String> title = GeneratedColumn<String>(
     'title',
     aliasedName,
-    false,
-    additionalChecks: GeneratedColumn.checkTextLength(
-      minTextLength: 1,
-      maxTextLength: 150,
-    ),
+    true,
     type: DriftSqlType.string,
-    requiredDuringInsert: true,
+    requiredDuringInsert: false,
   );
-  static const VerificationMeta _bodyMeta = const VerificationMeta('body');
+  static const VerificationMeta _sentencesJsonMeta = const VerificationMeta(
+    'sentencesJson',
+  );
   @override
-  late final GeneratedColumn<String> body = GeneratedColumn<String>(
-    'body',
+  late final GeneratedColumn<String> sentencesJson = GeneratedColumn<String>(
+    'sentences_json',
     aliasedName,
     false,
-    additionalChecks: GeneratedColumn.checkTextLength(
-      minTextLength: 1,
-      maxTextLength: 4000,
-    ),
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
@@ -597,18 +591,6 @@ class $PassagesTable extends Passages with TableInfo<$PassagesTable, Passage> {
     type: DriftSqlType.int,
     requiredDuringInsert: true,
     $customConstraints: 'NOT NULL CHECK (order_index >= 0)',
-  );
-  static const VerificationMeta _difficultyMeta = const VerificationMeta(
-    'difficulty',
-  );
-  @override
-  late final GeneratedColumn<int> difficulty = GeneratedColumn<int>(
-    'difficulty',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: true,
-    $customConstraints: 'NOT NULL CHECK (difficulty BETWEEN 1 AND 5)',
   );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
@@ -627,9 +609,8 @@ class $PassagesTable extends Passages with TableInfo<$PassagesTable, Passage> {
     id,
     packId,
     title,
-    body,
+    sentencesJson,
     orderIndex,
-    difficulty,
     createdAt,
   ];
   @override
@@ -662,16 +643,17 @@ class $PassagesTable extends Passages with TableInfo<$PassagesTable, Passage> {
         _titleMeta,
         title.isAcceptableOrUnknown(data['title']!, _titleMeta),
       );
-    } else if (isInserting) {
-      context.missing(_titleMeta);
     }
-    if (data.containsKey('body')) {
+    if (data.containsKey('sentences_json')) {
       context.handle(
-        _bodyMeta,
-        body.isAcceptableOrUnknown(data['body']!, _bodyMeta),
+        _sentencesJsonMeta,
+        sentencesJson.isAcceptableOrUnknown(
+          data['sentences_json']!,
+          _sentencesJsonMeta,
+        ),
       );
     } else if (isInserting) {
-      context.missing(_bodyMeta);
+      context.missing(_sentencesJsonMeta);
     }
     if (data.containsKey('order_index')) {
       context.handle(
@@ -680,14 +662,6 @@ class $PassagesTable extends Passages with TableInfo<$PassagesTable, Passage> {
       );
     } else if (isInserting) {
       context.missing(_orderIndexMeta);
-    }
-    if (data.containsKey('difficulty')) {
-      context.handle(
-        _difficultyMeta,
-        difficulty.isAcceptableOrUnknown(data['difficulty']!, _difficultyMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_difficultyMeta);
     }
     if (data.containsKey('created_at')) {
       context.handle(
@@ -715,18 +689,14 @@ class $PassagesTable extends Passages with TableInfo<$PassagesTable, Passage> {
       title: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}title'],
-      )!,
-      body: attachedDatabase.typeMapping.read(
+      ),
+      sentencesJson: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
-        data['${effectivePrefix}body'],
+        data['${effectivePrefix}sentences_json'],
       )!,
       orderIndex: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}order_index'],
-      )!,
-      difficulty: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}difficulty'],
       )!,
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
@@ -744,18 +714,16 @@ class $PassagesTable extends Passages with TableInfo<$PassagesTable, Passage> {
 class Passage extends DataClass implements Insertable<Passage> {
   final String id;
   final String packId;
-  final String title;
-  final String body;
+  final String? title;
+  final String sentencesJson;
   final int orderIndex;
-  final int difficulty;
   final DateTime createdAt;
   const Passage({
     required this.id,
     required this.packId,
-    required this.title,
-    required this.body,
+    this.title,
+    required this.sentencesJson,
     required this.orderIndex,
-    required this.difficulty,
     required this.createdAt,
   });
   @override
@@ -763,10 +731,11 @@ class Passage extends DataClass implements Insertable<Passage> {
     final map = <String, Expression>{};
     map['id'] = Variable<String>(id);
     map['pack_id'] = Variable<String>(packId);
-    map['title'] = Variable<String>(title);
-    map['body'] = Variable<String>(body);
+    if (!nullToAbsent || title != null) {
+      map['title'] = Variable<String>(title);
+    }
+    map['sentences_json'] = Variable<String>(sentencesJson);
     map['order_index'] = Variable<int>(orderIndex);
-    map['difficulty'] = Variable<int>(difficulty);
     map['created_at'] = Variable<DateTime>(createdAt);
     return map;
   }
@@ -775,10 +744,11 @@ class Passage extends DataClass implements Insertable<Passage> {
     return PassagesCompanion(
       id: Value(id),
       packId: Value(packId),
-      title: Value(title),
-      body: Value(body),
+      title: title == null && nullToAbsent
+          ? const Value.absent()
+          : Value(title),
+      sentencesJson: Value(sentencesJson),
       orderIndex: Value(orderIndex),
-      difficulty: Value(difficulty),
       createdAt: Value(createdAt),
     );
   }
@@ -791,10 +761,9 @@ class Passage extends DataClass implements Insertable<Passage> {
     return Passage(
       id: serializer.fromJson<String>(json['id']),
       packId: serializer.fromJson<String>(json['packId']),
-      title: serializer.fromJson<String>(json['title']),
-      body: serializer.fromJson<String>(json['body']),
+      title: serializer.fromJson<String?>(json['title']),
+      sentencesJson: serializer.fromJson<String>(json['sentencesJson']),
       orderIndex: serializer.fromJson<int>(json['orderIndex']),
-      difficulty: serializer.fromJson<int>(json['difficulty']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
     );
   }
@@ -804,10 +773,9 @@ class Passage extends DataClass implements Insertable<Passage> {
     return <String, dynamic>{
       'id': serializer.toJson<String>(id),
       'packId': serializer.toJson<String>(packId),
-      'title': serializer.toJson<String>(title),
-      'body': serializer.toJson<String>(body),
+      'title': serializer.toJson<String?>(title),
+      'sentencesJson': serializer.toJson<String>(sentencesJson),
       'orderIndex': serializer.toJson<int>(orderIndex),
-      'difficulty': serializer.toJson<int>(difficulty),
       'createdAt': serializer.toJson<DateTime>(createdAt),
     };
   }
@@ -815,18 +783,16 @@ class Passage extends DataClass implements Insertable<Passage> {
   Passage copyWith({
     String? id,
     String? packId,
-    String? title,
-    String? body,
+    Value<String?> title = const Value.absent(),
+    String? sentencesJson,
     int? orderIndex,
-    int? difficulty,
     DateTime? createdAt,
   }) => Passage(
     id: id ?? this.id,
     packId: packId ?? this.packId,
-    title: title ?? this.title,
-    body: body ?? this.body,
+    title: title.present ? title.value : this.title,
+    sentencesJson: sentencesJson ?? this.sentencesJson,
     orderIndex: orderIndex ?? this.orderIndex,
-    difficulty: difficulty ?? this.difficulty,
     createdAt: createdAt ?? this.createdAt,
   );
   Passage copyWithCompanion(PassagesCompanion data) {
@@ -834,13 +800,12 @@ class Passage extends DataClass implements Insertable<Passage> {
       id: data.id.present ? data.id.value : this.id,
       packId: data.packId.present ? data.packId.value : this.packId,
       title: data.title.present ? data.title.value : this.title,
-      body: data.body.present ? data.body.value : this.body,
+      sentencesJson: data.sentencesJson.present
+          ? data.sentencesJson.value
+          : this.sentencesJson,
       orderIndex: data.orderIndex.present
           ? data.orderIndex.value
           : this.orderIndex,
-      difficulty: data.difficulty.present
-          ? data.difficulty.value
-          : this.difficulty,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
     );
   }
@@ -851,9 +816,8 @@ class Passage extends DataClass implements Insertable<Passage> {
           ..write('id: $id, ')
           ..write('packId: $packId, ')
           ..write('title: $title, ')
-          ..write('body: $body, ')
+          ..write('sentencesJson: $sentencesJson, ')
           ..write('orderIndex: $orderIndex, ')
-          ..write('difficulty: $difficulty, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
         .toString();
@@ -861,7 +825,7 @@ class Passage extends DataClass implements Insertable<Passage> {
 
   @override
   int get hashCode =>
-      Object.hash(id, packId, title, body, orderIndex, difficulty, createdAt);
+      Object.hash(id, packId, title, sentencesJson, orderIndex, createdAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -869,53 +833,46 @@ class Passage extends DataClass implements Insertable<Passage> {
           other.id == this.id &&
           other.packId == this.packId &&
           other.title == this.title &&
-          other.body == this.body &&
+          other.sentencesJson == this.sentencesJson &&
           other.orderIndex == this.orderIndex &&
-          other.difficulty == this.difficulty &&
           other.createdAt == this.createdAt);
 }
 
 class PassagesCompanion extends UpdateCompanion<Passage> {
   final Value<String> id;
   final Value<String> packId;
-  final Value<String> title;
-  final Value<String> body;
+  final Value<String?> title;
+  final Value<String> sentencesJson;
   final Value<int> orderIndex;
-  final Value<int> difficulty;
   final Value<DateTime> createdAt;
   final Value<int> rowid;
   const PassagesCompanion({
     this.id = const Value.absent(),
     this.packId = const Value.absent(),
     this.title = const Value.absent(),
-    this.body = const Value.absent(),
+    this.sentencesJson = const Value.absent(),
     this.orderIndex = const Value.absent(),
-    this.difficulty = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   PassagesCompanion.insert({
     required String id,
     required String packId,
-    required String title,
-    required String body,
+    this.title = const Value.absent(),
+    required String sentencesJson,
     required int orderIndex,
-    required int difficulty,
     this.createdAt = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        packId = Value(packId),
-       title = Value(title),
-       body = Value(body),
-       orderIndex = Value(orderIndex),
-       difficulty = Value(difficulty);
+       sentencesJson = Value(sentencesJson),
+       orderIndex = Value(orderIndex);
   static Insertable<Passage> custom({
     Expression<String>? id,
     Expression<String>? packId,
     Expression<String>? title,
-    Expression<String>? body,
+    Expression<String>? sentencesJson,
     Expression<int>? orderIndex,
-    Expression<int>? difficulty,
     Expression<DateTime>? createdAt,
     Expression<int>? rowid,
   }) {
@@ -923,9 +880,8 @@ class PassagesCompanion extends UpdateCompanion<Passage> {
       if (id != null) 'id': id,
       if (packId != null) 'pack_id': packId,
       if (title != null) 'title': title,
-      if (body != null) 'body': body,
+      if (sentencesJson != null) 'sentences_json': sentencesJson,
       if (orderIndex != null) 'order_index': orderIndex,
-      if (difficulty != null) 'difficulty': difficulty,
       if (createdAt != null) 'created_at': createdAt,
       if (rowid != null) 'rowid': rowid,
     });
@@ -934,10 +890,9 @@ class PassagesCompanion extends UpdateCompanion<Passage> {
   PassagesCompanion copyWith({
     Value<String>? id,
     Value<String>? packId,
-    Value<String>? title,
-    Value<String>? body,
+    Value<String?>? title,
+    Value<String>? sentencesJson,
     Value<int>? orderIndex,
-    Value<int>? difficulty,
     Value<DateTime>? createdAt,
     Value<int>? rowid,
   }) {
@@ -945,9 +900,8 @@ class PassagesCompanion extends UpdateCompanion<Passage> {
       id: id ?? this.id,
       packId: packId ?? this.packId,
       title: title ?? this.title,
-      body: body ?? this.body,
+      sentencesJson: sentencesJson ?? this.sentencesJson,
       orderIndex: orderIndex ?? this.orderIndex,
-      difficulty: difficulty ?? this.difficulty,
       createdAt: createdAt ?? this.createdAt,
       rowid: rowid ?? this.rowid,
     );
@@ -965,14 +919,11 @@ class PassagesCompanion extends UpdateCompanion<Passage> {
     if (title.present) {
       map['title'] = Variable<String>(title.value);
     }
-    if (body.present) {
-      map['body'] = Variable<String>(body.value);
+    if (sentencesJson.present) {
+      map['sentences_json'] = Variable<String>(sentencesJson.value);
     }
     if (orderIndex.present) {
       map['order_index'] = Variable<int>(orderIndex.value);
-    }
-    if (difficulty.present) {
-      map['difficulty'] = Variable<int>(difficulty.value);
     }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
@@ -989,9 +940,8 @@ class PassagesCompanion extends UpdateCompanion<Passage> {
           ..write('id: $id, ')
           ..write('packId: $packId, ')
           ..write('title: $title, ')
-          ..write('body: $body, ')
+          ..write('sentencesJson: $sentencesJson, ')
           ..write('orderIndex: $orderIndex, ')
-          ..write('difficulty: $difficulty, ')
           ..write('createdAt: $createdAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -1017,47 +967,48 @@ class $ScriptsTable extends Scripts with TableInfo<$ScriptsTable, Script> {
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _passageIdMeta = const VerificationMeta(
-    'passageId',
-  );
+  static const VerificationMeta _packIdMeta = const VerificationMeta('packId');
   @override
-  late final GeneratedColumn<String> passageId = GeneratedColumn<String>(
-    'passage_id',
+  late final GeneratedColumn<String> packId = GeneratedColumn<String>(
+    'pack_id',
     aliasedName,
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: true,
     defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'REFERENCES passages (id) ON DELETE CASCADE',
+      'REFERENCES content_packs (id) ON DELETE CASCADE',
     ),
   );
-  static const VerificationMeta _speakerMeta = const VerificationMeta(
-    'speaker',
+  static const VerificationMeta _sentencesJsonMeta = const VerificationMeta(
+    'sentencesJson',
   );
   @override
-  late final GeneratedColumn<String> speaker = GeneratedColumn<String>(
-    'speaker',
+  late final GeneratedColumn<String> sentencesJson = GeneratedColumn<String>(
+    'sentences_json',
     aliasedName,
     false,
-    additionalChecks: GeneratedColumn.checkTextLength(
-      minTextLength: 1,
-      maxTextLength: 80,
-    ),
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _textBodyMeta = const VerificationMeta(
-    'textBody',
+  static const VerificationMeta _turnsJsonMeta = const VerificationMeta(
+    'turnsJson',
   );
   @override
-  late final GeneratedColumn<String> textBody = GeneratedColumn<String>(
-    'text',
+  late final GeneratedColumn<String> turnsJson = GeneratedColumn<String>(
+    'turns_json',
     aliasedName,
     false,
-    additionalChecks: GeneratedColumn.checkTextLength(
-      minTextLength: 1,
-      maxTextLength: 2000,
-    ),
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _ttsPlanJsonMeta = const VerificationMeta(
+    'ttsPlanJson',
+  );
+  @override
+  late final GeneratedColumn<String> ttsPlanJson = GeneratedColumn<String>(
+    'tts_plan_json',
+    aliasedName,
+    false,
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
@@ -1073,13 +1024,27 @@ class $ScriptsTable extends Scripts with TableInfo<$ScriptsTable, Script> {
     requiredDuringInsert: true,
     $customConstraints: 'NOT NULL CHECK (order_index >= 0)',
   );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
-    passageId,
-    speaker,
-    textBody,
+    packId,
+    sentencesJson,
+    turnsJson,
+    ttsPlanJson,
     orderIndex,
+    createdAt,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1098,29 +1063,43 @@ class $ScriptsTable extends Scripts with TableInfo<$ScriptsTable, Script> {
     } else if (isInserting) {
       context.missing(_idMeta);
     }
-    if (data.containsKey('passage_id')) {
+    if (data.containsKey('pack_id')) {
       context.handle(
-        _passageIdMeta,
-        passageId.isAcceptableOrUnknown(data['passage_id']!, _passageIdMeta),
+        _packIdMeta,
+        packId.isAcceptableOrUnknown(data['pack_id']!, _packIdMeta),
       );
     } else if (isInserting) {
-      context.missing(_passageIdMeta);
+      context.missing(_packIdMeta);
     }
-    if (data.containsKey('speaker')) {
+    if (data.containsKey('sentences_json')) {
       context.handle(
-        _speakerMeta,
-        speaker.isAcceptableOrUnknown(data['speaker']!, _speakerMeta),
+        _sentencesJsonMeta,
+        sentencesJson.isAcceptableOrUnknown(
+          data['sentences_json']!,
+          _sentencesJsonMeta,
+        ),
       );
     } else if (isInserting) {
-      context.missing(_speakerMeta);
+      context.missing(_sentencesJsonMeta);
     }
-    if (data.containsKey('text')) {
+    if (data.containsKey('turns_json')) {
       context.handle(
-        _textBodyMeta,
-        textBody.isAcceptableOrUnknown(data['text']!, _textBodyMeta),
+        _turnsJsonMeta,
+        turnsJson.isAcceptableOrUnknown(data['turns_json']!, _turnsJsonMeta),
       );
     } else if (isInserting) {
-      context.missing(_textBodyMeta);
+      context.missing(_turnsJsonMeta);
+    }
+    if (data.containsKey('tts_plan_json')) {
+      context.handle(
+        _ttsPlanJsonMeta,
+        ttsPlanJson.isAcceptableOrUnknown(
+          data['tts_plan_json']!,
+          _ttsPlanJsonMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_ttsPlanJsonMeta);
     }
     if (data.containsKey('order_index')) {
       context.handle(
@@ -1129,6 +1108,12 @@ class $ScriptsTable extends Scripts with TableInfo<$ScriptsTable, Script> {
       );
     } else if (isInserting) {
       context.missing(_orderIndexMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
     }
     return context;
   }
@@ -1143,21 +1128,29 @@ class $ScriptsTable extends Scripts with TableInfo<$ScriptsTable, Script> {
         DriftSqlType.string,
         data['${effectivePrefix}id'],
       )!,
-      passageId: attachedDatabase.typeMapping.read(
+      packId: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
-        data['${effectivePrefix}passage_id'],
+        data['${effectivePrefix}pack_id'],
       )!,
-      speaker: attachedDatabase.typeMapping.read(
+      sentencesJson: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
-        data['${effectivePrefix}speaker'],
+        data['${effectivePrefix}sentences_json'],
       )!,
-      textBody: attachedDatabase.typeMapping.read(
+      turnsJson: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
-        data['${effectivePrefix}text'],
+        data['${effectivePrefix}turns_json'],
+      )!,
+      ttsPlanJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}tts_plan_json'],
       )!,
       orderIndex: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}order_index'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
       )!,
     );
   }
@@ -1170,35 +1163,43 @@ class $ScriptsTable extends Scripts with TableInfo<$ScriptsTable, Script> {
 
 class Script extends DataClass implements Insertable<Script> {
   final String id;
-  final String passageId;
-  final String speaker;
-  final String textBody;
+  final String packId;
+  final String sentencesJson;
+  final String turnsJson;
+  final String ttsPlanJson;
   final int orderIndex;
+  final DateTime createdAt;
   const Script({
     required this.id,
-    required this.passageId,
-    required this.speaker,
-    required this.textBody,
+    required this.packId,
+    required this.sentencesJson,
+    required this.turnsJson,
+    required this.ttsPlanJson,
     required this.orderIndex,
+    required this.createdAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<String>(id);
-    map['passage_id'] = Variable<String>(passageId);
-    map['speaker'] = Variable<String>(speaker);
-    map['text'] = Variable<String>(textBody);
+    map['pack_id'] = Variable<String>(packId);
+    map['sentences_json'] = Variable<String>(sentencesJson);
+    map['turns_json'] = Variable<String>(turnsJson);
+    map['tts_plan_json'] = Variable<String>(ttsPlanJson);
     map['order_index'] = Variable<int>(orderIndex);
+    map['created_at'] = Variable<DateTime>(createdAt);
     return map;
   }
 
   ScriptsCompanion toCompanion(bool nullToAbsent) {
     return ScriptsCompanion(
       id: Value(id),
-      passageId: Value(passageId),
-      speaker: Value(speaker),
-      textBody: Value(textBody),
+      packId: Value(packId),
+      sentencesJson: Value(sentencesJson),
+      turnsJson: Value(turnsJson),
+      ttsPlanJson: Value(ttsPlanJson),
       orderIndex: Value(orderIndex),
+      createdAt: Value(createdAt),
     );
   }
 
@@ -1209,10 +1210,12 @@ class Script extends DataClass implements Insertable<Script> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return Script(
       id: serializer.fromJson<String>(json['id']),
-      passageId: serializer.fromJson<String>(json['passageId']),
-      speaker: serializer.fromJson<String>(json['speaker']),
-      textBody: serializer.fromJson<String>(json['textBody']),
+      packId: serializer.fromJson<String>(json['packId']),
+      sentencesJson: serializer.fromJson<String>(json['sentencesJson']),
+      turnsJson: serializer.fromJson<String>(json['turnsJson']),
+      ttsPlanJson: serializer.fromJson<String>(json['ttsPlanJson']),
       orderIndex: serializer.fromJson<int>(json['orderIndex']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
     );
   }
   @override
@@ -1220,35 +1223,47 @@ class Script extends DataClass implements Insertable<Script> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<String>(id),
-      'passageId': serializer.toJson<String>(passageId),
-      'speaker': serializer.toJson<String>(speaker),
-      'textBody': serializer.toJson<String>(textBody),
+      'packId': serializer.toJson<String>(packId),
+      'sentencesJson': serializer.toJson<String>(sentencesJson),
+      'turnsJson': serializer.toJson<String>(turnsJson),
+      'ttsPlanJson': serializer.toJson<String>(ttsPlanJson),
       'orderIndex': serializer.toJson<int>(orderIndex),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
     };
   }
 
   Script copyWith({
     String? id,
-    String? passageId,
-    String? speaker,
-    String? textBody,
+    String? packId,
+    String? sentencesJson,
+    String? turnsJson,
+    String? ttsPlanJson,
     int? orderIndex,
+    DateTime? createdAt,
   }) => Script(
     id: id ?? this.id,
-    passageId: passageId ?? this.passageId,
-    speaker: speaker ?? this.speaker,
-    textBody: textBody ?? this.textBody,
+    packId: packId ?? this.packId,
+    sentencesJson: sentencesJson ?? this.sentencesJson,
+    turnsJson: turnsJson ?? this.turnsJson,
+    ttsPlanJson: ttsPlanJson ?? this.ttsPlanJson,
     orderIndex: orderIndex ?? this.orderIndex,
+    createdAt: createdAt ?? this.createdAt,
   );
   Script copyWithCompanion(ScriptsCompanion data) {
     return Script(
       id: data.id.present ? data.id.value : this.id,
-      passageId: data.passageId.present ? data.passageId.value : this.passageId,
-      speaker: data.speaker.present ? data.speaker.value : this.speaker,
-      textBody: data.textBody.present ? data.textBody.value : this.textBody,
+      packId: data.packId.present ? data.packId.value : this.packId,
+      sentencesJson: data.sentencesJson.present
+          ? data.sentencesJson.value
+          : this.sentencesJson,
+      turnsJson: data.turnsJson.present ? data.turnsJson.value : this.turnsJson,
+      ttsPlanJson: data.ttsPlanJson.present
+          ? data.ttsPlanJson.value
+          : this.ttsPlanJson,
       orderIndex: data.orderIndex.present
           ? data.orderIndex.value
           : this.orderIndex,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
     );
   }
 
@@ -1256,86 +1271,113 @@ class Script extends DataClass implements Insertable<Script> {
   String toString() {
     return (StringBuffer('Script(')
           ..write('id: $id, ')
-          ..write('passageId: $passageId, ')
-          ..write('speaker: $speaker, ')
-          ..write('textBody: $textBody, ')
-          ..write('orderIndex: $orderIndex')
+          ..write('packId: $packId, ')
+          ..write('sentencesJson: $sentencesJson, ')
+          ..write('turnsJson: $turnsJson, ')
+          ..write('ttsPlanJson: $ttsPlanJson, ')
+          ..write('orderIndex: $orderIndex, ')
+          ..write('createdAt: $createdAt')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, passageId, speaker, textBody, orderIndex);
+  int get hashCode => Object.hash(
+    id,
+    packId,
+    sentencesJson,
+    turnsJson,
+    ttsPlanJson,
+    orderIndex,
+    createdAt,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is Script &&
           other.id == this.id &&
-          other.passageId == this.passageId &&
-          other.speaker == this.speaker &&
-          other.textBody == this.textBody &&
-          other.orderIndex == this.orderIndex);
+          other.packId == this.packId &&
+          other.sentencesJson == this.sentencesJson &&
+          other.turnsJson == this.turnsJson &&
+          other.ttsPlanJson == this.ttsPlanJson &&
+          other.orderIndex == this.orderIndex &&
+          other.createdAt == this.createdAt);
 }
 
 class ScriptsCompanion extends UpdateCompanion<Script> {
   final Value<String> id;
-  final Value<String> passageId;
-  final Value<String> speaker;
-  final Value<String> textBody;
+  final Value<String> packId;
+  final Value<String> sentencesJson;
+  final Value<String> turnsJson;
+  final Value<String> ttsPlanJson;
   final Value<int> orderIndex;
+  final Value<DateTime> createdAt;
   final Value<int> rowid;
   const ScriptsCompanion({
     this.id = const Value.absent(),
-    this.passageId = const Value.absent(),
-    this.speaker = const Value.absent(),
-    this.textBody = const Value.absent(),
+    this.packId = const Value.absent(),
+    this.sentencesJson = const Value.absent(),
+    this.turnsJson = const Value.absent(),
+    this.ttsPlanJson = const Value.absent(),
     this.orderIndex = const Value.absent(),
+    this.createdAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   ScriptsCompanion.insert({
     required String id,
-    required String passageId,
-    required String speaker,
-    required String textBody,
+    required String packId,
+    required String sentencesJson,
+    required String turnsJson,
+    required String ttsPlanJson,
     required int orderIndex,
+    this.createdAt = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
-       passageId = Value(passageId),
-       speaker = Value(speaker),
-       textBody = Value(textBody),
+       packId = Value(packId),
+       sentencesJson = Value(sentencesJson),
+       turnsJson = Value(turnsJson),
+       ttsPlanJson = Value(ttsPlanJson),
        orderIndex = Value(orderIndex);
   static Insertable<Script> custom({
     Expression<String>? id,
-    Expression<String>? passageId,
-    Expression<String>? speaker,
-    Expression<String>? textBody,
+    Expression<String>? packId,
+    Expression<String>? sentencesJson,
+    Expression<String>? turnsJson,
+    Expression<String>? ttsPlanJson,
     Expression<int>? orderIndex,
+    Expression<DateTime>? createdAt,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
-      if (passageId != null) 'passage_id': passageId,
-      if (speaker != null) 'speaker': speaker,
-      if (textBody != null) 'text': textBody,
+      if (packId != null) 'pack_id': packId,
+      if (sentencesJson != null) 'sentences_json': sentencesJson,
+      if (turnsJson != null) 'turns_json': turnsJson,
+      if (ttsPlanJson != null) 'tts_plan_json': ttsPlanJson,
       if (orderIndex != null) 'order_index': orderIndex,
+      if (createdAt != null) 'created_at': createdAt,
       if (rowid != null) 'rowid': rowid,
     });
   }
 
   ScriptsCompanion copyWith({
     Value<String>? id,
-    Value<String>? passageId,
-    Value<String>? speaker,
-    Value<String>? textBody,
+    Value<String>? packId,
+    Value<String>? sentencesJson,
+    Value<String>? turnsJson,
+    Value<String>? ttsPlanJson,
     Value<int>? orderIndex,
+    Value<DateTime>? createdAt,
     Value<int>? rowid,
   }) {
     return ScriptsCompanion(
       id: id ?? this.id,
-      passageId: passageId ?? this.passageId,
-      speaker: speaker ?? this.speaker,
-      textBody: textBody ?? this.textBody,
+      packId: packId ?? this.packId,
+      sentencesJson: sentencesJson ?? this.sentencesJson,
+      turnsJson: turnsJson ?? this.turnsJson,
+      ttsPlanJson: ttsPlanJson ?? this.ttsPlanJson,
       orderIndex: orderIndex ?? this.orderIndex,
+      createdAt: createdAt ?? this.createdAt,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -1346,17 +1388,23 @@ class ScriptsCompanion extends UpdateCompanion<Script> {
     if (id.present) {
       map['id'] = Variable<String>(id.value);
     }
-    if (passageId.present) {
-      map['passage_id'] = Variable<String>(passageId.value);
+    if (packId.present) {
+      map['pack_id'] = Variable<String>(packId.value);
     }
-    if (speaker.present) {
-      map['speaker'] = Variable<String>(speaker.value);
+    if (sentencesJson.present) {
+      map['sentences_json'] = Variable<String>(sentencesJson.value);
     }
-    if (textBody.present) {
-      map['text'] = Variable<String>(textBody.value);
+    if (turnsJson.present) {
+      map['turns_json'] = Variable<String>(turnsJson.value);
+    }
+    if (ttsPlanJson.present) {
+      map['tts_plan_json'] = Variable<String>(ttsPlanJson.value);
     }
     if (orderIndex.present) {
       map['order_index'] = Variable<int>(orderIndex.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
     }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
@@ -1368,10 +1416,12 @@ class ScriptsCompanion extends UpdateCompanion<Script> {
   String toString() {
     return (StringBuffer('ScriptsCompanion(')
           ..write('id: $id, ')
-          ..write('passageId: $passageId, ')
-          ..write('speaker: $speaker, ')
-          ..write('textBody: $textBody, ')
+          ..write('packId: $packId, ')
+          ..write('sentencesJson: $sentencesJson, ')
+          ..write('turnsJson: $turnsJson, ')
+          ..write('ttsPlanJson: $ttsPlanJson, ')
           ..write('orderIndex: $orderIndex, ')
+          ..write('createdAt: $createdAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -1397,6 +1447,55 @@ class $QuestionsTable extends Questions
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _skillMeta = const VerificationMeta('skill');
+  @override
+  late final GeneratedColumn<String> skill = GeneratedColumn<String>(
+    'skill',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    $customConstraints:
+        'NOT NULL CHECK (skill IN (\'LISTENING\', \'READING\', \'VOCAB\'))',
+  );
+  static const VerificationMeta _typeTagMeta = const VerificationMeta(
+    'typeTag',
+  );
+  @override
+  late final GeneratedColumn<String> typeTag = GeneratedColumn<String>(
+    'type_tag',
+    aliasedName,
+    false,
+    additionalChecks: GeneratedColumn.checkTextLength(
+      minTextLength: 2,
+      maxTextLength: 16,
+    ),
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _trackMeta = const VerificationMeta('track');
+  @override
+  late final GeneratedColumn<String> track = GeneratedColumn<String>(
+    'track',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    $customConstraints:
+        'NOT NULL CHECK (track IN (\'M3\', \'H1\', \'H2\', \'H3\'))',
+  );
+  static const VerificationMeta _difficultyMeta = const VerificationMeta(
+    'difficulty',
+  );
+  @override
+  late final GeneratedColumn<int> difficulty = GeneratedColumn<int>(
+    'difficulty',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL CHECK (difficulty BETWEEN 1 AND 5)',
+  );
   static const VerificationMeta _passageIdMeta = const VerificationMeta(
     'passageId',
   );
@@ -1404,11 +1503,25 @@ class $QuestionsTable extends Questions
   late final GeneratedColumn<String> passageId = GeneratedColumn<String>(
     'passage_id',
     aliasedName,
-    false,
+    true,
     type: DriftSqlType.string,
-    requiredDuringInsert: true,
+    requiredDuringInsert: false,
     defaultConstraints: GeneratedColumn.constraintIsAlways(
       'REFERENCES passages (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _scriptIdMeta = const VerificationMeta(
+    'scriptId',
+  );
+  @override
+  late final GeneratedColumn<String> scriptId = GeneratedColumn<String>(
+    'script_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES scripts (id) ON DELETE CASCADE',
     ),
   );
   static const VerificationMeta _promptMeta = const VerificationMeta('prompt');
@@ -1424,21 +1537,6 @@ class $QuestionsTable extends Questions
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _questionTypeMeta = const VerificationMeta(
-    'questionType',
-  );
-  @override
-  late final GeneratedColumn<String> questionType = GeneratedColumn<String>(
-    'question_type',
-    aliasedName,
-    false,
-    additionalChecks: GeneratedColumn.checkTextLength(
-      minTextLength: 1,
-      maxTextLength: 40,
-    ),
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
   static const VerificationMeta _optionsJsonMeta = const VerificationMeta(
     'optionsJson',
   );
@@ -1446,20 +1544,22 @@ class $QuestionsTable extends Questions
   late final GeneratedColumn<String> optionsJson = GeneratedColumn<String>(
     'options_json',
     aliasedName,
-    true,
+    false,
     type: DriftSqlType.string,
-    requiredDuringInsert: false,
+    requiredDuringInsert: true,
   );
-  static const VerificationMeta _answerJsonMeta = const VerificationMeta(
-    'answerJson',
+  static const VerificationMeta _answerKeyMeta = const VerificationMeta(
+    'answerKey',
   );
   @override
-  late final GeneratedColumn<String> answerJson = GeneratedColumn<String>(
-    'answer_json',
+  late final GeneratedColumn<String> answerKey = GeneratedColumn<String>(
+    'answer_key',
     aliasedName,
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: true,
+    $customConstraints:
+        'NOT NULL CHECK (answer_key IN (\'A\', \'B\', \'C\', \'D\', \'E\'))',
   );
   static const VerificationMeta _orderIndexMeta = const VerificationMeta(
     'orderIndex',
@@ -1476,11 +1576,15 @@ class $QuestionsTable extends Questions
   @override
   List<GeneratedColumn> get $columns => [
     id,
+    skill,
+    typeTag,
+    track,
+    difficulty,
     passageId,
+    scriptId,
     prompt,
-    questionType,
     optionsJson,
-    answerJson,
+    answerKey,
     orderIndex,
   ];
   @override
@@ -1500,13 +1604,49 @@ class $QuestionsTable extends Questions
     } else if (isInserting) {
       context.missing(_idMeta);
     }
+    if (data.containsKey('skill')) {
+      context.handle(
+        _skillMeta,
+        skill.isAcceptableOrUnknown(data['skill']!, _skillMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_skillMeta);
+    }
+    if (data.containsKey('type_tag')) {
+      context.handle(
+        _typeTagMeta,
+        typeTag.isAcceptableOrUnknown(data['type_tag']!, _typeTagMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_typeTagMeta);
+    }
+    if (data.containsKey('track')) {
+      context.handle(
+        _trackMeta,
+        track.isAcceptableOrUnknown(data['track']!, _trackMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_trackMeta);
+    }
+    if (data.containsKey('difficulty')) {
+      context.handle(
+        _difficultyMeta,
+        difficulty.isAcceptableOrUnknown(data['difficulty']!, _difficultyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_difficultyMeta);
+    }
     if (data.containsKey('passage_id')) {
       context.handle(
         _passageIdMeta,
         passageId.isAcceptableOrUnknown(data['passage_id']!, _passageIdMeta),
       );
-    } else if (isInserting) {
-      context.missing(_passageIdMeta);
+    }
+    if (data.containsKey('script_id')) {
+      context.handle(
+        _scriptIdMeta,
+        scriptId.isAcceptableOrUnknown(data['script_id']!, _scriptIdMeta),
+      );
     }
     if (data.containsKey('prompt')) {
       context.handle(
@@ -1516,17 +1656,6 @@ class $QuestionsTable extends Questions
     } else if (isInserting) {
       context.missing(_promptMeta);
     }
-    if (data.containsKey('question_type')) {
-      context.handle(
-        _questionTypeMeta,
-        questionType.isAcceptableOrUnknown(
-          data['question_type']!,
-          _questionTypeMeta,
-        ),
-      );
-    } else if (isInserting) {
-      context.missing(_questionTypeMeta);
-    }
     if (data.containsKey('options_json')) {
       context.handle(
         _optionsJsonMeta,
@@ -1535,14 +1664,16 @@ class $QuestionsTable extends Questions
           _optionsJsonMeta,
         ),
       );
+    } else if (isInserting) {
+      context.missing(_optionsJsonMeta);
     }
-    if (data.containsKey('answer_json')) {
+    if (data.containsKey('answer_key')) {
       context.handle(
-        _answerJsonMeta,
-        answerJson.isAcceptableOrUnknown(data['answer_json']!, _answerJsonMeta),
+        _answerKeyMeta,
+        answerKey.isAcceptableOrUnknown(data['answer_key']!, _answerKeyMeta),
       );
     } else if (isInserting) {
-      context.missing(_answerJsonMeta);
+      context.missing(_answerKeyMeta);
     }
     if (data.containsKey('order_index')) {
       context.handle(
@@ -1565,25 +1696,41 @@ class $QuestionsTable extends Questions
         DriftSqlType.string,
         data['${effectivePrefix}id'],
       )!,
+      skill: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}skill'],
+      )!,
+      typeTag: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}type_tag'],
+      )!,
+      track: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}track'],
+      )!,
+      difficulty: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}difficulty'],
+      )!,
       passageId: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}passage_id'],
-      )!,
+      ),
+      scriptId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}script_id'],
+      ),
       prompt: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}prompt'],
       )!,
-      questionType: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}question_type'],
-      )!,
       optionsJson: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}options_json'],
-      ),
-      answerJson: attachedDatabase.typeMapping.read(
+      )!,
+      answerKey: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
-        data['${effectivePrefix}answer_json'],
+        data['${effectivePrefix}answer_key'],
       )!,
       orderIndex: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
@@ -1600,32 +1747,46 @@ class $QuestionsTable extends Questions
 
 class Question extends DataClass implements Insertable<Question> {
   final String id;
-  final String passageId;
+  final String skill;
+  final String typeTag;
+  final String track;
+  final int difficulty;
+  final String? passageId;
+  final String? scriptId;
   final String prompt;
-  final String questionType;
-  final String? optionsJson;
-  final String answerJson;
+  final String optionsJson;
+  final String answerKey;
   final int orderIndex;
   const Question({
     required this.id,
-    required this.passageId,
+    required this.skill,
+    required this.typeTag,
+    required this.track,
+    required this.difficulty,
+    this.passageId,
+    this.scriptId,
     required this.prompt,
-    required this.questionType,
-    this.optionsJson,
-    required this.answerJson,
+    required this.optionsJson,
+    required this.answerKey,
     required this.orderIndex,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<String>(id);
-    map['passage_id'] = Variable<String>(passageId);
-    map['prompt'] = Variable<String>(prompt);
-    map['question_type'] = Variable<String>(questionType);
-    if (!nullToAbsent || optionsJson != null) {
-      map['options_json'] = Variable<String>(optionsJson);
+    map['skill'] = Variable<String>(skill);
+    map['type_tag'] = Variable<String>(typeTag);
+    map['track'] = Variable<String>(track);
+    map['difficulty'] = Variable<int>(difficulty);
+    if (!nullToAbsent || passageId != null) {
+      map['passage_id'] = Variable<String>(passageId);
     }
-    map['answer_json'] = Variable<String>(answerJson);
+    if (!nullToAbsent || scriptId != null) {
+      map['script_id'] = Variable<String>(scriptId);
+    }
+    map['prompt'] = Variable<String>(prompt);
+    map['options_json'] = Variable<String>(optionsJson);
+    map['answer_key'] = Variable<String>(answerKey);
     map['order_index'] = Variable<int>(orderIndex);
     return map;
   }
@@ -1633,13 +1794,19 @@ class Question extends DataClass implements Insertable<Question> {
   QuestionsCompanion toCompanion(bool nullToAbsent) {
     return QuestionsCompanion(
       id: Value(id),
-      passageId: Value(passageId),
-      prompt: Value(prompt),
-      questionType: Value(questionType),
-      optionsJson: optionsJson == null && nullToAbsent
+      skill: Value(skill),
+      typeTag: Value(typeTag),
+      track: Value(track),
+      difficulty: Value(difficulty),
+      passageId: passageId == null && nullToAbsent
           ? const Value.absent()
-          : Value(optionsJson),
-      answerJson: Value(answerJson),
+          : Value(passageId),
+      scriptId: scriptId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(scriptId),
+      prompt: Value(prompt),
+      optionsJson: Value(optionsJson),
+      answerKey: Value(answerKey),
       orderIndex: Value(orderIndex),
     );
   }
@@ -1651,11 +1818,15 @@ class Question extends DataClass implements Insertable<Question> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return Question(
       id: serializer.fromJson<String>(json['id']),
-      passageId: serializer.fromJson<String>(json['passageId']),
+      skill: serializer.fromJson<String>(json['skill']),
+      typeTag: serializer.fromJson<String>(json['typeTag']),
+      track: serializer.fromJson<String>(json['track']),
+      difficulty: serializer.fromJson<int>(json['difficulty']),
+      passageId: serializer.fromJson<String?>(json['passageId']),
+      scriptId: serializer.fromJson<String?>(json['scriptId']),
       prompt: serializer.fromJson<String>(json['prompt']),
-      questionType: serializer.fromJson<String>(json['questionType']),
-      optionsJson: serializer.fromJson<String?>(json['optionsJson']),
-      answerJson: serializer.fromJson<String>(json['answerJson']),
+      optionsJson: serializer.fromJson<String>(json['optionsJson']),
+      answerKey: serializer.fromJson<String>(json['answerKey']),
       orderIndex: serializer.fromJson<int>(json['orderIndex']),
     );
   }
@@ -1664,46 +1835,60 @@ class Question extends DataClass implements Insertable<Question> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<String>(id),
-      'passageId': serializer.toJson<String>(passageId),
+      'skill': serializer.toJson<String>(skill),
+      'typeTag': serializer.toJson<String>(typeTag),
+      'track': serializer.toJson<String>(track),
+      'difficulty': serializer.toJson<int>(difficulty),
+      'passageId': serializer.toJson<String?>(passageId),
+      'scriptId': serializer.toJson<String?>(scriptId),
       'prompt': serializer.toJson<String>(prompt),
-      'questionType': serializer.toJson<String>(questionType),
-      'optionsJson': serializer.toJson<String?>(optionsJson),
-      'answerJson': serializer.toJson<String>(answerJson),
+      'optionsJson': serializer.toJson<String>(optionsJson),
+      'answerKey': serializer.toJson<String>(answerKey),
       'orderIndex': serializer.toJson<int>(orderIndex),
     };
   }
 
   Question copyWith({
     String? id,
-    String? passageId,
+    String? skill,
+    String? typeTag,
+    String? track,
+    int? difficulty,
+    Value<String?> passageId = const Value.absent(),
+    Value<String?> scriptId = const Value.absent(),
     String? prompt,
-    String? questionType,
-    Value<String?> optionsJson = const Value.absent(),
-    String? answerJson,
+    String? optionsJson,
+    String? answerKey,
     int? orderIndex,
   }) => Question(
     id: id ?? this.id,
-    passageId: passageId ?? this.passageId,
+    skill: skill ?? this.skill,
+    typeTag: typeTag ?? this.typeTag,
+    track: track ?? this.track,
+    difficulty: difficulty ?? this.difficulty,
+    passageId: passageId.present ? passageId.value : this.passageId,
+    scriptId: scriptId.present ? scriptId.value : this.scriptId,
     prompt: prompt ?? this.prompt,
-    questionType: questionType ?? this.questionType,
-    optionsJson: optionsJson.present ? optionsJson.value : this.optionsJson,
-    answerJson: answerJson ?? this.answerJson,
+    optionsJson: optionsJson ?? this.optionsJson,
+    answerKey: answerKey ?? this.answerKey,
     orderIndex: orderIndex ?? this.orderIndex,
   );
   Question copyWithCompanion(QuestionsCompanion data) {
     return Question(
       id: data.id.present ? data.id.value : this.id,
+      skill: data.skill.present ? data.skill.value : this.skill,
+      typeTag: data.typeTag.present ? data.typeTag.value : this.typeTag,
+      track: data.track.present ? data.track.value : this.track,
+      difficulty: data.difficulty.present
+          ? data.difficulty.value
+          : this.difficulty,
       passageId: data.passageId.present ? data.passageId.value : this.passageId,
+      scriptId: data.scriptId.present ? data.scriptId.value : this.scriptId,
       prompt: data.prompt.present ? data.prompt.value : this.prompt,
-      questionType: data.questionType.present
-          ? data.questionType.value
-          : this.questionType,
       optionsJson: data.optionsJson.present
           ? data.optionsJson.value
           : this.optionsJson,
-      answerJson: data.answerJson.present
-          ? data.answerJson.value
-          : this.answerJson,
+      answerKey: data.answerKey.present ? data.answerKey.value : this.answerKey,
       orderIndex: data.orderIndex.present
           ? data.orderIndex.value
           : this.orderIndex,
@@ -1714,11 +1899,15 @@ class Question extends DataClass implements Insertable<Question> {
   String toString() {
     return (StringBuffer('Question(')
           ..write('id: $id, ')
+          ..write('skill: $skill, ')
+          ..write('typeTag: $typeTag, ')
+          ..write('track: $track, ')
+          ..write('difficulty: $difficulty, ')
           ..write('passageId: $passageId, ')
+          ..write('scriptId: $scriptId, ')
           ..write('prompt: $prompt, ')
-          ..write('questionType: $questionType, ')
           ..write('optionsJson: $optionsJson, ')
-          ..write('answerJson: $answerJson, ')
+          ..write('answerKey: $answerKey, ')
           ..write('orderIndex: $orderIndex')
           ..write(')'))
         .toString();
@@ -1727,11 +1916,15 @@ class Question extends DataClass implements Insertable<Question> {
   @override
   int get hashCode => Object.hash(
     id,
+    skill,
+    typeTag,
+    track,
+    difficulty,
     passageId,
+    scriptId,
     prompt,
-    questionType,
     optionsJson,
-    answerJson,
+    answerKey,
     orderIndex,
   );
   @override
@@ -1739,65 +1932,92 @@ class Question extends DataClass implements Insertable<Question> {
       identical(this, other) ||
       (other is Question &&
           other.id == this.id &&
+          other.skill == this.skill &&
+          other.typeTag == this.typeTag &&
+          other.track == this.track &&
+          other.difficulty == this.difficulty &&
           other.passageId == this.passageId &&
+          other.scriptId == this.scriptId &&
           other.prompt == this.prompt &&
-          other.questionType == this.questionType &&
           other.optionsJson == this.optionsJson &&
-          other.answerJson == this.answerJson &&
+          other.answerKey == this.answerKey &&
           other.orderIndex == this.orderIndex);
 }
 
 class QuestionsCompanion extends UpdateCompanion<Question> {
   final Value<String> id;
-  final Value<String> passageId;
+  final Value<String> skill;
+  final Value<String> typeTag;
+  final Value<String> track;
+  final Value<int> difficulty;
+  final Value<String?> passageId;
+  final Value<String?> scriptId;
   final Value<String> prompt;
-  final Value<String> questionType;
-  final Value<String?> optionsJson;
-  final Value<String> answerJson;
+  final Value<String> optionsJson;
+  final Value<String> answerKey;
   final Value<int> orderIndex;
   final Value<int> rowid;
   const QuestionsCompanion({
     this.id = const Value.absent(),
+    this.skill = const Value.absent(),
+    this.typeTag = const Value.absent(),
+    this.track = const Value.absent(),
+    this.difficulty = const Value.absent(),
     this.passageId = const Value.absent(),
+    this.scriptId = const Value.absent(),
     this.prompt = const Value.absent(),
-    this.questionType = const Value.absent(),
     this.optionsJson = const Value.absent(),
-    this.answerJson = const Value.absent(),
+    this.answerKey = const Value.absent(),
     this.orderIndex = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   QuestionsCompanion.insert({
     required String id,
-    required String passageId,
+    required String skill,
+    required String typeTag,
+    required String track,
+    required int difficulty,
+    this.passageId = const Value.absent(),
+    this.scriptId = const Value.absent(),
     required String prompt,
-    required String questionType,
-    this.optionsJson = const Value.absent(),
-    required String answerJson,
+    required String optionsJson,
+    required String answerKey,
     required int orderIndex,
     this.rowid = const Value.absent(),
   }) : id = Value(id),
-       passageId = Value(passageId),
+       skill = Value(skill),
+       typeTag = Value(typeTag),
+       track = Value(track),
+       difficulty = Value(difficulty),
        prompt = Value(prompt),
-       questionType = Value(questionType),
-       answerJson = Value(answerJson),
+       optionsJson = Value(optionsJson),
+       answerKey = Value(answerKey),
        orderIndex = Value(orderIndex);
   static Insertable<Question> custom({
     Expression<String>? id,
+    Expression<String>? skill,
+    Expression<String>? typeTag,
+    Expression<String>? track,
+    Expression<int>? difficulty,
     Expression<String>? passageId,
+    Expression<String>? scriptId,
     Expression<String>? prompt,
-    Expression<String>? questionType,
     Expression<String>? optionsJson,
-    Expression<String>? answerJson,
+    Expression<String>? answerKey,
     Expression<int>? orderIndex,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
+      if (skill != null) 'skill': skill,
+      if (typeTag != null) 'type_tag': typeTag,
+      if (track != null) 'track': track,
+      if (difficulty != null) 'difficulty': difficulty,
       if (passageId != null) 'passage_id': passageId,
+      if (scriptId != null) 'script_id': scriptId,
       if (prompt != null) 'prompt': prompt,
-      if (questionType != null) 'question_type': questionType,
       if (optionsJson != null) 'options_json': optionsJson,
-      if (answerJson != null) 'answer_json': answerJson,
+      if (answerKey != null) 'answer_key': answerKey,
       if (orderIndex != null) 'order_index': orderIndex,
       if (rowid != null) 'rowid': rowid,
     });
@@ -1805,21 +2025,29 @@ class QuestionsCompanion extends UpdateCompanion<Question> {
 
   QuestionsCompanion copyWith({
     Value<String>? id,
-    Value<String>? passageId,
+    Value<String>? skill,
+    Value<String>? typeTag,
+    Value<String>? track,
+    Value<int>? difficulty,
+    Value<String?>? passageId,
+    Value<String?>? scriptId,
     Value<String>? prompt,
-    Value<String>? questionType,
-    Value<String?>? optionsJson,
-    Value<String>? answerJson,
+    Value<String>? optionsJson,
+    Value<String>? answerKey,
     Value<int>? orderIndex,
     Value<int>? rowid,
   }) {
     return QuestionsCompanion(
       id: id ?? this.id,
+      skill: skill ?? this.skill,
+      typeTag: typeTag ?? this.typeTag,
+      track: track ?? this.track,
+      difficulty: difficulty ?? this.difficulty,
       passageId: passageId ?? this.passageId,
+      scriptId: scriptId ?? this.scriptId,
       prompt: prompt ?? this.prompt,
-      questionType: questionType ?? this.questionType,
       optionsJson: optionsJson ?? this.optionsJson,
-      answerJson: answerJson ?? this.answerJson,
+      answerKey: answerKey ?? this.answerKey,
       orderIndex: orderIndex ?? this.orderIndex,
       rowid: rowid ?? this.rowid,
     );
@@ -1831,20 +2059,32 @@ class QuestionsCompanion extends UpdateCompanion<Question> {
     if (id.present) {
       map['id'] = Variable<String>(id.value);
     }
+    if (skill.present) {
+      map['skill'] = Variable<String>(skill.value);
+    }
+    if (typeTag.present) {
+      map['type_tag'] = Variable<String>(typeTag.value);
+    }
+    if (track.present) {
+      map['track'] = Variable<String>(track.value);
+    }
+    if (difficulty.present) {
+      map['difficulty'] = Variable<int>(difficulty.value);
+    }
     if (passageId.present) {
       map['passage_id'] = Variable<String>(passageId.value);
+    }
+    if (scriptId.present) {
+      map['script_id'] = Variable<String>(scriptId.value);
     }
     if (prompt.present) {
       map['prompt'] = Variable<String>(prompt.value);
     }
-    if (questionType.present) {
-      map['question_type'] = Variable<String>(questionType.value);
-    }
     if (optionsJson.present) {
       map['options_json'] = Variable<String>(optionsJson.value);
     }
-    if (answerJson.present) {
-      map['answer_json'] = Variable<String>(answerJson.value);
+    if (answerKey.present) {
+      map['answer_key'] = Variable<String>(answerKey.value);
     }
     if (orderIndex.present) {
       map['order_index'] = Variable<int>(orderIndex.value);
@@ -1859,11 +2099,15 @@ class QuestionsCompanion extends UpdateCompanion<Question> {
   String toString() {
     return (StringBuffer('QuestionsCompanion(')
           ..write('id: $id, ')
+          ..write('skill: $skill, ')
+          ..write('typeTag: $typeTag, ')
+          ..write('track: $track, ')
+          ..write('difficulty: $difficulty, ')
           ..write('passageId: $passageId, ')
+          ..write('scriptId: $scriptId, ')
           ..write('prompt: $prompt, ')
-          ..write('questionType: $questionType, ')
           ..write('optionsJson: $optionsJson, ')
-          ..write('answerJson: $answerJson, ')
+          ..write('answerKey: $answerKey, ')
           ..write('orderIndex: $orderIndex, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -1904,10 +2148,23 @@ class $ExplanationsTable extends Explanations
       'REFERENCES questions (id) ON DELETE CASCADE',
     ),
   );
-  static const VerificationMeta _bodyMeta = const VerificationMeta('body');
+  static const VerificationMeta _evidenceSentenceIdsJsonMeta =
+      const VerificationMeta('evidenceSentenceIdsJson');
   @override
-  late final GeneratedColumn<String> body = GeneratedColumn<String>(
-    'body',
+  late final GeneratedColumn<String> evidenceSentenceIdsJson =
+      GeneratedColumn<String>(
+        'evidence_sentence_ids_json',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: true,
+      );
+  static const VerificationMeta _whyCorrectKoMeta = const VerificationMeta(
+    'whyCorrectKo',
+  );
+  @override
+  late final GeneratedColumn<String> whyCorrectKo = GeneratedColumn<String>(
+    'why_correct_ko',
     aliasedName,
     false,
     additionalChecks: GeneratedColumn.checkTextLength(
@@ -1916,6 +2173,50 @@ class $ExplanationsTable extends Explanations
     ),
     type: DriftSqlType.string,
     requiredDuringInsert: true,
+  );
+  static const VerificationMeta _whyWrongKoJsonMeta = const VerificationMeta(
+    'whyWrongKoJson',
+  );
+  @override
+  late final GeneratedColumn<String> whyWrongKoJson = GeneratedColumn<String>(
+    'why_wrong_ko_json',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _vocabNotesJsonMeta = const VerificationMeta(
+    'vocabNotesJson',
+  );
+  @override
+  late final GeneratedColumn<String> vocabNotesJson = GeneratedColumn<String>(
+    'vocab_notes_json',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _structureNotesKoMeta = const VerificationMeta(
+    'structureNotesKo',
+  );
+  @override
+  late final GeneratedColumn<String> structureNotesKo = GeneratedColumn<String>(
+    'structure_notes_ko',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _glossKoJsonMeta = const VerificationMeta(
+    'glossKoJson',
+  );
+  @override
+  late final GeneratedColumn<String> glossKoJson = GeneratedColumn<String>(
+    'gloss_ko_json',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
   );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
@@ -1930,7 +2231,17 @@ class $ExplanationsTable extends Explanations
     defaultValue: currentDateAndTime,
   );
   @override
-  List<GeneratedColumn> get $columns => [id, questionId, body, createdAt];
+  List<GeneratedColumn> get $columns => [
+    id,
+    questionId,
+    evidenceSentenceIdsJson,
+    whyCorrectKo,
+    whyWrongKoJson,
+    vocabNotesJson,
+    structureNotesKo,
+    glossKoJson,
+    createdAt,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -1956,13 +2267,65 @@ class $ExplanationsTable extends Explanations
     } else if (isInserting) {
       context.missing(_questionIdMeta);
     }
-    if (data.containsKey('body')) {
+    if (data.containsKey('evidence_sentence_ids_json')) {
       context.handle(
-        _bodyMeta,
-        body.isAcceptableOrUnknown(data['body']!, _bodyMeta),
+        _evidenceSentenceIdsJsonMeta,
+        evidenceSentenceIdsJson.isAcceptableOrUnknown(
+          data['evidence_sentence_ids_json']!,
+          _evidenceSentenceIdsJsonMeta,
+        ),
       );
     } else if (isInserting) {
-      context.missing(_bodyMeta);
+      context.missing(_evidenceSentenceIdsJsonMeta);
+    }
+    if (data.containsKey('why_correct_ko')) {
+      context.handle(
+        _whyCorrectKoMeta,
+        whyCorrectKo.isAcceptableOrUnknown(
+          data['why_correct_ko']!,
+          _whyCorrectKoMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_whyCorrectKoMeta);
+    }
+    if (data.containsKey('why_wrong_ko_json')) {
+      context.handle(
+        _whyWrongKoJsonMeta,
+        whyWrongKoJson.isAcceptableOrUnknown(
+          data['why_wrong_ko_json']!,
+          _whyWrongKoJsonMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_whyWrongKoJsonMeta);
+    }
+    if (data.containsKey('vocab_notes_json')) {
+      context.handle(
+        _vocabNotesJsonMeta,
+        vocabNotesJson.isAcceptableOrUnknown(
+          data['vocab_notes_json']!,
+          _vocabNotesJsonMeta,
+        ),
+      );
+    }
+    if (data.containsKey('structure_notes_ko')) {
+      context.handle(
+        _structureNotesKoMeta,
+        structureNotesKo.isAcceptableOrUnknown(
+          data['structure_notes_ko']!,
+          _structureNotesKoMeta,
+        ),
+      );
+    }
+    if (data.containsKey('gloss_ko_json')) {
+      context.handle(
+        _glossKoJsonMeta,
+        glossKoJson.isAcceptableOrUnknown(
+          data['gloss_ko_json']!,
+          _glossKoJsonMeta,
+        ),
+      );
     }
     if (data.containsKey('created_at')) {
       context.handle(
@@ -1976,6 +2339,10 @@ class $ExplanationsTable extends Explanations
   @override
   Set<GeneratedColumn> get $primaryKey => {id};
   @override
+  List<Set<GeneratedColumn>> get uniqueKeys => [
+    {questionId},
+  ];
+  @override
   Explanation map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return Explanation(
@@ -1987,10 +2354,30 @@ class $ExplanationsTable extends Explanations
         DriftSqlType.string,
         data['${effectivePrefix}question_id'],
       )!,
-      body: attachedDatabase.typeMapping.read(
+      evidenceSentenceIdsJson: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
-        data['${effectivePrefix}body'],
+        data['${effectivePrefix}evidence_sentence_ids_json'],
       )!,
+      whyCorrectKo: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}why_correct_ko'],
+      )!,
+      whyWrongKoJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}why_wrong_ko_json'],
+      )!,
+      vocabNotesJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}vocab_notes_json'],
+      ),
+      structureNotesKo: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}structure_notes_ko'],
+      ),
+      glossKoJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}gloss_ko_json'],
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -2007,12 +2394,22 @@ class $ExplanationsTable extends Explanations
 class Explanation extends DataClass implements Insertable<Explanation> {
   final String id;
   final String questionId;
-  final String body;
+  final String evidenceSentenceIdsJson;
+  final String whyCorrectKo;
+  final String whyWrongKoJson;
+  final String? vocabNotesJson;
+  final String? structureNotesKo;
+  final String? glossKoJson;
   final DateTime createdAt;
   const Explanation({
     required this.id,
     required this.questionId,
-    required this.body,
+    required this.evidenceSentenceIdsJson,
+    required this.whyCorrectKo,
+    required this.whyWrongKoJson,
+    this.vocabNotesJson,
+    this.structureNotesKo,
+    this.glossKoJson,
     required this.createdAt,
   });
   @override
@@ -2020,7 +2417,20 @@ class Explanation extends DataClass implements Insertable<Explanation> {
     final map = <String, Expression>{};
     map['id'] = Variable<String>(id);
     map['question_id'] = Variable<String>(questionId);
-    map['body'] = Variable<String>(body);
+    map['evidence_sentence_ids_json'] = Variable<String>(
+      evidenceSentenceIdsJson,
+    );
+    map['why_correct_ko'] = Variable<String>(whyCorrectKo);
+    map['why_wrong_ko_json'] = Variable<String>(whyWrongKoJson);
+    if (!nullToAbsent || vocabNotesJson != null) {
+      map['vocab_notes_json'] = Variable<String>(vocabNotesJson);
+    }
+    if (!nullToAbsent || structureNotesKo != null) {
+      map['structure_notes_ko'] = Variable<String>(structureNotesKo);
+    }
+    if (!nullToAbsent || glossKoJson != null) {
+      map['gloss_ko_json'] = Variable<String>(glossKoJson);
+    }
     map['created_at'] = Variable<DateTime>(createdAt);
     return map;
   }
@@ -2029,7 +2439,18 @@ class Explanation extends DataClass implements Insertable<Explanation> {
     return ExplanationsCompanion(
       id: Value(id),
       questionId: Value(questionId),
-      body: Value(body),
+      evidenceSentenceIdsJson: Value(evidenceSentenceIdsJson),
+      whyCorrectKo: Value(whyCorrectKo),
+      whyWrongKoJson: Value(whyWrongKoJson),
+      vocabNotesJson: vocabNotesJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(vocabNotesJson),
+      structureNotesKo: structureNotesKo == null && nullToAbsent
+          ? const Value.absent()
+          : Value(structureNotesKo),
+      glossKoJson: glossKoJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(glossKoJson),
       createdAt: Value(createdAt),
     );
   }
@@ -2042,7 +2463,14 @@ class Explanation extends DataClass implements Insertable<Explanation> {
     return Explanation(
       id: serializer.fromJson<String>(json['id']),
       questionId: serializer.fromJson<String>(json['questionId']),
-      body: serializer.fromJson<String>(json['body']),
+      evidenceSentenceIdsJson: serializer.fromJson<String>(
+        json['evidenceSentenceIdsJson'],
+      ),
+      whyCorrectKo: serializer.fromJson<String>(json['whyCorrectKo']),
+      whyWrongKoJson: serializer.fromJson<String>(json['whyWrongKoJson']),
+      vocabNotesJson: serializer.fromJson<String?>(json['vocabNotesJson']),
+      structureNotesKo: serializer.fromJson<String?>(json['structureNotesKo']),
+      glossKoJson: serializer.fromJson<String?>(json['glossKoJson']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
     );
   }
@@ -2052,7 +2480,14 @@ class Explanation extends DataClass implements Insertable<Explanation> {
     return <String, dynamic>{
       'id': serializer.toJson<String>(id),
       'questionId': serializer.toJson<String>(questionId),
-      'body': serializer.toJson<String>(body),
+      'evidenceSentenceIdsJson': serializer.toJson<String>(
+        evidenceSentenceIdsJson,
+      ),
+      'whyCorrectKo': serializer.toJson<String>(whyCorrectKo),
+      'whyWrongKoJson': serializer.toJson<String>(whyWrongKoJson),
+      'vocabNotesJson': serializer.toJson<String?>(vocabNotesJson),
+      'structureNotesKo': serializer.toJson<String?>(structureNotesKo),
+      'glossKoJson': serializer.toJson<String?>(glossKoJson),
       'createdAt': serializer.toJson<DateTime>(createdAt),
     };
   }
@@ -2060,12 +2495,27 @@ class Explanation extends DataClass implements Insertable<Explanation> {
   Explanation copyWith({
     String? id,
     String? questionId,
-    String? body,
+    String? evidenceSentenceIdsJson,
+    String? whyCorrectKo,
+    String? whyWrongKoJson,
+    Value<String?> vocabNotesJson = const Value.absent(),
+    Value<String?> structureNotesKo = const Value.absent(),
+    Value<String?> glossKoJson = const Value.absent(),
     DateTime? createdAt,
   }) => Explanation(
     id: id ?? this.id,
     questionId: questionId ?? this.questionId,
-    body: body ?? this.body,
+    evidenceSentenceIdsJson:
+        evidenceSentenceIdsJson ?? this.evidenceSentenceIdsJson,
+    whyCorrectKo: whyCorrectKo ?? this.whyCorrectKo,
+    whyWrongKoJson: whyWrongKoJson ?? this.whyWrongKoJson,
+    vocabNotesJson: vocabNotesJson.present
+        ? vocabNotesJson.value
+        : this.vocabNotesJson,
+    structureNotesKo: structureNotesKo.present
+        ? structureNotesKo.value
+        : this.structureNotesKo,
+    glossKoJson: glossKoJson.present ? glossKoJson.value : this.glossKoJson,
     createdAt: createdAt ?? this.createdAt,
   );
   Explanation copyWithCompanion(ExplanationsCompanion data) {
@@ -2074,7 +2524,24 @@ class Explanation extends DataClass implements Insertable<Explanation> {
       questionId: data.questionId.present
           ? data.questionId.value
           : this.questionId,
-      body: data.body.present ? data.body.value : this.body,
+      evidenceSentenceIdsJson: data.evidenceSentenceIdsJson.present
+          ? data.evidenceSentenceIdsJson.value
+          : this.evidenceSentenceIdsJson,
+      whyCorrectKo: data.whyCorrectKo.present
+          ? data.whyCorrectKo.value
+          : this.whyCorrectKo,
+      whyWrongKoJson: data.whyWrongKoJson.present
+          ? data.whyWrongKoJson.value
+          : this.whyWrongKoJson,
+      vocabNotesJson: data.vocabNotesJson.present
+          ? data.vocabNotesJson.value
+          : this.vocabNotesJson,
+      structureNotesKo: data.structureNotesKo.present
+          ? data.structureNotesKo.value
+          : this.structureNotesKo,
+      glossKoJson: data.glossKoJson.present
+          ? data.glossKoJson.value
+          : this.glossKoJson,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
     );
   }
@@ -2084,57 +2551,105 @@ class Explanation extends DataClass implements Insertable<Explanation> {
     return (StringBuffer('Explanation(')
           ..write('id: $id, ')
           ..write('questionId: $questionId, ')
-          ..write('body: $body, ')
+          ..write('evidenceSentenceIdsJson: $evidenceSentenceIdsJson, ')
+          ..write('whyCorrectKo: $whyCorrectKo, ')
+          ..write('whyWrongKoJson: $whyWrongKoJson, ')
+          ..write('vocabNotesJson: $vocabNotesJson, ')
+          ..write('structureNotesKo: $structureNotesKo, ')
+          ..write('glossKoJson: $glossKoJson, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, questionId, body, createdAt);
+  int get hashCode => Object.hash(
+    id,
+    questionId,
+    evidenceSentenceIdsJson,
+    whyCorrectKo,
+    whyWrongKoJson,
+    vocabNotesJson,
+    structureNotesKo,
+    glossKoJson,
+    createdAt,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is Explanation &&
           other.id == this.id &&
           other.questionId == this.questionId &&
-          other.body == this.body &&
+          other.evidenceSentenceIdsJson == this.evidenceSentenceIdsJson &&
+          other.whyCorrectKo == this.whyCorrectKo &&
+          other.whyWrongKoJson == this.whyWrongKoJson &&
+          other.vocabNotesJson == this.vocabNotesJson &&
+          other.structureNotesKo == this.structureNotesKo &&
+          other.glossKoJson == this.glossKoJson &&
           other.createdAt == this.createdAt);
 }
 
 class ExplanationsCompanion extends UpdateCompanion<Explanation> {
   final Value<String> id;
   final Value<String> questionId;
-  final Value<String> body;
+  final Value<String> evidenceSentenceIdsJson;
+  final Value<String> whyCorrectKo;
+  final Value<String> whyWrongKoJson;
+  final Value<String?> vocabNotesJson;
+  final Value<String?> structureNotesKo;
+  final Value<String?> glossKoJson;
   final Value<DateTime> createdAt;
   final Value<int> rowid;
   const ExplanationsCompanion({
     this.id = const Value.absent(),
     this.questionId = const Value.absent(),
-    this.body = const Value.absent(),
+    this.evidenceSentenceIdsJson = const Value.absent(),
+    this.whyCorrectKo = const Value.absent(),
+    this.whyWrongKoJson = const Value.absent(),
+    this.vocabNotesJson = const Value.absent(),
+    this.structureNotesKo = const Value.absent(),
+    this.glossKoJson = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   ExplanationsCompanion.insert({
     required String id,
     required String questionId,
-    required String body,
+    required String evidenceSentenceIdsJson,
+    required String whyCorrectKo,
+    required String whyWrongKoJson,
+    this.vocabNotesJson = const Value.absent(),
+    this.structureNotesKo = const Value.absent(),
+    this.glossKoJson = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        questionId = Value(questionId),
-       body = Value(body);
+       evidenceSentenceIdsJson = Value(evidenceSentenceIdsJson),
+       whyCorrectKo = Value(whyCorrectKo),
+       whyWrongKoJson = Value(whyWrongKoJson);
   static Insertable<Explanation> custom({
     Expression<String>? id,
     Expression<String>? questionId,
-    Expression<String>? body,
+    Expression<String>? evidenceSentenceIdsJson,
+    Expression<String>? whyCorrectKo,
+    Expression<String>? whyWrongKoJson,
+    Expression<String>? vocabNotesJson,
+    Expression<String>? structureNotesKo,
+    Expression<String>? glossKoJson,
     Expression<DateTime>? createdAt,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (questionId != null) 'question_id': questionId,
-      if (body != null) 'body': body,
+      if (evidenceSentenceIdsJson != null)
+        'evidence_sentence_ids_json': evidenceSentenceIdsJson,
+      if (whyCorrectKo != null) 'why_correct_ko': whyCorrectKo,
+      if (whyWrongKoJson != null) 'why_wrong_ko_json': whyWrongKoJson,
+      if (vocabNotesJson != null) 'vocab_notes_json': vocabNotesJson,
+      if (structureNotesKo != null) 'structure_notes_ko': structureNotesKo,
+      if (glossKoJson != null) 'gloss_ko_json': glossKoJson,
       if (createdAt != null) 'created_at': createdAt,
       if (rowid != null) 'rowid': rowid,
     });
@@ -2143,14 +2658,25 @@ class ExplanationsCompanion extends UpdateCompanion<Explanation> {
   ExplanationsCompanion copyWith({
     Value<String>? id,
     Value<String>? questionId,
-    Value<String>? body,
+    Value<String>? evidenceSentenceIdsJson,
+    Value<String>? whyCorrectKo,
+    Value<String>? whyWrongKoJson,
+    Value<String?>? vocabNotesJson,
+    Value<String?>? structureNotesKo,
+    Value<String?>? glossKoJson,
     Value<DateTime>? createdAt,
     Value<int>? rowid,
   }) {
     return ExplanationsCompanion(
       id: id ?? this.id,
       questionId: questionId ?? this.questionId,
-      body: body ?? this.body,
+      evidenceSentenceIdsJson:
+          evidenceSentenceIdsJson ?? this.evidenceSentenceIdsJson,
+      whyCorrectKo: whyCorrectKo ?? this.whyCorrectKo,
+      whyWrongKoJson: whyWrongKoJson ?? this.whyWrongKoJson,
+      vocabNotesJson: vocabNotesJson ?? this.vocabNotesJson,
+      structureNotesKo: structureNotesKo ?? this.structureNotesKo,
+      glossKoJson: glossKoJson ?? this.glossKoJson,
       createdAt: createdAt ?? this.createdAt,
       rowid: rowid ?? this.rowid,
     );
@@ -2165,8 +2691,25 @@ class ExplanationsCompanion extends UpdateCompanion<Explanation> {
     if (questionId.present) {
       map['question_id'] = Variable<String>(questionId.value);
     }
-    if (body.present) {
-      map['body'] = Variable<String>(body.value);
+    if (evidenceSentenceIdsJson.present) {
+      map['evidence_sentence_ids_json'] = Variable<String>(
+        evidenceSentenceIdsJson.value,
+      );
+    }
+    if (whyCorrectKo.present) {
+      map['why_correct_ko'] = Variable<String>(whyCorrectKo.value);
+    }
+    if (whyWrongKoJson.present) {
+      map['why_wrong_ko_json'] = Variable<String>(whyWrongKoJson.value);
+    }
+    if (vocabNotesJson.present) {
+      map['vocab_notes_json'] = Variable<String>(vocabNotesJson.value);
+    }
+    if (structureNotesKo.present) {
+      map['structure_notes_ko'] = Variable<String>(structureNotesKo.value);
+    }
+    if (glossKoJson.present) {
+      map['gloss_ko_json'] = Variable<String>(glossKoJson.value);
     }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
@@ -2182,7 +2725,12 @@ class ExplanationsCompanion extends UpdateCompanion<Explanation> {
     return (StringBuffer('ExplanationsCompanion(')
           ..write('id: $id, ')
           ..write('questionId: $questionId, ')
-          ..write('body: $body, ')
+          ..write('evidenceSentenceIdsJson: $evidenceSentenceIdsJson, ')
+          ..write('whyCorrectKo: $whyCorrectKo, ')
+          ..write('whyWrongKoJson: $whyWrongKoJson, ')
+          ..write('vocabNotesJson: $vocabNotesJson, ')
+          ..write('structureNotesKo: $structureNotesKo, ')
+          ..write('glossKoJson: $glossKoJson, ')
           ..write('createdAt: $createdAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -2209,17 +2757,16 @@ class $DailySessionsTable extends DailySessions
       'PRIMARY KEY AUTOINCREMENT',
     ),
   );
-  static const VerificationMeta _sessionDateMeta = const VerificationMeta(
-    'sessionDate',
-  );
+  static const VerificationMeta _dayKeyMeta = const VerificationMeta('dayKey');
   @override
-  late final GeneratedColumn<DateTime> sessionDate = GeneratedColumn<DateTime>(
-    'session_date',
+  late final GeneratedColumn<int> dayKey = GeneratedColumn<int>(
+    'day_key',
     aliasedName,
     false,
-    type: DriftSqlType.dateTime,
+    type: DriftSqlType.int,
     requiredDuringInsert: true,
-    defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'),
+    $customConstraints:
+        'NOT NULL UNIQUE CHECK (day_key BETWEEN 19000101 AND 29991231)',
   );
   static const VerificationMeta _plannedItemsMeta = const VerificationMeta(
     'plannedItems',
@@ -2260,7 +2807,7 @@ class $DailySessionsTable extends DailySessions
   @override
   List<GeneratedColumn> get $columns => [
     id,
-    sessionDate,
+    dayKey,
     plannedItems,
     completedItems,
     createdAt,
@@ -2280,16 +2827,13 @@ class $DailySessionsTable extends DailySessions
     if (data.containsKey('id')) {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
     }
-    if (data.containsKey('session_date')) {
+    if (data.containsKey('day_key')) {
       context.handle(
-        _sessionDateMeta,
-        sessionDate.isAcceptableOrUnknown(
-          data['session_date']!,
-          _sessionDateMeta,
-        ),
+        _dayKeyMeta,
+        dayKey.isAcceptableOrUnknown(data['day_key']!, _dayKeyMeta),
       );
     } else if (isInserting) {
-      context.missing(_sessionDateMeta);
+      context.missing(_dayKeyMeta);
     }
     if (data.containsKey('planned_items')) {
       context.handle(
@@ -2328,9 +2872,9 @@ class $DailySessionsTable extends DailySessions
         DriftSqlType.int,
         data['${effectivePrefix}id'],
       )!,
-      sessionDate: attachedDatabase.typeMapping.read(
-        DriftSqlType.dateTime,
-        data['${effectivePrefix}session_date'],
+      dayKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}day_key'],
       )!,
       plannedItems: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
@@ -2355,13 +2899,13 @@ class $DailySessionsTable extends DailySessions
 
 class DailySession extends DataClass implements Insertable<DailySession> {
   final int id;
-  final DateTime sessionDate;
+  final int dayKey;
   final int plannedItems;
   final int completedItems;
   final DateTime createdAt;
   const DailySession({
     required this.id,
-    required this.sessionDate,
+    required this.dayKey,
     required this.plannedItems,
     required this.completedItems,
     required this.createdAt,
@@ -2370,7 +2914,7 @@ class DailySession extends DataClass implements Insertable<DailySession> {
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
-    map['session_date'] = Variable<DateTime>(sessionDate);
+    map['day_key'] = Variable<int>(dayKey);
     map['planned_items'] = Variable<int>(plannedItems);
     map['completed_items'] = Variable<int>(completedItems);
     map['created_at'] = Variable<DateTime>(createdAt);
@@ -2380,7 +2924,7 @@ class DailySession extends DataClass implements Insertable<DailySession> {
   DailySessionsCompanion toCompanion(bool nullToAbsent) {
     return DailySessionsCompanion(
       id: Value(id),
-      sessionDate: Value(sessionDate),
+      dayKey: Value(dayKey),
       plannedItems: Value(plannedItems),
       completedItems: Value(completedItems),
       createdAt: Value(createdAt),
@@ -2394,7 +2938,7 @@ class DailySession extends DataClass implements Insertable<DailySession> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return DailySession(
       id: serializer.fromJson<int>(json['id']),
-      sessionDate: serializer.fromJson<DateTime>(json['sessionDate']),
+      dayKey: serializer.fromJson<int>(json['dayKey']),
       plannedItems: serializer.fromJson<int>(json['plannedItems']),
       completedItems: serializer.fromJson<int>(json['completedItems']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
@@ -2405,7 +2949,7 @@ class DailySession extends DataClass implements Insertable<DailySession> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
-      'sessionDate': serializer.toJson<DateTime>(sessionDate),
+      'dayKey': serializer.toJson<int>(dayKey),
       'plannedItems': serializer.toJson<int>(plannedItems),
       'completedItems': serializer.toJson<int>(completedItems),
       'createdAt': serializer.toJson<DateTime>(createdAt),
@@ -2414,13 +2958,13 @@ class DailySession extends DataClass implements Insertable<DailySession> {
 
   DailySession copyWith({
     int? id,
-    DateTime? sessionDate,
+    int? dayKey,
     int? plannedItems,
     int? completedItems,
     DateTime? createdAt,
   }) => DailySession(
     id: id ?? this.id,
-    sessionDate: sessionDate ?? this.sessionDate,
+    dayKey: dayKey ?? this.dayKey,
     plannedItems: plannedItems ?? this.plannedItems,
     completedItems: completedItems ?? this.completedItems,
     createdAt: createdAt ?? this.createdAt,
@@ -2428,9 +2972,7 @@ class DailySession extends DataClass implements Insertable<DailySession> {
   DailySession copyWithCompanion(DailySessionsCompanion data) {
     return DailySession(
       id: data.id.present ? data.id.value : this.id,
-      sessionDate: data.sessionDate.present
-          ? data.sessionDate.value
-          : this.sessionDate,
+      dayKey: data.dayKey.present ? data.dayKey.value : this.dayKey,
       plannedItems: data.plannedItems.present
           ? data.plannedItems.value
           : this.plannedItems,
@@ -2445,7 +2987,7 @@ class DailySession extends DataClass implements Insertable<DailySession> {
   String toString() {
     return (StringBuffer('DailySession(')
           ..write('id: $id, ')
-          ..write('sessionDate: $sessionDate, ')
+          ..write('dayKey: $dayKey, ')
           ..write('plannedItems: $plannedItems, ')
           ..write('completedItems: $completedItems, ')
           ..write('createdAt: $createdAt')
@@ -2455,13 +2997,13 @@ class DailySession extends DataClass implements Insertable<DailySession> {
 
   @override
   int get hashCode =>
-      Object.hash(id, sessionDate, plannedItems, completedItems, createdAt);
+      Object.hash(id, dayKey, plannedItems, completedItems, createdAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is DailySession &&
           other.id == this.id &&
-          other.sessionDate == this.sessionDate &&
+          other.dayKey == this.dayKey &&
           other.plannedItems == this.plannedItems &&
           other.completedItems == this.completedItems &&
           other.createdAt == this.createdAt);
@@ -2469,34 +3011,34 @@ class DailySession extends DataClass implements Insertable<DailySession> {
 
 class DailySessionsCompanion extends UpdateCompanion<DailySession> {
   final Value<int> id;
-  final Value<DateTime> sessionDate;
+  final Value<int> dayKey;
   final Value<int> plannedItems;
   final Value<int> completedItems;
   final Value<DateTime> createdAt;
   const DailySessionsCompanion({
     this.id = const Value.absent(),
-    this.sessionDate = const Value.absent(),
+    this.dayKey = const Value.absent(),
     this.plannedItems = const Value.absent(),
     this.completedItems = const Value.absent(),
     this.createdAt = const Value.absent(),
   });
   DailySessionsCompanion.insert({
     this.id = const Value.absent(),
-    required DateTime sessionDate,
+    required int dayKey,
     this.plannedItems = const Value.absent(),
     this.completedItems = const Value.absent(),
     this.createdAt = const Value.absent(),
-  }) : sessionDate = Value(sessionDate);
+  }) : dayKey = Value(dayKey);
   static Insertable<DailySession> custom({
     Expression<int>? id,
-    Expression<DateTime>? sessionDate,
+    Expression<int>? dayKey,
     Expression<int>? plannedItems,
     Expression<int>? completedItems,
     Expression<DateTime>? createdAt,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
-      if (sessionDate != null) 'session_date': sessionDate,
+      if (dayKey != null) 'day_key': dayKey,
       if (plannedItems != null) 'planned_items': plannedItems,
       if (completedItems != null) 'completed_items': completedItems,
       if (createdAt != null) 'created_at': createdAt,
@@ -2505,14 +3047,14 @@ class DailySessionsCompanion extends UpdateCompanion<DailySession> {
 
   DailySessionsCompanion copyWith({
     Value<int>? id,
-    Value<DateTime>? sessionDate,
+    Value<int>? dayKey,
     Value<int>? plannedItems,
     Value<int>? completedItems,
     Value<DateTime>? createdAt,
   }) {
     return DailySessionsCompanion(
       id: id ?? this.id,
-      sessionDate: sessionDate ?? this.sessionDate,
+      dayKey: dayKey ?? this.dayKey,
       plannedItems: plannedItems ?? this.plannedItems,
       completedItems: completedItems ?? this.completedItems,
       createdAt: createdAt ?? this.createdAt,
@@ -2525,8 +3067,8 @@ class DailySessionsCompanion extends UpdateCompanion<DailySession> {
     if (id.present) {
       map['id'] = Variable<int>(id.value);
     }
-    if (sessionDate.present) {
-      map['session_date'] = Variable<DateTime>(sessionDate.value);
+    if (dayKey.present) {
+      map['day_key'] = Variable<int>(dayKey.value);
     }
     if (plannedItems.present) {
       map['planned_items'] = Variable<int>(plannedItems.value);
@@ -2544,7 +3086,7 @@ class DailySessionsCompanion extends UpdateCompanion<DailySession> {
   String toString() {
     return (StringBuffer('DailySessionsCompanion(')
           ..write('id: $id, ')
-          ..write('sessionDate: $sessionDate, ')
+          ..write('dayKey: $dayKey, ')
           ..write('plannedItems: $plannedItems, ')
           ..write('completedItems: $completedItems, ')
           ..write('createdAt: $createdAt')
@@ -4512,7 +5054,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     ),
     WritePropagation(
       on: TableUpdateQuery.onTableName(
-        'passages',
+        'content_packs',
         limitUpdateKind: UpdateKind.delete,
       ),
       result: [TableUpdate('scripts', kind: UpdateKind.delete)],
@@ -4520,6 +5062,13 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     WritePropagation(
       on: TableUpdateQuery.onTableName(
         'passages',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('questions', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'scripts',
         limitUpdateKind: UpdateKind.delete,
       ),
       result: [TableUpdate('questions', kind: UpdateKind.delete)],
@@ -4609,6 +5158,25 @@ final class $$ContentPacksTableReferences
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
+
+  static MultiTypedResultKey<$ScriptsTable, List<Script>> _scriptsRefsTable(
+    _$AppDatabase db,
+  ) => MultiTypedResultKey.fromTable(
+    db.scripts,
+    aliasName: $_aliasNameGenerator(db.contentPacks.id, db.scripts.packId),
+  );
+
+  $$ScriptsTableProcessedTableManager get scriptsRefs {
+    final manager = $$ScriptsTableTableManager(
+      $_db,
+      $_db.scripts,
+    ).filter((f) => f.packId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_scriptsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 }
 
 class $$ContentPacksTableFilterComposer
@@ -4676,6 +5244,31 @@ class $$ContentPacksTableFilterComposer
           }) => $$PassagesTableFilterComposer(
             $db: $db,
             $table: $db.passages,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> scriptsRefs(
+    Expression<bool> Function($$ScriptsTableFilterComposer f) f,
+  ) {
+    final $$ScriptsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.scripts,
+      getReferencedColumn: (t) => t.packId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ScriptsTableFilterComposer(
+            $db: $db,
+            $table: $db.scripts,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -4795,6 +5388,31 @@ class $$ContentPacksTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> scriptsRefs<T extends Object>(
+    Expression<T> Function($$ScriptsTableAnnotationComposer a) f,
+  ) {
+    final $$ScriptsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.scripts,
+      getReferencedColumn: (t) => t.packId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ScriptsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.scripts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$ContentPacksTableTableManager
@@ -4810,7 +5428,7 @@ class $$ContentPacksTableTableManager
           $$ContentPacksTableUpdateCompanionBuilder,
           (ContentPack, $$ContentPacksTableReferences),
           ContentPack,
-          PrefetchHooks Function({bool passagesRefs})
+          PrefetchHooks Function({bool passagesRefs, bool scriptsRefs})
         > {
   $$ContentPacksTableTableManager(_$AppDatabase db, $ContentPacksTable table)
     : super(
@@ -4875,10 +5493,13 @@ class $$ContentPacksTableTableManager
                 ),
               )
               .toList(),
-          prefetchHooksCallback: ({passagesRefs = false}) {
+          prefetchHooksCallback: ({passagesRefs = false, scriptsRefs = false}) {
             return PrefetchHooks(
               db: db,
-              explicitlyWatchedTables: [if (passagesRefs) db.passages],
+              explicitlyWatchedTables: [
+                if (passagesRefs) db.passages,
+                if (scriptsRefs) db.scripts,
+              ],
               addJoins: null,
               getPrefetchedDataCallback: (items) async {
                 return [
@@ -4897,6 +5518,25 @@ class $$ContentPacksTableTableManager
                             table,
                             p0,
                           ).passagesRefs,
+                      referencedItemsForCurrentItem: (item, referencedItems) =>
+                          referencedItems.where((e) => e.packId == item.id),
+                      typedResults: items,
+                    ),
+                  if (scriptsRefs)
+                    await $_getPrefetchedData<
+                      ContentPack,
+                      $ContentPacksTable,
+                      Script
+                    >(
+                      currentTable: table,
+                      referencedTable: $$ContentPacksTableReferences
+                          ._scriptsRefsTable(db),
+                      managerFromTypedResult: (p0) =>
+                          $$ContentPacksTableReferences(
+                            db,
+                            table,
+                            p0,
+                          ).scriptsRefs,
                       referencedItemsForCurrentItem: (item, referencedItems) =>
                           referencedItems.where((e) => e.packId == item.id),
                       typedResults: items,
@@ -4921,16 +5561,15 @@ typedef $$ContentPacksTableProcessedTableManager =
       $$ContentPacksTableUpdateCompanionBuilder,
       (ContentPack, $$ContentPacksTableReferences),
       ContentPack,
-      PrefetchHooks Function({bool passagesRefs})
+      PrefetchHooks Function({bool passagesRefs, bool scriptsRefs})
     >;
 typedef $$PassagesTableCreateCompanionBuilder =
     PassagesCompanion Function({
       required String id,
       required String packId,
-      required String title,
-      required String body,
+      Value<String?> title,
+      required String sentencesJson,
       required int orderIndex,
-      required int difficulty,
       Value<DateTime> createdAt,
       Value<int> rowid,
     });
@@ -4938,10 +5577,9 @@ typedef $$PassagesTableUpdateCompanionBuilder =
     PassagesCompanion Function({
       Value<String> id,
       Value<String> packId,
-      Value<String> title,
-      Value<String> body,
+      Value<String?> title,
+      Value<String> sentencesJson,
       Value<int> orderIndex,
-      Value<int> difficulty,
       Value<DateTime> createdAt,
       Value<int> rowid,
     });
@@ -4966,25 +5604,6 @@ final class $$PassagesTableReferences
     if (item == null) return manager;
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: [item]),
-    );
-  }
-
-  static MultiTypedResultKey<$ScriptsTable, List<Script>> _scriptsRefsTable(
-    _$AppDatabase db,
-  ) => MultiTypedResultKey.fromTable(
-    db.scripts,
-    aliasName: $_aliasNameGenerator(db.passages.id, db.scripts.passageId),
-  );
-
-  $$ScriptsTableProcessedTableManager get scriptsRefs {
-    final manager = $$ScriptsTableTableManager(
-      $_db,
-      $_db.scripts,
-    ).filter((f) => f.passageId.id.sqlEquals($_itemColumn<String>('id')!));
-
-    final cache = $_typedResult.readTableOrNull(_scriptsRefsTable($_db));
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: cache),
     );
   }
 
@@ -5026,18 +5645,13 @@ class $$PassagesTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get body => $composableBuilder(
-    column: $table.body,
+  ColumnFilters<String> get sentencesJson => $composableBuilder(
+    column: $table.sentencesJson,
     builder: (column) => ColumnFilters(column),
   );
 
   ColumnFilters<int> get orderIndex => $composableBuilder(
     column: $table.orderIndex,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get difficulty => $composableBuilder(
-    column: $table.difficulty,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -5067,31 +5681,6 @@ class $$PassagesTableFilterComposer
           ),
     );
     return composer;
-  }
-
-  Expression<bool> scriptsRefs(
-    Expression<bool> Function($$ScriptsTableFilterComposer f) f,
-  ) {
-    final $$ScriptsTableFilterComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.id,
-      referencedTable: $db.scripts,
-      getReferencedColumn: (t) => t.passageId,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$ScriptsTableFilterComposer(
-            $db: $db,
-            $table: $db.scripts,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return f(composer);
   }
 
   Expression<bool> questionsRefs(
@@ -5139,18 +5728,13 @@ class $$PassagesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get body => $composableBuilder(
-    column: $table.body,
+  ColumnOrderings<String> get sentencesJson => $composableBuilder(
+    column: $table.sentencesJson,
     builder: (column) => ColumnOrderings(column),
   );
 
   ColumnOrderings<int> get orderIndex => $composableBuilder(
     column: $table.orderIndex,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get difficulty => $composableBuilder(
-    column: $table.difficulty,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -5198,16 +5782,13 @@ class $$PassagesTableAnnotationComposer
   GeneratedColumn<String> get title =>
       $composableBuilder(column: $table.title, builder: (column) => column);
 
-  GeneratedColumn<String> get body =>
-      $composableBuilder(column: $table.body, builder: (column) => column);
-
-  GeneratedColumn<int> get orderIndex => $composableBuilder(
-    column: $table.orderIndex,
+  GeneratedColumn<String> get sentencesJson => $composableBuilder(
+    column: $table.sentencesJson,
     builder: (column) => column,
   );
 
-  GeneratedColumn<int> get difficulty => $composableBuilder(
-    column: $table.difficulty,
+  GeneratedColumn<int> get orderIndex => $composableBuilder(
+    column: $table.orderIndex,
     builder: (column) => column,
   );
 
@@ -5235,31 +5816,6 @@ class $$PassagesTableAnnotationComposer
           ),
     );
     return composer;
-  }
-
-  Expression<T> scriptsRefs<T extends Object>(
-    Expression<T> Function($$ScriptsTableAnnotationComposer a) f,
-  ) {
-    final $$ScriptsTableAnnotationComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.id,
-      referencedTable: $db.scripts,
-      getReferencedColumn: (t) => t.passageId,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$ScriptsTableAnnotationComposer(
-            $db: $db,
-            $table: $db.scripts,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return f(composer);
   }
 
   Expression<T> questionsRefs<T extends Object>(
@@ -5301,11 +5857,7 @@ class $$PassagesTableTableManager
           $$PassagesTableUpdateCompanionBuilder,
           (Passage, $$PassagesTableReferences),
           Passage,
-          PrefetchHooks Function({
-            bool packId,
-            bool scriptsRefs,
-            bool questionsRefs,
-          })
+          PrefetchHooks Function({bool packId, bool questionsRefs})
         > {
   $$PassagesTableTableManager(_$AppDatabase db, $PassagesTable table)
     : super(
@@ -5322,19 +5874,17 @@ class $$PassagesTableTableManager
               ({
                 Value<String> id = const Value.absent(),
                 Value<String> packId = const Value.absent(),
-                Value<String> title = const Value.absent(),
-                Value<String> body = const Value.absent(),
+                Value<String?> title = const Value.absent(),
+                Value<String> sentencesJson = const Value.absent(),
                 Value<int> orderIndex = const Value.absent(),
-                Value<int> difficulty = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => PassagesCompanion(
                 id: id,
                 packId: packId,
                 title: title,
-                body: body,
+                sentencesJson: sentencesJson,
                 orderIndex: orderIndex,
-                difficulty: difficulty,
                 createdAt: createdAt,
                 rowid: rowid,
               ),
@@ -5342,19 +5892,17 @@ class $$PassagesTableTableManager
               ({
                 required String id,
                 required String packId,
-                required String title,
-                required String body,
+                Value<String?> title = const Value.absent(),
+                required String sentencesJson,
                 required int orderIndex,
-                required int difficulty,
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => PassagesCompanion.insert(
                 id: id,
                 packId: packId,
                 title: title,
-                body: body,
+                sentencesJson: sentencesJson,
                 orderIndex: orderIndex,
-                difficulty: difficulty,
                 createdAt: createdAt,
                 rowid: rowid,
               ),
@@ -5366,94 +5914,66 @@ class $$PassagesTableTableManager
                 ),
               )
               .toList(),
-          prefetchHooksCallback:
-              ({packId = false, scriptsRefs = false, questionsRefs = false}) {
-                return PrefetchHooks(
-                  db: db,
-                  explicitlyWatchedTables: [
-                    if (scriptsRefs) db.scripts,
-                    if (questionsRefs) db.questions,
-                  ],
-                  addJoins:
-                      <
-                        T extends TableManagerState<
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic
-                        >
-                      >(state) {
-                        if (packId) {
-                          state =
-                              state.withJoin(
-                                    currentTable: table,
-                                    currentColumn: table.packId,
-                                    referencedTable: $$PassagesTableReferences
-                                        ._packIdTable(db),
-                                    referencedColumn: $$PassagesTableReferences
-                                        ._packIdTable(db)
-                                        .id,
-                                  )
-                                  as T;
-                        }
+          prefetchHooksCallback: ({packId = false, questionsRefs = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [if (questionsRefs) db.questions],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (packId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.packId,
+                                referencedTable: $$PassagesTableReferences
+                                    ._packIdTable(db),
+                                referencedColumn: $$PassagesTableReferences
+                                    ._packIdTable(db)
+                                    .id,
+                              )
+                              as T;
+                    }
 
-                        return state;
-                      },
-                  getPrefetchedDataCallback: (items) async {
-                    return [
-                      if (scriptsRefs)
-                        await $_getPrefetchedData<
-                          Passage,
-                          $PassagesTable,
-                          Script
-                        >(
-                          currentTable: table,
-                          referencedTable: $$PassagesTableReferences
-                              ._scriptsRefsTable(db),
-                          managerFromTypedResult: (p0) =>
-                              $$PassagesTableReferences(
-                                db,
-                                table,
-                                p0,
-                              ).scriptsRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.passageId == item.id,
-                              ),
-                          typedResults: items,
-                        ),
-                      if (questionsRefs)
-                        await $_getPrefetchedData<
-                          Passage,
-                          $PassagesTable,
-                          Question
-                        >(
-                          currentTable: table,
-                          referencedTable: $$PassagesTableReferences
-                              ._questionsRefsTable(db),
-                          managerFromTypedResult: (p0) =>
-                              $$PassagesTableReferences(
-                                db,
-                                table,
-                                p0,
-                              ).questionsRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.passageId == item.id,
-                              ),
-                          typedResults: items,
-                        ),
-                    ];
+                    return state;
                   },
-                );
+              getPrefetchedDataCallback: (items) async {
+                return [
+                  if (questionsRefs)
+                    await $_getPrefetchedData<
+                      Passage,
+                      $PassagesTable,
+                      Question
+                    >(
+                      currentTable: table,
+                      referencedTable: $$PassagesTableReferences
+                          ._questionsRefsTable(db),
+                      managerFromTypedResult: (p0) => $$PassagesTableReferences(
+                        db,
+                        table,
+                        p0,
+                      ).questionsRefs,
+                      referencedItemsForCurrentItem: (item, referencedItems) =>
+                          referencedItems.where((e) => e.passageId == item.id),
+                      typedResults: items,
+                    ),
+                ];
               },
+            );
+          },
         ),
       );
 }
@@ -5470,28 +5990,28 @@ typedef $$PassagesTableProcessedTableManager =
       $$PassagesTableUpdateCompanionBuilder,
       (Passage, $$PassagesTableReferences),
       Passage,
-      PrefetchHooks Function({
-        bool packId,
-        bool scriptsRefs,
-        bool questionsRefs,
-      })
+      PrefetchHooks Function({bool packId, bool questionsRefs})
     >;
 typedef $$ScriptsTableCreateCompanionBuilder =
     ScriptsCompanion Function({
       required String id,
-      required String passageId,
-      required String speaker,
-      required String textBody,
+      required String packId,
+      required String sentencesJson,
+      required String turnsJson,
+      required String ttsPlanJson,
       required int orderIndex,
+      Value<DateTime> createdAt,
       Value<int> rowid,
     });
 typedef $$ScriptsTableUpdateCompanionBuilder =
     ScriptsCompanion Function({
       Value<String> id,
-      Value<String> passageId,
-      Value<String> speaker,
-      Value<String> textBody,
+      Value<String> packId,
+      Value<String> sentencesJson,
+      Value<String> turnsJson,
+      Value<String> ttsPlanJson,
       Value<int> orderIndex,
+      Value<DateTime> createdAt,
       Value<int> rowid,
     });
 
@@ -5499,20 +6019,38 @@ final class $$ScriptsTableReferences
     extends BaseReferences<_$AppDatabase, $ScriptsTable, Script> {
   $$ScriptsTableReferences(super.$_db, super.$_table, super.$_typedResult);
 
-  static $PassagesTable _passageIdTable(_$AppDatabase db) => db.passages
-      .createAlias($_aliasNameGenerator(db.scripts.passageId, db.passages.id));
+  static $ContentPacksTable _packIdTable(_$AppDatabase db) => db.contentPacks
+      .createAlias($_aliasNameGenerator(db.scripts.packId, db.contentPacks.id));
 
-  $$PassagesTableProcessedTableManager get passageId {
-    final $_column = $_itemColumn<String>('passage_id')!;
+  $$ContentPacksTableProcessedTableManager get packId {
+    final $_column = $_itemColumn<String>('pack_id')!;
 
-    final manager = $$PassagesTableTableManager(
+    final manager = $$ContentPacksTableTableManager(
       $_db,
-      $_db.passages,
+      $_db.contentPacks,
     ).filter((f) => f.id.sqlEquals($_column));
-    final item = $_typedResult.readTableOrNull(_passageIdTable($_db));
+    final item = $_typedResult.readTableOrNull(_packIdTable($_db));
     if (item == null) return manager;
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static MultiTypedResultKey<$QuestionsTable, List<Question>>
+  _questionsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.questions,
+    aliasName: $_aliasNameGenerator(db.scripts.id, db.questions.scriptId),
+  );
+
+  $$QuestionsTableProcessedTableManager get questionsRefs {
+    final manager = $$QuestionsTableTableManager(
+      $_db,
+      $_db.questions,
+    ).filter((f) => f.scriptId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_questionsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
     );
   }
 }
@@ -5531,13 +6069,18 @@ class $$ScriptsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get speaker => $composableBuilder(
-    column: $table.speaker,
+  ColumnFilters<String> get sentencesJson => $composableBuilder(
+    column: $table.sentencesJson,
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get textBody => $composableBuilder(
-    column: $table.textBody,
+  ColumnFilters<String> get turnsJson => $composableBuilder(
+    column: $table.turnsJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get ttsPlanJson => $composableBuilder(
+    column: $table.ttsPlanJson,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -5546,20 +6089,25 @@ class $$ScriptsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  $$PassagesTableFilterComposer get passageId {
-    final $$PassagesTableFilterComposer composer = $composerBuilder(
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$ContentPacksTableFilterComposer get packId {
+    final $$ContentPacksTableFilterComposer composer = $composerBuilder(
       composer: this,
-      getCurrentColumn: (t) => t.passageId,
-      referencedTable: $db.passages,
+      getCurrentColumn: (t) => t.packId,
+      referencedTable: $db.contentPacks,
       getReferencedColumn: (t) => t.id,
       builder:
           (
             joinBuilder, {
             $addJoinBuilderToRootComposer,
             $removeJoinBuilderFromRootComposer,
-          }) => $$PassagesTableFilterComposer(
+          }) => $$ContentPacksTableFilterComposer(
             $db: $db,
-            $table: $db.passages,
+            $table: $db.contentPacks,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -5567,6 +6115,31 @@ class $$ScriptsTableFilterComposer
           ),
     );
     return composer;
+  }
+
+  Expression<bool> questionsRefs(
+    Expression<bool> Function($$QuestionsTableFilterComposer f) f,
+  ) {
+    final $$QuestionsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.questions,
+      getReferencedColumn: (t) => t.scriptId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$QuestionsTableFilterComposer(
+            $db: $db,
+            $table: $db.questions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
   }
 }
 
@@ -5584,13 +6157,18 @@ class $$ScriptsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get speaker => $composableBuilder(
-    column: $table.speaker,
+  ColumnOrderings<String> get sentencesJson => $composableBuilder(
+    column: $table.sentencesJson,
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get textBody => $composableBuilder(
-    column: $table.textBody,
+  ColumnOrderings<String> get turnsJson => $composableBuilder(
+    column: $table.turnsJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get ttsPlanJson => $composableBuilder(
+    column: $table.ttsPlanJson,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -5599,20 +6177,25 @@ class $$ScriptsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  $$PassagesTableOrderingComposer get passageId {
-    final $$PassagesTableOrderingComposer composer = $composerBuilder(
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$ContentPacksTableOrderingComposer get packId {
+    final $$ContentPacksTableOrderingComposer composer = $composerBuilder(
       composer: this,
-      getCurrentColumn: (t) => t.passageId,
-      referencedTable: $db.passages,
+      getCurrentColumn: (t) => t.packId,
+      referencedTable: $db.contentPacks,
       getReferencedColumn: (t) => t.id,
       builder:
           (
             joinBuilder, {
             $addJoinBuilderToRootComposer,
             $removeJoinBuilderFromRootComposer,
-          }) => $$PassagesTableOrderingComposer(
+          }) => $$ContentPacksTableOrderingComposer(
             $db: $db,
-            $table: $db.passages,
+            $table: $db.contentPacks,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -5635,31 +6218,41 @@ class $$ScriptsTableAnnotationComposer
   GeneratedColumn<String> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
-  GeneratedColumn<String> get speaker =>
-      $composableBuilder(column: $table.speaker, builder: (column) => column);
+  GeneratedColumn<String> get sentencesJson => $composableBuilder(
+    column: $table.sentencesJson,
+    builder: (column) => column,
+  );
 
-  GeneratedColumn<String> get textBody =>
-      $composableBuilder(column: $table.textBody, builder: (column) => column);
+  GeneratedColumn<String> get turnsJson =>
+      $composableBuilder(column: $table.turnsJson, builder: (column) => column);
+
+  GeneratedColumn<String> get ttsPlanJson => $composableBuilder(
+    column: $table.ttsPlanJson,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get orderIndex => $composableBuilder(
     column: $table.orderIndex,
     builder: (column) => column,
   );
 
-  $$PassagesTableAnnotationComposer get passageId {
-    final $$PassagesTableAnnotationComposer composer = $composerBuilder(
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  $$ContentPacksTableAnnotationComposer get packId {
+    final $$ContentPacksTableAnnotationComposer composer = $composerBuilder(
       composer: this,
-      getCurrentColumn: (t) => t.passageId,
-      referencedTable: $db.passages,
+      getCurrentColumn: (t) => t.packId,
+      referencedTable: $db.contentPacks,
       getReferencedColumn: (t) => t.id,
       builder:
           (
             joinBuilder, {
             $addJoinBuilderToRootComposer,
             $removeJoinBuilderFromRootComposer,
-          }) => $$PassagesTableAnnotationComposer(
+          }) => $$ContentPacksTableAnnotationComposer(
             $db: $db,
-            $table: $db.passages,
+            $table: $db.contentPacks,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -5667,6 +6260,31 @@ class $$ScriptsTableAnnotationComposer
           ),
     );
     return composer;
+  }
+
+  Expression<T> questionsRefs<T extends Object>(
+    Expression<T> Function($$QuestionsTableAnnotationComposer a) f,
+  ) {
+    final $$QuestionsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.questions,
+      getReferencedColumn: (t) => t.scriptId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$QuestionsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.questions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
   }
 }
 
@@ -5683,7 +6301,7 @@ class $$ScriptsTableTableManager
           $$ScriptsTableUpdateCompanionBuilder,
           (Script, $$ScriptsTableReferences),
           Script,
-          PrefetchHooks Function({bool passageId})
+          PrefetchHooks Function({bool packId, bool questionsRefs})
         > {
   $$ScriptsTableTableManager(_$AppDatabase db, $ScriptsTable table)
     : super(
@@ -5699,33 +6317,41 @@ class $$ScriptsTableTableManager
           updateCompanionCallback:
               ({
                 Value<String> id = const Value.absent(),
-                Value<String> passageId = const Value.absent(),
-                Value<String> speaker = const Value.absent(),
-                Value<String> textBody = const Value.absent(),
+                Value<String> packId = const Value.absent(),
+                Value<String> sentencesJson = const Value.absent(),
+                Value<String> turnsJson = const Value.absent(),
+                Value<String> ttsPlanJson = const Value.absent(),
                 Value<int> orderIndex = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ScriptsCompanion(
                 id: id,
-                passageId: passageId,
-                speaker: speaker,
-                textBody: textBody,
+                packId: packId,
+                sentencesJson: sentencesJson,
+                turnsJson: turnsJson,
+                ttsPlanJson: ttsPlanJson,
                 orderIndex: orderIndex,
+                createdAt: createdAt,
                 rowid: rowid,
               ),
           createCompanionCallback:
               ({
                 required String id,
-                required String passageId,
-                required String speaker,
-                required String textBody,
+                required String packId,
+                required String sentencesJson,
+                required String turnsJson,
+                required String ttsPlanJson,
                 required int orderIndex,
+                Value<DateTime> createdAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ScriptsCompanion.insert(
                 id: id,
-                passageId: passageId,
-                speaker: speaker,
-                textBody: textBody,
+                packId: packId,
+                sentencesJson: sentencesJson,
+                turnsJson: turnsJson,
+                ttsPlanJson: ttsPlanJson,
                 orderIndex: orderIndex,
+                createdAt: createdAt,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -5736,10 +6362,10 @@ class $$ScriptsTableTableManager
                 ),
               )
               .toList(),
-          prefetchHooksCallback: ({passageId = false}) {
+          prefetchHooksCallback: ({packId = false, questionsRefs = false}) {
             return PrefetchHooks(
               db: db,
-              explicitlyWatchedTables: [],
+              explicitlyWatchedTables: [if (questionsRefs) db.questions],
               addJoins:
                   <
                     T extends TableManagerState<
@@ -5756,15 +6382,15 @@ class $$ScriptsTableTableManager
                       dynamic
                     >
                   >(state) {
-                    if (passageId) {
+                    if (packId) {
                       state =
                           state.withJoin(
                                 currentTable: table,
-                                currentColumn: table.passageId,
+                                currentColumn: table.packId,
                                 referencedTable: $$ScriptsTableReferences
-                                    ._passageIdTable(db),
+                                    ._packIdTable(db),
                                 referencedColumn: $$ScriptsTableReferences
-                                    ._passageIdTable(db)
+                                    ._packIdTable(db)
                                     .id,
                               )
                               as T;
@@ -5773,7 +6399,19 @@ class $$ScriptsTableTableManager
                     return state;
                   },
               getPrefetchedDataCallback: (items) async {
-                return [];
+                return [
+                  if (questionsRefs)
+                    await $_getPrefetchedData<Script, $ScriptsTable, Question>(
+                      currentTable: table,
+                      referencedTable: $$ScriptsTableReferences
+                          ._questionsRefsTable(db),
+                      managerFromTypedResult: (p0) =>
+                          $$ScriptsTableReferences(db, table, p0).questionsRefs,
+                      referencedItemsForCurrentItem: (item, referencedItems) =>
+                          referencedItems.where((e) => e.scriptId == item.id),
+                      typedResults: items,
+                    ),
+                ];
               },
             );
           },
@@ -5793,27 +6431,35 @@ typedef $$ScriptsTableProcessedTableManager =
       $$ScriptsTableUpdateCompanionBuilder,
       (Script, $$ScriptsTableReferences),
       Script,
-      PrefetchHooks Function({bool passageId})
+      PrefetchHooks Function({bool packId, bool questionsRefs})
     >;
 typedef $$QuestionsTableCreateCompanionBuilder =
     QuestionsCompanion Function({
       required String id,
-      required String passageId,
+      required String skill,
+      required String typeTag,
+      required String track,
+      required int difficulty,
+      Value<String?> passageId,
+      Value<String?> scriptId,
       required String prompt,
-      required String questionType,
-      Value<String?> optionsJson,
-      required String answerJson,
+      required String optionsJson,
+      required String answerKey,
       required int orderIndex,
       Value<int> rowid,
     });
 typedef $$QuestionsTableUpdateCompanionBuilder =
     QuestionsCompanion Function({
       Value<String> id,
-      Value<String> passageId,
+      Value<String> skill,
+      Value<String> typeTag,
+      Value<String> track,
+      Value<int> difficulty,
+      Value<String?> passageId,
+      Value<String?> scriptId,
       Value<String> prompt,
-      Value<String> questionType,
-      Value<String?> optionsJson,
-      Value<String> answerJson,
+      Value<String> optionsJson,
+      Value<String> answerKey,
       Value<int> orderIndex,
       Value<int> rowid,
     });
@@ -5827,14 +6473,31 @@ final class $$QuestionsTableReferences
         $_aliasNameGenerator(db.questions.passageId, db.passages.id),
       );
 
-  $$PassagesTableProcessedTableManager get passageId {
-    final $_column = $_itemColumn<String>('passage_id')!;
-
+  $$PassagesTableProcessedTableManager? get passageId {
+    final $_column = $_itemColumn<String>('passage_id');
+    if ($_column == null) return null;
     final manager = $$PassagesTableTableManager(
       $_db,
       $_db.passages,
     ).filter((f) => f.id.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_passageIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $ScriptsTable _scriptIdTable(_$AppDatabase db) => db.scripts
+      .createAlias($_aliasNameGenerator(db.questions.scriptId, db.scripts.id));
+
+  $$ScriptsTableProcessedTableManager? get scriptId {
+    final $_column = $_itemColumn<String>('script_id');
+    if ($_column == null) return null;
+    final manager = $$ScriptsTableTableManager(
+      $_db,
+      $_db.scripts,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_scriptIdTable($_db));
     if (item == null) return manager;
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: [item]),
@@ -5896,13 +6559,28 @@ class $$QuestionsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get prompt => $composableBuilder(
-    column: $table.prompt,
+  ColumnFilters<String> get skill => $composableBuilder(
+    column: $table.skill,
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get questionType => $composableBuilder(
-    column: $table.questionType,
+  ColumnFilters<String> get typeTag => $composableBuilder(
+    column: $table.typeTag,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get track => $composableBuilder(
+    column: $table.track,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get difficulty => $composableBuilder(
+    column: $table.difficulty,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get prompt => $composableBuilder(
+    column: $table.prompt,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -5911,8 +6589,8 @@ class $$QuestionsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get answerJson => $composableBuilder(
-    column: $table.answerJson,
+  ColumnFilters<String> get answerKey => $composableBuilder(
+    column: $table.answerKey,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -5935,6 +6613,29 @@ class $$QuestionsTableFilterComposer
           }) => $$PassagesTableFilterComposer(
             $db: $db,
             $table: $db.passages,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ScriptsTableFilterComposer get scriptId {
+    final $$ScriptsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.scriptId,
+      referencedTable: $db.scripts,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ScriptsTableFilterComposer(
+            $db: $db,
+            $table: $db.scripts,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -6009,13 +6710,28 @@ class $$QuestionsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get prompt => $composableBuilder(
-    column: $table.prompt,
+  ColumnOrderings<String> get skill => $composableBuilder(
+    column: $table.skill,
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get questionType => $composableBuilder(
-    column: $table.questionType,
+  ColumnOrderings<String> get typeTag => $composableBuilder(
+    column: $table.typeTag,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get track => $composableBuilder(
+    column: $table.track,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get difficulty => $composableBuilder(
+    column: $table.difficulty,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get prompt => $composableBuilder(
+    column: $table.prompt,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -6024,8 +6740,8 @@ class $$QuestionsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get answerJson => $composableBuilder(
-    column: $table.answerJson,
+  ColumnOrderings<String> get answerKey => $composableBuilder(
+    column: $table.answerKey,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -6056,6 +6772,29 @@ class $$QuestionsTableOrderingComposer
     );
     return composer;
   }
+
+  $$ScriptsTableOrderingComposer get scriptId {
+    final $$ScriptsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.scriptId,
+      referencedTable: $db.scripts,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ScriptsTableOrderingComposer(
+            $db: $db,
+            $table: $db.scripts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $$QuestionsTableAnnotationComposer
@@ -6070,23 +6809,30 @@ class $$QuestionsTableAnnotationComposer
   GeneratedColumn<String> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
-  GeneratedColumn<String> get prompt =>
-      $composableBuilder(column: $table.prompt, builder: (column) => column);
+  GeneratedColumn<String> get skill =>
+      $composableBuilder(column: $table.skill, builder: (column) => column);
 
-  GeneratedColumn<String> get questionType => $composableBuilder(
-    column: $table.questionType,
+  GeneratedColumn<String> get typeTag =>
+      $composableBuilder(column: $table.typeTag, builder: (column) => column);
+
+  GeneratedColumn<String> get track =>
+      $composableBuilder(column: $table.track, builder: (column) => column);
+
+  GeneratedColumn<int> get difficulty => $composableBuilder(
+    column: $table.difficulty,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get prompt =>
+      $composableBuilder(column: $table.prompt, builder: (column) => column);
 
   GeneratedColumn<String> get optionsJson => $composableBuilder(
     column: $table.optionsJson,
     builder: (column) => column,
   );
 
-  GeneratedColumn<String> get answerJson => $composableBuilder(
-    column: $table.answerJson,
-    builder: (column) => column,
-  );
+  GeneratedColumn<String> get answerKey =>
+      $composableBuilder(column: $table.answerKey, builder: (column) => column);
 
   GeneratedColumn<int> get orderIndex => $composableBuilder(
     column: $table.orderIndex,
@@ -6107,6 +6853,29 @@ class $$QuestionsTableAnnotationComposer
           }) => $$PassagesTableAnnotationComposer(
             $db: $db,
             $table: $db.passages,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ScriptsTableAnnotationComposer get scriptId {
+    final $$ScriptsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.scriptId,
+      referencedTable: $db.scripts,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ScriptsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.scripts,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -6182,6 +6951,7 @@ class $$QuestionsTableTableManager
           Question,
           PrefetchHooks Function({
             bool passageId,
+            bool scriptId,
             bool explanationsRefs,
             bool attemptsRefs,
           })
@@ -6200,40 +6970,56 @@ class $$QuestionsTableTableManager
           updateCompanionCallback:
               ({
                 Value<String> id = const Value.absent(),
-                Value<String> passageId = const Value.absent(),
+                Value<String> skill = const Value.absent(),
+                Value<String> typeTag = const Value.absent(),
+                Value<String> track = const Value.absent(),
+                Value<int> difficulty = const Value.absent(),
+                Value<String?> passageId = const Value.absent(),
+                Value<String?> scriptId = const Value.absent(),
                 Value<String> prompt = const Value.absent(),
-                Value<String> questionType = const Value.absent(),
-                Value<String?> optionsJson = const Value.absent(),
-                Value<String> answerJson = const Value.absent(),
+                Value<String> optionsJson = const Value.absent(),
+                Value<String> answerKey = const Value.absent(),
                 Value<int> orderIndex = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => QuestionsCompanion(
                 id: id,
+                skill: skill,
+                typeTag: typeTag,
+                track: track,
+                difficulty: difficulty,
                 passageId: passageId,
+                scriptId: scriptId,
                 prompt: prompt,
-                questionType: questionType,
                 optionsJson: optionsJson,
-                answerJson: answerJson,
+                answerKey: answerKey,
                 orderIndex: orderIndex,
                 rowid: rowid,
               ),
           createCompanionCallback:
               ({
                 required String id,
-                required String passageId,
+                required String skill,
+                required String typeTag,
+                required String track,
+                required int difficulty,
+                Value<String?> passageId = const Value.absent(),
+                Value<String?> scriptId = const Value.absent(),
                 required String prompt,
-                required String questionType,
-                Value<String?> optionsJson = const Value.absent(),
-                required String answerJson,
+                required String optionsJson,
+                required String answerKey,
                 required int orderIndex,
                 Value<int> rowid = const Value.absent(),
               }) => QuestionsCompanion.insert(
                 id: id,
+                skill: skill,
+                typeTag: typeTag,
+                track: track,
+                difficulty: difficulty,
                 passageId: passageId,
+                scriptId: scriptId,
                 prompt: prompt,
-                questionType: questionType,
                 optionsJson: optionsJson,
-                answerJson: answerJson,
+                answerKey: answerKey,
                 orderIndex: orderIndex,
                 rowid: rowid,
               ),
@@ -6248,6 +7034,7 @@ class $$QuestionsTableTableManager
           prefetchHooksCallback:
               ({
                 passageId = false,
+                scriptId = false,
                 explanationsRefs = false,
                 attemptsRefs = false,
               }) {
@@ -6282,6 +7069,19 @@ class $$QuestionsTableTableManager
                                         ._passageIdTable(db),
                                     referencedColumn: $$QuestionsTableReferences
                                         ._passageIdTable(db)
+                                        .id,
+                                  )
+                                  as T;
+                        }
+                        if (scriptId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.scriptId,
+                                    referencedTable: $$QuestionsTableReferences
+                                        ._scriptIdTable(db),
+                                    referencedColumn: $$QuestionsTableReferences
+                                        ._scriptIdTable(db)
                                         .id,
                                   )
                                   as T;
@@ -6355,6 +7155,7 @@ typedef $$QuestionsTableProcessedTableManager =
       Question,
       PrefetchHooks Function({
         bool passageId,
+        bool scriptId,
         bool explanationsRefs,
         bool attemptsRefs,
       })
@@ -6363,7 +7164,12 @@ typedef $$ExplanationsTableCreateCompanionBuilder =
     ExplanationsCompanion Function({
       required String id,
       required String questionId,
-      required String body,
+      required String evidenceSentenceIdsJson,
+      required String whyCorrectKo,
+      required String whyWrongKoJson,
+      Value<String?> vocabNotesJson,
+      Value<String?> structureNotesKo,
+      Value<String?> glossKoJson,
       Value<DateTime> createdAt,
       Value<int> rowid,
     });
@@ -6371,7 +7177,12 @@ typedef $$ExplanationsTableUpdateCompanionBuilder =
     ExplanationsCompanion Function({
       Value<String> id,
       Value<String> questionId,
-      Value<String> body,
+      Value<String> evidenceSentenceIdsJson,
+      Value<String> whyCorrectKo,
+      Value<String> whyWrongKoJson,
+      Value<String?> vocabNotesJson,
+      Value<String?> structureNotesKo,
+      Value<String?> glossKoJson,
       Value<DateTime> createdAt,
       Value<int> rowid,
     });
@@ -6414,8 +7225,33 @@ class $$ExplanationsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get body => $composableBuilder(
-    column: $table.body,
+  ColumnFilters<String> get evidenceSentenceIdsJson => $composableBuilder(
+    column: $table.evidenceSentenceIdsJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get whyCorrectKo => $composableBuilder(
+    column: $table.whyCorrectKo,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get whyWrongKoJson => $composableBuilder(
+    column: $table.whyWrongKoJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get vocabNotesJson => $composableBuilder(
+    column: $table.vocabNotesJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get structureNotesKo => $composableBuilder(
+    column: $table.structureNotesKo,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get glossKoJson => $composableBuilder(
+    column: $table.glossKoJson,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -6462,8 +7298,33 @@ class $$ExplanationsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get body => $composableBuilder(
-    column: $table.body,
+  ColumnOrderings<String> get evidenceSentenceIdsJson => $composableBuilder(
+    column: $table.evidenceSentenceIdsJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get whyCorrectKo => $composableBuilder(
+    column: $table.whyCorrectKo,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get whyWrongKoJson => $composableBuilder(
+    column: $table.whyWrongKoJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get vocabNotesJson => $composableBuilder(
+    column: $table.vocabNotesJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get structureNotesKo => $composableBuilder(
+    column: $table.structureNotesKo,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get glossKoJson => $composableBuilder(
+    column: $table.glossKoJson,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -6508,8 +7369,35 @@ class $$ExplanationsTableAnnotationComposer
   GeneratedColumn<String> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
-  GeneratedColumn<String> get body =>
-      $composableBuilder(column: $table.body, builder: (column) => column);
+  GeneratedColumn<String> get evidenceSentenceIdsJson => $composableBuilder(
+    column: $table.evidenceSentenceIdsJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get whyCorrectKo => $composableBuilder(
+    column: $table.whyCorrectKo,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get whyWrongKoJson => $composableBuilder(
+    column: $table.whyWrongKoJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get vocabNotesJson => $composableBuilder(
+    column: $table.vocabNotesJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get structureNotesKo => $composableBuilder(
+    column: $table.structureNotesKo,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get glossKoJson => $composableBuilder(
+    column: $table.glossKoJson,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -6568,13 +7456,23 @@ class $$ExplanationsTableTableManager
               ({
                 Value<String> id = const Value.absent(),
                 Value<String> questionId = const Value.absent(),
-                Value<String> body = const Value.absent(),
+                Value<String> evidenceSentenceIdsJson = const Value.absent(),
+                Value<String> whyCorrectKo = const Value.absent(),
+                Value<String> whyWrongKoJson = const Value.absent(),
+                Value<String?> vocabNotesJson = const Value.absent(),
+                Value<String?> structureNotesKo = const Value.absent(),
+                Value<String?> glossKoJson = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ExplanationsCompanion(
                 id: id,
                 questionId: questionId,
-                body: body,
+                evidenceSentenceIdsJson: evidenceSentenceIdsJson,
+                whyCorrectKo: whyCorrectKo,
+                whyWrongKoJson: whyWrongKoJson,
+                vocabNotesJson: vocabNotesJson,
+                structureNotesKo: structureNotesKo,
+                glossKoJson: glossKoJson,
                 createdAt: createdAt,
                 rowid: rowid,
               ),
@@ -6582,13 +7480,23 @@ class $$ExplanationsTableTableManager
               ({
                 required String id,
                 required String questionId,
-                required String body,
+                required String evidenceSentenceIdsJson,
+                required String whyCorrectKo,
+                required String whyWrongKoJson,
+                Value<String?> vocabNotesJson = const Value.absent(),
+                Value<String?> structureNotesKo = const Value.absent(),
+                Value<String?> glossKoJson = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ExplanationsCompanion.insert(
                 id: id,
                 questionId: questionId,
-                body: body,
+                evidenceSentenceIdsJson: evidenceSentenceIdsJson,
+                whyCorrectKo: whyCorrectKo,
+                whyWrongKoJson: whyWrongKoJson,
+                vocabNotesJson: vocabNotesJson,
+                structureNotesKo: structureNotesKo,
+                glossKoJson: glossKoJson,
                 createdAt: createdAt,
                 rowid: rowid,
               ),
@@ -6662,7 +7570,7 @@ typedef $$ExplanationsTableProcessedTableManager =
 typedef $$DailySessionsTableCreateCompanionBuilder =
     DailySessionsCompanion Function({
       Value<int> id,
-      required DateTime sessionDate,
+      required int dayKey,
       Value<int> plannedItems,
       Value<int> completedItems,
       Value<DateTime> createdAt,
@@ -6670,7 +7578,7 @@ typedef $$DailySessionsTableCreateCompanionBuilder =
 typedef $$DailySessionsTableUpdateCompanionBuilder =
     DailySessionsCompanion Function({
       Value<int> id,
-      Value<DateTime> sessionDate,
+      Value<int> dayKey,
       Value<int> plannedItems,
       Value<int> completedItems,
       Value<DateTime> createdAt,
@@ -6718,8 +7626,8 @@ class $$DailySessionsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<DateTime> get sessionDate => $composableBuilder(
-    column: $table.sessionDate,
+  ColumnFilters<int> get dayKey => $composableBuilder(
+    column: $table.dayKey,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -6778,8 +7686,8 @@ class $$DailySessionsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<DateTime> get sessionDate => $composableBuilder(
-    column: $table.sessionDate,
+  ColumnOrderings<int> get dayKey => $composableBuilder(
+    column: $table.dayKey,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -6811,10 +7719,8 @@ class $$DailySessionsTableAnnotationComposer
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
-  GeneratedColumn<DateTime> get sessionDate => $composableBuilder(
-    column: $table.sessionDate,
-    builder: (column) => column,
-  );
+  GeneratedColumn<int> get dayKey =>
+      $composableBuilder(column: $table.dayKey, builder: (column) => column);
 
   GeneratedColumn<int> get plannedItems => $composableBuilder(
     column: $table.plannedItems,
@@ -6884,13 +7790,13 @@ class $$DailySessionsTableTableManager
           updateCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
-                Value<DateTime> sessionDate = const Value.absent(),
+                Value<int> dayKey = const Value.absent(),
                 Value<int> plannedItems = const Value.absent(),
                 Value<int> completedItems = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
               }) => DailySessionsCompanion(
                 id: id,
-                sessionDate: sessionDate,
+                dayKey: dayKey,
                 plannedItems: plannedItems,
                 completedItems: completedItems,
                 createdAt: createdAt,
@@ -6898,13 +7804,13 @@ class $$DailySessionsTableTableManager
           createCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
-                required DateTime sessionDate,
+                required int dayKey,
                 Value<int> plannedItems = const Value.absent(),
                 Value<int> completedItems = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
               }) => DailySessionsCompanion.insert(
                 id: id,
-                sessionDate: sessionDate,
+                dayKey: dayKey,
                 plannedItems: plannedItems,
                 completedItems: completedItems,
                 createdAt: createdAt,

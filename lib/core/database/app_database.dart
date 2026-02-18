@@ -27,40 +27,47 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase({QueryExecutor? executor}) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 1;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (Migrator m) async {
       await m.createAll();
-      await _createVersion2Indexes();
-    },
-    onUpgrade: (Migrator m, int from, int to) async {
-      if (from < 2) {
-        await _createVersion2Indexes();
-      }
+      await _createIndexes();
     },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');
     },
   );
 
-  Future<void> _createVersion2Indexes() async {
+  Future<void> _createIndexes() async {
     await customStatement(
       'CREATE INDEX IF NOT EXISTS idx_passages_pack_order '
       'ON passages(pack_id, order_index)',
     );
     await customStatement(
-      'CREATE INDEX IF NOT EXISTS idx_scripts_passage_order '
-      'ON scripts(passage_id, order_index)',
+      'CREATE INDEX IF NOT EXISTS idx_scripts_pack_order '
+      'ON scripts(pack_id, order_index)',
     );
     await customStatement(
-      'CREATE INDEX IF NOT EXISTS idx_questions_passage_order '
-      'ON questions(passage_id, order_index)',
+      'CREATE INDEX IF NOT EXISTS idx_questions_skill_track_order '
+      'ON questions(skill, track, order_index)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_questions_passage '
+      'ON questions(passage_id)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_questions_script '
+      'ON questions(script_id)',
     );
     await customStatement(
       'CREATE INDEX IF NOT EXISTS idx_attempts_question '
       'ON attempts(question_id)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_attempts_session '
+      'ON attempts(session_id)',
     );
     await customStatement(
       'CREATE INDEX IF NOT EXISTS idx_vocab_srs_due_at '
@@ -77,7 +84,11 @@ class AppDatabase extends _$AppDatabase {
 
   Future<int> countPassages() => _countRows('passages');
 
+  Future<int> countScripts() => _countRows('scripts');
+
   Future<int> countQuestions() => _countRows('questions');
+
+  Future<int> countExplanations() => _countRows('explanations');
 
   Future<int> countVocabMaster() => _countRows('vocab_master');
 
@@ -96,7 +107,7 @@ class AppDatabase extends _$AppDatabase {
 LazyDatabase _openConnection() {
   return LazyDatabase(() async {
     final appDocDir = await getApplicationDocumentsDirectory();
-    final dbFile = File(p.join(appDocDir.path, 'resol_routine.sqlite'));
+    final dbFile = File(p.join(appDocDir.path, 'resol_routine_v1.sqlite'));
     return NativeDatabase.createInBackground(dbFile);
   });
 }
