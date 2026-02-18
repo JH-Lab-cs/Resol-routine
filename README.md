@@ -20,3 +20,9 @@ samples, guidance on mobile development, and a full API reference.
 ```bash
 git config core.hooksPath .githooks
 ```
+
+## Project Spec
+
+- `docs/spec.md` is the single source of truth for product rules.
+- Every ticket must start by reading `docs/spec.md`.
+- Required checks: `python3 tool/security/check_bidi.py`, `dart analyze`, `flutter test`.
