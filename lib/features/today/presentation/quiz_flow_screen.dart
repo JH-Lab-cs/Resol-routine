@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/ui/app_tokens.dart';
 import '../../../core/ui/components/primary_pill_button.dart';
+import '../../../core/ui/label_maps.dart';
 import '../application/today_quiz_providers.dart';
 import '../data/attempt_payload.dart';
 import '../data/today_quiz_repository.dart';
@@ -112,7 +113,10 @@ class _QuizFlowScreenState extends ConsumerState<QuizFlowScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('트랙 ${session.track}', style: AppTypography.label),
+              Text(
+                '트랙 ${displayTrack(session.track)}',
+                style: AppTypography.label,
+              ),
               const SizedBox(height: AppSpacing.xs),
               Text('총 6문제', style: AppTypography.title),
               const SizedBox(height: AppSpacing.md),
@@ -205,7 +209,7 @@ class _QuizFlowScreenState extends ConsumerState<QuizFlowScreen> {
                     .map((tag) {
                       final selected = tag == _selectedWrongReasonTag;
                       return ChoiceChip(
-                        label: Text(tag),
+                        label: Text(displayWrongReasonTag(tag)),
                         selected: selected,
                         showCheckmark: false,
                         selectedColor: AppColors.primary,
@@ -273,7 +277,10 @@ class _QuizFlowScreenState extends ConsumerState<QuizFlowScreen> {
             children: [
               Row(
                 children: [
-                  Text('LISTENING', style: AppTypography.label),
+                  Text(
+                    displaySkill(question.skill),
+                    style: AppTypography.label,
+                  ),
                   const Spacer(),
                   TextButton(
                     onPressed: () {
@@ -315,7 +322,7 @@ class _QuizFlowScreenState extends ConsumerState<QuizFlowScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('READING', style: AppTypography.label),
+            Text(displaySkill(question.skill), style: AppTypography.label),
             const SizedBox(height: AppSpacing.xs),
             ...question.sourceLines.map((line) {
               final highlighted = line.containsEvidence(evidenceIds);

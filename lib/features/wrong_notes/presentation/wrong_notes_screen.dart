@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/ui/app_tokens.dart';
 import '../../../core/ui/components/app_scaffold.dart';
 import '../../../core/ui/components/section_title.dart';
+import '../../../core/ui/label_maps.dart';
 import '../application/wrong_note_providers.dart';
 import '../data/wrong_note_repository.dart';
 
@@ -66,9 +67,9 @@ class WrongNotesScreen extends ConsumerWidget {
                           );
                         },
                         title: Text(
-                          '${item.dayKey} · ${item.track} · ${item.typeTag}',
+                          '${item.dayKey} · ${displayTrack(item.track)} · ${item.typeTag}',
                         ),
-                        subtitle: Text('${item.skill} · 오답'),
+                        subtitle: Text('${displaySkill(item.skill)} · 오답'),
                         trailing: const Icon(Icons.chevron_right_rounded),
                       ),
                     );
@@ -104,7 +105,7 @@ class WrongNoteDetailScreen extends ConsumerWidget {
             padding: const EdgeInsets.all(AppSpacing.md),
             children: [
               Text(
-                '${detail.dayKey} · ${detail.question.track} · ${detail.question.typeTag}',
+                '${detail.dayKey} · ${displayTrack(detail.question.track)} · ${detail.question.typeTag}',
                 style: AppTypography.label.copyWith(
                   color: AppColors.textSecondary,
                 ),
@@ -137,7 +138,7 @@ class WrongNoteDetailScreen extends ConsumerWidget {
               ),
               if (detail.wrongReasonTag != null)
                 Text(
-                  '오답 태그: ${detail.wrongReasonTag}',
+                  '오답 태그: ${displayWrongReasonTag(detail.wrongReasonTag!)}',
                   style: AppTypography.label.copyWith(color: AppColors.warning),
                 ),
               const SizedBox(height: AppSpacing.md),

@@ -131,7 +131,7 @@ class _VocabScreenState extends ConsumerState<VocabScreen> {
                               if (expanded && item.example != null) ...[
                                 const SizedBox(height: AppSpacing.xs),
                                 Text(
-                                  'Example: ${item.example!}',
+                                  '예문: ${item.example!}',
                                   style: AppTypography.label.copyWith(
                                     color: AppColors.textSecondary,
                                   ),

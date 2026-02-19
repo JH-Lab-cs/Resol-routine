@@ -49,6 +49,7 @@ void main() {
     await _pumpUntilVisible(tester, find.text('문제 1 / 6'));
 
     expect(find.text('문제 1 / 6'), findsOneWidget);
+    expect(find.text('듣기'), findsAtLeastNWidgets(1));
   });
 }
 
