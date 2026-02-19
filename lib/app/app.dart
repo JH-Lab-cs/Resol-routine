@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/ui/app_theme.dart';
 import '../features/content_pack/application/content_pack_bootstrap.dart';
+import '../features/onboarding/presentation/onboarding_flow_screen.dart';
 import '../features/root/presentation/root_shell.dart';
+import '../features/settings/application/user_settings_providers.dart';
 
 class ResolRoutineApp extends ConsumerWidget {
   const ResolRoutineApp({super.key});
@@ -16,10 +18,31 @@ class ResolRoutineApp extends ConsumerWidget {
       title: 'Resol Routine',
       theme: AppTheme.light(),
       home: bootstrapState.when(
-        data: (_) => const RootShell(),
+        data: (_) => const _EntryGate(),
         loading: () => const _BootstrapLoadingScreen(),
         error: (error, _) => _BootstrapErrorScreen(error: error),
       ),
+    );
+  }
+}
+
+class _EntryGate extends ConsumerWidget {
+  const _EntryGate();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final settingsState = ref.watch(userSettingsProvider);
+
+    return settingsState.when(
+      data: (settings) {
+        final onboardingRequired = settings.displayName.trim().isEmpty;
+        if (onboardingRequired) {
+          return const OnboardingFlowScreen();
+        }
+        return const RootShell();
+      },
+      loading: () => const _BootstrapLoadingScreen(),
+      error: (error, _) => _BootstrapErrorScreen(error: error),
     );
   }
 }

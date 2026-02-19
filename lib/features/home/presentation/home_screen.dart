@@ -6,7 +6,6 @@ import '../../../core/ui/components/app_scaffold.dart';
 import '../../../core/ui/components/hero_progress_card.dart';
 import '../../../core/ui/components/routine_card.dart';
 import '../../../core/ui/components/section_title.dart';
-import '../../../core/ui/components/track_picker.dart';
 import '../../../core/ui/label_maps.dart';
 import '../../today/application/today_session_providers.dart';
 import '../application/home_providers.dart';
@@ -18,12 +17,14 @@ class HomeScreen extends ConsumerWidget {
     required this.onOpenVocab,
     required this.onOpenTodayVocabQuiz,
     required this.onOpenWrongNotes,
+    required this.onOpenMy,
   });
 
   final VoidCallback onOpenQuiz;
   final VoidCallback onOpenVocab;
   final VoidCallback onOpenTodayVocabQuiz;
   final VoidCallback onOpenWrongNotes;
+  final VoidCallback onOpenMy;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -62,13 +63,39 @@ class HomeScreen extends ConsumerWidget {
                     ),
                   ),
                   const Spacer(),
-                  TrackPickerChip(
-                    track: selectedTrack,
-                    onChanged: (track) async {
-                      await ref
-                          .read(selectedTrackProvider.notifier)
-                          .setTrack(track);
-                    },
+                  InkWell(
+                    onTap: onOpenMy,
+                    borderRadius: BorderRadius.circular(AppRadius.buttonPill),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.md,
+                        vertical: AppSpacing.xs,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(
+                          AppRadius.buttonPill,
+                        ),
+                        border: Border.all(color: AppColors.border),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            displayTrack(selectedTrack),
+                            style: AppTypography.label.copyWith(
+                              color: AppColors.primary,
+                            ),
+                          ),
+                          const SizedBox(width: AppSpacing.xs),
+                          const Icon(
+                            Icons.arrow_forward_ios_rounded,
+                            size: 14,
+                            color: AppColors.textSecondary,
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ],
               ),

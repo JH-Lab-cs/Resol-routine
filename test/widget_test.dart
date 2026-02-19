@@ -11,6 +11,7 @@ import 'package:resol_routine/core/database/converters/json_models.dart';
 import 'package:resol_routine/core/database/database_providers.dart';
 import 'package:resol_routine/features/content_pack/application/content_pack_bootstrap.dart';
 import 'package:resol_routine/features/content_pack/data/content_pack_seeder.dart';
+import 'package:resol_routine/features/settings/data/user_settings_repository.dart';
 import 'package:resol_routine/features/today/application/today_quiz_providers.dart';
 import 'package:resol_routine/features/today/application/today_session_providers.dart';
 import 'package:resol_routine/features/today/data/attempt_payload.dart';
@@ -23,6 +24,11 @@ void main() {
     final sharedDb = AppDatabase(executor: NativeDatabase.memory());
     final fakeSessionRepository = _FakeTodaySessionRepository(sharedDb);
     final fakeQuizRepository = _FakeTodayQuizRepository(sharedDb);
+    final settingsRepository = UserSettingsRepository(database: sharedDb);
+
+    await settingsRepository.updateRole('STUDENT');
+    await settingsRepository.updateName('지훈');
+    await settingsRepository.updateTrack('M3');
 
     addTearDown(sharedDb.close);
 
@@ -55,6 +61,47 @@ void main() {
 
     expect(find.text('문제 1 / 6'), findsOneWidget);
     expect(find.text('듣기'), findsAtLeastNWidgets(1));
+  });
+
+  testWidgets('shows onboarding first and enters app after profile setup', (
+    WidgetTester tester,
+  ) async {
+    final sharedDb = AppDatabase(executor: NativeDatabase.memory());
+    final fakeSessionRepository = _FakeTodaySessionRepository(sharedDb);
+    final fakeQuizRepository = _FakeTodayQuizRepository(sharedDb);
+
+    addTearDown(sharedDb.close);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(sharedDb),
+          appBootstrapProvider.overrideWith((ref) async {}),
+          todaySessionRepositoryProvider.overrideWithValue(
+            fakeSessionRepository,
+          ),
+          todayQuizRepositoryProvider.overrideWithValue(fakeQuizRepository),
+        ],
+        child: const ResolRoutineApp(),
+      ),
+    );
+
+    await _pumpUntilVisible(tester, find.text('학습자 유형을 선택해 주세요.'));
+    expect(find.text('학습자 유형을 선택해 주세요.'), findsOneWidget);
+
+    await tester.tap(find.text('학생'));
+    await tester.pump();
+    await tester.tap(find.text('다음'));
+    await tester.pump();
+
+    await tester.enterText(find.byType(TextField), '민수');
+    await tester.tap(find.text('고1'));
+    await tester.pump();
+    await tester.tap(find.text('시작하기'));
+    await tester.pump();
+
+    await _pumpUntilVisible(tester, find.text('오늘도 화이팅, 민수! 👋'));
+    expect(find.text('오늘도 화이팅, 민수! 👋'), findsOneWidget);
   });
 
   testWidgets(

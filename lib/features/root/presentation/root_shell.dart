@@ -29,6 +29,7 @@ class _RootShellState extends ConsumerState<RootShell> {
         onOpenVocab: () => _selectTab(1),
         onOpenTodayVocabQuiz: _openTodayVocabQuiz,
         onOpenWrongNotes: () => _selectTab(2),
+        onOpenMy: () => _selectTab(3),
       ),
       const VocabScreen(),
       const WrongNotesScreen(),
