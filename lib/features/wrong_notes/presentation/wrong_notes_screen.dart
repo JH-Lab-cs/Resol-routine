@@ -6,22 +6,6 @@ import '../../../core/ui/components/app_scaffold.dart';
 import '../../../core/ui/components/section_title.dart';
 import '../../../core/ui/label_maps.dart';
 import '../application/wrong_note_providers.dart';
-import '../data/wrong_note_repository.dart';
-
-final wrongNoteListProvider = FutureProvider<List<WrongNoteListItem>>((
-  Ref ref,
-) {
-  final repository = ref.watch(wrongNoteRepositoryProvider);
-  return repository.listIncorrectAttempts();
-});
-
-final wrongNoteDetailProvider = FutureProvider.family<WrongNoteDetail, int>((
-  Ref ref,
-  int attemptId,
-) {
-  final repository = ref.watch(wrongNoteRepositoryProvider);
-  return repository.loadDetail(attemptId);
-});
 
 class WrongNotesScreen extends ConsumerWidget {
   const WrongNotesScreen({super.key});

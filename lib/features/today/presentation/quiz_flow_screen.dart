@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/ui/app_tokens.dart';
 import '../../../core/ui/components/primary_pill_button.dart';
 import '../../../core/ui/label_maps.dart';
+import '../../wrong_notes/application/wrong_note_providers.dart';
 import '../application/today_quiz_providers.dart';
 import '../data/attempt_payload.dart';
 import '../data/today_quiz_repository.dart';
@@ -121,6 +122,10 @@ class _QuizFlowScreenState extends ConsumerState<QuizFlowScreen> {
         unawaited(_loadCompletionReport(session.sessionId));
       }
       return _buildCompletionScreen();
+    }
+
+    if (_questions.isEmpty) {
+      return _buildEmptyQuizScreen();
     }
 
     if (!_started) {
@@ -285,6 +290,51 @@ class _QuizFlowScreenState extends ConsumerState<QuizFlowScreen> {
             ),
           ],
         ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyQuizScreen() {
+    return Scaffold(
+      appBar: AppBar(title: const Text('오늘 루틴 퀴즈')),
+      body: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('문제를 불러오지 못했어요.', style: AppTypography.title),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              '오늘 루틴 데이터를 확인한 뒤 다시 시도해 주세요.',
+              style: AppTypography.body.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const Spacer(),
+            PrimaryPillButton(
+              label: '홈으로',
+              onPressed: () {
+                if (Navigator.of(context).canPop()) {
+                  Navigator.of(context).pop(QuizFlowExitAction.home);
+                }
+              },
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            OutlinedButton(
+              onPressed: () {
+                if (Navigator.of(context).canPop()) {
+                  Navigator.of(context).pop();
+                }
+              },
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size(double.infinity, 52),
+                shape: const StadiumBorder(),
+                side: const BorderSide(color: AppColors.border),
+              ),
+              child: const Text('뒤로가기'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -557,6 +607,7 @@ class _QuizFlowScreenState extends ConsumerState<QuizFlowScreen> {
       });
 
       ref.invalidate(todaySessionProvider(widget.track));
+      ref.invalidate(wrongNoteListProvider);
     } on StateError catch (error) {
       if (!mounted) {
         return;

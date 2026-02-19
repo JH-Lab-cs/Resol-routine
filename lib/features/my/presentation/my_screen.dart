@@ -10,6 +10,7 @@ import '../../../core/ui/components/section_title.dart';
 import '../../home/application/home_providers.dart';
 import '../../today/application/today_quiz_providers.dart';
 import '../../today/application/today_session_providers.dart';
+import '../../wrong_notes/application/wrong_note_providers.dart';
 
 final appVersionBuildProvider = FutureProvider<String>((Ref ref) async {
   final packageInfo = await PackageInfo.fromPlatform();
@@ -85,6 +86,7 @@ class MyScreen extends ConsumerWidget {
                     .deleteTodaySession(track: track);
                 ref.invalidate(todaySessionProvider(track));
                 ref.invalidate(homeRoutineSummaryProvider(track));
+                ref.invalidate(wrongNoteListProvider);
 
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(

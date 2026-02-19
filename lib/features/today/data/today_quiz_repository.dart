@@ -226,7 +226,7 @@ class TodayQuizRepository {
     final wrongReasonCounts = <String, int>{};
 
     for (final row in rows) {
-      final isCorrect = row.read<bool?>('is_correct');
+      final isCorrect = _sqliteBoolOrNull(row.read<int?>('is_correct'));
       if (isCorrect == null) {
         continue;
       }
@@ -275,6 +275,19 @@ class TodayQuizRepository {
       wrongCount: wrongCount,
       topWrongReasonTag: topWrongReasonTag,
     );
+  }
+
+  bool? _sqliteBoolOrNull(int? rawValue) {
+    if (rawValue == null) {
+      return null;
+    }
+    if (rawValue == 1) {
+      return true;
+    }
+    if (rawValue == 0) {
+      return false;
+    }
+    return null;
   }
 
   Future<void> saveAttempt({

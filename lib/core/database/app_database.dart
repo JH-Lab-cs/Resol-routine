@@ -105,12 +105,6 @@ class AppDatabase extends _$AppDatabase {
         '    )'
         ')',
       );
-
-      await customStatement(
-        'CREATE UNIQUE INDEX IF NOT EXISTS ux_attempts_session_question '
-        'ON attempts(session_id, question_id) '
-        'WHERE session_id IS NOT NULL',
-      );
     });
   }
 

@@ -117,6 +117,34 @@ void main() {
       expect(find.text('오답 이유 Top 1'), findsOneWidget);
     },
   );
+
+  testWidgets('shows empty state when quiz question list is empty', (
+    WidgetTester tester,
+  ) async {
+    final sharedDb = AppDatabase(executor: NativeDatabase.memory());
+    addTearDown(sharedDb.close);
+
+    final fakeSessionRepository = _FakeTodaySessionRepository(sharedDb);
+    final emptyQuizRepository = _EmptyTodayQuizRepository(sharedDb);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(sharedDb),
+          todaySessionRepositoryProvider.overrideWithValue(
+            fakeSessionRepository,
+          ),
+          todayQuizRepositoryProvider.overrideWithValue(emptyQuizRepository),
+        ],
+        child: const MaterialApp(home: QuizFlowScreen(track: 'M3')),
+      ),
+    );
+
+    await _pumpUntilVisible(tester, find.text('문제를 불러오지 못했어요.'));
+
+    expect(find.text('문제를 불러오지 못했어요.'), findsOneWidget);
+    expect(find.text('홈으로'), findsOneWidget);
+  });
 }
 
 Future<void> _pumpUntilVisible(
@@ -242,6 +270,34 @@ class _FakeTodayQuizRepository extends TodayQuizRepository {
   @override
   Future<List<QuizQuestionDetail>> loadSessionQuestions(int sessionId) async {
     return _questions;
+  }
+
+  @override
+  Future<Map<String, AttemptPayload>> loadSessionAttempts(int sessionId) async {
+    return <String, AttemptPayload>{};
+  }
+
+  @override
+  Future<int> findFirstUnansweredOrderIndex({required int sessionId}) async {
+    return 0;
+  }
+
+  @override
+  Future<SessionProgress> loadSessionProgress(int sessionId) async {
+    return const SessionProgress(
+      completed: 0,
+      listeningCompleted: 0,
+      readingCompleted: 0,
+    );
+  }
+}
+
+class _EmptyTodayQuizRepository extends TodayQuizRepository {
+  _EmptyTodayQuizRepository(AppDatabase database) : super(database: database);
+
+  @override
+  Future<List<QuizQuestionDetail>> loadSessionQuestions(int sessionId) async {
+    return const <QuizQuestionDetail>[];
   }
 
   @override
