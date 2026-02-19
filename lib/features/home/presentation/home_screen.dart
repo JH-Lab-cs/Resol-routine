@@ -16,11 +16,13 @@ class HomeScreen extends ConsumerWidget {
     super.key,
     required this.onOpenQuiz,
     required this.onOpenVocab,
+    required this.onOpenTodayVocabQuiz,
     required this.onOpenWrongNotes,
   });
 
   final VoidCallback onOpenQuiz;
   final VoidCallback onOpenVocab;
+  final VoidCallback onOpenTodayVocabQuiz;
   final VoidCallback onOpenWrongNotes;
 
   @override
@@ -105,6 +107,12 @@ class HomeScreen extends ConsumerWidget {
                     subtitle: '실수 원인 점검',
                     icon: Icons.assignment_late_rounded,
                     onTap: onOpenWrongNotes,
+                  ),
+                  RoutineCard(
+                    title: '오늘의 단어 시험',
+                    subtitle: '20문제 5지선다',
+                    icon: Icons.quiz_rounded,
+                    onTap: onOpenTodayVocabQuiz,
                   ),
                 ],
               ),

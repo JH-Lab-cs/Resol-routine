@@ -65,60 +65,68 @@ Future<String?> showTrackPickerBottomSheet(
 }) {
   return showModalBottomSheet<String>(
     context: context,
+    isScrollControlled: true,
     showDragHandle: true,
     builder: (context) {
-      return SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.lg,
-            AppSpacing.xs,
-            AppSpacing.lg,
-            AppSpacing.lg,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('트랙 선택', style: AppTypography.section),
-              const SizedBox(height: AppSpacing.xs),
-              Text(
-                '현재 학년에 맞는 트랙을 선택하세요.',
-                style: AppTypography.body.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              ...kTrackOptions.map((track) {
-                final selected = track == selectedTrack;
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-                  child: ListTile(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppRadius.lg),
-                    ),
-                    tileColor: selected
-                        ? AppColors.primary.withValues(alpha: 0.08)
-                        : Colors.transparent,
-                    title: Text(
-                      displayTrack(track),
-                      style: AppTypography.body.copyWith(
-                        fontWeight: selected
-                            ? FontWeight.w700
-                            : FontWeight.w500,
-                      ),
-                    ),
-                    subtitle: Text(track, style: AppTypography.label),
-                    trailing: selected
-                        ? const Icon(
-                            Icons.check_rounded,
-                            color: AppColors.primary,
-                          )
-                        : null,
-                    onTap: () => Navigator.of(context).pop(track),
+      return FractionallySizedBox(
+        heightFactor: 0.68,
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.lg,
+              AppSpacing.xs,
+              AppSpacing.lg,
+              AppSpacing.lg,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('트랙 선택', style: AppTypography.section),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  '현재 학년에 맞는 트랙을 선택하세요.',
+                  style: AppTypography.body.copyWith(
+                    color: AppColors.textSecondary,
                   ),
-                );
-              }),
-            ],
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Expanded(
+                  child: ListView.separated(
+                    itemCount: kTrackOptions.length,
+                    separatorBuilder: (_, _) =>
+                        const SizedBox(height: AppSpacing.xs),
+                    itemBuilder: (context, index) {
+                      final track = kTrackOptions[index];
+                      final selected = track == selectedTrack;
+                      return ListTile(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(AppRadius.lg),
+                        ),
+                        tileColor: selected
+                            ? AppColors.primary.withValues(alpha: 0.08)
+                            : Colors.transparent,
+                        title: Text(
+                          displayTrack(track),
+                          style: AppTypography.body.copyWith(
+                            fontWeight: selected
+                                ? FontWeight.w700
+                                : FontWeight.w500,
+                          ),
+                        ),
+                        subtitle: Text(track, style: AppTypography.label),
+                        trailing: selected
+                            ? const Icon(
+                                Icons.check_rounded,
+                                color: AppColors.primary,
+                              )
+                            : null,
+                        onTap: () => Navigator.of(context).pop(track),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       );

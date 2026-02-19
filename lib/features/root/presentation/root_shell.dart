@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../home/presentation/home_screen.dart';
 import '../../today/application/today_session_providers.dart';
 import '../../today/presentation/quiz_flow_screen.dart';
+import '../../vocab/presentation/today_vocab_quiz_screen.dart';
 import '../../vocab/presentation/vocab_screen.dart';
 import '../../wrong_notes/presentation/wrong_notes_screen.dart';
 import '../../my/presentation/my_screen.dart';
@@ -24,6 +25,7 @@ class _RootShellState extends ConsumerState<RootShell> {
       HomeScreen(
         onOpenQuiz: _openQuiz,
         onOpenVocab: () => _selectTab(1),
+        onOpenTodayVocabQuiz: _openTodayVocabQuiz,
         onOpenWrongNotes: () => _selectTab(2),
       ),
       const VocabScreen(),
@@ -84,6 +86,27 @@ class _RootShellState extends ConsumerState<RootShell> {
 
           if (action == QuizFlowExitAction.wrongNotes) {
             _selectTab(2);
+            return;
+          }
+
+          _selectTab(0);
+        });
+  }
+
+  void _openTodayVocabQuiz() {
+    Navigator.of(context)
+        .push<VocabQuizExitAction>(
+          MaterialPageRoute<VocabQuizExitAction>(
+            builder: (_) => const TodayVocabQuizScreen(),
+          ),
+        )
+        .then((action) {
+          if (!mounted || action == null) {
+            return;
+          }
+
+          if (action == VocabQuizExitAction.vocab) {
+            _selectTab(1);
             return;
           }
 
