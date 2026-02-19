@@ -1,4 +1,5 @@
 import '../../../core/database/app_database.dart';
+import '../../../core/domain/domain_enums.dart';
 import '../../../core/time/day_key.dart';
 import '../../today/data/attempt_payload.dart';
 import '../../today/data/today_quiz_repository.dart';
@@ -16,9 +17,9 @@ class WrongNoteListItem {
 
   final int attemptId;
   final String dayKey;
-  final String skill;
+  final Skill skill;
   final String typeTag;
-  final String track;
+  final Track track;
   final DateTime attemptedAt;
   final String questionId;
 }
@@ -35,7 +36,7 @@ class WrongNoteDetail {
   final int attemptId;
   final String dayKey;
   final String userAnswer;
-  final String? wrongReasonTag;
+  final WrongReasonTag? wrongReasonTag;
   final QuizQuestionDetail question;
 }
 
@@ -77,9 +78,9 @@ class WrongNoteRepository {
             attemptId: row.read<int>('attempt_id'),
             questionId: row.read<String>('question_id'),
             dayKey: _formatDayKeyValue(row.read<int>('day_key')),
-            skill: row.read<String>('skill'),
+            skill: skillFromDb(row.read<String>('skill')),
             typeTag: row.read<String>('type_tag'),
-            track: row.read<String>('track'),
+            track: trackFromDb(row.read<String>('track')),
             attemptedAt: row.read<DateTime>('attempted_at'),
           ),
         )

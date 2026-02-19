@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:resol_routine/app/app.dart';
+import 'package:resol_routine/core/domain/domain_enums.dart';
 import 'package:resol_routine/core/database/app_database.dart';
 import 'package:resol_routine/core/database/converters/json_models.dart';
 import 'package:resol_routine/core/database/database_providers.dart';
@@ -139,7 +140,7 @@ void main() {
             questionId: item.questionId,
             selectedAnswer: 'A',
             isCorrect: isCorrect,
-            wrongReasonTag: isCorrect ? null : 'VOCAB',
+            wrongReasonTag: isCorrect ? null : WrongReasonTag.vocab,
           );
         }
       });
@@ -281,9 +282,9 @@ class _FakeTodayQuizRepository extends TodayQuizRepository {
     QuizQuestionDetail(
       orderIndex: 0,
       questionId: 'L-001',
-      skill: 'LISTENING',
+      skill: Skill.listening,
       typeTag: 'L1',
-      track: 'M3',
+      track: Track.m3,
       prompt: 'What does the student order?',
       options: const OptionMap(
         a: 'Tea',
@@ -373,9 +374,9 @@ final List<QuizQuestionDetail> _fillerQuestions =
       (index) => QuizQuestionDetail(
         orderIndex: index + 1,
         questionId: 'Q-${index + 2}',
-        skill: index < 2 ? 'LISTENING' : 'READING',
+        skill: index < 2 ? Skill.listening : Skill.reading,
         typeTag: index < 2 ? 'L2' : 'R2',
-        track: 'M3',
+        track: Track.m3,
         prompt: 'Filler question ${index + 2}',
         options: const OptionMap(a: 'A', b: 'B', c: 'C', d: 'D', e: 'E'),
         answerKey: 'A',

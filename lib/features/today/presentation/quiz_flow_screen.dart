@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/domain/domain_enums.dart';
 import '../../../core/ui/app_tokens.dart';
 import '../../../core/ui/components/primary_pill_button.dart';
 import '../../../core/ui/label_maps.dart';
@@ -38,7 +39,7 @@ class _QuizFlowScreenState extends ConsumerState<QuizFlowScreen> {
   int _currentIndex = 0;
 
   String? _selectedAnswer;
-  String? _selectedWrongReasonTag;
+  WrongReasonTag? _selectedWrongReasonTag;
   bool _submitted = false;
   bool _isCorrect = false;
   bool _saving = false;
@@ -233,7 +234,7 @@ class _QuizFlowScreenState extends ConsumerState<QuizFlowScreen> {
                     .map((tag) {
                       final selected = tag == _selectedWrongReasonTag;
                       return ChoiceChip(
-                        label: Text(displayWrongReasonTag(tag)),
+                        label: Text(displayWrongReasonTag(tag.dbValue)),
                         selected: selected,
                         showCheckmark: false,
                         selectedColor: AppColors.primary,
@@ -404,7 +405,7 @@ class _QuizFlowScreenState extends ConsumerState<QuizFlowScreen> {
                   label: '오답 이유 Top 1',
                   value: topWrongReason == null
                       ? '없음'
-                      : displayWrongReasonTag(topWrongReason),
+                      : displayWrongReasonTag(topWrongReason.dbValue),
                 ),
               ],
             ),
@@ -486,7 +487,7 @@ class _QuizFlowScreenState extends ConsumerState<QuizFlowScreen> {
   Widget _buildSourceArea(QuizQuestionDetail question) {
     final evidenceIds = question.evidenceSentenceIds.toSet();
 
-    if (question.skill == 'LISTENING') {
+    if (question.skill == Skill.listening) {
       return Card(
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.md),
@@ -496,7 +497,7 @@ class _QuizFlowScreenState extends ConsumerState<QuizFlowScreen> {
               Row(
                 children: [
                   Text(
-                    displaySkill(question.skill),
+                    displaySkill(question.skill.dbValue),
                     style: AppTypography.label,
                   ),
                   const Spacer(),
@@ -540,7 +541,10 @@ class _QuizFlowScreenState extends ConsumerState<QuizFlowScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(displaySkill(question.skill), style: AppTypography.label),
+            Text(
+              displaySkill(question.skill.dbValue),
+              style: AppTypography.label,
+            ),
             const SizedBox(height: AppSpacing.xs),
             ...question.sourceLines.map((line) {
               final highlighted = line.containsEvidence(evidenceIds);

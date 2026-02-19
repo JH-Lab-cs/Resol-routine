@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/domain/domain_enums.dart';
 import '../../../core/ui/app_tokens.dart';
 import '../../../core/ui/components/app_scaffold.dart';
 import '../../../core/ui/components/section_title.dart';
@@ -51,9 +52,11 @@ class WrongNotesScreen extends ConsumerWidget {
                           );
                         },
                         title: Text(
-                          '${item.dayKey} · ${displayTrack(item.track)} · ${item.typeTag}',
+                          '${item.dayKey} · ${displayTrack(item.track.dbValue)} · ${item.typeTag}',
                         ),
-                        subtitle: Text('${displaySkill(item.skill)} · 오답'),
+                        subtitle: Text(
+                          '${displaySkill(item.skill.dbValue)} · 오답',
+                        ),
                         trailing: const Icon(Icons.chevron_right_rounded),
                       ),
                     );
@@ -89,7 +92,7 @@ class WrongNoteDetailScreen extends ConsumerWidget {
             padding: const EdgeInsets.all(AppSpacing.md),
             children: [
               Text(
-                '${detail.dayKey} · ${displayTrack(detail.question.track)} · ${detail.question.typeTag}',
+                '${detail.dayKey} · ${displayTrack(detail.question.track.dbValue)} · ${detail.question.typeTag}',
                 style: AppTypography.label.copyWith(
                   color: AppColors.textSecondary,
                 ),
@@ -122,7 +125,7 @@ class WrongNoteDetailScreen extends ConsumerWidget {
               ),
               if (detail.wrongReasonTag != null)
                 Text(
-                  '오답 태그: ${displayWrongReasonTag(detail.wrongReasonTag!)}',
+                  '오답 태그: ${displayWrongReasonTag(detail.wrongReasonTag!.dbValue)}',
                   style: AppTypography.label.copyWith(color: AppColors.warning),
                 ),
               const SizedBox(height: AppSpacing.md),
@@ -141,7 +144,7 @@ class WrongNoteDetailScreen extends ConsumerWidget {
               const SizedBox(height: AppSpacing.xs),
               ...detail.question.sourceLines.map((line) {
                 final highlighted = line.containsEvidence(evidenceIds);
-                final prefix = detail.question.skill == 'READING'
+                final prefix = detail.question.skill == Skill.reading
                     ? '${line.index + 1}. '
                     : '${line.speaker}: ';
                 return Container(

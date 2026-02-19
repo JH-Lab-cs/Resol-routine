@@ -1,23 +1,19 @@
 import 'dart:convert';
 
-const Set<String> wrongReasonTags = <String>{
-  'VOCAB',
-  'EVIDENCE',
-  'INFERENCE',
-  'CARELESS',
-  'TIME',
-};
+import '../../../core/domain/domain_enums.dart';
+
+const List<WrongReasonTag> wrongReasonTags = WrongReasonTag.values;
 
 class AttemptPayload {
   const AttemptPayload({required this.selectedAnswer, this.wrongReasonTag});
 
   final String selectedAnswer;
-  final String? wrongReasonTag;
+  final WrongReasonTag? wrongReasonTag;
 
   String encode() {
     return jsonEncode(<String, Object?>{
       'selectedAnswer': selectedAnswer,
-      'wrongReasonTag': wrongReasonTag,
+      'wrongReasonTag': wrongReasonTag?.dbValue,
     });
   }
 
@@ -41,16 +37,19 @@ class AttemptPayload {
       );
     }
 
-    final wrongReason = decoded['wrongReasonTag'];
-    if (wrongReason == null) {
+    final wrongReasonRaw = decoded['wrongReasonTag'];
+    if (wrongReasonRaw == null) {
       return AttemptPayload(selectedAnswer: answer);
     }
-    if (wrongReason is! String || wrongReason.isEmpty) {
+    if (wrongReasonRaw is! String || wrongReasonRaw.isEmpty) {
       throw const FormatException(
         'wrongReasonTag must be a non-empty string when present.',
       );
     }
 
-    return AttemptPayload(selectedAnswer: answer, wrongReasonTag: wrongReason);
+    return AttemptPayload(
+      selectedAnswer: answer,
+      wrongReasonTag: wrongReasonTagFromDbOrNull(wrongReasonRaw),
+    );
   }
 }

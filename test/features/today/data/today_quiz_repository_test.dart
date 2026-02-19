@@ -4,6 +4,7 @@ import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:resol_routine/core/domain/domain_enums.dart';
 import 'package:resol_routine/core/database/app_database.dart';
 import 'package:resol_routine/features/content_pack/data/content_pack_seeder.dart';
 import 'package:resol_routine/features/today/data/today_quiz_repository.dart';
@@ -58,6 +59,32 @@ void main() {
     });
 
     test(
+      'loadSessionQuestions returns six hydrated question details',
+      () async {
+        final session = await sessionRepository.getOrCreateSession(
+          track: 'M3',
+          nowLocal: DateTime(2026, 2, 19, 9, 5),
+        );
+
+        final questions = await quizRepository.loadSessionQuestions(
+          session.sessionId,
+        );
+
+        expect(questions, hasLength(6));
+        expect(
+          questions.take(3).every((q) => q.skill == Skill.listening),
+          isTrue,
+        );
+        expect(
+          questions.skip(3).every((q) => q.skill == Skill.reading),
+          isTrue,
+        );
+        expect(questions.every((q) => q.whyCorrectKo.isNotEmpty), isTrue);
+        expect(questions.every((q) => q.sourceLines.isNotEmpty), isTrue);
+      },
+    );
+
+    test(
       'loadSessionCompletionReport computes counts and top wrong reason',
       () async {
         final session = await sessionRepository.getOrCreateSession(
@@ -76,14 +103,14 @@ void main() {
           questionId: session.items[1].questionId,
           selectedAnswer: 'B',
           isCorrect: false,
-          wrongReasonTag: 'VOCAB',
+          wrongReasonTag: WrongReasonTag.vocab,
         );
         await quizRepository.saveAttemptIdempotent(
           sessionId: session.sessionId,
           questionId: session.items[2].questionId,
           selectedAnswer: 'C',
           isCorrect: false,
-          wrongReasonTag: 'EVIDENCE',
+          wrongReasonTag: WrongReasonTag.evidence,
         );
         await quizRepository.saveAttemptIdempotent(
           sessionId: session.sessionId,
@@ -96,7 +123,7 @@ void main() {
           questionId: session.items[4].questionId,
           selectedAnswer: 'E',
           isCorrect: false,
-          wrongReasonTag: 'VOCAB',
+          wrongReasonTag: WrongReasonTag.vocab,
         );
 
         final report = await quizRepository.loadSessionCompletionReport(
@@ -106,7 +133,7 @@ void main() {
         expect(report.listeningCorrectCount, 1);
         expect(report.readingCorrectCount, 1);
         expect(report.wrongCount, 3);
-        expect(report.topWrongReasonTag, 'VOCAB');
+        expect(report.topWrongReasonTag, WrongReasonTag.vocab);
       },
     );
 
@@ -124,7 +151,7 @@ void main() {
           questionId: questionId,
           selectedAnswer: 'A',
           isCorrect: false,
-          wrongReasonTag: 'VOCAB',
+          wrongReasonTag: WrongReasonTag.vocab,
         );
         await quizRepository.saveAttemptIdempotent(
           sessionId: session.sessionId,

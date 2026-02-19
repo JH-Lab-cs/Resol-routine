@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 
+import '../../../core/domain/domain_enums.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/database/converters/json_models.dart';
 import '../../../core/time/day_key.dart';
@@ -28,7 +29,7 @@ class SessionCompletionReport {
   final int listeningCorrectCount;
   final int readingCorrectCount;
   final int wrongCount;
-  final String? topWrongReasonTag;
+  final WrongReasonTag? topWrongReasonTag;
 }
 
 class SourceLine {
@@ -72,9 +73,9 @@ class QuizQuestionDetail {
 
   final int orderIndex;
   final String questionId;
-  final String skill;
+  final Skill skill;
   final String typeTag;
-  final String track;
+  final Track track;
   final String prompt;
   final OptionMap options;
   final String answerKey;
@@ -91,18 +92,63 @@ class TodayQuizRepository {
   final AppDatabase _database;
 
   Future<List<QuizQuestionDetail>> loadSessionQuestions(int sessionId) async {
-    final items =
+    final joinedRows =
         await (_database.select(_database.dailySessionItems)
               ..where((tbl) => tbl.sessionId.equals(sessionId))
               ..orderBy([(tbl) => OrderingTerm(expression: tbl.orderIndex)]))
+            .join([
+              innerJoin(
+                _database.questions,
+                _database.questions.id.equalsExp(
+                  _database.dailySessionItems.questionId,
+                ),
+              ),
+              innerJoin(
+                _database.explanations,
+                _database.explanations.questionId.equalsExp(
+                  _database.questions.id,
+                ),
+              ),
+            ])
             .get();
 
+    if (joinedRows.isEmpty) {
+      return const <QuizQuestionDetail>[];
+    }
+
+    final scriptIds = <String>{};
+    final passageIds = <String>{};
+    for (final row in joinedRows) {
+      final question = row.readTable(_database.questions);
+      final skill = skillFromDb(question.skill);
+      if (skill == Skill.listening) {
+        final scriptId = question.scriptId;
+        if (scriptId != null) {
+          scriptIds.add(scriptId);
+        }
+      } else {
+        final passageId = question.passageId;
+        if (passageId != null) {
+          passageIds.add(passageId);
+        }
+      }
+    }
+
+    final scriptsById = await _loadScriptsByIds(scriptIds);
+    final passagesById = await _loadPassagesByIds(passageIds);
+
     final details = <QuizQuestionDetail>[];
-    for (final item in items) {
+    for (final row in joinedRows) {
+      final item = row.readTable(_database.dailySessionItems);
+      final question = row.readTable(_database.questions);
+      final explanation = row.readTable(_database.explanations);
       details.add(
-        await loadQuestionDetail(
-          questionId: item.questionId,
+        _buildQuestionDetail(
           orderIndex: item.orderIndex,
+          question: question,
+          explanation: explanation,
+          scriptsById: scriptsById,
+          passagesById: passagesById,
         ),
       );
     }
@@ -120,22 +166,53 @@ class TodayQuizRepository {
     final explanation = await (_database.select(
       _database.explanations,
     )..where((tbl) => tbl.questionId.equals(question.id))).getSingle();
+    final skill = skillFromDb(question.skill);
+    final scriptsById = await _loadScriptsByIds({
+      if (skill == Skill.listening && question.scriptId != null)
+        question.scriptId!,
+    });
+    final passagesById = await _loadPassagesByIds({
+      if (skill == Skill.reading && question.passageId != null)
+        question.passageId!,
+    });
 
-    final sourceLines = await _loadSourceLines(question);
+    return _buildQuestionDetail(
+      orderIndex: orderIndex,
+      question: question,
+      explanation: explanation,
+      scriptsById: scriptsById,
+      passagesById: passagesById,
+    );
+  }
+
+  QuizQuestionDetail _buildQuestionDetail({
+    required int orderIndex,
+    required Question question,
+    required Explanation explanation,
+    required Map<String, Script> scriptsById,
+    required Map<String, Passage> passagesById,
+  }) {
+    final skill = skillFromDb(question.skill);
+    final track = trackFromDb(question.track);
 
     return QuizQuestionDetail(
       orderIndex: orderIndex,
       questionId: question.id,
-      skill: question.skill,
+      skill: skill,
       typeTag: question.typeTag,
-      track: question.track,
+      track: track,
       prompt: question.prompt,
       options: question.optionsJson,
       answerKey: question.answerKey,
       whyCorrectKo: explanation.whyCorrectKo,
       whyWrongKo: explanation.whyWrongKoJson,
       evidenceSentenceIds: explanation.evidenceSentenceIdsJson,
-      sourceLines: sourceLines,
+      sourceLines: _buildSourceLines(
+        question: question,
+        skill: skill,
+        scriptsById: scriptsById,
+        passagesById: passagesById,
+      ),
     );
   }
 
@@ -223,7 +300,7 @@ class TodayQuizRepository {
     var listeningCorrectCount = 0;
     var readingCorrectCount = 0;
     var wrongCount = 0;
-    final wrongReasonCounts = <String, int>{};
+    final wrongReasonCounts = <WrongReasonTag, int>{};
 
     for (final row in rows) {
       final isCorrect = _sqliteBoolOrNull(row.read<int?>('is_correct'));
@@ -231,11 +308,11 @@ class TodayQuizRepository {
         continue;
       }
 
-      final skill = row.read<String>('skill');
+      final skill = skillFromDb(row.read<String>('skill'));
       if (isCorrect) {
-        if (skill == 'LISTENING') {
+        if (skill == Skill.listening) {
           listeningCorrectCount += 1;
-        } else if (skill == 'READING') {
+        } else if (skill == Skill.reading) {
           readingCorrectCount += 1;
         }
         continue;
@@ -256,7 +333,7 @@ class TodayQuizRepository {
       );
     }
 
-    String? topWrongReasonTag;
+    WrongReasonTag? topWrongReasonTag;
     if (wrongReasonCounts.isNotEmpty) {
       final sortedEntries = wrongReasonCounts.entries.toList(growable: false)
         ..sort((a, b) {
@@ -264,7 +341,7 @@ class TodayQuizRepository {
           if (byCount != 0) {
             return byCount;
           }
-          return a.key.compareTo(b.key);
+          return a.key.dbValue.compareTo(b.key.dbValue);
         });
       topWrongReasonTag = sortedEntries.first.key;
     }
@@ -295,7 +372,7 @@ class TodayQuizRepository {
     required String questionId,
     required String selectedAnswer,
     required bool isCorrect,
-    String? wrongReasonTag,
+    WrongReasonTag? wrongReasonTag,
   }) async {
     return saveAttemptIdempotent(
       sessionId: sessionId,
@@ -311,7 +388,7 @@ class TodayQuizRepository {
     required String questionId,
     required String selectedAnswer,
     required bool isCorrect,
-    String? wrongReasonTag,
+    WrongReasonTag? wrongReasonTag,
   }) async {
     _validateSelectedAnswer(selectedAnswer);
 
@@ -467,11 +544,46 @@ class TodayQuizRepository {
         message.contains('attempts.session_id, attempts.question_id');
   }
 
-  Future<List<SourceLine>> _loadSourceLines(Question question) async {
-    if (question.skill == 'LISTENING') {
-      final script = await (_database.select(
-        _database.scripts,
-      )..where((tbl) => tbl.id.equals(question.scriptId!))).getSingle();
+  Future<Map<String, Script>> _loadScriptsByIds(Set<String> scriptIds) async {
+    if (scriptIds.isEmpty) {
+      return const <String, Script>{};
+    }
+
+    final rows = await (_database.select(
+      _database.scripts,
+    )..where((tbl) => tbl.id.isIn(scriptIds))).get();
+    return {for (final row in rows) row.id: row};
+  }
+
+  Future<Map<String, Passage>> _loadPassagesByIds(
+    Set<String> passageIds,
+  ) async {
+    if (passageIds.isEmpty) {
+      return const <String, Passage>{};
+    }
+
+    final rows = await (_database.select(
+      _database.passages,
+    )..where((tbl) => tbl.id.isIn(passageIds))).get();
+    return {for (final row in rows) row.id: row};
+  }
+
+  List<SourceLine> _buildSourceLines({
+    required Question question,
+    required Skill skill,
+    required Map<String, Script> scriptsById,
+    required Map<String, Passage> passagesById,
+  }) {
+    if (skill == Skill.listening) {
+      final scriptId = question.scriptId;
+      if (scriptId == null) {
+        throw StateError('LISTENING question "${question.id}" has no scriptId');
+      }
+
+      final script = scriptsById[scriptId];
+      if (script == null) {
+        throw StateError('Script "$scriptId" not found for "${question.id}"');
+      }
 
       final sentenceById = <String, Sentence>{
         for (final sentence in script.sentencesJson) sentence.id: sentence,
@@ -479,7 +591,7 @@ class TodayQuizRepository {
 
       final lines = <SourceLine>[];
       for (var i = 0; i < script.turnsJson.length; i++) {
-        final Turn turn = script.turnsJson[i];
+        final turn = script.turnsJson[i];
         final texts = <String>[];
         for (final sentenceId in turn.sentenceIds) {
           final sentence = sentenceById[sentenceId];
@@ -497,22 +609,29 @@ class TodayQuizRepository {
           ),
         );
       }
-
       return lines;
     }
 
-    final passage = await (_database.select(
-      _database.passages,
-    )..where((tbl) => tbl.id.equals(question.passageId!))).getSingle();
+    final passageId = question.passageId;
+    if (passageId == null) {
+      throw StateError('READING question "${question.id}" has no passageId');
+    }
+    final passage = passagesById[passageId];
+    if (passage == null) {
+      throw StateError('Passage "$passageId" not found for "${question.id}"');
+    }
 
     final lines = <SourceLine>[];
     for (var i = 0; i < passage.sentencesJson.length; i++) {
       final sentence = passage.sentencesJson[i];
       lines.add(
-        SourceLine(sentenceIds: [sentence.id], text: sentence.text, index: i),
+        SourceLine(
+          sentenceIds: <String>[sentence.id],
+          text: sentence.text,
+          index: i,
+        ),
       );
     }
-
     return lines;
   }
 
