@@ -51,8 +51,9 @@ class MyScreen extends ConsumerWidget {
                           if (selected == null || selected == track) {
                             return;
                           }
-                          ref.read(selectedTrackProvider.notifier).state =
-                              selected;
+                          await ref
+                              .read(selectedTrackProvider.notifier)
+                              .setTrack(selected);
                         },
                         child: const Text('변경'),
                       ),

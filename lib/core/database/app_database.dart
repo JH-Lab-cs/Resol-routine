@@ -20,6 +20,7 @@ part 'app_database.g.dart';
     Explanations,
     DailySessions,
     DailySessionItems,
+    UserSettings,
     Attempts,
     VocabMaster,
     VocabUser,
@@ -30,13 +31,14 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase({QueryExecutor? executor}) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (Migrator m) async {
       await m.createAll();
       await _createIndexes();
+      await _ensureUserSettingsRow();
     },
     onUpgrade: (Migrator m, int from, int to) async {
       if (from < 2) {
@@ -45,7 +47,11 @@ class AppDatabase extends _$AppDatabase {
       if (from < 3) {
         await _migrateToV3();
       }
+      if (from < 4) {
+        await _migrateToV4(m);
+      }
       await _createIndexes();
+      await _ensureUserSettingsRow();
     },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');
@@ -108,6 +114,10 @@ class AppDatabase extends _$AppDatabase {
     });
   }
 
+  Future<void> _migrateToV4(Migrator m) async {
+    await m.createTable(userSettings);
+  }
+
   Future<void> _createIndexes() async {
     await customStatement(
       'CREATE INDEX IF NOT EXISTS idx_passages_pack_order '
@@ -149,6 +159,12 @@ class AppDatabase extends _$AppDatabase {
     await customStatement(
       'CREATE INDEX IF NOT EXISTS idx_vocab_srs_due_at '
       'ON vocab_srs_state(due_at)',
+    );
+  }
+
+  Future<void> _ensureUserSettingsRow() async {
+    await customStatement(
+      'INSERT OR IGNORE INTO user_settings (id) VALUES (1)',
     );
   }
 

@@ -1,11 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../settings/application/user_settings_providers.dart' as settings;
 import '../../today/application/today_quiz_providers.dart';
 import '../../today/application/today_session_providers.dart';
 import '../../today/data/today_quiz_repository.dart';
 import '../../today/data/today_session_repository.dart';
 
-final displayNameProvider = StateProvider<String>((Ref ref) => '지훈');
+final displayNameProvider = settings.displayNameProvider;
 
 class HomeRoutineSummary {
   const HomeRoutineSummary({required this.session, required this.progress});

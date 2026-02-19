@@ -64,8 +64,10 @@ class HomeScreen extends ConsumerWidget {
                   const Spacer(),
                   TrackPickerChip(
                     track: selectedTrack,
-                    onChanged: (track) {
-                      ref.read(selectedTrackProvider.notifier).state = track;
+                    onChanged: (track) async {
+                      await ref
+                          .read(selectedTrackProvider.notifier)
+                          .setTrack(track);
                     },
                   ),
                 ],

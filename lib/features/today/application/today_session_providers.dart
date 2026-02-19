@@ -1,9 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/database/database_providers.dart';
+import '../../settings/application/user_settings_providers.dart' as settings;
 import '../data/today_session_repository.dart';
 
-final selectedTrackProvider = StateProvider<String>((Ref ref) => 'M3');
+final selectedTrackProvider = settings.selectedTrackProvider;
 
 final todaySessionRepositoryProvider = Provider<TodaySessionRepository>((
   Ref ref,

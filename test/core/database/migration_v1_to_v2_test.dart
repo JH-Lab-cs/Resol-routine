@@ -8,7 +8,7 @@ import 'package:path/path.dart' as p;
 import 'package:resol_routine/core/database/app_database.dart';
 
 void main() {
-  test('migrates v1 schema to v3 while preserving rows', () async {
+  test('migrates v1 schema to v4 while preserving rows', () async {
     final tempDir = await Directory.systemTemp.createTemp('resol_migration_');
     final dbFile = File(p.join(tempDir.path, 'migration_v1.sqlite'));
 
@@ -29,7 +29,7 @@ void main() {
     final userVersionRow = await database
         .customSelect('PRAGMA user_version', readsFrom: {})
         .getSingle();
-    expect(userVersionRow.read<int>('user_version'), 3);
+    expect(userVersionRow.read<int>('user_version'), 4);
 
     final attemptsRow = await database
         .customSelect('SELECT COUNT(*) AS count FROM attempts', readsFrom: {})
@@ -74,6 +74,16 @@ void main() {
         )
         .getSingle();
     expect(updatedSessionsRow.read<int>('count'), 2);
+
+    final userSettingsRow = await database
+        .customSelect(
+          'SELECT role, display_name, track FROM user_settings WHERE id = 1',
+          readsFrom: {database.userSettings},
+        )
+        .getSingle();
+    expect(userSettingsRow.read<String>('role'), 'STUDENT');
+    expect(userSettingsRow.read<String>('display_name'), '');
+    expect(userSettingsRow.read<String>('track'), 'M3');
   });
 }
 

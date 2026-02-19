@@ -174,6 +174,34 @@ class DailySessionItems extends Table {
   ];
 }
 
+class UserSettings extends Table {
+  @override
+  String get tableName => 'user_settings';
+
+  IntColumn get id => integer()();
+  TextColumn get role => text().customConstraint(
+    "NOT NULL DEFAULT 'STUDENT' CHECK (role IN ('STUDENT', 'PARENT'))",
+  )();
+  TextColumn get displayName => text()
+      .withLength(min: 0, max: DbTextLimits.displayNameMax)
+      .customConstraint("NOT NULL DEFAULT ''")();
+  TextColumn get track => text().customConstraint(
+    "NOT NULL DEFAULT 'M3' CHECK (track IN ('M3', 'H1', 'H2', 'H3'))",
+  )();
+  BoolColumn get notificationsEnabled =>
+      boolean().withDefault(const Constant(true))();
+  BoolColumn get studyReminderEnabled =>
+      boolean().withDefault(const Constant(true))();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+
+  @override
+  List<String> get customConstraints => const <String>['CHECK (id = 1)'];
+}
+
 class Attempts extends Table {
   @override
   String get tableName => 'attempts';

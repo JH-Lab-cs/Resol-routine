@@ -12,4 +12,5 @@ class DbTextLimits {
 
   static const int lemmaMax = 120;
   static const int meaningMax = 400;
+  static const int displayNameMax = 40;
 }
