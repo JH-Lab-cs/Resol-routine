@@ -56,3 +56,8 @@
 - python3 tool/security/check_bidi.py (must pass)
 - dart analyze (must pass)
 - flutter test (must pass)
+
+## 8. 언어 정책 (UI/콘텐츠)
+- 앱 UI 문자열(버튼/메뉴/라벨/안내 카피)은 한국어로 작성한다.
+- 문제 콘텐츠(문항 prompt, 지문/스크립트, 선택지)는 영어로 작성한다.
+- 해설 필드 `whyCorrectKo`, `whyWrongKo`는 한국어로 작성한다.
