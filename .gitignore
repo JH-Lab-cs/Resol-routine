@@ -4,6 +4,7 @@
 *.pyc
 *.swp
 .DS_Store
+resol_routine_src.zip
 .atom/
 .build/
 .buildlog/
