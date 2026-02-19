@@ -75,8 +75,23 @@ class _RootShellState extends ConsumerState<RootShell> {
 
   void _openQuiz() {
     final track = ref.read(selectedTrackProvider);
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => QuizFlowScreen(track: track)),
-    );
+    Navigator.of(context)
+        .push<QuizFlowExitAction>(
+          MaterialPageRoute<QuizFlowExitAction>(
+            builder: (_) => QuizFlowScreen(track: track),
+          ),
+        )
+        .then((action) {
+          if (!mounted || action == null) {
+            return;
+          }
+
+          if (action == QuizFlowExitAction.wrongNotes) {
+            _selectTab(2);
+            return;
+          }
+
+          _selectTab(0);
+        });
   }
 }

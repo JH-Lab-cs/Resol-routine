@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -50,47 +51,49 @@ class MyScreen extends ConsumerWidget {
               ),
             ),
           ),
-          const SizedBox(height: AppSpacing.lg),
-          PrimaryPillButton(
-            label: '오늘 세션만 삭제 (개발용)',
-            onPressed: () async {
-              final confirmed = await showDialog<bool>(
-                context: context,
-                builder: (context) {
-                  return AlertDialog(
-                    title: const Text('오늘 세션 삭제'),
-                    content: const Text('오늘 선택한 트랙의 세션만 삭제합니다.\n계속할까요?'),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.of(context).pop(false),
-                        child: const Text('취소'),
-                      ),
-                      FilledButton(
-                        onPressed: () => Navigator.of(context).pop(true),
-                        child: const Text('삭제'),
-                      ),
-                    ],
+          if (!kReleaseMode) ...[
+            const SizedBox(height: AppSpacing.lg),
+            PrimaryPillButton(
+              label: '오늘 세션만 삭제 (개발용)',
+              onPressed: () async {
+                final confirmed = await showDialog<bool>(
+                  context: context,
+                  builder: (context) {
+                    return AlertDialog(
+                      title: const Text('오늘 세션 삭제'),
+                      content: const Text('오늘 선택한 트랙의 세션만 삭제합니다.\n계속할까요?'),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.of(context).pop(false),
+                          child: const Text('취소'),
+                        ),
+                        FilledButton(
+                          onPressed: () => Navigator.of(context).pop(true),
+                          child: const Text('삭제'),
+                        ),
+                      ],
+                    );
+                  },
+                );
+
+                if (confirmed != true) {
+                  return;
+                }
+
+                await ref
+                    .read(todayQuizRepositoryProvider)
+                    .deleteTodaySession(track: track);
+                ref.invalidate(todaySessionProvider(track));
+                ref.invalidate(homeRoutineSummaryProvider(track));
+
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('오늘 세션을 삭제했습니다.')),
                   );
-                },
-              );
-
-              if (confirmed != true) {
-                return;
-              }
-
-              await ref
-                  .read(todayQuizRepositoryProvider)
-                  .deleteTodaySession(track: track);
-              ref.invalidate(todaySessionProvider(track));
-              ref.invalidate(homeRoutineSummaryProvider(track));
-
-              if (context.mounted) {
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(const SnackBar(content: Text('오늘 세션을 삭제했습니다.')));
-              }
-            },
-          ),
+                }
+              },
+            ),
+          ],
         ],
       ),
     );

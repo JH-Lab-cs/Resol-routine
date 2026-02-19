@@ -58,6 +58,59 @@ void main() {
     });
 
     test(
+      'loadSessionCompletionReport computes counts and top wrong reason',
+      () async {
+        final session = await sessionRepository.getOrCreateSession(
+          track: 'H3',
+          nowLocal: DateTime(2026, 2, 19, 9, 30),
+        );
+
+        await quizRepository.saveAttemptIdempotent(
+          sessionId: session.sessionId,
+          questionId: session.items[0].questionId,
+          selectedAnswer: 'A',
+          isCorrect: true,
+        );
+        await quizRepository.saveAttemptIdempotent(
+          sessionId: session.sessionId,
+          questionId: session.items[1].questionId,
+          selectedAnswer: 'B',
+          isCorrect: false,
+          wrongReasonTag: 'VOCAB',
+        );
+        await quizRepository.saveAttemptIdempotent(
+          sessionId: session.sessionId,
+          questionId: session.items[2].questionId,
+          selectedAnswer: 'C',
+          isCorrect: false,
+          wrongReasonTag: 'EVIDENCE',
+        );
+        await quizRepository.saveAttemptIdempotent(
+          sessionId: session.sessionId,
+          questionId: session.items[3].questionId,
+          selectedAnswer: 'D',
+          isCorrect: true,
+        );
+        await quizRepository.saveAttemptIdempotent(
+          sessionId: session.sessionId,
+          questionId: session.items[4].questionId,
+          selectedAnswer: 'E',
+          isCorrect: false,
+          wrongReasonTag: 'VOCAB',
+        );
+
+        final report = await quizRepository.loadSessionCompletionReport(
+          session.sessionId,
+        );
+
+        expect(report.listeningCorrectCount, 1);
+        expect(report.readingCorrectCount, 1);
+        expect(report.wrongCount, 3);
+        expect(report.topWrongReasonTag, 'VOCAB');
+      },
+    );
+
+    test(
       'completedItems remains 1 when same question is saved twice',
       () async {
         final session = await sessionRepository.getOrCreateSession(

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -9,6 +11,8 @@ import '../data/attempt_payload.dart';
 import '../data/today_quiz_repository.dart';
 import '../data/today_session_repository.dart';
 import '../application/today_session_providers.dart';
+
+enum QuizFlowExitAction { home, wrongNotes }
 
 class QuizFlowScreen extends ConsumerStatefulWidget {
   const QuizFlowScreen({super.key, required this.track});
@@ -38,6 +42,8 @@ class _QuizFlowScreenState extends ConsumerState<QuizFlowScreen> {
   bool _isCorrect = false;
   bool _saving = false;
   bool _showTranscript = true;
+  SessionCompletionReport? _completionReport;
+  bool _loadingCompletionReport = false;
 
   @override
   void initState() {
@@ -71,6 +77,15 @@ class _QuizFlowScreenState extends ConsumerState<QuizFlowScreen> {
         _currentIndex = firstUnansweredIndex;
         _isLoading = false;
       });
+
+      if (_isSessionCompleted(
+        currentIndex: firstUnansweredIndex,
+        questionCount: questions.length,
+        completedItems: progress.completed,
+        plannedItems: session.plannedItems,
+      )) {
+        await _loadCompletionReport(session.sessionId);
+      }
     } catch (error) {
       if (!mounted) {
         return;
@@ -95,13 +110,17 @@ class _QuizFlowScreenState extends ConsumerState<QuizFlowScreen> {
       return const Scaffold(body: Center(child: Text('세션이 없습니다.')));
     }
 
-    if (_currentIndex >= _questions.length) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('오늘 루틴 퀴즈')),
-        body: const Center(
-          child: Text('오늘 루틴 완료 🎉', style: AppTypography.title),
-        ),
-      );
+    final sessionCompleted = _isSessionCompleted(
+      currentIndex: _currentIndex,
+      questionCount: _questions.length,
+      completedItems: _progress.completed,
+      plannedItems: session.plannedItems,
+    );
+    if (sessionCompleted) {
+      if (_completionReport == null && !_loadingCompletionReport) {
+        unawaited(_loadCompletionReport(session.sessionId));
+      }
+      return _buildCompletionScreen();
     }
 
     if (!_started) {
@@ -249,20 +268,169 @@ class _QuizFlowScreenState extends ConsumerState<QuizFlowScreen> {
                         return;
                       }
 
+                      final nextIndex = _currentIndex + 1;
                       setState(() {
-                        _currentIndex += 1;
+                        _currentIndex = nextIndex;
                         _submitted = false;
                         _isCorrect = false;
                         _selectedAnswer = null;
                         _selectedWrongReasonTag = null;
                         _showTranscript = true;
                       });
+
+                      if (nextIndex >= _questions.length) {
+                        await _loadCompletionReport(session.sessionId);
+                      }
                     },
             ),
           ],
         ],
       ),
     );
+  }
+
+  Widget _buildCompletionScreen() {
+    final report = _completionReport;
+    final topWrongReason = report?.topWrongReasonTag;
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('오늘 루틴 퀴즈')),
+      body: ListView(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        children: [
+          Container(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppRadius.xl),
+              gradient: const LinearGradient(
+                colors: <Color>[AppColors.primary, AppColors.secondary],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '오늘 루틴 완료 🎉',
+                  style: AppTypography.title.copyWith(color: Colors.white),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  '6문제 루틴을 끝냈어요.',
+                  style: AppTypography.body.copyWith(color: Colors.white),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          if (_loadingCompletionReport && report == null)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: AppSpacing.lg),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else
+            GridView.count(
+              physics: const NeverScrollableScrollPhysics(),
+              shrinkWrap: true,
+              crossAxisCount: 2,
+              crossAxisSpacing: AppSpacing.sm,
+              mainAxisSpacing: AppSpacing.sm,
+              childAspectRatio: 1.28,
+              children: [
+                _SummaryMetricCard(
+                  label: '듣기 정답',
+                  value: '${report?.listeningCorrectCount ?? 0}/3',
+                ),
+                _SummaryMetricCard(
+                  label: '독해 정답',
+                  value: '${report?.readingCorrectCount ?? 0}/3',
+                ),
+                _SummaryMetricCard(
+                  label: '오답 개수',
+                  value: '${report?.wrongCount ?? 0}개',
+                ),
+                _SummaryMetricCard(
+                  label: '오답 이유 Top 1',
+                  value: topWrongReason == null
+                      ? '없음'
+                      : displayWrongReasonTag(topWrongReason),
+                ),
+              ],
+            ),
+          const SizedBox(height: AppSpacing.lg),
+          PrimaryPillButton(
+            label: '홈으로',
+            onPressed: () {
+              Navigator.of(context).pop(QuizFlowExitAction.home);
+            },
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          OutlinedButton(
+            onPressed: () {
+              Navigator.of(context).pop(QuizFlowExitAction.wrongNotes);
+            },
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size(double.infinity, 52),
+              shape: const StadiumBorder(),
+              side: const BorderSide(color: AppColors.border),
+            ),
+            child: const Text('오답노트 보기'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  bool _isSessionCompleted({
+    required int currentIndex,
+    required int questionCount,
+    required int completedItems,
+    required int plannedItems,
+  }) {
+    final completedByIndex = questionCount > 0 && currentIndex >= questionCount;
+    final completedByProgress = completedItems >= plannedItems;
+    return completedByIndex || completedByProgress;
+  }
+
+  Future<void> _loadCompletionReport(int sessionId) async {
+    if (_loadingCompletionReport) {
+      return;
+    }
+
+    setState(() {
+      _loadingCompletionReport = true;
+    });
+
+    try {
+      final report = await ref
+          .read(todayQuizRepositoryProvider)
+          .loadSessionCompletionReport(sessionId);
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _completionReport = report;
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _completionReport ??= const SessionCompletionReport(
+          listeningCorrectCount: 0,
+          readingCorrectCount: 0,
+          wrongCount: 0,
+          topWrongReasonTag: null,
+        );
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _loadingCompletionReport = false;
+        });
+      }
+    }
   }
 
   Widget _buildSourceArea(QuizQuestionDetail question) {
@@ -370,6 +538,12 @@ class _QuizFlowScreenState extends ConsumerState<QuizFlowScreen> {
       final updatedProgress = await ref
           .read(todayQuizRepositoryProvider)
           .loadSessionProgress(session.sessionId);
+      SessionCompletionReport? completionReport;
+      if (updatedProgress.completed >= session.plannedItems) {
+        completionReport = await ref
+            .read(todayQuizRepositoryProvider)
+            .loadSessionCompletionReport(session.sessionId);
+      }
 
       if (!mounted) {
         return;
@@ -377,6 +551,9 @@ class _QuizFlowScreenState extends ConsumerState<QuizFlowScreen> {
 
       setState(() {
         _progress = updatedProgress;
+        if (completionReport != null) {
+          _completionReport = completionReport;
+        }
       });
 
       ref.invalidate(todaySessionProvider(widget.track));
@@ -394,6 +571,35 @@ class _QuizFlowScreenState extends ConsumerState<QuizFlowScreen> {
         });
       }
     }
+  }
+}
+
+class _SummaryMetricCard extends StatelessWidget {
+  const _SummaryMetricCard({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: AppTypography.label.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(value, style: AppTypography.section),
+          ],
+        ),
+      ),
+    );
   }
 }
 

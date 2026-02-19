@@ -17,6 +17,20 @@ class SessionProgress {
   final int readingCompleted;
 }
 
+class SessionCompletionReport {
+  const SessionCompletionReport({
+    required this.listeningCorrectCount,
+    required this.readingCorrectCount,
+    required this.wrongCount,
+    required this.topWrongReasonTag,
+  });
+
+  final int listeningCorrectCount;
+  final int readingCorrectCount;
+  final int wrongCount;
+  final String? topWrongReasonTag;
+}
+
 class SourceLine {
   const SourceLine({
     required this.sentenceIds,
@@ -179,6 +193,88 @@ class TodayQuizRepository {
       return 6;
     }
     return row.read<int>('order_index');
+  }
+
+  Future<SessionCompletionReport> loadSessionCompletionReport(
+    int sessionId,
+  ) async {
+    final rows = await _database
+        .customSelect(
+          'SELECT '
+          'q.skill AS skill, '
+          'a.is_correct AS is_correct, '
+          'a.user_answer_json AS user_answer_json '
+          'FROM daily_session_items dsi '
+          'INNER JOIN questions q ON q.id = dsi.question_id '
+          'LEFT JOIN attempts a '
+          '  ON a.session_id = dsi.session_id '
+          ' AND a.question_id = dsi.question_id '
+          'WHERE dsi.session_id = ? '
+          'ORDER BY dsi.order_index ASC',
+          variables: [Variable<int>(sessionId)],
+          readsFrom: {
+            _database.dailySessionItems,
+            _database.questions,
+            _database.attempts,
+          },
+        )
+        .get();
+
+    var listeningCorrectCount = 0;
+    var readingCorrectCount = 0;
+    var wrongCount = 0;
+    final wrongReasonCounts = <String, int>{};
+
+    for (final row in rows) {
+      final isCorrect = row.read<bool?>('is_correct');
+      if (isCorrect == null) {
+        continue;
+      }
+
+      final skill = row.read<String>('skill');
+      if (isCorrect) {
+        if (skill == 'LISTENING') {
+          listeningCorrectCount += 1;
+        } else if (skill == 'READING') {
+          readingCorrectCount += 1;
+        }
+        continue;
+      }
+
+      wrongCount += 1;
+      final payload = AttemptPayload.decode(
+        row.read<String>('user_answer_json'),
+      );
+      final wrongReasonTag = payload.wrongReasonTag;
+      if (wrongReasonTag == null) {
+        continue;
+      }
+      wrongReasonCounts.update(
+        wrongReasonTag,
+        (value) => value + 1,
+        ifAbsent: () => 1,
+      );
+    }
+
+    String? topWrongReasonTag;
+    if (wrongReasonCounts.isNotEmpty) {
+      final sortedEntries = wrongReasonCounts.entries.toList(growable: false)
+        ..sort((a, b) {
+          final byCount = b.value.compareTo(a.value);
+          if (byCount != 0) {
+            return byCount;
+          }
+          return a.key.compareTo(b.key);
+        });
+      topWrongReasonTag = sortedEntries.first.key;
+    }
+
+    return SessionCompletionReport(
+      listeningCorrectCount: listeningCorrectCount,
+      readingCorrectCount: readingCorrectCount,
+      wrongCount: wrongCount,
+      topWrongReasonTag: topWrongReasonTag,
+    );
   }
 
   Future<void> saveAttempt({

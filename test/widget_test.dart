@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:drift/native.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -7,11 +10,13 @@ import 'package:resol_routine/core/database/app_database.dart';
 import 'package:resol_routine/core/database/converters/json_models.dart';
 import 'package:resol_routine/core/database/database_providers.dart';
 import 'package:resol_routine/features/content_pack/application/content_pack_bootstrap.dart';
+import 'package:resol_routine/features/content_pack/data/content_pack_seeder.dart';
 import 'package:resol_routine/features/today/application/today_quiz_providers.dart';
 import 'package:resol_routine/features/today/application/today_session_providers.dart';
 import 'package:resol_routine/features/today/data/attempt_payload.dart';
 import 'package:resol_routine/features/today/data/today_quiz_repository.dart';
 import 'package:resol_routine/features/today/data/today_session_repository.dart';
+import 'package:resol_routine/features/today/presentation/quiz_flow_screen.dart';
 
 void main() {
   testWidgets('opens quiz question from home CTA', (WidgetTester tester) async {
@@ -51,6 +56,67 @@ void main() {
     expect(find.text('문제 1 / 6'), findsOneWidget);
     expect(find.text('듣기'), findsAtLeastNWidgets(1));
   });
+
+  testWidgets(
+    'renders completion screen when resumed session is fully answered',
+    (WidgetTester tester) async {
+      late AppDatabase sharedDb;
+      late _FixedNowSessionRepository fixedSessionRepository;
+      late TodayQuizRepository quizRepository;
+
+      await tester.runAsync(() async {
+        sharedDb = AppDatabase(executor: NativeDatabase.memory());
+        addTearDown(sharedDb.close);
+
+        final starterPackJson = await File(
+          'assets/content_packs/starter_pack.json',
+        ).readAsString();
+        final seeder = ContentPackSeeder(
+          database: sharedDb,
+          source: MemoryContentPackSource(starterPackJson),
+        );
+        await seeder.seedOnFirstLaunch();
+
+        final fixedNow = DateTime(2026, 2, 19, 8, 30);
+        fixedSessionRepository = _FixedNowSessionRepository(sharedDb, fixedNow);
+        quizRepository = TodayQuizRepository(database: sharedDb);
+
+        final session = await fixedSessionRepository.getOrCreateSession(
+          track: 'M3',
+          nowLocal: fixedNow,
+        );
+        for (final item in session.items) {
+          final isCorrect = item.orderIndex.isEven;
+          await quizRepository.saveAttemptIdempotent(
+            sessionId: session.sessionId,
+            questionId: item.questionId,
+            selectedAnswer: 'A',
+            isCorrect: isCorrect,
+            wrongReasonTag: isCorrect ? null : 'VOCAB',
+          );
+        }
+      });
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            appDatabaseProvider.overrideWithValue(sharedDb),
+            todaySessionRepositoryProvider.overrideWithValue(
+              fixedSessionRepository,
+            ),
+            todayQuizRepositoryProvider.overrideWithValue(quizRepository),
+          ],
+          child: const MaterialApp(home: QuizFlowScreen(track: 'M3')),
+        ),
+      );
+
+      await _pumpUntilVisible(tester, find.text('오늘 루틴 완료 🎉'));
+
+      expect(find.text('오늘 루틴 완료 🎉'), findsOneWidget);
+      expect(find.text('6문제 루틴을 끝냈어요.'), findsOneWidget);
+      expect(find.text('오답 이유 Top 1'), findsOneWidget);
+    },
+  );
 }
 
 Future<void> _pumpUntilVisible(
@@ -115,6 +181,21 @@ class _FakeTodaySessionRepository extends TodaySessionRepository {
         ),
       ],
     );
+  }
+}
+
+class _FixedNowSessionRepository extends TodaySessionRepository {
+  _FixedNowSessionRepository(AppDatabase database, this.fixedNow)
+    : super(database: database);
+
+  final DateTime fixedNow;
+
+  @override
+  Future<DailySessionBundle> getOrCreateSession({
+    required String track,
+    DateTime? nowLocal,
+  }) {
+    return super.getOrCreateSession(track: track, nowLocal: fixedNow);
   }
 }
 
