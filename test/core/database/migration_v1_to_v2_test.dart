@@ -8,7 +8,7 @@ import 'package:path/path.dart' as p;
 import 'package:resol_routine/core/database/app_database.dart';
 
 void main() {
-  test('migrates v1 schema to v2 while preserving rows', () async {
+  test('migrates v1 schema to v3 while preserving rows', () async {
     final tempDir = await Directory.systemTemp.createTemp('resol_migration_');
     final dbFile = File(p.join(tempDir.path, 'migration_v1.sqlite'));
 
@@ -29,12 +29,21 @@ void main() {
     final userVersionRow = await database
         .customSelect('PRAGMA user_version', readsFrom: {})
         .getSingle();
-    expect(userVersionRow.read<int>('user_version'), 2);
+    expect(userVersionRow.read<int>('user_version'), 3);
 
     final attemptsRow = await database
         .customSelect('SELECT COUNT(*) AS count FROM attempts', readsFrom: {})
         .getSingle();
     expect(attemptsRow.read<int>('count'), 1);
+
+    final dedupedAttempt = await database
+        .customSelect(
+          'SELECT id, user_answer_json FROM attempts',
+          readsFrom: {database.attempts},
+        )
+        .getSingle();
+    expect(dedupedAttempt.read<int>('id'), 2);
+    expect(dedupedAttempt.read<String>('user_answer_json'), '"C"');
 
     final sessionsRow = await database
         .customSelect(
@@ -244,6 +253,10 @@ Future<void> _createV1Database(File file) async {
     await executor.runCustom(
       'INSERT INTO attempts (id, question_id, session_id, user_answer_json, is_correct, response_time_ms, attempted_at) '
       "VALUES (1, 'question_v1', 1, '\"B\"', 1, 1200, $now)",
+    );
+    await executor.runCustom(
+      'INSERT INTO attempts (id, question_id, session_id, user_answer_json, is_correct, response_time_ms, attempted_at) '
+      "VALUES (2, 'question_v1', 1, '\"C\"', 0, 1000, ${now + 1})",
     );
 
     await executor.runCustom('PRAGMA user_version = 1');

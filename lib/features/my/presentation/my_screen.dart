@@ -6,6 +6,7 @@ import '../../../core/ui/app_tokens.dart';
 import '../../../core/ui/components/app_scaffold.dart';
 import '../../../core/ui/components/primary_pill_button.dart';
 import '../../../core/ui/components/section_title.dart';
+import '../../home/application/home_providers.dart';
 import '../../today/application/today_quiz_providers.dart';
 import '../../today/application/today_session_providers.dart';
 
@@ -81,6 +82,7 @@ class MyScreen extends ConsumerWidget {
                   .read(todayQuizRepositoryProvider)
                   .deleteTodaySession(track: track);
               ref.invalidate(todaySessionProvider(track));
+              ref.invalidate(homeRoutineSummaryProvider(track));
 
               if (context.mounted) {
                 ScaffoldMessenger.of(

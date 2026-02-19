@@ -53,15 +53,10 @@ class _QuizFlowScreenState extends ConsumerState<QuizFlowScreen> {
       final questions = await quizRepository.loadSessionQuestions(
         session.sessionId,
       );
-      final attempts = await quizRepository.loadSessionAttempts(
-        session.sessionId,
-      );
+      final firstUnansweredIndex = await quizRepository
+          .findFirstUnansweredOrderIndex(sessionId: session.sessionId);
       final progress = await quizRepository.loadSessionProgress(
         session.sessionId,
-      );
-
-      final firstUnansweredIndex = questions.indexWhere(
-        (question) => !attempts.containsKey(question.questionId),
       );
 
       if (!mounted) {
@@ -72,9 +67,7 @@ class _QuizFlowScreenState extends ConsumerState<QuizFlowScreen> {
         _session = session;
         _questions = questions;
         _progress = progress;
-        _currentIndex = firstUnansweredIndex < 0
-            ? questions.length
-            : firstUnansweredIndex;
+        _currentIndex = firstUnansweredIndex;
         _isLoading = false;
       });
     } catch (error) {
@@ -99,6 +92,15 @@ class _QuizFlowScreenState extends ConsumerState<QuizFlowScreen> {
     final session = _session;
     if (session == null) {
       return const Scaffold(body: Center(child: Text('세션이 없습니다.')));
+    }
+
+    if (_currentIndex >= _questions.length) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('오늘 루틴 퀴즈')),
+        body: const Center(
+          child: Text('오늘 루틴 완료 🎉', style: AppTypography.title),
+        ),
+      );
     }
 
     if (!_started) {
@@ -131,15 +133,6 @@ class _QuizFlowScreenState extends ConsumerState<QuizFlowScreen> {
               ),
             ],
           ),
-        ),
-      );
-    }
-
-    if (_currentIndex >= _questions.length) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('오늘 루틴 퀴즈')),
-        body: const Center(
-          child: Text('오늘 루틴 완료 🎉', style: AppTypography.title),
         ),
       );
     }
@@ -359,7 +352,7 @@ class _QuizFlowScreenState extends ConsumerState<QuizFlowScreen> {
       final question = _questions[_currentIndex];
       await ref
           .read(todayQuizRepositoryProvider)
-          .saveAttempt(
+          .saveAttemptIdempotent(
             sessionId: session.sessionId,
             questionId: question.questionId,
             selectedAnswer: _selectedAnswer!,

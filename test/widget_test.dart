@@ -168,6 +168,11 @@ class _FakeTodayQuizRepository extends TodayQuizRepository {
   }
 
   @override
+  Future<int> findFirstUnansweredOrderIndex({required int sessionId}) async {
+    return 0;
+  }
+
+  @override
   Future<SessionProgress> loadSessionProgress(int sessionId) async {
     return const SessionProgress(
       completed: 0,

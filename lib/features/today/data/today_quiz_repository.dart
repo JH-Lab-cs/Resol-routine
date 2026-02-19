@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart';
+import 'package:sqlite3/sqlite3.dart';
 
 import '../../../core/database/app_database.dart';
 import '../../../core/database/converters/json_models.dart';
@@ -159,7 +160,45 @@ class TodayQuizRepository {
     );
   }
 
+  Future<int> findFirstUnansweredOrderIndex({required int sessionId}) async {
+    final row = await _database
+        .customSelect(
+          'SELECT dsi.order_index AS order_index '
+          'FROM daily_session_items dsi '
+          'LEFT JOIN attempts a '
+          '  ON a.session_id = dsi.session_id '
+          ' AND a.question_id = dsi.question_id '
+          'WHERE dsi.session_id = ? AND a.id IS NULL '
+          'ORDER BY dsi.order_index ASC '
+          'LIMIT 1',
+          variables: [Variable<int>(sessionId)],
+          readsFrom: {_database.dailySessionItems, _database.attempts},
+        )
+        .getSingleOrNull();
+
+    if (row == null) {
+      return 6;
+    }
+    return row.read<int>('order_index');
+  }
+
   Future<void> saveAttempt({
+    required int sessionId,
+    required String questionId,
+    required String selectedAnswer,
+    required bool isCorrect,
+    String? wrongReasonTag,
+  }) async {
+    return saveAttemptIdempotent(
+      sessionId: sessionId,
+      questionId: questionId,
+      selectedAnswer: selectedAnswer,
+      isCorrect: isCorrect,
+      wrongReasonTag: wrongReasonTag,
+    );
+  }
+
+  Future<void> saveAttemptIdempotent({
     required int sessionId,
     required String questionId,
     required String selectedAnswer,
@@ -176,41 +215,60 @@ class TodayQuizRepository {
       wrongReasonTag = null;
     }
 
+    final payload = AttemptPayload(
+      selectedAnswer: selectedAnswer,
+      wrongReasonTag: wrongReasonTag,
+    );
+    final nowUtc = DateTime.now().toUtc();
+
     await _database.transaction(() async {
-      final alreadySaved = await _database
-          .customSelect(
-            'SELECT id FROM attempts WHERE session_id = ? AND question_id = ? LIMIT 1',
-            variables: [Variable<int>(sessionId), Variable<String>(questionId)],
-            readsFrom: {_database.attempts},
-          )
-          .getSingleOrNull();
-      if (alreadySaved != null) {
-        return;
+      final existingAttemptId = await _findSessionAttemptId(
+        sessionId: sessionId,
+        questionId: questionId,
+      );
+      if (existingAttemptId != null) {
+        await _updateAttemptRow(
+          attemptId: existingAttemptId,
+          payload: payload,
+          isCorrect: isCorrect,
+          attemptedAt: nowUtc,
+        );
+      } else {
+        try {
+          await _database
+              .into(_database.attempts)
+              .insert(
+                AttemptsCompanion.insert(
+                  questionId: questionId,
+                  sessionId: Value(sessionId),
+                  userAnswerJson: payload.encode(),
+                  isCorrect: isCorrect,
+                  attemptedAt: Value(nowUtc),
+                ),
+              );
+        } on SqliteException catch (error) {
+          if (!_isSessionQuestionUniqueConflict(error)) {
+            rethrow;
+          }
+
+          final conflictedAttemptId = await _findSessionAttemptId(
+            sessionId: sessionId,
+            questionId: questionId,
+          );
+          if (conflictedAttemptId == null) {
+            rethrow;
+          }
+
+          await _updateAttemptRow(
+            attemptId: conflictedAttemptId,
+            payload: payload,
+            isCorrect: isCorrect,
+            attemptedAt: nowUtc,
+          );
+        }
       }
 
-      final payload = AttemptPayload(
-        selectedAnswer: selectedAnswer,
-        wrongReasonTag: wrongReasonTag,
-      );
-
-      await _database
-          .into(_database.attempts)
-          .insert(
-            AttemptsCompanion.insert(
-              questionId: questionId,
-              sessionId: Value(sessionId),
-              userAnswerJson: payload.encode(),
-              isCorrect: isCorrect,
-            ),
-          );
-
-      await _database.customUpdate(
-        'UPDATE daily_sessions '
-        'SET completed_items = MIN(planned_items, completed_items + 1) '
-        'WHERE id = ?',
-        variables: [Variable<int>(sessionId)],
-        updates: {_database.dailySessions},
-      );
+      await _syncCompletedItems(sessionId: sessionId);
     });
   }
 
@@ -221,12 +279,80 @@ class TodayQuizRepository {
     final resolvedNow = nowLocal ?? DateTime.now();
     final dayKey = formatDayKey(resolvedNow);
     validateDayKey(dayKey);
+    final dayKeyValue = int.parse(dayKey);
 
-    await (_database.delete(_database.dailySessions)..where(
-          (tbl) =>
-              tbl.dayKey.equals(int.parse(dayKey)) & tbl.track.equals(track),
-        ))
-        .go();
+    final targetSession =
+        await (_database.select(_database.dailySessions)..where(
+              (tbl) => tbl.dayKey.equals(dayKeyValue) & tbl.track.equals(track),
+            ))
+            .getSingleOrNull();
+    if (targetSession == null) {
+      return;
+    }
+
+    await _database.transaction(() async {
+      await (_database.delete(
+        _database.attempts,
+      )..where((tbl) => tbl.sessionId.equals(targetSession.id))).go();
+
+      await (_database.delete(
+        _database.dailySessions,
+      )..where((tbl) => tbl.id.equals(targetSession.id))).go();
+    });
+  }
+
+  Future<int?> _findSessionAttemptId({
+    required int sessionId,
+    required String questionId,
+  }) async {
+    final row = await _database
+        .customSelect(
+          'SELECT id FROM attempts '
+          'WHERE session_id = ? AND question_id = ? '
+          'ORDER BY attempted_at DESC, id DESC '
+          'LIMIT 1',
+          variables: [Variable<int>(sessionId), Variable<String>(questionId)],
+          readsFrom: {_database.attempts},
+        )
+        .getSingleOrNull();
+
+    return row?.read<int>('id');
+  }
+
+  Future<void> _updateAttemptRow({
+    required int attemptId,
+    required AttemptPayload payload,
+    required bool isCorrect,
+    required DateTime attemptedAt,
+  }) {
+    return (_database.update(
+      _database.attempts,
+    )..where((tbl) => tbl.id.equals(attemptId))).write(
+      AttemptsCompanion(
+        userAnswerJson: Value(payload.encode()),
+        isCorrect: Value(isCorrect),
+        attemptedAt: Value(attemptedAt),
+      ),
+    );
+  }
+
+  Future<void> _syncCompletedItems({required int sessionId}) async {
+    await _database.customUpdate(
+      'UPDATE daily_sessions '
+      'SET completed_items = MIN('
+      '  planned_items, '
+      '  (SELECT COUNT(*) FROM attempts WHERE session_id = daily_sessions.id)'
+      ') '
+      'WHERE id = ?',
+      variables: [Variable<int>(sessionId)],
+      updates: {_database.dailySessions, _database.attempts},
+    );
+  }
+
+  bool _isSessionQuestionUniqueConflict(SqliteException error) {
+    return error.extendedResultCode == 2067 ||
+        error.message.contains('ux_attempts_session_question') ||
+        error.message.contains('attempts.session_id, attempts.question_id');
   }
 
   Future<List<SourceLine>> _loadSourceLines(Question question) async {

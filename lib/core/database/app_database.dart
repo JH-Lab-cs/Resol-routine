@@ -30,7 +30,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase({QueryExecutor? executor}) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -41,6 +41,9 @@ class AppDatabase extends _$AppDatabase {
     onUpgrade: (Migrator m, int from, int to) async {
       if (from < 2) {
         await _migrateToV2(m);
+      }
+      if (from < 3) {
+        await _migrateToV3();
       }
       await _createIndexes();
     },
@@ -86,6 +89,31 @@ class AppDatabase extends _$AppDatabase {
     }
   }
 
+  Future<void> _migrateToV3() async {
+    await transaction(() async {
+      // Keep only the latest attempt per (session_id, question_id) before enforcing uniqueness.
+      await customStatement(
+        'DELETE FROM attempts '
+        'WHERE session_id IS NOT NULL '
+        'AND EXISTS ('
+        '  SELECT 1 FROM attempts newer '
+        '  WHERE newer.session_id = attempts.session_id '
+        '    AND newer.question_id = attempts.question_id '
+        '    AND ('
+        '      newer.attempted_at > attempts.attempted_at '
+        '      OR (newer.attempted_at = attempts.attempted_at AND newer.id > attempts.id)'
+        '    )'
+        ')',
+      );
+
+      await customStatement(
+        'CREATE UNIQUE INDEX IF NOT EXISTS ux_attempts_session_question '
+        'ON attempts(session_id, question_id) '
+        'WHERE session_id IS NOT NULL',
+      );
+    });
+  }
+
   Future<void> _createIndexes() async {
     await customStatement(
       'CREATE INDEX IF NOT EXISTS idx_passages_pack_order '
@@ -114,6 +142,11 @@ class AppDatabase extends _$AppDatabase {
     await customStatement(
       'CREATE INDEX IF NOT EXISTS idx_attempts_session '
       'ON attempts(session_id)',
+    );
+    await customStatement(
+      'CREATE UNIQUE INDEX IF NOT EXISTS ux_attempts_session_question '
+      'ON attempts(session_id, question_id) '
+      'WHERE session_id IS NOT NULL',
     );
     await customStatement(
       'CREATE INDEX IF NOT EXISTS idx_daily_session_items_question '
