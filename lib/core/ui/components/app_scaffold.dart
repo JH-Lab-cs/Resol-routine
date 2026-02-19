@@ -9,13 +9,20 @@ class AppScaffold extends StatelessWidget {
     this.appBar,
     this.floatingActionButton,
     this.bottomNavigationBar,
-    this.padding = const EdgeInsets.all(AppSpacing.md),
+    this.showDecorativeBackground = false,
+    this.padding = const EdgeInsets.fromLTRB(
+      AppSpacing.mdLg,
+      AppSpacing.md,
+      AppSpacing.mdLg,
+      0,
+    ),
   });
 
   final Widget body;
   final PreferredSizeWidget? appBar;
   final Widget? floatingActionButton;
   final Widget? bottomNavigationBar;
+  final bool showDecorativeBackground;
   final EdgeInsetsGeometry padding;
 
   @override
@@ -26,7 +33,39 @@ class AppScaffold extends StatelessWidget {
       floatingActionButton: floatingActionButton,
       bottomNavigationBar: bottomNavigationBar,
       body: SafeArea(
-        child: Padding(padding: padding, child: body),
+        child: Stack(
+          children: [
+            if (showDecorativeBackground) ...[
+              Positioned(
+                top: -120,
+                left: -90,
+                child: Container(
+                  width: 260,
+                  height: 260,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppColors.primary.withValues(alpha: 0.08),
+                  ),
+                ),
+              ),
+              Positioned(
+                top: -80,
+                right: -70,
+                child: Container(
+                  width: 220,
+                  height: 220,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppColors.secondary.withValues(alpha: 0.06),
+                  ),
+                ),
+              ),
+            ],
+            Positioned.fill(
+              child: Padding(padding: padding, child: body),
+            ),
+          ],
+        ),
       ),
     );
   }

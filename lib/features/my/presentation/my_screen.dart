@@ -7,6 +7,8 @@ import '../../../core/ui/app_tokens.dart';
 import '../../../core/ui/components/app_scaffold.dart';
 import '../../../core/ui/components/primary_pill_button.dart';
 import '../../../core/ui/components/section_title.dart';
+import '../../../core/ui/components/track_picker.dart';
+import '../../../core/ui/label_maps.dart';
 import '../../home/application/home_providers.dart';
 import '../../today/application/today_quiz_providers.dart';
 import '../../today/application/today_session_providers.dart';
@@ -28,16 +30,40 @@ class MyScreen extends ConsumerWidget {
     return AppScaffold(
       body: ListView(
         children: [
-          const SectionTitle(title: '마이', subtitle: '현재 앱 상태와 개발용 도구'),
+          const SectionTitle(title: '마이', subtitle: '내 정보와 앱 상태를 확인하세요.'),
           const SizedBox(height: AppSpacing.md),
           Card(
             child: Padding(
-              padding: const EdgeInsets.all(AppSpacing.md),
+              padding: const EdgeInsets.all(AppSpacing.mdLg),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('현재 트랙: $track', style: AppTypography.body),
+                  Row(
+                    children: [
+                      Text('내 정보', style: AppTypography.section),
+                      const Spacer(),
+                      TextButton(
+                        onPressed: () async {
+                          final selected = await showTrackPickerBottomSheet(
+                            context,
+                            selectedTrack: track,
+                          );
+                          if (selected == null || selected == track) {
+                            return;
+                          }
+                          ref.read(selectedTrackProvider.notifier).state =
+                              selected;
+                        },
+                        child: const Text('변경'),
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    '현재 트랙: ${displayTrack(track)} ($track)',
+                    style: AppTypography.body,
+                  ),
+                  const SizedBox(height: AppSpacing.md),
                   versionAsync.when(
                     loading: () => const Text(
                       '앱 버전/빌드: 불러오는 중...',

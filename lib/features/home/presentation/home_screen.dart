@@ -6,6 +6,8 @@ import '../../../core/ui/components/app_scaffold.dart';
 import '../../../core/ui/components/hero_progress_card.dart';
 import '../../../core/ui/components/routine_card.dart';
 import '../../../core/ui/components/section_title.dart';
+import '../../../core/ui/components/track_picker.dart';
+import '../../../core/ui/label_maps.dart';
 import '../../today/application/today_session_providers.dart';
 import '../application/home_providers.dart';
 
@@ -28,6 +30,7 @@ class HomeScreen extends ConsumerWidget {
     final summary = ref.watch(homeRoutineSummaryProvider(selectedTrack));
 
     return AppScaffold(
+      showDecorativeBackground: true,
       body: summary.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => Center(
@@ -48,8 +51,24 @@ class HomeScreen extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: AppSpacing.md),
-              _TrackSelector(selectedTrack: selectedTrack),
-              const SizedBox(height: AppSpacing.md),
+              Row(
+                children: [
+                  Text(
+                    '현재 트랙 ${displayTrack(selectedTrack)}',
+                    style: AppTypography.label.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  const Spacer(),
+                  TrackPickerChip(
+                    track: selectedTrack,
+                    onChanged: (track) {
+                      ref.read(selectedTrackProvider.notifier).state = track;
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.mdLg),
               HeroProgressCard(
                 completed: completed,
                 total: 6,
@@ -104,42 +123,5 @@ class HomeScreen extends ConsumerWidget {
       return '지금까지 푼 문제 이어하기';
     }
     return '오늘 루틴 완료 🎉';
-  }
-}
-
-class _TrackSelector extends ConsumerWidget {
-  const _TrackSelector({required this.selectedTrack});
-
-  final String selectedTrack;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    const tracks = <String>['M3', 'H1', 'H2', 'H3'];
-
-    return Wrap(
-      spacing: AppSpacing.xs,
-      children: tracks
-          .map((track) {
-            final selected = track == selectedTrack;
-            return ChoiceChip(
-              label: Text(track),
-              selected: selected,
-              showCheckmark: false,
-              selectedColor: AppColors.primary,
-              labelStyle: AppTypography.label.copyWith(
-                color: selected ? Colors.white : AppColors.textSecondary,
-              ),
-              backgroundColor: Colors.white,
-              side: BorderSide(
-                color: selected ? AppColors.primary : AppColors.border,
-              ),
-              shape: const StadiumBorder(),
-              onSelected: (_) {
-                ref.read(selectedTrackProvider.notifier).state = track;
-              },
-            );
-          })
-          .toList(growable: false),
-    );
   }
 }

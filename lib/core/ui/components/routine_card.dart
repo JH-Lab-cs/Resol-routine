@@ -20,41 +20,44 @@ class RoutineCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: AppColors.surface,
-      borderRadius: BorderRadius.circular(AppRadius.lg),
+      borderRadius: BorderRadius.circular(AppRadius.card),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
+        borderRadius: BorderRadius.circular(AppRadius.card),
         child: Container(
-          padding: const EdgeInsets.all(AppSpacing.md),
+          padding: const EdgeInsets.all(AppSpacing.mdLg),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppRadius.lg),
+            borderRadius: BorderRadius.circular(AppRadius.card),
             border: Border.all(color: AppColors.border),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x121C2150),
-                blurRadius: 12,
-                offset: Offset(0, 6),
-              ),
-            ],
+            boxShadow: AppShadows.card,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              CircleAvatar(
-                radius: 18,
-                backgroundColor: AppColors.primaryContainer,
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.primary.withValues(alpha: 0.12),
+                ),
                 child: Icon(icon, color: AppColors.primary),
               ),
-              const SizedBox(height: AppSpacing.md),
+              const SizedBox(height: AppSpacing.mdLg),
               Text(
                 title,
-                style: AppTypography.body.copyWith(fontWeight: FontWeight.w700),
+                style: AppTypography.body.copyWith(
+                  fontWeight: FontWeight.w700,
+                  height: 1.35,
+                ),
               ),
               const SizedBox(height: AppSpacing.xs),
               Text(
                 subtitle,
                 style: AppTypography.label.copyWith(
                   color: AppColors.textSecondary,
+                  fontWeight: FontWeight.w500,
+                  height: 1.4,
                 ),
               ),
             ],

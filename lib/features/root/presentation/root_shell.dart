@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/ui/app_tokens.dart';
 import '../../home/presentation/home_screen.dart';
 import '../../today/application/today_session_providers.dart';
 import '../../today/presentation/quiz_flow_screen.dart';
@@ -33,12 +32,9 @@ class _RootShellState extends ConsumerState<RootShell> {
     ];
 
     return Scaffold(
-      backgroundColor: AppColors.background,
       body: tabs[_currentIndex],
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
-        backgroundColor: Colors.white,
-        indicatorColor: AppColors.primaryContainer,
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
         onDestinationSelected: _selectTab,
         destinations: const [
