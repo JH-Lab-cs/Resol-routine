@@ -1,5 +1,4 @@
 import 'package:drift/drift.dart';
-import 'package:sqlite3/sqlite3.dart';
 
 import '../../../core/database/app_database.dart';
 import '../../../core/database/converters/json_models.dart';
@@ -246,7 +245,7 @@ class TodayQuizRepository {
                   attemptedAt: Value(nowUtc),
                 ),
               );
-        } on SqliteException catch (error) {
+        } catch (error) {
           if (!_isSessionQuestionUniqueConflict(error)) {
             rethrow;
           }
@@ -349,10 +348,14 @@ class TodayQuizRepository {
     );
   }
 
-  bool _isSessionQuestionUniqueConflict(SqliteException error) {
-    return error.extendedResultCode == 2067 ||
-        error.message.contains('ux_attempts_session_question') ||
-        error.message.contains('attempts.session_id, attempts.question_id');
+  bool _isSessionQuestionUniqueConflict(Object error) {
+    final message = error.toString();
+    return message.contains('2067') ||
+        message.contains('ux_attempts_session_question') ||
+        message.contains(
+          'UNIQUE constraint failed: attempts.session_id, attempts.question_id',
+        ) ||
+        message.contains('attempts.session_id, attempts.question_id');
   }
 
   Future<List<SourceLine>> _loadSourceLines(Question question) async {
