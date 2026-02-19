@@ -19,6 +19,7 @@ part 'app_database.g.dart';
     Questions,
     Explanations,
     DailySessions,
+    DailySessionItems,
     Attempts,
     VocabMaster,
     VocabUser,
@@ -29,7 +30,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase({QueryExecutor? executor}) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -37,10 +38,53 @@ class AppDatabase extends _$AppDatabase {
       await m.createAll();
       await _createIndexes();
     },
+    onUpgrade: (Migrator m, int from, int to) async {
+      if (from < 2) {
+        await _migrateToV2(m);
+      }
+      await _createIndexes();
+    },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');
     },
   );
+
+  Future<void> _migrateToV2(Migrator m) async {
+    await customStatement('PRAGMA foreign_keys = OFF');
+    try {
+      await transaction(() async {
+        await customStatement(
+          'ALTER TABLE daily_sessions RENAME TO daily_sessions_old',
+        );
+        await m.createTable(dailySessions);
+        await customStatement(
+          'INSERT INTO daily_sessions ('
+          'id, day_key, track, planned_items, completed_items, created_at'
+          ') '
+          "SELECT id, day_key, 'M3', planned_items, completed_items, created_at "
+          'FROM daily_sessions_old',
+        );
+
+        await customStatement('ALTER TABLE attempts RENAME TO attempts_old');
+        await m.createTable(attempts);
+        await customStatement(
+          'INSERT INTO attempts ('
+          'id, question_id, session_id, user_answer_json, is_correct, '
+          'response_time_ms, attempted_at'
+          ') '
+          'SELECT id, question_id, session_id, user_answer_json, is_correct, '
+          'response_time_ms, attempted_at '
+          'FROM attempts_old',
+        );
+
+        await customStatement('DROP TABLE attempts_old');
+        await customStatement('DROP TABLE daily_sessions_old');
+        await m.createTable(dailySessionItems);
+      });
+    } finally {
+      await customStatement('PRAGMA foreign_keys = ON');
+    }
+  }
 
   Future<void> _createIndexes() async {
     await customStatement(
@@ -70,6 +114,10 @@ class AppDatabase extends _$AppDatabase {
     await customStatement(
       'CREATE INDEX IF NOT EXISTS idx_attempts_session '
       'ON attempts(session_id)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_daily_session_items_question '
+      'ON daily_session_items(question_id)',
     );
     await customStatement(
       'CREATE INDEX IF NOT EXISTS idx_vocab_srs_due_at '

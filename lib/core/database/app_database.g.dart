@@ -2724,7 +2724,23 @@ class $DailySessionsTable extends DailySessions
     type: DriftSqlType.int,
     requiredDuringInsert: true,
     $customConstraints:
-        'NOT NULL UNIQUE CHECK (day_key BETWEEN 19000101 AND 29991231)',
+        'NOT NULL CHECK (day_key BETWEEN 19000101 AND 29991231)',
+  );
+  static const VerificationMeta _trackMeta = const VerificationMeta('track');
+  @override
+  late final GeneratedColumn<String> track = GeneratedColumn<String>(
+    'track',
+    aliasedName,
+    false,
+    additionalChecks: GeneratedColumn.checkTextLength(
+      minTextLength: 2,
+      maxTextLength: 2,
+    ),
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints:
+        'NOT NULL DEFAULT \'M3\' CHECK (track IN (\'M3\', \'H1\', \'H2\', \'H3\'))',
+    defaultValue: const CustomExpression('\'M3\''),
   );
   static const VerificationMeta _plannedItemsMeta = const VerificationMeta(
     'plannedItems',
@@ -2766,6 +2782,7 @@ class $DailySessionsTable extends DailySessions
   List<GeneratedColumn> get $columns => [
     id,
     dayKey,
+    track,
     plannedItems,
     completedItems,
     createdAt,
@@ -2792,6 +2809,12 @@ class $DailySessionsTable extends DailySessions
       );
     } else if (isInserting) {
       context.missing(_dayKeyMeta);
+    }
+    if (data.containsKey('track')) {
+      context.handle(
+        _trackMeta,
+        track.isAcceptableOrUnknown(data['track']!, _trackMeta),
+      );
     }
     if (data.containsKey('planned_items')) {
       context.handle(
@@ -2823,6 +2846,10 @@ class $DailySessionsTable extends DailySessions
   @override
   Set<GeneratedColumn> get $primaryKey => {id};
   @override
+  List<Set<GeneratedColumn>> get uniqueKeys => [
+    {dayKey, track},
+  ];
+  @override
   DailySession map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return DailySession(
@@ -2833,6 +2860,10 @@ class $DailySessionsTable extends DailySessions
       dayKey: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}day_key'],
+      )!,
+      track: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}track'],
       )!,
       plannedItems: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
@@ -2858,12 +2889,14 @@ class $DailySessionsTable extends DailySessions
 class DailySession extends DataClass implements Insertable<DailySession> {
   final int id;
   final int dayKey;
+  final String track;
   final int plannedItems;
   final int completedItems;
   final DateTime createdAt;
   const DailySession({
     required this.id,
     required this.dayKey,
+    required this.track,
     required this.plannedItems,
     required this.completedItems,
     required this.createdAt,
@@ -2873,6 +2906,7 @@ class DailySession extends DataClass implements Insertable<DailySession> {
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
     map['day_key'] = Variable<int>(dayKey);
+    map['track'] = Variable<String>(track);
     map['planned_items'] = Variable<int>(plannedItems);
     map['completed_items'] = Variable<int>(completedItems);
     map['created_at'] = Variable<DateTime>(createdAt);
@@ -2883,6 +2917,7 @@ class DailySession extends DataClass implements Insertable<DailySession> {
     return DailySessionsCompanion(
       id: Value(id),
       dayKey: Value(dayKey),
+      track: Value(track),
       plannedItems: Value(plannedItems),
       completedItems: Value(completedItems),
       createdAt: Value(createdAt),
@@ -2897,6 +2932,7 @@ class DailySession extends DataClass implements Insertable<DailySession> {
     return DailySession(
       id: serializer.fromJson<int>(json['id']),
       dayKey: serializer.fromJson<int>(json['dayKey']),
+      track: serializer.fromJson<String>(json['track']),
       plannedItems: serializer.fromJson<int>(json['plannedItems']),
       completedItems: serializer.fromJson<int>(json['completedItems']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
@@ -2908,6 +2944,7 @@ class DailySession extends DataClass implements Insertable<DailySession> {
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
       'dayKey': serializer.toJson<int>(dayKey),
+      'track': serializer.toJson<String>(track),
       'plannedItems': serializer.toJson<int>(plannedItems),
       'completedItems': serializer.toJson<int>(completedItems),
       'createdAt': serializer.toJson<DateTime>(createdAt),
@@ -2917,12 +2954,14 @@ class DailySession extends DataClass implements Insertable<DailySession> {
   DailySession copyWith({
     int? id,
     int? dayKey,
+    String? track,
     int? plannedItems,
     int? completedItems,
     DateTime? createdAt,
   }) => DailySession(
     id: id ?? this.id,
     dayKey: dayKey ?? this.dayKey,
+    track: track ?? this.track,
     plannedItems: plannedItems ?? this.plannedItems,
     completedItems: completedItems ?? this.completedItems,
     createdAt: createdAt ?? this.createdAt,
@@ -2931,6 +2970,7 @@ class DailySession extends DataClass implements Insertable<DailySession> {
     return DailySession(
       id: data.id.present ? data.id.value : this.id,
       dayKey: data.dayKey.present ? data.dayKey.value : this.dayKey,
+      track: data.track.present ? data.track.value : this.track,
       plannedItems: data.plannedItems.present
           ? data.plannedItems.value
           : this.plannedItems,
@@ -2946,6 +2986,7 @@ class DailySession extends DataClass implements Insertable<DailySession> {
     return (StringBuffer('DailySession(')
           ..write('id: $id, ')
           ..write('dayKey: $dayKey, ')
+          ..write('track: $track, ')
           ..write('plannedItems: $plannedItems, ')
           ..write('completedItems: $completedItems, ')
           ..write('createdAt: $createdAt')
@@ -2955,13 +2996,14 @@ class DailySession extends DataClass implements Insertable<DailySession> {
 
   @override
   int get hashCode =>
-      Object.hash(id, dayKey, plannedItems, completedItems, createdAt);
+      Object.hash(id, dayKey, track, plannedItems, completedItems, createdAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is DailySession &&
           other.id == this.id &&
           other.dayKey == this.dayKey &&
+          other.track == this.track &&
           other.plannedItems == this.plannedItems &&
           other.completedItems == this.completedItems &&
           other.createdAt == this.createdAt);
@@ -2970,12 +3012,14 @@ class DailySession extends DataClass implements Insertable<DailySession> {
 class DailySessionsCompanion extends UpdateCompanion<DailySession> {
   final Value<int> id;
   final Value<int> dayKey;
+  final Value<String> track;
   final Value<int> plannedItems;
   final Value<int> completedItems;
   final Value<DateTime> createdAt;
   const DailySessionsCompanion({
     this.id = const Value.absent(),
     this.dayKey = const Value.absent(),
+    this.track = const Value.absent(),
     this.plannedItems = const Value.absent(),
     this.completedItems = const Value.absent(),
     this.createdAt = const Value.absent(),
@@ -2983,6 +3027,7 @@ class DailySessionsCompanion extends UpdateCompanion<DailySession> {
   DailySessionsCompanion.insert({
     this.id = const Value.absent(),
     required int dayKey,
+    this.track = const Value.absent(),
     this.plannedItems = const Value.absent(),
     this.completedItems = const Value.absent(),
     this.createdAt = const Value.absent(),
@@ -2990,6 +3035,7 @@ class DailySessionsCompanion extends UpdateCompanion<DailySession> {
   static Insertable<DailySession> custom({
     Expression<int>? id,
     Expression<int>? dayKey,
+    Expression<String>? track,
     Expression<int>? plannedItems,
     Expression<int>? completedItems,
     Expression<DateTime>? createdAt,
@@ -2997,6 +3043,7 @@ class DailySessionsCompanion extends UpdateCompanion<DailySession> {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (dayKey != null) 'day_key': dayKey,
+      if (track != null) 'track': track,
       if (plannedItems != null) 'planned_items': plannedItems,
       if (completedItems != null) 'completed_items': completedItems,
       if (createdAt != null) 'created_at': createdAt,
@@ -3006,6 +3053,7 @@ class DailySessionsCompanion extends UpdateCompanion<DailySession> {
   DailySessionsCompanion copyWith({
     Value<int>? id,
     Value<int>? dayKey,
+    Value<String>? track,
     Value<int>? plannedItems,
     Value<int>? completedItems,
     Value<DateTime>? createdAt,
@@ -3013,6 +3061,7 @@ class DailySessionsCompanion extends UpdateCompanion<DailySession> {
     return DailySessionsCompanion(
       id: id ?? this.id,
       dayKey: dayKey ?? this.dayKey,
+      track: track ?? this.track,
       plannedItems: plannedItems ?? this.plannedItems,
       completedItems: completedItems ?? this.completedItems,
       createdAt: createdAt ?? this.createdAt,
@@ -3027,6 +3076,9 @@ class DailySessionsCompanion extends UpdateCompanion<DailySession> {
     }
     if (dayKey.present) {
       map['day_key'] = Variable<int>(dayKey.value);
+    }
+    if (track.present) {
+      map['track'] = Variable<String>(track.value);
     }
     if (plannedItems.present) {
       map['planned_items'] = Variable<int>(plannedItems.value);
@@ -3045,9 +3097,327 @@ class DailySessionsCompanion extends UpdateCompanion<DailySession> {
     return (StringBuffer('DailySessionsCompanion(')
           ..write('id: $id, ')
           ..write('dayKey: $dayKey, ')
+          ..write('track: $track, ')
           ..write('plannedItems: $plannedItems, ')
           ..write('completedItems: $completedItems, ')
           ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $DailySessionItemsTable extends DailySessionItems
+    with TableInfo<$DailySessionItemsTable, DailySessionItem> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $DailySessionItemsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _sessionIdMeta = const VerificationMeta(
+    'sessionId',
+  );
+  @override
+  late final GeneratedColumn<int> sessionId = GeneratedColumn<int>(
+    'session_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES daily_sessions (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _orderIndexMeta = const VerificationMeta(
+    'orderIndex',
+  );
+  @override
+  late final GeneratedColumn<int> orderIndex = GeneratedColumn<int>(
+    'order_index',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL CHECK (order_index BETWEEN 0 AND 5)',
+  );
+  static const VerificationMeta _questionIdMeta = const VerificationMeta(
+    'questionId',
+  );
+  @override
+  late final GeneratedColumn<String> questionId = GeneratedColumn<String>(
+    'question_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES questions (id) ON DELETE CASCADE',
+    ),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id, sessionId, orderIndex, questionId];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'daily_session_items';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<DailySessionItem> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('session_id')) {
+      context.handle(
+        _sessionIdMeta,
+        sessionId.isAcceptableOrUnknown(data['session_id']!, _sessionIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_sessionIdMeta);
+    }
+    if (data.containsKey('order_index')) {
+      context.handle(
+        _orderIndexMeta,
+        orderIndex.isAcceptableOrUnknown(data['order_index']!, _orderIndexMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_orderIndexMeta);
+    }
+    if (data.containsKey('question_id')) {
+      context.handle(
+        _questionIdMeta,
+        questionId.isAcceptableOrUnknown(data['question_id']!, _questionIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_questionIdMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  List<Set<GeneratedColumn>> get uniqueKeys => [
+    {sessionId, orderIndex},
+    {sessionId, questionId},
+  ];
+  @override
+  DailySessionItem map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return DailySessionItem(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      sessionId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}session_id'],
+      )!,
+      orderIndex: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}order_index'],
+      )!,
+      questionId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}question_id'],
+      )!,
+    );
+  }
+
+  @override
+  $DailySessionItemsTable createAlias(String alias) {
+    return $DailySessionItemsTable(attachedDatabase, alias);
+  }
+}
+
+class DailySessionItem extends DataClass
+    implements Insertable<DailySessionItem> {
+  final int id;
+  final int sessionId;
+  final int orderIndex;
+  final String questionId;
+  const DailySessionItem({
+    required this.id,
+    required this.sessionId,
+    required this.orderIndex,
+    required this.questionId,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['session_id'] = Variable<int>(sessionId);
+    map['order_index'] = Variable<int>(orderIndex);
+    map['question_id'] = Variable<String>(questionId);
+    return map;
+  }
+
+  DailySessionItemsCompanion toCompanion(bool nullToAbsent) {
+    return DailySessionItemsCompanion(
+      id: Value(id),
+      sessionId: Value(sessionId),
+      orderIndex: Value(orderIndex),
+      questionId: Value(questionId),
+    );
+  }
+
+  factory DailySessionItem.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return DailySessionItem(
+      id: serializer.fromJson<int>(json['id']),
+      sessionId: serializer.fromJson<int>(json['sessionId']),
+      orderIndex: serializer.fromJson<int>(json['orderIndex']),
+      questionId: serializer.fromJson<String>(json['questionId']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'sessionId': serializer.toJson<int>(sessionId),
+      'orderIndex': serializer.toJson<int>(orderIndex),
+      'questionId': serializer.toJson<String>(questionId),
+    };
+  }
+
+  DailySessionItem copyWith({
+    int? id,
+    int? sessionId,
+    int? orderIndex,
+    String? questionId,
+  }) => DailySessionItem(
+    id: id ?? this.id,
+    sessionId: sessionId ?? this.sessionId,
+    orderIndex: orderIndex ?? this.orderIndex,
+    questionId: questionId ?? this.questionId,
+  );
+  DailySessionItem copyWithCompanion(DailySessionItemsCompanion data) {
+    return DailySessionItem(
+      id: data.id.present ? data.id.value : this.id,
+      sessionId: data.sessionId.present ? data.sessionId.value : this.sessionId,
+      orderIndex: data.orderIndex.present
+          ? data.orderIndex.value
+          : this.orderIndex,
+      questionId: data.questionId.present
+          ? data.questionId.value
+          : this.questionId,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DailySessionItem(')
+          ..write('id: $id, ')
+          ..write('sessionId: $sessionId, ')
+          ..write('orderIndex: $orderIndex, ')
+          ..write('questionId: $questionId')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, sessionId, orderIndex, questionId);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is DailySessionItem &&
+          other.id == this.id &&
+          other.sessionId == this.sessionId &&
+          other.orderIndex == this.orderIndex &&
+          other.questionId == this.questionId);
+}
+
+class DailySessionItemsCompanion extends UpdateCompanion<DailySessionItem> {
+  final Value<int> id;
+  final Value<int> sessionId;
+  final Value<int> orderIndex;
+  final Value<String> questionId;
+  const DailySessionItemsCompanion({
+    this.id = const Value.absent(),
+    this.sessionId = const Value.absent(),
+    this.orderIndex = const Value.absent(),
+    this.questionId = const Value.absent(),
+  });
+  DailySessionItemsCompanion.insert({
+    this.id = const Value.absent(),
+    required int sessionId,
+    required int orderIndex,
+    required String questionId,
+  }) : sessionId = Value(sessionId),
+       orderIndex = Value(orderIndex),
+       questionId = Value(questionId);
+  static Insertable<DailySessionItem> custom({
+    Expression<int>? id,
+    Expression<int>? sessionId,
+    Expression<int>? orderIndex,
+    Expression<String>? questionId,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (sessionId != null) 'session_id': sessionId,
+      if (orderIndex != null) 'order_index': orderIndex,
+      if (questionId != null) 'question_id': questionId,
+    });
+  }
+
+  DailySessionItemsCompanion copyWith({
+    Value<int>? id,
+    Value<int>? sessionId,
+    Value<int>? orderIndex,
+    Value<String>? questionId,
+  }) {
+    return DailySessionItemsCompanion(
+      id: id ?? this.id,
+      sessionId: sessionId ?? this.sessionId,
+      orderIndex: orderIndex ?? this.orderIndex,
+      questionId: questionId ?? this.questionId,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (sessionId.present) {
+      map['session_id'] = Variable<int>(sessionId.value);
+    }
+    if (orderIndex.present) {
+      map['order_index'] = Variable<int>(orderIndex.value);
+    }
+    if (questionId.present) {
+      map['question_id'] = Variable<String>(questionId.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DailySessionItemsCompanion(')
+          ..write('id: $id, ')
+          ..write('sessionId: $sessionId, ')
+          ..write('orderIndex: $orderIndex, ')
+          ..write('questionId: $questionId')
           ..write(')'))
         .toString();
   }
@@ -4972,6 +5342,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $QuestionsTable questions = $QuestionsTable(this);
   late final $ExplanationsTable explanations = $ExplanationsTable(this);
   late final $DailySessionsTable dailySessions = $DailySessionsTable(this);
+  late final $DailySessionItemsTable dailySessionItems =
+      $DailySessionItemsTable(this);
   late final $AttemptsTable attempts = $AttemptsTable(this);
   late final $VocabMasterTable vocabMaster = $VocabMasterTable(this);
   late final $VocabUserTable vocabUser = $VocabUserTable(this);
@@ -4987,6 +5359,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     questions,
     explanations,
     dailySessions,
+    dailySessionItems,
     attempts,
     vocabMaster,
     vocabUser,
@@ -5028,6 +5401,20 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         limitUpdateKind: UpdateKind.delete,
       ),
       result: [TableUpdate('explanations', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'daily_sessions',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('daily_session_items', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'questions',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('daily_session_items', kind: UpdateKind.delete)],
     ),
     WritePropagation(
       on: TableUpdateQuery.onTableName(
@@ -6481,6 +6868,30 @@ final class $$QuestionsTableReferences
     );
   }
 
+  static MultiTypedResultKey<$DailySessionItemsTable, List<DailySessionItem>>
+  _dailySessionItemsRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.dailySessionItems,
+        aliasName: $_aliasNameGenerator(
+          db.questions.id,
+          db.dailySessionItems.questionId,
+        ),
+      );
+
+  $$DailySessionItemsTableProcessedTableManager get dailySessionItemsRefs {
+    final manager = $$DailySessionItemsTableTableManager(
+      $_db,
+      $_db.dailySessionItems,
+    ).filter((f) => f.questionId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _dailySessionItemsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
   static MultiTypedResultKey<$AttemptsTable, List<Attempt>> _attemptsRefsTable(
     _$AppDatabase db,
   ) => MultiTypedResultKey.fromTable(
@@ -6618,6 +7029,31 @@ class $$QuestionsTableFilterComposer
           }) => $$ExplanationsTableFilterComposer(
             $db: $db,
             $table: $db.explanations,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> dailySessionItemsRefs(
+    Expression<bool> Function($$DailySessionItemsTableFilterComposer f) f,
+  ) {
+    final $$DailySessionItemsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.dailySessionItems,
+      getReferencedColumn: (t) => t.questionId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$DailySessionItemsTableFilterComposer(
+            $db: $db,
+            $table: $db.dailySessionItems,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -6868,6 +7304,32 @@ class $$QuestionsTableAnnotationComposer
     return f(composer);
   }
 
+  Expression<T> dailySessionItemsRefs<T extends Object>(
+    Expression<T> Function($$DailySessionItemsTableAnnotationComposer a) f,
+  ) {
+    final $$DailySessionItemsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.dailySessionItems,
+          getReferencedColumn: (t) => t.questionId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$DailySessionItemsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.dailySessionItems,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+
   Expression<T> attemptsRefs<T extends Object>(
     Expression<T> Function($$AttemptsTableAnnotationComposer a) f,
   ) {
@@ -6911,6 +7373,7 @@ class $$QuestionsTableTableManager
             bool passageId,
             bool scriptId,
             bool explanationsRefs,
+            bool dailySessionItemsRefs,
             bool attemptsRefs,
           })
         > {
@@ -6994,12 +7457,14 @@ class $$QuestionsTableTableManager
                 passageId = false,
                 scriptId = false,
                 explanationsRefs = false,
+                dailySessionItemsRefs = false,
                 attemptsRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
                   explicitlyWatchedTables: [
                     if (explanationsRefs) db.explanations,
+                    if (dailySessionItemsRefs) db.dailySessionItems,
                     if (attemptsRefs) db.attempts,
                   ],
                   addJoins:
@@ -7070,6 +7535,27 @@ class $$QuestionsTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (dailySessionItemsRefs)
+                        await $_getPrefetchedData<
+                          Question,
+                          $QuestionsTable,
+                          DailySessionItem
+                        >(
+                          currentTable: table,
+                          referencedTable: $$QuestionsTableReferences
+                              ._dailySessionItemsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$QuestionsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).dailySessionItemsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.questionId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                       if (attemptsRefs)
                         await $_getPrefetchedData<
                           Question,
@@ -7115,6 +7601,7 @@ typedef $$QuestionsTableProcessedTableManager =
         bool passageId,
         bool scriptId,
         bool explanationsRefs,
+        bool dailySessionItemsRefs,
         bool attemptsRefs,
       })
     >;
@@ -7534,6 +8021,7 @@ typedef $$DailySessionsTableCreateCompanionBuilder =
     DailySessionsCompanion Function({
       Value<int> id,
       required int dayKey,
+      Value<String> track,
       Value<int> plannedItems,
       Value<int> completedItems,
       Value<DateTime> createdAt,
@@ -7542,6 +8030,7 @@ typedef $$DailySessionsTableUpdateCompanionBuilder =
     DailySessionsCompanion Function({
       Value<int> id,
       Value<int> dayKey,
+      Value<String> track,
       Value<int> plannedItems,
       Value<int> completedItems,
       Value<DateTime> createdAt,
@@ -7554,6 +8043,30 @@ final class $$DailySessionsTableReferences
     super.$_table,
     super.$_typedResult,
   );
+
+  static MultiTypedResultKey<$DailySessionItemsTable, List<DailySessionItem>>
+  _dailySessionItemsRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.dailySessionItems,
+        aliasName: $_aliasNameGenerator(
+          db.dailySessions.id,
+          db.dailySessionItems.sessionId,
+        ),
+      );
+
+  $$DailySessionItemsTableProcessedTableManager get dailySessionItemsRefs {
+    final manager = $$DailySessionItemsTableTableManager(
+      $_db,
+      $_db.dailySessionItems,
+    ).filter((f) => f.sessionId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _dailySessionItemsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 
   static MultiTypedResultKey<$AttemptsTable, List<Attempt>> _attemptsRefsTable(
     _$AppDatabase db,
@@ -7594,6 +8107,11 @@ class $$DailySessionsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get track => $composableBuilder(
+    column: $table.track,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<int> get plannedItems => $composableBuilder(
     column: $table.plannedItems,
     builder: (column) => ColumnFilters(column),
@@ -7608,6 +8126,31 @@ class $$DailySessionsTableFilterComposer
     column: $table.createdAt,
     builder: (column) => ColumnFilters(column),
   );
+
+  Expression<bool> dailySessionItemsRefs(
+    Expression<bool> Function($$DailySessionItemsTableFilterComposer f) f,
+  ) {
+    final $$DailySessionItemsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.dailySessionItems,
+      getReferencedColumn: (t) => t.sessionId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$DailySessionItemsTableFilterComposer(
+            $db: $db,
+            $table: $db.dailySessionItems,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 
   Expression<bool> attemptsRefs(
     Expression<bool> Function($$AttemptsTableFilterComposer f) f,
@@ -7654,6 +8197,11 @@ class $$DailySessionsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get track => $composableBuilder(
+    column: $table.track,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get plannedItems => $composableBuilder(
     column: $table.plannedItems,
     builder: (column) => ColumnOrderings(column),
@@ -7685,6 +8233,9 @@ class $$DailySessionsTableAnnotationComposer
   GeneratedColumn<int> get dayKey =>
       $composableBuilder(column: $table.dayKey, builder: (column) => column);
 
+  GeneratedColumn<String> get track =>
+      $composableBuilder(column: $table.track, builder: (column) => column);
+
   GeneratedColumn<int> get plannedItems => $composableBuilder(
     column: $table.plannedItems,
     builder: (column) => column,
@@ -7697,6 +8248,32 @@ class $$DailySessionsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  Expression<T> dailySessionItemsRefs<T extends Object>(
+    Expression<T> Function($$DailySessionItemsTableAnnotationComposer a) f,
+  ) {
+    final $$DailySessionItemsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.dailySessionItems,
+          getReferencedColumn: (t) => t.sessionId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$DailySessionItemsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.dailySessionItems,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
 
   Expression<T> attemptsRefs<T extends Object>(
     Expression<T> Function($$AttemptsTableAnnotationComposer a) f,
@@ -7737,7 +8314,10 @@ class $$DailySessionsTableTableManager
           $$DailySessionsTableUpdateCompanionBuilder,
           (DailySession, $$DailySessionsTableReferences),
           DailySession,
-          PrefetchHooks Function({bool attemptsRefs})
+          PrefetchHooks Function({
+            bool dailySessionItemsRefs,
+            bool attemptsRefs,
+          })
         > {
   $$DailySessionsTableTableManager(_$AppDatabase db, $DailySessionsTable table)
     : super(
@@ -7754,12 +8334,14 @@ class $$DailySessionsTableTableManager
               ({
                 Value<int> id = const Value.absent(),
                 Value<int> dayKey = const Value.absent(),
+                Value<String> track = const Value.absent(),
                 Value<int> plannedItems = const Value.absent(),
                 Value<int> completedItems = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
               }) => DailySessionsCompanion(
                 id: id,
                 dayKey: dayKey,
+                track: track,
                 plannedItems: plannedItems,
                 completedItems: completedItems,
                 createdAt: createdAt,
@@ -7768,12 +8350,14 @@ class $$DailySessionsTableTableManager
               ({
                 Value<int> id = const Value.absent(),
                 required int dayKey,
+                Value<String> track = const Value.absent(),
                 Value<int> plannedItems = const Value.absent(),
                 Value<int> completedItems = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
               }) => DailySessionsCompanion.insert(
                 id: id,
                 dayKey: dayKey,
+                track: track,
                 plannedItems: plannedItems,
                 completedItems: completedItems,
                 createdAt: createdAt,
@@ -7786,36 +8370,63 @@ class $$DailySessionsTableTableManager
                 ),
               )
               .toList(),
-          prefetchHooksCallback: ({attemptsRefs = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [if (attemptsRefs) db.attempts],
-              addJoins: null,
-              getPrefetchedDataCallback: (items) async {
-                return [
-                  if (attemptsRefs)
-                    await $_getPrefetchedData<
-                      DailySession,
-                      $DailySessionsTable,
-                      Attempt
-                    >(
-                      currentTable: table,
-                      referencedTable: $$DailySessionsTableReferences
-                          ._attemptsRefsTable(db),
-                      managerFromTypedResult: (p0) =>
-                          $$DailySessionsTableReferences(
-                            db,
-                            table,
-                            p0,
-                          ).attemptsRefs,
-                      referencedItemsForCurrentItem: (item, referencedItems) =>
-                          referencedItems.where((e) => e.sessionId == item.id),
-                      typedResults: items,
-                    ),
-                ];
+          prefetchHooksCallback:
+              ({dailySessionItemsRefs = false, attemptsRefs = false}) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (dailySessionItemsRefs) db.dailySessionItems,
+                    if (attemptsRefs) db.attempts,
+                  ],
+                  addJoins: null,
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (dailySessionItemsRefs)
+                        await $_getPrefetchedData<
+                          DailySession,
+                          $DailySessionsTable,
+                          DailySessionItem
+                        >(
+                          currentTable: table,
+                          referencedTable: $$DailySessionsTableReferences
+                              ._dailySessionItemsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$DailySessionsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).dailySessionItemsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.sessionId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (attemptsRefs)
+                        await $_getPrefetchedData<
+                          DailySession,
+                          $DailySessionsTable,
+                          Attempt
+                        >(
+                          currentTable: table,
+                          referencedTable: $$DailySessionsTableReferences
+                              ._attemptsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$DailySessionsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).attemptsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.sessionId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
+                  },
+                );
               },
-            );
-          },
         ),
       );
 }
@@ -7832,7 +8443,412 @@ typedef $$DailySessionsTableProcessedTableManager =
       $$DailySessionsTableUpdateCompanionBuilder,
       (DailySession, $$DailySessionsTableReferences),
       DailySession,
-      PrefetchHooks Function({bool attemptsRefs})
+      PrefetchHooks Function({bool dailySessionItemsRefs, bool attemptsRefs})
+    >;
+typedef $$DailySessionItemsTableCreateCompanionBuilder =
+    DailySessionItemsCompanion Function({
+      Value<int> id,
+      required int sessionId,
+      required int orderIndex,
+      required String questionId,
+    });
+typedef $$DailySessionItemsTableUpdateCompanionBuilder =
+    DailySessionItemsCompanion Function({
+      Value<int> id,
+      Value<int> sessionId,
+      Value<int> orderIndex,
+      Value<String> questionId,
+    });
+
+final class $$DailySessionItemsTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $DailySessionItemsTable,
+          DailySessionItem
+        > {
+  $$DailySessionItemsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $DailySessionsTable _sessionIdTable(_$AppDatabase db) =>
+      db.dailySessions.createAlias(
+        $_aliasNameGenerator(
+          db.dailySessionItems.sessionId,
+          db.dailySessions.id,
+        ),
+      );
+
+  $$DailySessionsTableProcessedTableManager get sessionId {
+    final $_column = $_itemColumn<int>('session_id')!;
+
+    final manager = $$DailySessionsTableTableManager(
+      $_db,
+      $_db.dailySessions,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_sessionIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $QuestionsTable _questionIdTable(_$AppDatabase db) =>
+      db.questions.createAlias(
+        $_aliasNameGenerator(db.dailySessionItems.questionId, db.questions.id),
+      );
+
+  $$QuestionsTableProcessedTableManager get questionId {
+    final $_column = $_itemColumn<String>('question_id')!;
+
+    final manager = $$QuestionsTableTableManager(
+      $_db,
+      $_db.questions,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_questionIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$DailySessionItemsTableFilterComposer
+    extends Composer<_$AppDatabase, $DailySessionItemsTable> {
+  $$DailySessionItemsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get orderIndex => $composableBuilder(
+    column: $table.orderIndex,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$DailySessionsTableFilterComposer get sessionId {
+    final $$DailySessionsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.sessionId,
+      referencedTable: $db.dailySessions,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$DailySessionsTableFilterComposer(
+            $db: $db,
+            $table: $db.dailySessions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$QuestionsTableFilterComposer get questionId {
+    final $$QuestionsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.questionId,
+      referencedTable: $db.questions,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$QuestionsTableFilterComposer(
+            $db: $db,
+            $table: $db.questions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$DailySessionItemsTableOrderingComposer
+    extends Composer<_$AppDatabase, $DailySessionItemsTable> {
+  $$DailySessionItemsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get orderIndex => $composableBuilder(
+    column: $table.orderIndex,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$DailySessionsTableOrderingComposer get sessionId {
+    final $$DailySessionsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.sessionId,
+      referencedTable: $db.dailySessions,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$DailySessionsTableOrderingComposer(
+            $db: $db,
+            $table: $db.dailySessions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$QuestionsTableOrderingComposer get questionId {
+    final $$QuestionsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.questionId,
+      referencedTable: $db.questions,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$QuestionsTableOrderingComposer(
+            $db: $db,
+            $table: $db.questions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$DailySessionItemsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $DailySessionItemsTable> {
+  $$DailySessionItemsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get orderIndex => $composableBuilder(
+    column: $table.orderIndex,
+    builder: (column) => column,
+  );
+
+  $$DailySessionsTableAnnotationComposer get sessionId {
+    final $$DailySessionsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.sessionId,
+      referencedTable: $db.dailySessions,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$DailySessionsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.dailySessions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$QuestionsTableAnnotationComposer get questionId {
+    final $$QuestionsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.questionId,
+      referencedTable: $db.questions,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$QuestionsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.questions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$DailySessionItemsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $DailySessionItemsTable,
+          DailySessionItem,
+          $$DailySessionItemsTableFilterComposer,
+          $$DailySessionItemsTableOrderingComposer,
+          $$DailySessionItemsTableAnnotationComposer,
+          $$DailySessionItemsTableCreateCompanionBuilder,
+          $$DailySessionItemsTableUpdateCompanionBuilder,
+          (DailySessionItem, $$DailySessionItemsTableReferences),
+          DailySessionItem,
+          PrefetchHooks Function({bool sessionId, bool questionId})
+        > {
+  $$DailySessionItemsTableTableManager(
+    _$AppDatabase db,
+    $DailySessionItemsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$DailySessionItemsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$DailySessionItemsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$DailySessionItemsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int> sessionId = const Value.absent(),
+                Value<int> orderIndex = const Value.absent(),
+                Value<String> questionId = const Value.absent(),
+              }) => DailySessionItemsCompanion(
+                id: id,
+                sessionId: sessionId,
+                orderIndex: orderIndex,
+                questionId: questionId,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required int sessionId,
+                required int orderIndex,
+                required String questionId,
+              }) => DailySessionItemsCompanion.insert(
+                id: id,
+                sessionId: sessionId,
+                orderIndex: orderIndex,
+                questionId: questionId,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$DailySessionItemsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({sessionId = false, questionId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (sessionId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.sessionId,
+                                referencedTable:
+                                    $$DailySessionItemsTableReferences
+                                        ._sessionIdTable(db),
+                                referencedColumn:
+                                    $$DailySessionItemsTableReferences
+                                        ._sessionIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+                    if (questionId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.questionId,
+                                referencedTable:
+                                    $$DailySessionItemsTableReferences
+                                        ._questionIdTable(db),
+                                referencedColumn:
+                                    $$DailySessionItemsTableReferences
+                                        ._questionIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$DailySessionItemsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $DailySessionItemsTable,
+      DailySessionItem,
+      $$DailySessionItemsTableFilterComposer,
+      $$DailySessionItemsTableOrderingComposer,
+      $$DailySessionItemsTableAnnotationComposer,
+      $$DailySessionItemsTableCreateCompanionBuilder,
+      $$DailySessionItemsTableUpdateCompanionBuilder,
+      (DailySessionItem, $$DailySessionItemsTableReferences),
+      DailySessionItem,
+      PrefetchHooks Function({bool sessionId, bool questionId})
     >;
 typedef $$AttemptsTableCreateCompanionBuilder =
     AttemptsCompanion Function({
@@ -9470,6 +10486,8 @@ class $AppDatabaseManager {
       $$ExplanationsTableTableManager(_db, _db.explanations);
   $$DailySessionsTableTableManager get dailySessions =>
       $$DailySessionsTableTableManager(_db, _db.dailySessions);
+  $$DailySessionItemsTableTableManager get dailySessionItems =>
+      $$DailySessionItemsTableTableManager(_db, _db.dailySessionItems);
   $$AttemptsTableTableManager get attempts =>
       $$AttemptsTableTableManager(_db, _db.attempts);
   $$VocabMasterTableTableManager get vocabMaster =>

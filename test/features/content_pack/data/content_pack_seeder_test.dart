@@ -1,7 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:resol_routine/core/database/app_database.dart';
@@ -116,7 +118,8 @@ void main() {
         await seeder.seedOnFirstLaunch();
 
         final rows = await database.select(database.questions).get();
-        const tracks = <String>{'M3', 'H1', 'H2', 'H3'};
+        const tracks = <String>['M3', 'H1', 'H2', 'H3'];
+        final summaryParts = <String>[];
 
         for (final track in tracks) {
           final listeningCount = rows
@@ -125,6 +128,7 @@ void main() {
           final readingCount = rows
               .where((row) => row.track == track && row.skill == 'READING')
               .length;
+          summaryParts.add('$track=L$listeningCount/R$readingCount');
 
           expect(
             listeningCount,
@@ -137,6 +141,10 @@ void main() {
             reason: 'Expected >= 3 READING questions for $track.',
           );
         }
+
+        debugPrint(
+          'Track counts (LISTENING/READING): ${summaryParts.join(', ')}',
+        );
       },
     );
 
@@ -251,18 +259,107 @@ void main() {
       );
     });
 
-    test('enforces unique dayKey for daily sessions', () async {
+    test('allows same dayKey when track differs', () async {
       await database
           .into(database.dailySessions)
-          .insert(DailySessionsCompanion.insert(dayKey: 20260218));
+          .insert(
+            DailySessionsCompanion.insert(
+              dayKey: 20260218,
+              track: const Value('M3'),
+            ),
+          );
+
+      await database
+          .into(database.dailySessions)
+          .insert(
+            DailySessionsCompanion.insert(
+              dayKey: 20260218,
+              track: const Value('H1'),
+            ),
+          );
+
+      final sessions = await database.select(database.dailySessions).get();
+      expect(sessions, hasLength(2));
+    });
+
+    test('rejects duplicate dayKey+track for daily sessions', () async {
+      await database
+          .into(database.dailySessions)
+          .insert(
+            DailySessionsCompanion.insert(
+              dayKey: 20260218,
+              track: const Value('M3'),
+            ),
+          );
 
       expect(
         () => database
             .into(database.dailySessions)
-            .insert(DailySessionsCompanion.insert(dayKey: 20260218)),
+            .insert(
+              DailySessionsCompanion.insert(
+                dayKey: 20260218,
+                track: const Value('M3'),
+              ),
+            ),
         throwsA(isA<Object>()),
       );
     });
+
+    test(
+      'rejects duplicate order_index and question_id within a session item list',
+      () async {
+        final seeder = ContentPackSeeder(
+          database: database,
+          source: MemoryContentPackSource(starterPackJson),
+        );
+        await seeder.seedOnFirstLaunch();
+
+        final sessionId = await database
+            .into(database.dailySessions)
+            .insert(
+              DailySessionsCompanion.insert(
+                dayKey: 20260218,
+                track: const Value('M3'),
+              ),
+            );
+
+        await database
+            .into(database.dailySessionItems)
+            .insert(
+              DailySessionItemsCompanion.insert(
+                sessionId: sessionId,
+                orderIndex: 0,
+                questionId: 'question_listening_001',
+              ),
+            );
+
+        expect(
+          () => database
+              .into(database.dailySessionItems)
+              .insert(
+                DailySessionItemsCompanion.insert(
+                  sessionId: sessionId,
+                  orderIndex: 0,
+                  questionId: 'question_listening_m3_002',
+                ),
+              ),
+          throwsA(isA<Object>()),
+        );
+
+        expect(
+          () => database
+              .into(database.dailySessionItems)
+              .insert(
+                DailySessionItemsCompanion.insert(
+                  sessionId: sessionId,
+                  orderIndex: 1,
+                  questionId: 'question_listening_001',
+                ),
+              ),
+          throwsA(isA<Object>()),
+        );
+      },
+    );
   });
 }
 

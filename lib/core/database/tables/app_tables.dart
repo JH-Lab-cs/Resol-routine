@@ -137,11 +137,41 @@ class DailySessions extends Table {
 
   IntColumn get id => integer().autoIncrement()();
   IntColumn get dayKey => integer().customConstraint(
-    'NOT NULL UNIQUE CHECK (day_key BETWEEN 19000101 AND 29991231)',
+    'NOT NULL CHECK (day_key BETWEEN 19000101 AND 29991231)',
   )();
+  TextColumn get track => text()
+      .withLength(min: 2, max: 2)
+      .customConstraint(
+        "NOT NULL DEFAULT 'M3' CHECK (track IN ('M3', 'H1', 'H2', 'H3'))",
+      )();
   IntColumn get plannedItems => integer().withDefault(const Constant(0))();
   IntColumn get completedItems => integer().withDefault(const Constant(0))();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  List<Set<Column<Object>>> get uniqueKeys => [
+    {dayKey, track},
+  ];
+}
+
+class DailySessionItems extends Table {
+  @override
+  String get tableName => 'daily_session_items';
+
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get sessionId =>
+      integer().references(DailySessions, #id, onDelete: KeyAction.cascade)();
+  IntColumn get orderIndex => integer().customConstraint(
+    'NOT NULL CHECK (order_index BETWEEN 0 AND 5)',
+  )();
+  TextColumn get questionId =>
+      text().references(Questions, #id, onDelete: KeyAction.cascade)();
+
+  @override
+  List<Set<Column<Object>>> get uniqueKeys => [
+    {sessionId, orderIndex},
+    {sessionId, questionId},
+  ];
 }
 
 class Attempts extends Table {
