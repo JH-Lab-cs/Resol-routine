@@ -32,40 +32,68 @@ class AppScaffold extends StatelessWidget {
       appBar: appBar,
       floatingActionButton: floatingActionButton,
       bottomNavigationBar: bottomNavigationBar,
-      body: SafeArea(
-        child: Stack(
-          children: [
-            if (showDecorativeBackground) ...[
-              Positioned(
-                top: -120,
-                left: -90,
-                child: Container(
-                  width: 260,
-                  height: 260,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: AppColors.primary.withValues(alpha: 0.08),
-                  ),
+      body: AppPageBody(
+        showDecorativeBackground: showDecorativeBackground,
+        padding: padding,
+        child: body,
+      ),
+    );
+  }
+}
+
+class AppPageBody extends StatelessWidget {
+  const AppPageBody({
+    super.key,
+    required this.child,
+    this.showDecorativeBackground = false,
+    this.padding = const EdgeInsets.fromLTRB(
+      AppSpacing.mdLg,
+      AppSpacing.md,
+      AppSpacing.mdLg,
+      0,
+    ),
+  });
+
+  final Widget child;
+  final bool showDecorativeBackground;
+  final EdgeInsetsGeometry padding;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      top: false,
+      child: Stack(
+        children: [
+          if (showDecorativeBackground) ...[
+            Positioned(
+              top: -120,
+              left: -90,
+              child: Container(
+                width: 260,
+                height: 260,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.primary.withValues(alpha: 0.08),
                 ),
               ),
-              Positioned(
-                top: -80,
-                right: -70,
-                child: Container(
-                  width: 220,
-                  height: 220,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: AppColors.secondary.withValues(alpha: 0.06),
-                  ),
+            ),
+            Positioned(
+              top: -80,
+              right: -70,
+              child: Container(
+                width: 220,
+                height: 220,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.secondary.withValues(alpha: 0.06),
                 ),
               ),
-            ],
-            Positioned.fill(
-              child: Padding(padding: padding, child: body),
             ),
           ],
-        ),
+          Positioned.fill(
+            child: Padding(padding: padding, child: child),
+          ),
+        ],
       ),
     );
   }

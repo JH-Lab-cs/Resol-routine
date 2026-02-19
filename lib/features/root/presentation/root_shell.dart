@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/ui/components/app_scaffold.dart';
 import '../../home/presentation/home_screen.dart';
+import '../../my/presentation/my_screen.dart';
 import '../../today/application/today_session_providers.dart';
 import '../../today/presentation/quiz_flow_screen.dart';
 import '../../vocab/presentation/today_vocab_quiz_screen.dart';
 import '../../vocab/presentation/vocab_screen.dart';
 import '../../wrong_notes/presentation/wrong_notes_screen.dart';
-import '../../my/presentation/my_screen.dart';
 
 class RootShell extends ConsumerStatefulWidget {
   const RootShell({super.key});
@@ -18,6 +19,7 @@ class RootShell extends ConsumerStatefulWidget {
 
 class _RootShellState extends ConsumerState<RootShell> {
   int _currentIndex = 0;
+  static const List<String> _tabTitles = <String>['홈', '단어장', '오답노트', '마이'];
 
   @override
   Widget build(BuildContext context) {
@@ -33,8 +35,9 @@ class _RootShellState extends ConsumerState<RootShell> {
       const MyScreen(),
     ];
 
-    return Scaffold(
-      body: tabs[_currentIndex],
+    return AppScaffold(
+      appBar: AppBar(title: Text(_tabTitles[_currentIndex])),
+      body: IndexedStack(index: _currentIndex, children: tabs),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,

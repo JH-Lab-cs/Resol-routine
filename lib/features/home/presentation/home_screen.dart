@@ -31,9 +31,9 @@ class HomeScreen extends ConsumerWidget {
     final displayName = ref.watch(displayNameProvider);
     final summary = ref.watch(homeRoutineSummaryProvider(selectedTrack));
 
-    return AppScaffold(
+    return AppPageBody(
       showDecorativeBackground: true,
-      body: summary.when(
+      child: summary.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => Center(
           child: Text('홈 데이터를 불러오지 못했어요.\n$error', textAlign: TextAlign.center),

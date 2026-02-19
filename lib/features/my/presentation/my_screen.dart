@@ -27,8 +27,8 @@ class MyScreen extends ConsumerWidget {
     final track = ref.watch(selectedTrackProvider);
     final versionAsync = ref.watch(appVersionBuildProvider);
 
-    return AppScaffold(
-      body: ListView(
+    return AppPageBody(
+      child: ListView(
         children: [
           const SectionTitle(title: '마이', subtitle: '내 정보와 앱 상태를 확인하세요.'),
           const SizedBox(height: AppSpacing.md),

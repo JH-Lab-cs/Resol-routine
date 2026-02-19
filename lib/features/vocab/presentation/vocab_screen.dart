@@ -53,8 +53,8 @@ class _VocabScreenState extends ConsumerState<VocabScreen> {
     final request = (tab: selectedTab, query: query);
     final vocabAsync = ref.watch(vocabListProvider(request));
 
-    return AppScaffold(
-      body: Column(
+    return AppPageBody(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SectionTitle(

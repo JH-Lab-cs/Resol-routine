@@ -14,8 +14,8 @@ class WrongNotesScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final wrongNotesAsync = ref.watch(wrongNoteListProvider);
 
-    return AppScaffold(
-      body: Column(
+    return AppPageBody(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SectionTitle(
