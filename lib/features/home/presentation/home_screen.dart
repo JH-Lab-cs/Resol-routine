@@ -7,6 +7,7 @@ import '../../../core/ui/components/hero_progress_card.dart';
 import '../../../core/ui/components/routine_card.dart';
 import '../../../core/ui/components/section_title.dart';
 import '../../../core/ui/label_maps.dart';
+import '../../my/application/profile_ui_prefs_provider.dart';
 import '../../today/application/today_session_providers.dart';
 import '../application/home_providers.dart';
 
@@ -30,6 +31,7 @@ class HomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final selectedTrack = ref.watch(selectedTrackProvider);
     final displayName = ref.watch(displayNameProvider);
+    final profilePrefs = ref.watch(profileUiPrefsProvider);
     final summary = ref.watch(homeRoutineSummaryProvider(selectedTrack));
 
     return AppPageBody(
@@ -56,13 +58,29 @@ class HomeScreen extends ConsumerWidget {
               const SizedBox(height: AppSpacing.md),
               Row(
                 children: [
-                  Text(
-                    '현재 트랙 ${displayTrack(selectedTrack)}',
-                    style: AppTypography.label.copyWith(
-                      color: AppColors.textSecondary,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '현재 트랙 ${displayTrack(selectedTrack)}',
+                          style: AppTypography.label.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.xxs),
+                        Text(
+                          '학습 학년 · 듣기 ${profilePrefs.listeningGradeLabel} · 독해 ${profilePrefs.readingGradeLabel}',
+                          style: AppTypography.label.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
                     ),
                   ),
-                  const Spacer(),
+                  const SizedBox(width: AppSpacing.sm),
                   InkWell(
                     onTap: onOpenMy,
                     borderRadius: BorderRadius.circular(AppRadius.buttonPill),
@@ -82,7 +100,7 @@ class HomeScreen extends ConsumerWidget {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
-                            displayTrack(selectedTrack),
+                            '학습 설정',
                             style: AppTypography.label.copyWith(
                               color: AppColors.primary,
                             ),

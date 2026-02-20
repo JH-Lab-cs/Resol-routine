@@ -31,7 +31,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase({QueryExecutor? executor}) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -49,6 +49,9 @@ class AppDatabase extends _$AppDatabase {
       }
       if (from < 4) {
         await _migrateToV4(m);
+      }
+      if (from >= 4 && from < 5) {
+        await _migrateToV5();
       }
       await _createIndexes();
       await _ensureUserSettingsRow();
@@ -116,6 +119,13 @@ class AppDatabase extends _$AppDatabase {
 
   Future<void> _migrateToV4(Migrator m) async {
     await m.createTable(userSettings);
+  }
+
+  Future<void> _migrateToV5() async {
+    await customStatement(
+      "ALTER TABLE user_settings ADD COLUMN birth_date TEXT NOT NULL DEFAULT '' "
+      "CHECK (birth_date = '' OR birth_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]')",
+    );
   }
 
   Future<void> _createIndexes() async {

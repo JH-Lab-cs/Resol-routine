@@ -185,6 +185,11 @@ class UserSettings extends Table {
   TextColumn get displayName => text()
       .withLength(min: 0, max: DbTextLimits.displayNameMax)
       .customConstraint("NOT NULL DEFAULT ''")();
+  TextColumn get birthDate => text()
+      .withLength(min: 0, max: 10)
+      .customConstraint(
+        "NOT NULL DEFAULT '' CHECK (birth_date = '' OR birth_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]')",
+      )();
   TextColumn get track => text().customConstraint(
     "NOT NULL DEFAULT 'M3' CHECK (track IN ('M3', 'H1', 'H2', 'H3'))",
   )();

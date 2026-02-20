@@ -153,6 +153,11 @@ class _ProgressRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final safeCompleted = completed.clamp(0, 3);
+    final percent = safeCompleted >= 3
+        ? 100
+        : ((safeCompleted * 100) / 3).floor();
+
     return Row(
       children: [
         SizedBox(
@@ -164,24 +169,30 @@ class _ProgressRow extends StatelessWidget {
         ),
         const SizedBox(width: AppSpacing.xs),
         Expanded(
-          child: Wrap(
-            spacing: AppSpacing.xs,
+          child: Row(
             children: List<Widget>.generate(3, (index) {
-              final active = index < completed;
-              return AnimatedContainer(
-                duration: const Duration(milliseconds: 220),
-                width: 34,
-                height: 9,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(AppRadius.pill),
-                  color: active ? activeColor : Colors.white30,
+              final active = index < safeCompleted;
+              return Expanded(
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    right: index == 2 ? 0 : AppSpacing.xs,
+                  ),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 220),
+                    height: 10,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(AppRadius.pill),
+                      color: active ? activeColor : Colors.white30,
+                    ),
+                  ),
                 ),
               );
             }),
           ),
         ),
+        const SizedBox(width: AppSpacing.sm),
         Text(
-          '$completed/3',
+          '$percent%',
           style: AppTypography.label.copyWith(color: Colors.white),
         ),
       ],

@@ -43,7 +43,6 @@ class _QuizFlowScreenState extends ConsumerState<QuizFlowScreen> {
   bool _submitted = false;
   bool _isCorrect = false;
   bool _saving = false;
-  bool _showTranscript = true;
   SessionCompletionReport? _completionReport;
   bool _loadingCompletionReport = false;
 
@@ -151,6 +150,13 @@ class _QuizFlowScreenState extends ConsumerState<QuizFlowScreen> {
                     : '진행도 ${_progress.completed}/6 · 이어서 풀 수 있어요.',
                 style: AppTypography.body,
               ),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                '문제 순서는 듣기 3문제 후 독해 3문제로 고정됩니다.',
+                style: AppTypography.body.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
               const Spacer(),
               PrimaryPillButton(
                 label: startLabel,
@@ -234,7 +240,7 @@ class _QuizFlowScreenState extends ConsumerState<QuizFlowScreen> {
                     .map((tag) {
                       final selected = tag == _selectedWrongReasonTag;
                       return ChoiceChip(
-                        label: Text(displayWrongReasonTag(tag.dbValue)),
+                        label: Text(_wrongReasonTagLabel(tag, question.skill)),
                         selected: selected,
                         showCheckmark: false,
                         selectedColor: AppColors.primary,
@@ -281,7 +287,6 @@ class _QuizFlowScreenState extends ConsumerState<QuizFlowScreen> {
                         _isCorrect = false;
                         _selectedAnswer = null;
                         _selectedWrongReasonTag = null;
-                        _showTranscript = true;
                       });
 
                       if (nextIndex >= _questions.length) {
@@ -488,6 +493,31 @@ class _QuizFlowScreenState extends ConsumerState<QuizFlowScreen> {
     final evidenceIds = question.evidenceSentenceIds.toSet();
 
     if (question.skill == Skill.listening) {
+      if (!_submitted) {
+        return Card(
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: Row(
+              children: [
+                Text(
+                  displaySkill(question.skill.dbValue),
+                  style: AppTypography.label,
+                ),
+                const Spacer(),
+                IconButton(
+                  onPressed: () => _playListeningAudio(question),
+                  icon: const Icon(Icons.volume_up_rounded),
+                  style: IconButton.styleFrom(
+                    backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                    foregroundColor: AppColors.primary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+
       return Card(
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.md),
@@ -500,35 +530,24 @@ class _QuizFlowScreenState extends ConsumerState<QuizFlowScreen> {
                     displaySkill(question.skill.dbValue),
                     style: AppTypography.label,
                   ),
-                  const Spacer(),
-                  TextButton(
-                    onPressed: () {
-                      setState(() {
-                        _showTranscript = !_showTranscript;
-                      });
-                    },
-                    child: Text(_showTranscript ? '대본 숨기기' : '대본 보기'),
-                  ),
                 ],
               ),
-              if (_showTranscript) ...[
-                const SizedBox(height: AppSpacing.xs),
-                ...question.sourceLines.map((line) {
-                  final highlighted = line.containsEvidence(evidenceIds);
-                  return Container(
-                    width: double.infinity,
-                    margin: const EdgeInsets.only(bottom: AppSpacing.xs),
-                    padding: const EdgeInsets.all(AppSpacing.sm),
-                    decoration: BoxDecoration(
-                      color: highlighted
-                          ? const Color(0xFFFFF2C2)
-                          : AppColors.background,
-                      borderRadius: BorderRadius.circular(AppRadius.md),
-                    ),
-                    child: Text('${line.speaker}: ${line.text}'),
-                  );
-                }),
-              ],
+              const SizedBox(height: AppSpacing.xs),
+              ...question.sourceLines.map((line) {
+                final highlighted = line.containsEvidence(evidenceIds);
+                return Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: AppSpacing.xs),
+                  padding: const EdgeInsets.all(AppSpacing.sm),
+                  decoration: BoxDecoration(
+                    color: highlighted
+                        ? const Color(0xFFFFF2C2)
+                        : AppColors.background,
+                    borderRadius: BorderRadius.circular(AppRadius.md),
+                  ),
+                  child: Text('${line.speaker}: ${line.text}'),
+                );
+              }),
             ],
           ),
         ),
@@ -626,6 +645,19 @@ class _QuizFlowScreenState extends ConsumerState<QuizFlowScreen> {
         });
       }
     }
+  }
+
+  void _playListeningAudio(QuizQuestionDetail question) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('"${question.questionId}" 문항의 듣기 재생을 시작합니다.')),
+    );
+  }
+
+  String _wrongReasonTagLabel(WrongReasonTag tag, Skill skill) {
+    if (skill == Skill.listening && tag == WrongReasonTag.time) {
+      return '리스닝 부족';
+    }
+    return displayWrongReasonTag(tag.dbValue);
   }
 }
 

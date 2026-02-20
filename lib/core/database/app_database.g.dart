@@ -3464,6 +3464,24 @@ class $UserSettingsTable extends UserSettings
     $customConstraints: 'NOT NULL DEFAULT \'\'',
     defaultValue: const CustomExpression('\'\''),
   );
+  static const VerificationMeta _birthDateMeta = const VerificationMeta(
+    'birthDate',
+  );
+  @override
+  late final GeneratedColumn<String> birthDate = GeneratedColumn<String>(
+    'birth_date',
+    aliasedName,
+    false,
+    additionalChecks: GeneratedColumn.checkTextLength(
+      minTextLength: 0,
+      maxTextLength: 10,
+    ),
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints:
+        'NOT NULL DEFAULT \'\' CHECK (birth_date = \'\' OR birth_date GLOB \'[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]\')',
+    defaultValue: const CustomExpression('\'\''),
+  );
   static const VerificationMeta _trackMeta = const VerificationMeta('track');
   @override
   late final GeneratedColumn<String> track = GeneratedColumn<String>(
@@ -3533,6 +3551,7 @@ class $UserSettingsTable extends UserSettings
     id,
     role,
     displayName,
+    birthDate,
     track,
     notificationsEnabled,
     studyReminderEnabled,
@@ -3567,6 +3586,12 @@ class $UserSettingsTable extends UserSettings
           data['display_name']!,
           _displayNameMeta,
         ),
+      );
+    }
+    if (data.containsKey('birth_date')) {
+      context.handle(
+        _birthDateMeta,
+        birthDate.isAcceptableOrUnknown(data['birth_date']!, _birthDateMeta),
       );
     }
     if (data.containsKey('track')) {
@@ -3626,6 +3651,10 @@ class $UserSettingsTable extends UserSettings
         DriftSqlType.string,
         data['${effectivePrefix}display_name'],
       )!,
+      birthDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}birth_date'],
+      )!,
       track: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}track'],
@@ -3659,6 +3688,7 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
   final int id;
   final String role;
   final String displayName;
+  final String birthDate;
   final String track;
   final bool notificationsEnabled;
   final bool studyReminderEnabled;
@@ -3668,6 +3698,7 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
     required this.id,
     required this.role,
     required this.displayName,
+    required this.birthDate,
     required this.track,
     required this.notificationsEnabled,
     required this.studyReminderEnabled,
@@ -3680,6 +3711,7 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
     map['id'] = Variable<int>(id);
     map['role'] = Variable<String>(role);
     map['display_name'] = Variable<String>(displayName);
+    map['birth_date'] = Variable<String>(birthDate);
     map['track'] = Variable<String>(track);
     map['notifications_enabled'] = Variable<bool>(notificationsEnabled);
     map['study_reminder_enabled'] = Variable<bool>(studyReminderEnabled);
@@ -3693,6 +3725,7 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
       id: Value(id),
       role: Value(role),
       displayName: Value(displayName),
+      birthDate: Value(birthDate),
       track: Value(track),
       notificationsEnabled: Value(notificationsEnabled),
       studyReminderEnabled: Value(studyReminderEnabled),
@@ -3710,6 +3743,7 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
       id: serializer.fromJson<int>(json['id']),
       role: serializer.fromJson<String>(json['role']),
       displayName: serializer.fromJson<String>(json['displayName']),
+      birthDate: serializer.fromJson<String>(json['birthDate']),
       track: serializer.fromJson<String>(json['track']),
       notificationsEnabled: serializer.fromJson<bool>(
         json['notificationsEnabled'],
@@ -3728,6 +3762,7 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
       'id': serializer.toJson<int>(id),
       'role': serializer.toJson<String>(role),
       'displayName': serializer.toJson<String>(displayName),
+      'birthDate': serializer.toJson<String>(birthDate),
       'track': serializer.toJson<String>(track),
       'notificationsEnabled': serializer.toJson<bool>(notificationsEnabled),
       'studyReminderEnabled': serializer.toJson<bool>(studyReminderEnabled),
@@ -3740,6 +3775,7 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
     int? id,
     String? role,
     String? displayName,
+    String? birthDate,
     String? track,
     bool? notificationsEnabled,
     bool? studyReminderEnabled,
@@ -3749,6 +3785,7 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
     id: id ?? this.id,
     role: role ?? this.role,
     displayName: displayName ?? this.displayName,
+    birthDate: birthDate ?? this.birthDate,
     track: track ?? this.track,
     notificationsEnabled: notificationsEnabled ?? this.notificationsEnabled,
     studyReminderEnabled: studyReminderEnabled ?? this.studyReminderEnabled,
@@ -3762,6 +3799,7 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
       displayName: data.displayName.present
           ? data.displayName.value
           : this.displayName,
+      birthDate: data.birthDate.present ? data.birthDate.value : this.birthDate,
       track: data.track.present ? data.track.value : this.track,
       notificationsEnabled: data.notificationsEnabled.present
           ? data.notificationsEnabled.value
@@ -3780,6 +3818,7 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
           ..write('id: $id, ')
           ..write('role: $role, ')
           ..write('displayName: $displayName, ')
+          ..write('birthDate: $birthDate, ')
           ..write('track: $track, ')
           ..write('notificationsEnabled: $notificationsEnabled, ')
           ..write('studyReminderEnabled: $studyReminderEnabled, ')
@@ -3794,6 +3833,7 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
     id,
     role,
     displayName,
+    birthDate,
     track,
     notificationsEnabled,
     studyReminderEnabled,
@@ -3807,6 +3847,7 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
           other.id == this.id &&
           other.role == this.role &&
           other.displayName == this.displayName &&
+          other.birthDate == this.birthDate &&
           other.track == this.track &&
           other.notificationsEnabled == this.notificationsEnabled &&
           other.studyReminderEnabled == this.studyReminderEnabled &&
@@ -3818,6 +3859,7 @@ class UserSettingsCompanion extends UpdateCompanion<UserSetting> {
   final Value<int> id;
   final Value<String> role;
   final Value<String> displayName;
+  final Value<String> birthDate;
   final Value<String> track;
   final Value<bool> notificationsEnabled;
   final Value<bool> studyReminderEnabled;
@@ -3827,6 +3869,7 @@ class UserSettingsCompanion extends UpdateCompanion<UserSetting> {
     this.id = const Value.absent(),
     this.role = const Value.absent(),
     this.displayName = const Value.absent(),
+    this.birthDate = const Value.absent(),
     this.track = const Value.absent(),
     this.notificationsEnabled = const Value.absent(),
     this.studyReminderEnabled = const Value.absent(),
@@ -3837,6 +3880,7 @@ class UserSettingsCompanion extends UpdateCompanion<UserSetting> {
     this.id = const Value.absent(),
     this.role = const Value.absent(),
     this.displayName = const Value.absent(),
+    this.birthDate = const Value.absent(),
     this.track = const Value.absent(),
     this.notificationsEnabled = const Value.absent(),
     this.studyReminderEnabled = const Value.absent(),
@@ -3847,6 +3891,7 @@ class UserSettingsCompanion extends UpdateCompanion<UserSetting> {
     Expression<int>? id,
     Expression<String>? role,
     Expression<String>? displayName,
+    Expression<String>? birthDate,
     Expression<String>? track,
     Expression<bool>? notificationsEnabled,
     Expression<bool>? studyReminderEnabled,
@@ -3857,6 +3902,7 @@ class UserSettingsCompanion extends UpdateCompanion<UserSetting> {
       if (id != null) 'id': id,
       if (role != null) 'role': role,
       if (displayName != null) 'display_name': displayName,
+      if (birthDate != null) 'birth_date': birthDate,
       if (track != null) 'track': track,
       if (notificationsEnabled != null)
         'notifications_enabled': notificationsEnabled,
@@ -3871,6 +3917,7 @@ class UserSettingsCompanion extends UpdateCompanion<UserSetting> {
     Value<int>? id,
     Value<String>? role,
     Value<String>? displayName,
+    Value<String>? birthDate,
     Value<String>? track,
     Value<bool>? notificationsEnabled,
     Value<bool>? studyReminderEnabled,
@@ -3881,6 +3928,7 @@ class UserSettingsCompanion extends UpdateCompanion<UserSetting> {
       id: id ?? this.id,
       role: role ?? this.role,
       displayName: displayName ?? this.displayName,
+      birthDate: birthDate ?? this.birthDate,
       track: track ?? this.track,
       notificationsEnabled: notificationsEnabled ?? this.notificationsEnabled,
       studyReminderEnabled: studyReminderEnabled ?? this.studyReminderEnabled,
@@ -3900,6 +3948,9 @@ class UserSettingsCompanion extends UpdateCompanion<UserSetting> {
     }
     if (displayName.present) {
       map['display_name'] = Variable<String>(displayName.value);
+    }
+    if (birthDate.present) {
+      map['birth_date'] = Variable<String>(birthDate.value);
     }
     if (track.present) {
       map['track'] = Variable<String>(track.value);
@@ -3927,6 +3978,7 @@ class UserSettingsCompanion extends UpdateCompanion<UserSetting> {
           ..write('id: $id, ')
           ..write('role: $role, ')
           ..write('displayName: $displayName, ')
+          ..write('birthDate: $birthDate, ')
           ..write('track: $track, ')
           ..write('notificationsEnabled: $notificationsEnabled, ')
           ..write('studyReminderEnabled: $studyReminderEnabled, ')
@@ -9371,6 +9423,7 @@ typedef $$UserSettingsTableCreateCompanionBuilder =
       Value<int> id,
       Value<String> role,
       Value<String> displayName,
+      Value<String> birthDate,
       Value<String> track,
       Value<bool> notificationsEnabled,
       Value<bool> studyReminderEnabled,
@@ -9382,6 +9435,7 @@ typedef $$UserSettingsTableUpdateCompanionBuilder =
       Value<int> id,
       Value<String> role,
       Value<String> displayName,
+      Value<String> birthDate,
       Value<String> track,
       Value<bool> notificationsEnabled,
       Value<bool> studyReminderEnabled,
@@ -9410,6 +9464,11 @@ class $$UserSettingsTableFilterComposer
 
   ColumnFilters<String> get displayName => $composableBuilder(
     column: $table.displayName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get birthDate => $composableBuilder(
+    column: $table.birthDate,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -9463,6 +9522,11 @@ class $$UserSettingsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get birthDate => $composableBuilder(
+    column: $table.birthDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get track => $composableBuilder(
     column: $table.track,
     builder: (column) => ColumnOrderings(column),
@@ -9508,6 +9572,9 @@ class $$UserSettingsTableAnnotationComposer
     column: $table.displayName,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get birthDate =>
+      $composableBuilder(column: $table.birthDate, builder: (column) => column);
 
   GeneratedColumn<String> get track =>
       $composableBuilder(column: $table.track, builder: (column) => column);
@@ -9563,6 +9630,7 @@ class $$UserSettingsTableTableManager
                 Value<int> id = const Value.absent(),
                 Value<String> role = const Value.absent(),
                 Value<String> displayName = const Value.absent(),
+                Value<String> birthDate = const Value.absent(),
                 Value<String> track = const Value.absent(),
                 Value<bool> notificationsEnabled = const Value.absent(),
                 Value<bool> studyReminderEnabled = const Value.absent(),
@@ -9572,6 +9640,7 @@ class $$UserSettingsTableTableManager
                 id: id,
                 role: role,
                 displayName: displayName,
+                birthDate: birthDate,
                 track: track,
                 notificationsEnabled: notificationsEnabled,
                 studyReminderEnabled: studyReminderEnabled,
@@ -9583,6 +9652,7 @@ class $$UserSettingsTableTableManager
                 Value<int> id = const Value.absent(),
                 Value<String> role = const Value.absent(),
                 Value<String> displayName = const Value.absent(),
+                Value<String> birthDate = const Value.absent(),
                 Value<String> track = const Value.absent(),
                 Value<bool> notificationsEnabled = const Value.absent(),
                 Value<bool> studyReminderEnabled = const Value.absent(),
@@ -9592,6 +9662,7 @@ class $$UserSettingsTableTableManager
                 id: id,
                 role: role,
                 displayName: displayName,
+                birthDate: birthDate,
                 track: track,
                 notificationsEnabled: notificationsEnabled,
                 studyReminderEnabled: studyReminderEnabled,
