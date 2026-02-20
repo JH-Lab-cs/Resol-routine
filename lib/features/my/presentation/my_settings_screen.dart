@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
@@ -14,6 +15,8 @@ final mySettingsVersionProvider = FutureProvider<String>((Ref ref) async {
 
 class MySettingsScreen extends ConsumerWidget {
   const MySettingsScreen({super.key});
+
+  static const String _supportEmail = 'support@resolroutine.app';
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -86,33 +89,21 @@ class MySettingsScreen extends ConsumerWidget {
                 child: Column(
                   children: [
                     _ListTile(
-                      title: '공지사항',
+                      title: 'FAQ',
                       onTap: () => _openStaticInfo(
                         context,
                         const _StaticInfoScreen(
-                          title: '공지사항',
+                          title: 'FAQ',
                           sections: [
                             _InfoSection(
-                              title: '서비스 운영 안내',
+                              title: '루틴 문제는 어떻게 집계되나요?',
                               body:
-                                  '매일 루틴은 로컬 기기 기준 날짜로 생성됩니다. 앱 업데이트 후 최신 기능과 안정성 개선 사항이 적용됩니다.',
+                                  '오늘 루틴은 듣기 3문제와 독해 3문제로 구성되며, 정답/오답 집계는 기기에 저장된 시도 기록을 기준으로 계산됩니다.',
                             ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const Divider(height: 1, color: AppColors.divider),
-                    _ListTile(
-                      title: '자주 묻는 질문',
-                      onTap: () => _openStaticInfo(
-                        context,
-                        const _StaticInfoScreen(
-                          title: '자주 묻는 질문',
-                          sections: [
                             _InfoSection(
-                              title: 'Q. 로그인 화면이 왜 안 보이나요?',
+                              title: '트랙을 바꾸면 기존 기록은 사라지나요?',
                               body:
-                                  'A. 이미 이름이 저장된 상태라면 바로 홈으로 진입합니다. 회원 탈퇴를 진행하면 다음 실행 시 학습 정보 입력 화면이 다시 표시됩니다.',
+                                  '기존 기록은 유지됩니다. 다만 오늘 루틴은 선택한 트랙 기준으로 생성되어 표시됩니다.',
                             ),
                           ],
                         ),
@@ -121,15 +112,34 @@ class MySettingsScreen extends ConsumerWidget {
                     const Divider(height: 1, color: AppColors.divider),
                     _ListTile(
                       title: '문의하기',
+                      onTap: () => Navigator.of(context).push<void>(
+                        MaterialPageRoute<void>(
+                          builder: (_) =>
+                              const _ContactSupportScreen(email: _supportEmail),
+                        ),
+                      ),
+                    ),
+                    const Divider(height: 1, color: AppColors.divider),
+                    _ListTile(
+                      title: '개인정보처리방침',
                       onTap: () => _openStaticInfo(
                         context,
                         const _StaticInfoScreen(
-                          title: '문의하기',
+                          title: '개인정보처리방침',
                           sections: [
                             _InfoSection(
-                              title: '문의 채널',
+                              title: '수집 항목',
                               body:
-                                  '이메일: support@resolroutine.app\n운영시간: 평일 10:00 - 18:00 (KST)',
+                                  '이 앱은 학습 진행을 위해 이름, 역할, 트랙, 학습 설정 및 문제 풀이 기록을 저장합니다.',
+                            ),
+                            _InfoSection(
+                              title: '보관 및 삭제',
+                              body:
+                                  '학습 데이터는 기본적으로 기기 내 로컬 데이터베이스에 저장됩니다. 로그아웃/탈퇴 시 계정 설정은 초기화됩니다.',
+                            ),
+                            _InfoSection(
+                              title: '문의',
+                              body: '개인정보 관련 문의: support@resolroutine.app',
                             ),
                           ],
                         ),
@@ -250,6 +260,55 @@ class MySettingsScreen extends ConsumerWidget {
       ageLabel: '고1',
       birthDate: '',
       avatarImagePath: null,
+    );
+  }
+}
+
+class _ContactSupportScreen extends StatelessWidget {
+  const _ContactSupportScreen({required this.email});
+
+  final String email;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('문의하기')),
+      body: ListView(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        children: [
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('문의 채널', style: AppTypography.section),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text('이메일: $email', style: AppTypography.body),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    '운영시간: 평일 10:00 - 18:00 (KST)',
+                    style: AppTypography.body.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  OutlinedButton.icon(
+                    onPressed: () {
+                      Clipboard.setData(ClipboardData(text: email));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('이메일 주소를 복사했습니다.')),
+                      );
+                    },
+                    icon: const Icon(Icons.copy_rounded),
+                    label: const Text('이메일 복사'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

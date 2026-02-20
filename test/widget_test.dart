@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -10,6 +11,7 @@ import 'package:resol_routine/core/domain/domain_enums.dart';
 import 'package:resol_routine/core/database/app_database.dart';
 import 'package:resol_routine/core/database/converters/json_models.dart';
 import 'package:resol_routine/core/database/database_providers.dart';
+import 'package:resol_routine/core/time/day_key.dart';
 import 'package:resol_routine/features/content_pack/application/content_pack_bootstrap.dart';
 import 'package:resol_routine/features/content_pack/data/content_pack_seeder.dart';
 import 'package:resol_routine/features/settings/application/user_settings_providers.dart';
@@ -242,6 +244,139 @@ void main() {
     expect(find.text('카카오톡으로 계속하기'), findsOneWidget);
     final settingsAfterLogout = await settingsRepository.get();
     expect(settingsAfterLogout.displayName, '');
+  });
+
+  testWidgets('My 탭은 DB 기반 통계만 표시한다', (WidgetTester tester) async {
+    late AppDatabase sharedDb;
+    late _FakeTodaySessionRepository fakeSessionRepository;
+    late _FakeTodayQuizRepository fakeQuizRepository;
+
+    await tester.runAsync(() async {
+      sharedDb = AppDatabase(executor: NativeDatabase.memory());
+      addTearDown(sharedDb.close);
+
+      final starterPackJson = await File(
+        'assets/content_packs/starter_pack.json',
+      ).readAsString();
+      final seeder = ContentPackSeeder(
+        database: sharedDb,
+        source: MemoryContentPackSource(starterPackJson),
+      );
+      await seeder.seedOnFirstLaunch();
+
+      final settingsRepository = UserSettingsRepository(database: sharedDb);
+      await settingsRepository.updateRole('STUDENT');
+      await settingsRepository.updateName('민수');
+      await settingsRepository.updateTrack('M3');
+
+      final firstQuestion = await (sharedDb.select(
+        sharedDb.questions,
+      )..limit(1)).getSingle();
+      final now = DateTime.now();
+      final todayKey = int.parse(formatDayKey(now));
+      final dayMinus1 = int.parse(
+        formatDayKey(now.subtract(const Duration(days: 1))),
+      );
+      final dayMinus3 = int.parse(
+        formatDayKey(now.subtract(const Duration(days: 3))),
+      );
+
+      await sharedDb
+          .into(sharedDb.dailySessions)
+          .insert(
+            DailySessionsCompanion.insert(
+              dayKey: todayKey,
+              track: const Value('M3'),
+              plannedItems: const Value(6),
+              completedItems: const Value(4),
+              createdAt: Value(now.toUtc()),
+            ),
+          );
+      await sharedDb
+          .into(sharedDb.dailySessions)
+          .insert(
+            DailySessionsCompanion.insert(
+              dayKey: dayMinus1,
+              track: const Value('M3'),
+              plannedItems: const Value(6),
+              completedItems: const Value(6),
+              createdAt: Value(now.subtract(const Duration(days: 1)).toUtc()),
+            ),
+          );
+      await sharedDb
+          .into(sharedDb.dailySessions)
+          .insert(
+            DailySessionsCompanion.insert(
+              dayKey: dayMinus3,
+              track: const Value('H2'),
+              plannedItems: const Value(6),
+              completedItems: const Value(6),
+              createdAt: Value(now.subtract(const Duration(days: 3)).toUtc()),
+            ),
+          );
+
+      await sharedDb
+          .into(sharedDb.attempts)
+          .insert(
+            AttemptsCompanion.insert(
+              questionId: firstQuestion.id,
+              userAnswerJson: '{}',
+              isCorrect: true,
+              attemptedAt: Value(now.toUtc()),
+            ),
+          );
+      await sharedDb
+          .into(sharedDb.attempts)
+          .insert(
+            AttemptsCompanion.insert(
+              questionId: firstQuestion.id,
+              userAnswerJson: '{}',
+              isCorrect: false,
+              attemptedAt: Value(now.toUtc()),
+            ),
+          );
+      await sharedDb
+          .into(sharedDb.attempts)
+          .insert(
+            AttemptsCompanion.insert(
+              questionId: firstQuestion.id,
+              userAnswerJson: '{}',
+              isCorrect: false,
+              attemptedAt: Value(now.toUtc()),
+            ),
+          );
+    });
+
+    fakeSessionRepository = _FakeTodaySessionRepository(sharedDb);
+    fakeQuizRepository = _FakeTodayQuizRepository(sharedDb);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(sharedDb),
+          appBootstrapProvider.overrideWith((ref) async {}),
+          todaySessionRepositoryProvider.overrideWithValue(
+            fakeSessionRepository,
+          ),
+          todayQuizRepositoryProvider.overrideWithValue(fakeQuizRepository),
+        ],
+        child: const ResolRoutineApp(),
+      ),
+    );
+
+    await _pumpUntilVisible(tester, find.text('오늘도 화이팅, 민수! 👋'));
+    await tester.tap(find.text('마이'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('오늘 루틴 완료'), findsOneWidget);
+    expect(find.text('4/6'), findsOneWidget);
+    expect(find.text('최근 7일 완료 일수'), findsOneWidget);
+    expect(find.text('2일'), findsOneWidget);
+    expect(find.text('총 시도'), findsOneWidget);
+    expect(find.text('3회'), findsOneWidget);
+    expect(find.text('총 오답'), findsOneWidget);
+    expect(find.text('2회'), findsOneWidget);
+    expect(find.text('이번주 외운 단어'), findsNothing);
   });
 
   testWidgets(

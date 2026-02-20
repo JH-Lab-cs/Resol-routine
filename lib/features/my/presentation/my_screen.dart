@@ -1,15 +1,14 @@
 import 'dart:io';
 
-import 'package:drift/drift.dart' show Variable;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/database/database_providers.dart';
 import '../../../core/ui/app_tokens.dart';
 import '../../../core/ui/components/app_scaffold.dart';
 import '../../../core/ui/label_maps.dart';
 import '../../home/application/home_providers.dart';
+import '../application/my_stats_providers.dart';
 import '../../settings/application/user_settings_providers.dart';
 import '../../settings/data/user_settings_repository.dart';
 import '../../today/application/today_quiz_providers.dart';
@@ -19,24 +18,6 @@ import '../../wrong_notes/application/wrong_note_providers.dart';
 import '../application/profile_ui_prefs_provider.dart';
 import 'my_settings_screen.dart';
 import 'profile_manage_screen.dart';
-
-final weeklyMemorizedWordsProvider = FutureProvider<int>((Ref ref) async {
-  final database = ref.watch(appDatabaseProvider);
-  final now = DateTime.now();
-  final todayStart = DateTime(now.year, now.month, now.day);
-  final weekStart = todayStart.subtract(Duration(days: todayStart.weekday - 1));
-
-  final row = await database
-      .customSelect(
-        'SELECT COUNT(*) AS cnt FROM vocab_user '
-        'WHERE familiarity > 0 AND updated_at >= ?',
-        variables: <Variable<Object>>[Variable<DateTime>(weekStart)],
-        readsFrom: {database.vocabUser},
-      )
-      .getSingle();
-
-  return row.read<int>('cnt');
-});
 
 class MyScreen extends ConsumerWidget {
   const MyScreen({super.key});
@@ -53,20 +34,12 @@ class MyScreen extends ConsumerWidget {
         ),
         data: (settings) {
           final profilePrefs = ref.watch(profileUiPrefsProvider);
-          final summaryAsync = ref.watch(
-            homeRoutineSummaryProvider(settings.track),
-          );
-          final weeklyWordsAsync = ref.watch(weeklyMemorizedWordsProvider);
-
-          final solvedCount = summaryAsync.maybeWhen(
-            data: (summary) => summary.progress.completed,
-            orElse: () => 0,
-          );
-          final questionCount = solvedCount * 6;
-          final wrongCount = questionCount > 0
-              ? (questionCount / 4).round()
-              : 0;
-          final streakDays = solvedCount > 0 ? 1 : 0;
+          final statsAsync = ref.watch(myStatsProvider(settings.track));
+          final stats = statsAsync.valueOrNull;
+          final todayCompletedItems = stats?.todayCompletedItems ?? 0;
+          final weeklyCompletedDays = stats?.weeklyCompletedDays ?? 0;
+          final totalAttempts = stats?.totalAttempts ?? 0;
+          final totalWrongAttempts = stats?.totalWrongAttempts ?? 0;
 
           return ListView(
             children: [
@@ -112,32 +85,29 @@ class MyScreen extends ConsumerWidget {
                     icon: Icons.menu_book_rounded,
                     iconColor: const Color(0xFF2D8BE7),
                     iconBackground: const Color(0xFFDCEBFB),
-                    value: weeklyWordsAsync.maybeWhen(
-                      data: (count) => '$count개',
-                      orElse: () => '0개',
-                    ),
-                    label: '이번주 외운 단어',
+                    value: '$todayCompletedItems/6',
+                    label: '오늘 루틴 완료',
                   ),
                   _ActivityCard(
-                    icon: Icons.check_circle_rounded,
+                    icon: Icons.calendar_today_rounded,
                     iconColor: const Color(0xFF3EA65A),
                     iconBackground: const Color(0xFFDDF3E3),
-                    value: '$questionCount문제',
-                    label: '해결한 문제',
+                    value: '$weeklyCompletedDays일',
+                    label: '최근 7일 완료 일수',
                   ),
                   _ActivityCard(
-                    icon: Icons.flag_rounded,
+                    icon: Icons.assignment_turned_in_rounded,
                     iconColor: const Color(0xFFF09B2D),
                     iconBackground: const Color(0xFFFFEED8),
-                    value: '$wrongCount회',
-                    label: '질문 횟수',
+                    value: '$totalAttempts회',
+                    label: '총 시도',
                   ),
                   _ActivityCard(
-                    icon: Icons.local_fire_department_rounded,
+                    icon: Icons.error_outline_rounded,
                     iconColor: const Color(0xFFE9533E),
                     iconBackground: const Color(0xFFFCE2DF),
-                    value: '$streakDays일째',
-                    label: '연속 학습',
+                    value: '$totalWrongAttempts회',
+                    label: '총 오답',
                   ),
                 ],
               ),
@@ -199,6 +169,7 @@ class MyScreen extends ConsumerWidget {
         .deleteTodaySession(track: track);
     ref.invalidate(todaySessionProvider(track));
     ref.invalidate(homeRoutineSummaryProvider(track));
+    ref.invalidate(myStatsProvider(track));
     ref.invalidate(wrongNoteListProvider);
 
     if (!context.mounted) {

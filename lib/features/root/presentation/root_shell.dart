@@ -19,7 +19,7 @@ class RootShell extends ConsumerStatefulWidget {
 
 class _RootShellState extends ConsumerState<RootShell> {
   int _currentIndex = 0;
-  static const List<String> _tabTitles = <String>['홈', '단어장', '오답노트', '설정'];
+  static const List<String> _tabTitles = <String>['홈', '단어장', '오답노트', '마이'];
 
   @override
   Widget build(BuildContext context) {
