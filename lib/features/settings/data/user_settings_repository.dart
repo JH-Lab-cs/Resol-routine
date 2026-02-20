@@ -7,16 +7,22 @@ class UserSettingsModel {
   const UserSettingsModel({
     required this.role,
     required this.displayName,
+    required this.birthDate,
     required this.track,
     required this.notificationsEnabled,
     required this.studyReminderEnabled,
+    required this.createdAt,
+    required this.updatedAt,
   });
 
   final String role;
   final String displayName;
+  final String birthDate;
   final String track;
   final bool notificationsEnabled;
   final bool studyReminderEnabled;
+  final DateTime createdAt;
+  final DateTime updatedAt;
 }
 
 class UserSettingsRepository {
@@ -60,6 +66,22 @@ class UserSettingsRepository {
     await _update(
       UserSettingsCompanion(
         displayName: Value(normalized),
+        updatedAt: Value(DateTime.now().toUtc()),
+      ),
+    );
+  }
+
+  Future<void> updateBirthDate(String value) async {
+    final normalized = value.trim();
+    if (normalized.isNotEmpty && !_isValidBirthDate(normalized)) {
+      throw const FormatException(
+        'birthDate must follow valid YYYY-MM-DD format.',
+      );
+    }
+
+    await _update(
+      UserSettingsCompanion(
+        birthDate: Value(normalized),
         updatedAt: Value(DateTime.now().toUtc()),
       ),
     );
@@ -109,6 +131,38 @@ class UserSettingsRepository {
     );
   }
 
+  Future<void> resetForLogout() {
+    final nowUtc = DateTime.now().toUtc();
+    return _update(
+      UserSettingsCompanion(
+        role: const Value(defaultRole),
+        displayName: const Value(''),
+        birthDate: const Value(''),
+        track: const Value(defaultTrack),
+        notificationsEnabled: const Value(true),
+        studyReminderEnabled: const Value(true),
+        createdAt: Value(nowUtc),
+        updatedAt: Value(nowUtc),
+      ),
+    );
+  }
+
+  Future<void> resetForWithdrawal() {
+    final nowUtc = DateTime.now().toUtc();
+    return _update(
+      UserSettingsCompanion(
+        role: const Value(defaultRole),
+        displayName: const Value(''),
+        birthDate: const Value(''),
+        track: const Value(defaultTrack),
+        notificationsEnabled: const Value(true),
+        studyReminderEnabled: const Value(true),
+        createdAt: Value(nowUtc),
+        updatedAt: Value(nowUtc),
+      ),
+    );
+  }
+
   Future<void> _update(UserSettingsCompanion companion) async {
     await _ensureSingletonRow();
     await (_database.update(
@@ -126,9 +180,29 @@ class UserSettingsRepository {
     return UserSettingsModel(
       role: row.role,
       displayName: row.displayName,
+      birthDate: row.birthDate,
       track: row.track,
       notificationsEnabled: row.notificationsEnabled,
       studyReminderEnabled: row.studyReminderEnabled,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
     );
+  }
+
+  bool _isValidBirthDate(String value) {
+    if (!RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(value)) {
+      return false;
+    }
+
+    try {
+      final parsed = DateTime.parse(value);
+      final normalized =
+          '${parsed.year.toString().padLeft(4, '0')}-'
+          '${parsed.month.toString().padLeft(2, '0')}-'
+          '${parsed.day.toString().padLeft(2, '0')}';
+      return normalized == value;
+    } catch (_) {
+      return false;
+    }
   }
 }

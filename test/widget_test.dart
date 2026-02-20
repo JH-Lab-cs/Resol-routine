@@ -12,6 +12,7 @@ import 'package:resol_routine/core/database/converters/json_models.dart';
 import 'package:resol_routine/core/database/database_providers.dart';
 import 'package:resol_routine/features/content_pack/application/content_pack_bootstrap.dart';
 import 'package:resol_routine/features/content_pack/data/content_pack_seeder.dart';
+import 'package:resol_routine/features/settings/application/user_settings_providers.dart';
 import 'package:resol_routine/features/settings/data/user_settings_repository.dart';
 import 'package:resol_routine/features/today/application/today_quiz_providers.dart';
 import 'package:resol_routine/features/today/application/today_session_providers.dart';
@@ -87,22 +88,160 @@ void main() {
       ),
     );
 
-    await _pumpUntilVisible(tester, find.text('학습자 유형을 선택해 주세요.'));
-    expect(find.text('학습자 유형을 선택해 주세요.'), findsOneWidget);
+    await _pumpUntilVisible(tester, find.text('카카오톡으로 계속하기'));
+    expect(find.text('카카오톡으로 계속하기'), findsOneWidget);
+
+    await tester.tap(find.text('카카오톡으로 계속하기'));
+    await tester.pumpAndSettle();
+    await _pumpUntilVisible(tester, find.text('누가 사용하나요?'));
 
     await tester.tap(find.text('학생'));
-    await tester.pump();
-    await tester.tap(find.text('다음'));
-    await tester.pump();
+    await tester.pumpAndSettle();
+    await _pumpUntilVisible(tester, find.text('내 학습 정보 설정'));
+    expect(find.text('학습 학년 (추후 변경가능합니다)'), findsOneWidget);
 
-    await tester.enterText(find.byType(TextField), '민수');
-    await tester.tap(find.text('고1'));
+    await tester.enterText(find.byType(TextField).first, '민수');
+    await tester.enterText(find.byType(TextField).at(1), '20030201');
     await tester.pump();
+    await tester.ensureVisible(find.text('시작하기'));
     await tester.tap(find.text('시작하기'));
-    await tester.pump();
+    await tester.pumpAndSettle();
 
     await _pumpUntilVisible(tester, find.text('오늘도 화이팅, 민수! 👋'));
     expect(find.text('오늘도 화이팅, 민수! 👋'), findsOneWidget);
+  });
+
+  testWidgets('parent onboarding requires only name input', (
+    WidgetTester tester,
+  ) async {
+    final sharedDb = AppDatabase(executor: NativeDatabase.memory());
+    final fakeSessionRepository = _FakeTodaySessionRepository(sharedDb);
+    final fakeQuizRepository = _FakeTodayQuizRepository(sharedDb);
+
+    addTearDown(sharedDb.close);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(sharedDb),
+          appBootstrapProvider.overrideWith((ref) async {}),
+          todaySessionRepositoryProvider.overrideWithValue(
+            fakeSessionRepository,
+          ),
+          todayQuizRepositoryProvider.overrideWithValue(fakeQuizRepository),
+        ],
+        child: const ResolRoutineApp(),
+      ),
+    );
+
+    await _pumpUntilVisible(tester, find.text('카카오톡으로 계속하기'));
+    await tester.tap(find.text('카카오톡으로 계속하기'));
+    await tester.pumpAndSettle();
+    await _pumpUntilVisible(tester, find.text('누가 사용하나요?'));
+
+    await tester.tap(find.text('학부모'));
+    await tester.pumpAndSettle();
+    await _pumpUntilVisible(tester, find.text('내 학습 정보 설정'));
+
+    expect(find.text('학습 학년 (추후 변경가능합니다)'), findsNothing);
+    await tester.enterText(find.byType(TextField).first, '보호자');
+    await tester.pump();
+    await tester.ensureVisible(find.text('시작하기'));
+    await tester.tap(find.text('시작하기'));
+    await tester.pumpAndSettle();
+
+    await _pumpUntilVisible(tester, find.text('오늘도 화이팅, 보호자! 👋'));
+    expect(find.text('오늘도 화이팅, 보호자! 👋'), findsOneWidget);
+  });
+
+  testWidgets(
+    'changing settings does not replace app with entry loading gate',
+    (WidgetTester tester) async {
+      final sharedDb = AppDatabase(executor: NativeDatabase.memory());
+      final fakeSessionRepository = _FakeTodaySessionRepository(sharedDb);
+      final fakeQuizRepository = _FakeTodayQuizRepository(sharedDb);
+      final settingsRepository = UserSettingsRepository(database: sharedDb);
+
+      await settingsRepository.updateRole('STUDENT');
+      await settingsRepository.updateName('지훈');
+      await settingsRepository.updateTrack('H1');
+
+      addTearDown(sharedDb.close);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            appDatabaseProvider.overrideWithValue(sharedDb),
+            appBootstrapProvider.overrideWith((ref) async {}),
+            todaySessionRepositoryProvider.overrideWithValue(
+              fakeSessionRepository,
+            ),
+            todayQuizRepositoryProvider.overrideWithValue(fakeQuizRepository),
+          ],
+          child: const ResolRoutineApp(),
+        ),
+      );
+
+      await _pumpUntilVisible(tester, find.text('오늘도 화이팅, 지훈! 👋'));
+      expect(find.byType(NavigationBar), findsOneWidget);
+
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(ResolRoutineApp)),
+      );
+
+      await container.read(userSettingsProvider.notifier).updateTrack('H2');
+      await tester.pump();
+      expect(find.byType(NavigationBar), findsOneWidget);
+      expect(find.text('카카오톡으로 계속하기'), findsNothing);
+
+      await container
+          .read(userSettingsProvider.notifier)
+          .updateNotificationsEnabled(false);
+      await tester.pump();
+      expect(find.byType(NavigationBar), findsOneWidget);
+      expect(find.text('카카오톡으로 계속하기'), findsNothing);
+    },
+  );
+
+  testWidgets('logout clears account name and returns to onboarding gate', (
+    WidgetTester tester,
+  ) async {
+    final sharedDb = AppDatabase(executor: NativeDatabase.memory());
+    final fakeSessionRepository = _FakeTodaySessionRepository(sharedDb);
+    final fakeQuizRepository = _FakeTodayQuizRepository(sharedDb);
+    final settingsRepository = UserSettingsRepository(database: sharedDb);
+
+    await settingsRepository.updateRole('STUDENT');
+    await settingsRepository.updateName('지훈');
+    await settingsRepository.updateTrack('H1');
+
+    addTearDown(sharedDb.close);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(sharedDb),
+          appBootstrapProvider.overrideWith((ref) async {}),
+          todaySessionRepositoryProvider.overrideWithValue(
+            fakeSessionRepository,
+          ),
+          todayQuizRepositoryProvider.overrideWithValue(fakeQuizRepository),
+        ],
+        child: const ResolRoutineApp(),
+      ),
+    );
+
+    await _pumpUntilVisible(tester, find.text('오늘도 화이팅, 지훈! 👋'));
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(ResolRoutineApp)),
+    );
+
+    await container.read(userSettingsProvider.notifier).logout();
+    await tester.pumpAndSettle();
+
+    expect(find.text('카카오톡으로 계속하기'), findsOneWidget);
+    final settingsAfterLogout = await settingsRepository.get();
+    expect(settingsAfterLogout.displayName, '');
   });
 
   testWidgets(

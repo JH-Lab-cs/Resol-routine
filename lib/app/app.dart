@@ -34,6 +34,8 @@ class _EntryGate extends ConsumerWidget {
     final settingsState = ref.watch(userSettingsProvider);
 
     return settingsState.when(
+      skipLoadingOnRefresh: true,
+      skipLoadingOnReload: true,
       data: (settings) {
         final onboardingRequired = settings.displayName.trim().isEmpty;
         if (onboardingRequired) {

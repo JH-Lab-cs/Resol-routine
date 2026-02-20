@@ -18,6 +18,7 @@ void main() {
 
       expect(settings.role, UserSettingsRepository.defaultRole);
       expect(settings.displayName, '');
+      expect(settings.birthDate, '');
       expect(settings.track, UserSettingsRepository.defaultTrack);
       expect(settings.notificationsEnabled, true);
       expect(settings.studyReminderEnabled, true);
@@ -39,6 +40,7 @@ void main() {
       final firstDb = AppDatabase(executor: NativeDatabase(dbFile));
       final firstRepo = UserSettingsRepository(database: firstDb);
       await firstRepo.updateName('지훈');
+      await firstRepo.updateBirthDate('2003-02-01');
       await firstRepo.updateTrack('H2');
       await firstRepo.updateRole('PARENT');
       await firstRepo.updateNotificationsEnabled(false);
@@ -52,10 +54,74 @@ void main() {
       final settings = await reopenedRepo.get();
 
       expect(settings.displayName, '지훈');
+      expect(settings.birthDate, '2003-02-01');
       expect(settings.track, 'H2');
       expect(settings.role, 'PARENT');
       expect(settings.notificationsEnabled, false);
       expect(settings.studyReminderEnabled, false);
     });
+
+    test('allows clearing optional birth date', () async {
+      final database = AppDatabase(executor: NativeDatabase.memory());
+      addTearDown(database.close);
+
+      final repository = UserSettingsRepository(database: database);
+      await repository.updateBirthDate('2003-02-01');
+      await repository.updateBirthDate('');
+
+      final settings = await repository.get();
+      expect(settings.birthDate, '');
+    });
+
+    test('resetForLogout clears onboarding-required fields', () async {
+      final database = AppDatabase(executor: NativeDatabase.memory());
+      addTearDown(database.close);
+
+      final repository = UserSettingsRepository(database: database);
+      await repository.updateRole('PARENT');
+      await repository.updateName('보호자');
+      await repository.updateBirthDate('1985-03-12');
+      await repository.updateTrack('H3');
+      await repository.updateNotificationsEnabled(false);
+      await repository.updateStudyReminderEnabled(false);
+
+      await repository.resetForLogout();
+      final settings = await repository.get();
+
+      expect(settings.role, UserSettingsRepository.defaultRole);
+      expect(settings.displayName, '');
+      expect(settings.birthDate, '');
+      expect(settings.track, UserSettingsRepository.defaultTrack);
+      expect(settings.notificationsEnabled, true);
+      expect(settings.studyReminderEnabled, true);
+      expect(settings.createdAt.isAtSameMomentAs(settings.updatedAt), isTrue);
+    });
+
+    test(
+      'resetForWithdrawal clears account and unlocks onboarding role step',
+      () async {
+        final database = AppDatabase(executor: NativeDatabase.memory());
+        addTearDown(database.close);
+
+        final repository = UserSettingsRepository(database: database);
+        await repository.updateRole('PARENT');
+        await repository.updateName('보호자');
+        await repository.updateBirthDate('1985-03-12');
+        await repository.updateTrack('H3');
+        await repository.updateNotificationsEnabled(false);
+        await repository.updateStudyReminderEnabled(false);
+
+        await repository.resetForWithdrawal();
+        final settings = await repository.get();
+
+        expect(settings.role, UserSettingsRepository.defaultRole);
+        expect(settings.displayName, '');
+        expect(settings.birthDate, '');
+        expect(settings.track, UserSettingsRepository.defaultTrack);
+        expect(settings.notificationsEnabled, true);
+        expect(settings.studyReminderEnabled, true);
+        expect(settings.createdAt.isAtSameMomentAs(settings.updatedAt), isTrue);
+      },
+    );
   });
 }
