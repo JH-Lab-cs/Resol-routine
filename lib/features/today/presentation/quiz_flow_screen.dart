@@ -7,6 +7,7 @@ import '../../../core/domain/domain_enums.dart';
 import '../../../core/ui/app_tokens.dart';
 import '../../../core/ui/components/primary_pill_button.dart';
 import '../../../core/ui/label_maps.dart';
+import '../../my/application/my_stats_providers.dart';
 import '../../wrong_notes/application/wrong_note_providers.dart';
 import '../application/today_quiz_providers.dart';
 import '../data/attempt_payload.dart';
@@ -630,6 +631,7 @@ class _QuizFlowScreenState extends ConsumerState<QuizFlowScreen> {
       });
 
       ref.invalidate(todaySessionProvider(widget.track));
+      ref.invalidate(myStatsProvider(widget.track));
       ref.invalidate(wrongNoteListProvider);
     } on StateError catch (error) {
       if (!mounted) {

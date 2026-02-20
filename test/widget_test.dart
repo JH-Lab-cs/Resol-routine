@@ -14,6 +14,7 @@ import 'package:resol_routine/core/database/database_providers.dart';
 import 'package:resol_routine/core/time/day_key.dart';
 import 'package:resol_routine/features/content_pack/application/content_pack_bootstrap.dart';
 import 'package:resol_routine/features/content_pack/data/content_pack_seeder.dart';
+import 'package:resol_routine/features/my/application/my_stats_providers.dart';
 import 'package:resol_routine/features/settings/application/user_settings_providers.dart';
 import 'package:resol_routine/features/settings/data/user_settings_repository.dart';
 import 'package:resol_routine/features/today/application/today_quiz_providers.dart';
@@ -250,6 +251,8 @@ void main() {
     late AppDatabase sharedDb;
     late _FakeTodaySessionRepository fakeSessionRepository;
     late _FakeTodayQuizRepository fakeQuizRepository;
+    late int todayKey;
+    late String questionId;
 
     await tester.runAsync(() async {
       sharedDb = AppDatabase(executor: NativeDatabase.memory());
@@ -272,8 +275,9 @@ void main() {
       final firstQuestion = await (sharedDb.select(
         sharedDb.questions,
       )..limit(1)).getSingle();
+      questionId = firstQuestion.id;
       final now = DateTime.now();
-      final todayKey = int.parse(formatDayKey(now));
+      todayKey = int.parse(formatDayKey(now));
       final dayMinus1 = int.parse(
         formatDayKey(now.subtract(const Duration(days: 1))),
       );
@@ -377,6 +381,34 @@ void main() {
     expect(find.text('총 오답'), findsOneWidget);
     expect(find.text('2회'), findsOneWidget);
     expect(find.text('이번주 외운 단어'), findsNothing);
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(ResolRoutineApp)),
+    );
+    await tester.runAsync(() async {
+      await sharedDb
+          .into(sharedDb.attempts)
+          .insert(
+            AttemptsCompanion.insert(
+              questionId: questionId,
+              userAnswerJson: '{}',
+              isCorrect: false,
+              attemptedAt: Value(DateTime.now().toUtc()),
+            ),
+          );
+      await (sharedDb.update(sharedDb.dailySessions)..where(
+            (tbl) => tbl.dayKey.equals(todayKey) & tbl.track.equals('M3'),
+          ))
+          .write(const DailySessionsCompanion(completedItems: Value(6)));
+    });
+
+    container.invalidate(myStatsProvider('M3'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('6/6'), findsOneWidget);
+    expect(find.text('3일'), findsOneWidget);
+    expect(find.text('4회'), findsOneWidget);
+    expect(find.text('3회'), findsOneWidget);
   });
 
   testWidgets(
