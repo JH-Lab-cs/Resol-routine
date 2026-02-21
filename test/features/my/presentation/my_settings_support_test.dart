@@ -93,6 +93,6 @@ void main() {
     await tester.pump();
 
     expect(copiedText, 'support@resolroutine.app');
-    expect(find.text('이메일 주소를 복사했습니다.'), findsOneWidget);
+    expect(find.text('문의 메일 주소를 복사했어요.'), findsOneWidget);
   });
 }

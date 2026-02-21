@@ -297,7 +297,14 @@ class _ContactSupportScreen extends StatelessWidget {
                     onPressed: () {
                       Clipboard.setData(ClipboardData(text: email));
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('이메일 주소를 복사했습니다.')),
+                        SnackBar(
+                          behavior: SnackBarBehavior.floating,
+                          backgroundColor: AppColors.primary,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          content: const Text('문의 메일 주소를 복사했어요.'),
+                        ),
                       );
                     },
                     icon: const Icon(Icons.copy_rounded),

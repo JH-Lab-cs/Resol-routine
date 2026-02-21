@@ -77,7 +77,7 @@ class MyScreen extends ConsumerWidget {
                 physics: const NeverScrollableScrollPhysics(),
                 shrinkWrap: true,
                 crossAxisCount: 2,
-                childAspectRatio: 1.16,
+                childAspectRatio: 1.0,
                 crossAxisSpacing: AppSpacing.sm,
                 mainAxisSpacing: AppSpacing.sm,
                 children: [
@@ -363,34 +363,51 @@ class _ActivityCard extends StatelessWidget {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 52,
-              height: 52,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: iconBackground,
-              ),
-              child: Icon(icon, color: iconColor, size: 30),
-            ),
-            const Spacer(),
-            Text(
-              value,
-              style: AppTypography.display.copyWith(
-                fontSize: 46 / 2,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.xxs),
-            Text(
-              label,
-              style: AppTypography.body.copyWith(
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ],
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isCompact = constraints.maxHeight < 170;
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: isCompact ? 48 : 52,
+                  height: isCompact ? 48 : 52,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: iconBackground,
+                  ),
+                  child: Icon(
+                    icon,
+                    color: iconColor,
+                    size: isCompact ? 28 : 30,
+                  ),
+                ),
+                const Spacer(),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    value,
+                    style: AppTypography.display.copyWith(
+                      fontSize: isCompact ? 42 / 2 : 46 / 2,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xxs),
+                Text(
+                  label,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypography.body.copyWith(
+                    color: AppColors.textSecondary,
+                    fontSize: isCompact ? 15 : null,
+                    height: 1.22,
+                  ),
+                ),
+              ],
+            );
+          },
         ),
       ),
     );
