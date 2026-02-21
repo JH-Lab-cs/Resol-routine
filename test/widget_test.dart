@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:drift/drift.dart';
@@ -15,6 +16,7 @@ import 'package:resol_routine/core/time/day_key.dart';
 import 'package:resol_routine/features/content_pack/application/content_pack_bootstrap.dart';
 import 'package:resol_routine/features/content_pack/data/content_pack_seeder.dart';
 import 'package:resol_routine/features/my/application/my_stats_providers.dart';
+import 'package:resol_routine/features/report/data/shared_reports_repository.dart';
 import 'package:resol_routine/features/settings/application/user_settings_providers.dart';
 import 'package:resol_routine/features/settings/data/user_settings_repository.dart';
 import 'package:resol_routine/features/today/application/today_quiz_providers.dart';
@@ -153,8 +155,59 @@ void main() {
     await tester.tap(find.text('시작하기'));
     await tester.pumpAndSettle();
 
-    await _pumpUntilVisible(tester, find.text('오늘도 화이팅, 보호자! 👋'));
-    expect(find.text('오늘도 화이팅, 보호자! 👋'), findsOneWidget);
+    await _pumpUntilVisible(tester, find.text('리포트 가져오기'));
+    expect(find.text('리포트 가져오기'), findsOneWidget);
+  });
+
+  testWidgets('parent home renders imported reports and opens detail', (
+    WidgetTester tester,
+  ) async {
+    final sharedDb = AppDatabase(executor: NativeDatabase.memory());
+    final fakeSessionRepository = _FakeTodaySessionRepository(sharedDb);
+    final fakeQuizRepository = _FakeTodayQuizRepository(sharedDb);
+    final settingsRepository = UserSettingsRepository(database: sharedDb);
+    final sharedReportsRepository = SharedReportsRepository(database: sharedDb);
+
+    await settingsRepository.updateRole('PARENT');
+    await settingsRepository.updateName('보호자');
+    await sharedReportsRepository.importFromJson(
+      source: 'resolroutine_report_20260221_M3.json',
+      payloadJson: _sampleSharedReportJson(),
+    );
+
+    addTearDown(sharedDb.close);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(sharedDb),
+          appBootstrapProvider.overrideWith((ref) async {}),
+          todaySessionRepositoryProvider.overrideWithValue(
+            fakeSessionRepository,
+          ),
+          todayQuizRepositoryProvider.overrideWithValue(fakeQuizRepository),
+        ],
+        child: const ResolRoutineApp(),
+      ),
+    );
+
+    await _pumpUntilVisible(tester, find.text('리포트 가져오기'));
+    await _pumpUntilVisible(tester, find.textContaining('오답 1개'));
+    expect(find.textContaining('오답 1개'), findsOneWidget);
+
+    final titleFinder = find.text('민수');
+    final fallbackTitleFinder = find.text(
+      'resolroutine_report_20260221_M3.json',
+    );
+    if (titleFinder.evaluate().isNotEmpty) {
+      await tester.tap(titleFinder);
+    } else {
+      await tester.tap(fallbackTitleFinder);
+    }
+    await tester.pumpAndSettle();
+
+    expect(find.text('리포트 상세'), findsOneWidget);
+    expect(find.textContaining('총 오답 1문항'), findsOneWidget);
   });
 
   testWidgets(
@@ -687,6 +740,44 @@ class _EmptyTodayQuizRepository extends TodayQuizRepository {
       readingCompleted: 0,
     );
   }
+}
+
+String _sampleSharedReportJson() {
+  return jsonEncode(<String, Object?>{
+    'schemaVersion': 1,
+    'generatedAt': '2026-02-21T10:00:00.000Z',
+    'student': <String, Object?>{
+      'role': 'STUDENT',
+      'displayName': '민수',
+      'track': 'M3',
+    },
+    'days': <Object?>[
+      <String, Object?>{
+        'dayKey': '20260221',
+        'track': 'M3',
+        'solvedCount': 2,
+        'wrongCount': 1,
+        'listeningCorrect': 1,
+        'readingCorrect': 0,
+        'wrongReasonCounts': <String, Object?>{'VOCAB': 1},
+        'questions': <Object?>[
+          <String, Object?>{
+            'questionId': 'L-001',
+            'skill': 'LISTENING',
+            'typeTag': 'L1',
+            'isCorrect': true,
+          },
+          <String, Object?>{
+            'questionId': 'R-001',
+            'skill': 'READING',
+            'typeTag': 'R1',
+            'isCorrect': false,
+            'wrongReasonTag': 'VOCAB',
+          },
+        ],
+      },
+    ],
+  });
 }
 
 final List<QuizQuestionDetail> _fillerQuestions =
