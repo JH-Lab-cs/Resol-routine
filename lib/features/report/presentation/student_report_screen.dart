@@ -78,6 +78,7 @@ class _StudentReportScreenState extends ConsumerState<StudentReportScreen> {
       _isSharing = true;
     });
 
+    File? exportFile;
     try {
       final exportPayload = await ref
           .read(reportExportRepositoryProvider)
@@ -85,7 +86,7 @@ class _StudentReportScreenState extends ConsumerState<StudentReportScreen> {
 
       final tempDirectory = await getTemporaryDirectory();
       final filePath = p.join(tempDirectory.path, exportPayload.fileName);
-      final exportFile = File(filePath);
+      exportFile = File(filePath);
 
       await exportFile.writeAsString(exportPayload.jsonPayload, flush: true);
 
@@ -116,6 +117,14 @@ class _StudentReportScreenState extends ConsumerState<StudentReportScreen> {
         context,
       ).showSnackBar(SnackBar(content: Text('리포트 공유에 실패했습니다.\n$error')));
     } finally {
+      if (exportFile != null) {
+        try {
+          await exportFile.delete();
+        } catch (_) {
+          // Ignore temp file cleanup errors.
+        }
+      }
+
       if (mounted) {
         setState(() {
           _isSharing = false;

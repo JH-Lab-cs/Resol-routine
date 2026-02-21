@@ -2,6 +2,7 @@ import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/database/db_text_limits.dart';
 import '../../../core/ui/app_tokens.dart';
 import '../../../core/ui/components/app_scaffold.dart';
 import '../../../core/ui/components/hero_progress_card.dart';
@@ -215,6 +216,23 @@ class HomeScreen extends ConsumerWidget {
       );
       if (file == null) {
         return;
+      }
+
+      try {
+        final bytes = await file.length();
+        if (bytes > DbTextLimits.reportImportMaxBytes) {
+          if (!context.mounted) {
+            return;
+          }
+          final maxMb = (DbTextLimits.reportImportMaxBytes / (1024 * 1024))
+              .toStringAsFixed(0);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('파일이 너무 큽니다. ${maxMb}MB 이하 파일만 가져올 수 있어요.')),
+          );
+          return;
+        }
+      } catch (_) {
+        // Proceed. Repository-level raw length guards still apply.
       }
 
       final payload = await file.readAsString();

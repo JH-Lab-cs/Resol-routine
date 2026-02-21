@@ -4,6 +4,7 @@ import 'package:drift/drift.dart' show Variable;
 import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../../core/database/app_database.dart';
+import '../../../core/database/db_text_limits.dart';
 import '../../../core/domain/domain_enums.dart';
 import '../../../core/time/day_key.dart';
 import '../../today/data/attempt_payload.dart';
@@ -31,6 +32,7 @@ class ReportExportRepository {
        _appVersionLoader = appVersionLoader ?? _defaultAppVersionLoader;
 
   static const Set<String> _supportedTracks = <String>{'M3', 'H1', 'H2', 'H3'};
+  static const int _maxPayloadLength = DbTextLimits.reportPayloadMax;
 
   final AppDatabase _database;
   final AppVersionLoader _appVersionLoader;
@@ -78,15 +80,84 @@ class ReportExportRepository {
   }) async {
     final resolvedNow = nowLocal ?? DateTime.now();
     final dayKey = formatDayKey(resolvedNow);
-    final report = await buildCumulativeReport(
+    final cumulativeReport = await buildCumulativeReport(
       track: track,
       nowLocal: nowLocal,
     );
+    final prepared = _prepareExportReport(cumulativeReport);
 
     return ReportExportPayload(
       fileName: buildFileName(dayKey: dayKey, track: track),
-      jsonPayload: report.encodePretty(),
-      report: report,
+      jsonPayload: prepared.canonicalPayload,
+      report: prepared.report,
+    );
+  }
+
+  _PreparedExport _prepareExportReport(ReportSchema cumulativeReport) {
+    final fullPayload = cumulativeReport.encodeCompact();
+    if (fullPayload.length <= _maxPayloadLength) {
+      return _PreparedExport(
+        report: cumulativeReport,
+        canonicalPayload: fullPayload,
+      );
+    }
+
+    final totalDays = cumulativeReport.days.length;
+    if (totalDays == 0) {
+      throw FormatException(
+        'Export report payload exceeds $_maxPayloadLength characters.',
+      );
+    }
+
+    final trimResult = _findMaxFittingRecentDays(cumulativeReport);
+    if (trimResult.keptDays <= 0) {
+      throw FormatException(
+        'Export report payload exceeds $_maxPayloadLength characters even with one day.',
+      );
+    }
+
+    final trimmedReport = _copyWithRecentDays(
+      cumulativeReport,
+      trimResult.keptDays,
+    );
+    return _PreparedExport(
+      report: trimmedReport,
+      canonicalPayload: trimResult.payload,
+    );
+  }
+
+  _TrimResult _findMaxFittingRecentDays(ReportSchema report) {
+    var left = 1;
+    var right = report.days.length;
+    var best = _TrimResult(keptDays: 0, payload: '');
+
+    while (left <= right) {
+      final mid = (left + right) >> 1;
+      final candidate = _copyWithRecentDays(report, mid);
+      final payload = candidate.encodeCompact();
+
+      if (payload.length <= _maxPayloadLength) {
+        best = _TrimResult(keptDays: mid, payload: payload);
+        left = mid + 1;
+      } else {
+        right = mid - 1;
+      }
+    }
+
+    return best;
+  }
+
+  ReportSchema _copyWithRecentDays(ReportSchema original, int keepDays) {
+    final boundedKeepDays = keepDays.clamp(0, original.days.length);
+    final trimmedDays = original.days
+        .take(boundedKeepDays)
+        .toList(growable: false);
+
+    return ReportSchema.v1(
+      generatedAt: original.generatedAt,
+      appVersion: original.appVersion,
+      student: original.student,
+      days: trimmedDays,
     );
   }
 
@@ -242,6 +313,20 @@ class ReportExportRepository {
     }
     throw FormatException('Unsupported track: "$track"');
   }
+}
+
+class _PreparedExport {
+  const _PreparedExport({required this.report, required this.canonicalPayload});
+
+  final ReportSchema report;
+  final String canonicalPayload;
+}
+
+class _TrimResult {
+  const _TrimResult({required this.keptDays, required this.payload});
+
+  final int keptDays;
+  final String payload;
 }
 
 class _DayBuilder {

@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import '../../../../core/database/db_text_limits.dart';
 import '../../../../core/domain/domain_enums.dart';
+import '../../../../core/security/hidden_unicode.dart';
 import '../../../../core/time/day_key.dart';
 
 typedef ReportJsonMap = Map<String, Object?>;
@@ -179,6 +180,9 @@ class ReportStudent {
       path: '$path.displayName',
       maxLength: DbTextLimits.displayNameMax,
     );
+    if (displayName != null) {
+      validateNoHiddenUnicode(displayName, path: '$path.displayName');
+    }
 
     final trackRaw = _readOptionalString(
       json,
@@ -509,6 +513,7 @@ class ReportQuestionResult {
       path: '$path.questionId',
       maxLength: DbTextLimits.idMax,
     );
+    validateNoHiddenUnicode(questionId, path: '$path.questionId');
 
     final skill = skillFromDb(
       _readRequiredString(json, 'skill', path: '$path.skill', maxLength: 16),
@@ -520,6 +525,7 @@ class ReportQuestionResult {
       path: '$path.typeTag',
       maxLength: DbTextLimits.typeTagMax,
     );
+    validateNoHiddenUnicode(typeTag, path: '$path.typeTag');
     if (skill == Skill.listening && !typeTag.startsWith('L')) {
       throw FormatException(
         'Expected "$path.typeTag" to start with "L" for LISTENING.',

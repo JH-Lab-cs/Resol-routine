@@ -4,6 +4,7 @@ import 'package:path/path.dart' as p;
 import '../../../core/database/app_database.dart';
 import '../../../core/database/db_text_limits.dart';
 import '../../../core/domain/domain_enums.dart';
+import '../../../core/security/hidden_unicode.dart';
 import '../../today/data/attempt_payload.dart';
 import 'models/report_schema_v1.dart';
 
@@ -56,7 +57,8 @@ class SharedReportsRepository {
     : _database = database;
 
   static const int _maxSourceLength = DbTextLimits.reportSourceMax;
-  static const int _maxPayloadLength = DbTextLimits.reportPayloadMax;
+  static const int _maxCanonicalPayloadLength = DbTextLimits.reportPayloadMax;
+  static const int _maxRawPayloadLength = DbTextLimits.reportImportRawMaxChars;
 
   final AppDatabase _database;
 
@@ -67,11 +69,11 @@ class SharedReportsRepository {
     final normalizedSource = _normalizeSource(source);
     final normalizedPayload = payloadJson.trim();
 
-    _validatePayloadLength(normalizedPayload, path: 'payloadJson');
+    _validateRawPayloadLength(normalizedPayload, path: 'payloadJson');
 
     final report = ReportSchema.decode(normalizedPayload, path: 'report');
     final canonicalPayload = report.encodeCompact();
-    _validatePayloadLength(canonicalPayload, path: 'report(encoded)');
+    _validateCanonicalPayloadLength(canonicalPayload, path: 'report(encoded)');
 
     return _database
         .into(_database.sharedReports)
@@ -145,16 +147,29 @@ class SharedReportsRepository {
     if (basename.isEmpty) {
       throw const FormatException('source must be a non-empty file name.');
     }
+    validateNoHiddenUnicode(basename, path: 'source');
     if (basename.length > _maxSourceLength) {
       throw FormatException('source length must be <= $_maxSourceLength.');
     }
     return basename;
   }
 
-  void _validatePayloadLength(String payloadJson, {required String path}) {
-    if (payloadJson.length < 2 || payloadJson.length > _maxPayloadLength) {
+  void _validateRawPayloadLength(String payloadJson, {required String path}) {
+    if (payloadJson.length < 2 || payloadJson.length > _maxRawPayloadLength) {
       throw FormatException(
-        '$path length must be between 2 and $_maxPayloadLength characters.',
+        '$path length must be between 2 and $_maxRawPayloadLength characters.',
+      );
+    }
+  }
+
+  void _validateCanonicalPayloadLength(
+    String payloadJson, {
+    required String path,
+  }) {
+    if (payloadJson.length < 2 ||
+        payloadJson.length > _maxCanonicalPayloadLength) {
+      throw FormatException(
+        '$path length must be between 2 and $_maxCanonicalPayloadLength characters.',
       );
     }
   }
