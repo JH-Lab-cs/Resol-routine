@@ -5,6 +5,7 @@ import '../../../core/database/app_database.dart';
 import '../../../core/database/db_text_limits.dart';
 import '../../../core/domain/domain_enums.dart';
 import '../../../core/security/hidden_unicode.dart';
+import '../../../core/security/sha256_hash.dart';
 import '../../today/data/attempt_payload.dart';
 import 'models/report_schema_v1.dart';
 
@@ -52,6 +53,15 @@ class SharedReportRecord {
   final ReportSchema report;
 }
 
+class SharedReportNotFoundException implements Exception {
+  const SharedReportNotFoundException(this.id);
+
+  final int id;
+
+  @override
+  String toString() => 'SharedReportNotFoundException(id: $id)';
+}
+
 class SharedReportsRepository {
   const SharedReportsRepository({required AppDatabase database})
     : _database = database;
@@ -74,15 +84,30 @@ class SharedReportsRepository {
     final report = ReportSchema.decode(normalizedPayload, path: 'report');
     final canonicalPayload = report.encodeCompact();
     _validateCanonicalPayloadLength(canonicalPayload, path: 'report(encoded)');
+    final payloadSha256 = computeSha256Hex(canonicalPayload);
 
-    return _database
-        .into(_database.sharedReports)
-        .insert(
-          SharedReportsCompanion.insert(
-            source: normalizedSource,
-            payloadJson: canonicalPayload,
-          ),
-        );
+    final existingId = await _findExistingIdByHash(payloadSha256);
+    if (existingId != null) {
+      return existingId;
+    }
+
+    try {
+      return await _database
+          .into(_database.sharedReports)
+          .insert(
+            SharedReportsCompanion.insert(
+              source: normalizedSource,
+              payloadJson: canonicalPayload,
+              payloadSha256: Value(payloadSha256),
+            ),
+          );
+    } catch (_) {
+      final concurrentId = await _findExistingIdByHash(payloadSha256);
+      if (concurrentId != null) {
+        return concurrentId;
+      }
+      rethrow;
+    }
   }
 
   Future<List<SharedReportSummary>> listSummaries() async {
@@ -126,7 +151,10 @@ class SharedReportsRepository {
   Future<SharedReportRecord> loadById(int id) async {
     final row = await (_database.select(
       _database.sharedReports,
-    )..where((tbl) => tbl.id.equals(id))).getSingle();
+    )..where((tbl) => tbl.id.equals(id))).getSingleOrNull();
+    if (row == null) {
+      throw SharedReportNotFoundException(id);
+    }
 
     final report = _decodeStoredPayload(
       id: row.id,
@@ -147,6 +175,14 @@ class SharedReportsRepository {
       _database.sharedReports,
     )..where((tbl) => tbl.id.equals(id))).go();
     return deletedCount > 0;
+  }
+
+  Future<int?> _findExistingIdByHash(String payloadSha256) async {
+    final row =
+        await (_database.select(_database.sharedReports)
+              ..where((tbl) => tbl.payloadSha256.equals(payloadSha256)))
+            .getSingleOrNull();
+    return row?.id;
   }
 
   String _normalizeSource(String source) {

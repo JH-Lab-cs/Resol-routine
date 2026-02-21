@@ -45,12 +45,20 @@ class _ParentSharedReportDetailScreenState
       body: AppPageBody(
         child: detailAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (error, _) => Center(
-            child: Text(
-              '리포트를 불러오지 못했습니다.\n$error',
-              textAlign: TextAlign.center,
-            ),
-          ),
+          error: (error, _) {
+            if (error is SharedReportNotFoundException) {
+              return _DeletedReportState(
+                onBack: () => Navigator.of(context).maybePop(),
+              );
+            }
+
+            return Center(
+              child: Text(
+                '리포트를 불러오지 못했습니다.\n$error',
+                textAlign: TextAlign.center,
+              ),
+            );
+          },
           data: (detail) {
             final report = detail.report;
             final totalSolved = report.days.fold<int>(
@@ -106,6 +114,29 @@ class _ParentSharedReportDetailScreenState
               ],
             );
           },
+        ),
+      ),
+    );
+  }
+}
+
+class _DeletedReportState extends StatelessWidget {
+  const _DeletedReportState({required this.onBack});
+
+  final VoidCallback onBack;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('삭제된 리포트입니다', style: AppTypography.section),
+            const SizedBox(height: AppSpacing.sm),
+            FilledButton(onPressed: onBack, child: const Text('목록으로')),
+          ],
         ),
       ),
     );

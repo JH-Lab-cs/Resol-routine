@@ -3,6 +3,9 @@ import 'package:drift/drift.dart';
 import '../converters/json_converters.dart';
 import '../db_text_limits.dart';
 
+const String emptySha256Hex =
+    '0000000000000000000000000000000000000000000000000000000000000000';
+
 class ContentPacks extends Table {
   @override
   String get tableName => 'content_packs';
@@ -216,6 +219,9 @@ class SharedReports extends Table {
       text().withLength(min: 1, max: DbTextLimits.reportSourceMax)();
   TextColumn get payloadJson =>
       text().withLength(min: 2, max: DbTextLimits.reportPayloadMax)();
+  TextColumn get payloadSha256 => text()
+      .withLength(min: 64, max: 64)
+      .withDefault(const Constant(emptySha256Hex))();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 }
 

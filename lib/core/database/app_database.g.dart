@@ -4030,6 +4030,22 @@ class $SharedReportsTable extends SharedReports
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _payloadSha256Meta = const VerificationMeta(
+    'payloadSha256',
+  );
+  @override
+  late final GeneratedColumn<String> payloadSha256 = GeneratedColumn<String>(
+    'payload_sha256',
+    aliasedName,
+    false,
+    additionalChecks: GeneratedColumn.checkTextLength(
+      minTextLength: 64,
+      maxTextLength: 64,
+    ),
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(emptySha256Hex),
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -4043,7 +4059,13 @@ class $SharedReportsTable extends SharedReports
     defaultValue: currentDateAndTime,
   );
   @override
-  List<GeneratedColumn> get $columns => [id, source, payloadJson, createdAt];
+  List<GeneratedColumn> get $columns => [
+    id,
+    source,
+    payloadJson,
+    payloadSha256,
+    createdAt,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -4078,6 +4100,15 @@ class $SharedReportsTable extends SharedReports
     } else if (isInserting) {
       context.missing(_payloadJsonMeta);
     }
+    if (data.containsKey('payload_sha256')) {
+      context.handle(
+        _payloadSha256Meta,
+        payloadSha256.isAcceptableOrUnknown(
+          data['payload_sha256']!,
+          _payloadSha256Meta,
+        ),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -4105,6 +4136,10 @@ class $SharedReportsTable extends SharedReports
         DriftSqlType.string,
         data['${effectivePrefix}payload_json'],
       )!,
+      payloadSha256: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}payload_sha256'],
+      )!,
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -4122,11 +4157,13 @@ class SharedReport extends DataClass implements Insertable<SharedReport> {
   final int id;
   final String source;
   final String payloadJson;
+  final String payloadSha256;
   final DateTime createdAt;
   const SharedReport({
     required this.id,
     required this.source,
     required this.payloadJson,
+    required this.payloadSha256,
     required this.createdAt,
   });
   @override
@@ -4135,6 +4172,7 @@ class SharedReport extends DataClass implements Insertable<SharedReport> {
     map['id'] = Variable<int>(id);
     map['source'] = Variable<String>(source);
     map['payload_json'] = Variable<String>(payloadJson);
+    map['payload_sha256'] = Variable<String>(payloadSha256);
     map['created_at'] = Variable<DateTime>(createdAt);
     return map;
   }
@@ -4144,6 +4182,7 @@ class SharedReport extends DataClass implements Insertable<SharedReport> {
       id: Value(id),
       source: Value(source),
       payloadJson: Value(payloadJson),
+      payloadSha256: Value(payloadSha256),
       createdAt: Value(createdAt),
     );
   }
@@ -4157,6 +4196,7 @@ class SharedReport extends DataClass implements Insertable<SharedReport> {
       id: serializer.fromJson<int>(json['id']),
       source: serializer.fromJson<String>(json['source']),
       payloadJson: serializer.fromJson<String>(json['payloadJson']),
+      payloadSha256: serializer.fromJson<String>(json['payloadSha256']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
     );
   }
@@ -4167,6 +4207,7 @@ class SharedReport extends DataClass implements Insertable<SharedReport> {
       'id': serializer.toJson<int>(id),
       'source': serializer.toJson<String>(source),
       'payloadJson': serializer.toJson<String>(payloadJson),
+      'payloadSha256': serializer.toJson<String>(payloadSha256),
       'createdAt': serializer.toJson<DateTime>(createdAt),
     };
   }
@@ -4175,11 +4216,13 @@ class SharedReport extends DataClass implements Insertable<SharedReport> {
     int? id,
     String? source,
     String? payloadJson,
+    String? payloadSha256,
     DateTime? createdAt,
   }) => SharedReport(
     id: id ?? this.id,
     source: source ?? this.source,
     payloadJson: payloadJson ?? this.payloadJson,
+    payloadSha256: payloadSha256 ?? this.payloadSha256,
     createdAt: createdAt ?? this.createdAt,
   );
   SharedReport copyWithCompanion(SharedReportsCompanion data) {
@@ -4189,6 +4232,9 @@ class SharedReport extends DataClass implements Insertable<SharedReport> {
       payloadJson: data.payloadJson.present
           ? data.payloadJson.value
           : this.payloadJson,
+      payloadSha256: data.payloadSha256.present
+          ? data.payloadSha256.value
+          : this.payloadSha256,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
     );
   }
@@ -4199,13 +4245,15 @@ class SharedReport extends DataClass implements Insertable<SharedReport> {
           ..write('id: $id, ')
           ..write('source: $source, ')
           ..write('payloadJson: $payloadJson, ')
+          ..write('payloadSha256: $payloadSha256, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, source, payloadJson, createdAt);
+  int get hashCode =>
+      Object.hash(id, source, payloadJson, payloadSha256, createdAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -4213,6 +4261,7 @@ class SharedReport extends DataClass implements Insertable<SharedReport> {
           other.id == this.id &&
           other.source == this.source &&
           other.payloadJson == this.payloadJson &&
+          other.payloadSha256 == this.payloadSha256 &&
           other.createdAt == this.createdAt);
 }
 
@@ -4220,17 +4269,20 @@ class SharedReportsCompanion extends UpdateCompanion<SharedReport> {
   final Value<int> id;
   final Value<String> source;
   final Value<String> payloadJson;
+  final Value<String> payloadSha256;
   final Value<DateTime> createdAt;
   const SharedReportsCompanion({
     this.id = const Value.absent(),
     this.source = const Value.absent(),
     this.payloadJson = const Value.absent(),
+    this.payloadSha256 = const Value.absent(),
     this.createdAt = const Value.absent(),
   });
   SharedReportsCompanion.insert({
     this.id = const Value.absent(),
     required String source,
     required String payloadJson,
+    this.payloadSha256 = const Value.absent(),
     this.createdAt = const Value.absent(),
   }) : source = Value(source),
        payloadJson = Value(payloadJson);
@@ -4238,12 +4290,14 @@ class SharedReportsCompanion extends UpdateCompanion<SharedReport> {
     Expression<int>? id,
     Expression<String>? source,
     Expression<String>? payloadJson,
+    Expression<String>? payloadSha256,
     Expression<DateTime>? createdAt,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (source != null) 'source': source,
       if (payloadJson != null) 'payload_json': payloadJson,
+      if (payloadSha256 != null) 'payload_sha256': payloadSha256,
       if (createdAt != null) 'created_at': createdAt,
     });
   }
@@ -4252,12 +4306,14 @@ class SharedReportsCompanion extends UpdateCompanion<SharedReport> {
     Value<int>? id,
     Value<String>? source,
     Value<String>? payloadJson,
+    Value<String>? payloadSha256,
     Value<DateTime>? createdAt,
   }) {
     return SharedReportsCompanion(
       id: id ?? this.id,
       source: source ?? this.source,
       payloadJson: payloadJson ?? this.payloadJson,
+      payloadSha256: payloadSha256 ?? this.payloadSha256,
       createdAt: createdAt ?? this.createdAt,
     );
   }
@@ -4274,6 +4330,9 @@ class SharedReportsCompanion extends UpdateCompanion<SharedReport> {
     if (payloadJson.present) {
       map['payload_json'] = Variable<String>(payloadJson.value);
     }
+    if (payloadSha256.present) {
+      map['payload_sha256'] = Variable<String>(payloadSha256.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -4286,6 +4345,7 @@ class SharedReportsCompanion extends UpdateCompanion<SharedReport> {
           ..write('id: $id, ')
           ..write('source: $source, ')
           ..write('payloadJson: $payloadJson, ')
+          ..write('payloadSha256: $payloadSha256, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
         .toString();
@@ -10004,6 +10064,7 @@ typedef $$SharedReportsTableCreateCompanionBuilder =
       Value<int> id,
       required String source,
       required String payloadJson,
+      Value<String> payloadSha256,
       Value<DateTime> createdAt,
     });
 typedef $$SharedReportsTableUpdateCompanionBuilder =
@@ -10011,6 +10072,7 @@ typedef $$SharedReportsTableUpdateCompanionBuilder =
       Value<int> id,
       Value<String> source,
       Value<String> payloadJson,
+      Value<String> payloadSha256,
       Value<DateTime> createdAt,
     });
 
@@ -10035,6 +10097,11 @@ class $$SharedReportsTableFilterComposer
 
   ColumnFilters<String> get payloadJson => $composableBuilder(
     column: $table.payloadJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get payloadSha256 => $composableBuilder(
+    column: $table.payloadSha256,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -10068,6 +10135,11 @@ class $$SharedReportsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get payloadSha256 => $composableBuilder(
+    column: $table.payloadSha256,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -10091,6 +10163,11 @@ class $$SharedReportsTableAnnotationComposer
 
   GeneratedColumn<String> get payloadJson => $composableBuilder(
     column: $table.payloadJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get payloadSha256 => $composableBuilder(
+    column: $table.payloadSha256,
     builder: (column) => column,
   );
 
@@ -10132,11 +10209,13 @@ class $$SharedReportsTableTableManager
                 Value<int> id = const Value.absent(),
                 Value<String> source = const Value.absent(),
                 Value<String> payloadJson = const Value.absent(),
+                Value<String> payloadSha256 = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
               }) => SharedReportsCompanion(
                 id: id,
                 source: source,
                 payloadJson: payloadJson,
+                payloadSha256: payloadSha256,
                 createdAt: createdAt,
               ),
           createCompanionCallback:
@@ -10144,11 +10223,13 @@ class $$SharedReportsTableTableManager
                 Value<int> id = const Value.absent(),
                 required String source,
                 required String payloadJson,
+                Value<String> payloadSha256 = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
               }) => SharedReportsCompanion.insert(
                 id: id,
                 source: source,
                 payloadJson: payloadJson,
+                payloadSha256: payloadSha256,
                 createdAt: createdAt,
               ),
           withReferenceMapper: (p0) => p0

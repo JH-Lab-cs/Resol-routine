@@ -5,6 +5,7 @@ import 'package:drift/native.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../security/sha256_hash.dart';
 import 'converters/json_converters.dart';
 import 'converters/json_models.dart';
 import 'tables/app_tables.dart';
@@ -32,7 +33,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase({QueryExecutor? executor}) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -56,6 +57,9 @@ class AppDatabase extends _$AppDatabase {
       }
       if (from < 6) {
         await _migrateToV6(m);
+      }
+      if (from == 6) {
+        await _migrateToV7(m);
       }
       await _createIndexes();
       await _ensureUserSettingsRow();
@@ -136,6 +140,32 @@ class AppDatabase extends _$AppDatabase {
     await m.createTable(sharedReports);
   }
 
+  Future<void> _migrateToV7(Migrator m) async {
+    await m.addColumn(sharedReports, sharedReports.payloadSha256);
+
+    final rows = await customSelect(
+      'SELECT id, payload_json FROM shared_reports',
+      readsFrom: {sharedReports},
+    ).get();
+
+    for (final row in rows) {
+      final id = row.read<int>('id');
+      final payloadJson = row.read<String>('payload_json');
+      final payloadSha256 = computeSha256Hex(payloadJson);
+      await customStatement(
+        'UPDATE shared_reports SET payload_sha256 = ? WHERE id = ?',
+        <Object>[payloadSha256, id],
+      );
+    }
+
+    await customStatement(
+      'DELETE FROM shared_reports '
+      'WHERE id NOT IN ('
+      '  SELECT MIN(id) FROM shared_reports GROUP BY payload_sha256'
+      ')',
+    );
+  }
+
   Future<void> _createIndexes() async {
     await customStatement(
       'CREATE INDEX IF NOT EXISTS idx_passages_pack_order '
@@ -181,6 +211,10 @@ class AppDatabase extends _$AppDatabase {
     await customStatement(
       'CREATE INDEX IF NOT EXISTS idx_shared_reports_created_at '
       'ON shared_reports(created_at DESC)',
+    );
+    await customStatement(
+      'CREATE UNIQUE INDEX IF NOT EXISTS ux_shared_reports_payload_sha256 '
+      'ON shared_reports(payload_sha256)',
     );
   }
 

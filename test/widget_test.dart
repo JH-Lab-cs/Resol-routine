@@ -16,6 +16,7 @@ import 'package:resol_routine/core/time/day_key.dart';
 import 'package:resol_routine/features/content_pack/application/content_pack_bootstrap.dart';
 import 'package:resol_routine/features/content_pack/data/content_pack_seeder.dart';
 import 'package:resol_routine/features/my/application/my_stats_providers.dart';
+import 'package:resol_routine/features/report/application/report_providers.dart';
 import 'package:resol_routine/features/report/data/shared_reports_repository.dart';
 import 'package:resol_routine/features/settings/application/user_settings_providers.dart';
 import 'package:resol_routine/features/settings/data/user_settings_repository.dart';
@@ -257,6 +258,63 @@ void main() {
       expect(find.textContaining('ID L-001'), findsOneWidget);
     },
   );
+
+  testWidgets('parent detail shows deleted state after row removal', (
+    WidgetTester tester,
+  ) async {
+    final sharedDb = AppDatabase(executor: NativeDatabase.memory());
+    final fakeSessionRepository = _FakeTodaySessionRepository(sharedDb);
+    final fakeQuizRepository = _FakeTodayQuizRepository(sharedDb);
+    final settingsRepository = UserSettingsRepository(database: sharedDb);
+    final sharedReportsRepository = SharedReportsRepository(database: sharedDb);
+
+    await settingsRepository.updateRole('PARENT');
+    await settingsRepository.updateName('보호자');
+    final importedId = await sharedReportsRepository.importFromJson(
+      source: 'resolroutine_report_20260221_M3.json',
+      payloadJson: _sampleSharedReportJson(),
+    );
+
+    addTearDown(sharedDb.close);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(sharedDb),
+          appBootstrapProvider.overrideWith((ref) async {}),
+          todaySessionRepositoryProvider.overrideWithValue(
+            fakeSessionRepository,
+          ),
+          todayQuizRepositoryProvider.overrideWithValue(fakeQuizRepository),
+        ],
+        child: const ResolRoutineApp(),
+      ),
+    );
+
+    await _pumpUntilVisible(tester, find.textContaining('오답 1개'));
+    await tester.tap(find.textContaining('오답 1개'));
+    await tester.pumpAndSettle();
+    await _pumpUntilVisible(tester, find.text('리포트 상세'));
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(ResolRoutineApp)),
+    );
+    await tester.runAsync(() async {
+      await sharedReportsRepository.deleteById(importedId);
+    });
+    container.invalidate(sharedReportByIdProvider(importedId));
+    container.invalidate(sharedReportSummariesProvider);
+    await tester.pumpAndSettle();
+
+    expect(find.text('삭제된 리포트입니다'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, '목록으로'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(FilledButton, '목록으로'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('가정 리포트'), findsOneWidget);
+    expect(find.text('아직 가져온 리포트가 없습니다.'), findsOneWidget);
+  });
 
   testWidgets('parent home deletes imported report from list', (
     WidgetTester tester,
