@@ -15,6 +15,7 @@ import '../../today/application/today_quiz_providers.dart';
 import '../../today/application/today_session_providers.dart'
     hide selectedTrackProvider;
 import '../../wrong_notes/application/wrong_note_providers.dart';
+import '../../report/presentation/student_report_screen.dart';
 import '../application/profile_ui_prefs_provider.dart';
 import 'my_settings_screen.dart';
 import 'profile_manage_screen.dart';
@@ -111,6 +112,30 @@ class MyScreen extends ConsumerWidget {
                   ),
                 ],
               ),
+              if (settings.role == 'STUDENT') ...[
+                const SizedBox(height: AppSpacing.mdLg),
+                const _SectionHeader(title: '리포트'),
+                const SizedBox(height: AppSpacing.sm),
+                Card(
+                  child: ListTile(
+                    leading: const Icon(
+                      Icons.insert_chart_outlined_rounded,
+                      color: AppColors.primary,
+                    ),
+                    title: const Text('학습 리포트'),
+                    subtitle: const Text('오늘 학습 결과를 JSON으로 내보내기'),
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: () {
+                      Navigator.of(context).push<void>(
+                        MaterialPageRoute<void>(
+                          builder: (_) =>
+                              StudentReportScreen(track: settings.track),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
               if (!kReleaseMode) ...[
                 const SizedBox(height: AppSpacing.lg),
                 FilledButton.tonal(

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:drift/drift.dart' show Variable;
 import 'package:package_info_plus/package_info_plus.dart';
 
@@ -305,7 +307,9 @@ class _DayBuilder {
 
 Future<String?> _defaultAppVersionLoader() async {
   try {
-    final packageInfo = await PackageInfo.fromPlatform();
+    final packageInfo = await PackageInfo.fromPlatform().timeout(
+      const Duration(milliseconds: 800),
+    );
     return '${packageInfo.version}+${packageInfo.buildNumber}';
   } catch (_) {
     return null;

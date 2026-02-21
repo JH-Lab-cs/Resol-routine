@@ -380,7 +380,22 @@ void main() {
     expect(find.text('3회'), findsOneWidget);
     expect(find.text('총 오답'), findsOneWidget);
     expect(find.text('2회'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('학습 리포트'),
+      240,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text('학습 리포트'), findsOneWidget);
     expect(find.text('이번주 외운 단어'), findsNothing);
+
+    await tester.tap(find.text('학습 리포트'));
+    await tester.pumpAndSettle();
+    expect(find.text('리포트'), findsOneWidget);
+    expect(find.text('JSON 리포트 공유'), findsOneWidget);
+
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(find.text('총 오답'), findsOneWidget);
 
     final container = ProviderScope.containerOf(
       tester.element(find.byType(ResolRoutineApp)),
