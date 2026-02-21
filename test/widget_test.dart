@@ -210,6 +210,54 @@ void main() {
     expect(find.textContaining('총 오답 1문항'), findsOneWidget);
   });
 
+  testWidgets(
+    'parent detail day card is collapsed by default and expands on tap',
+    (WidgetTester tester) async {
+      final sharedDb = AppDatabase(executor: NativeDatabase.memory());
+      final fakeSessionRepository = _FakeTodaySessionRepository(sharedDb);
+      final fakeQuizRepository = _FakeTodayQuizRepository(sharedDb);
+      final settingsRepository = UserSettingsRepository(database: sharedDb);
+      final sharedReportsRepository = SharedReportsRepository(
+        database: sharedDb,
+      );
+
+      await settingsRepository.updateRole('PARENT');
+      await settingsRepository.updateName('보호자');
+      await sharedReportsRepository.importFromJson(
+        source: 'resolroutine_report_20260221_M3.json',
+        payloadJson: _sampleSharedReportJson(),
+      );
+
+      addTearDown(sharedDb.close);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            appDatabaseProvider.overrideWithValue(sharedDb),
+            appBootstrapProvider.overrideWith((ref) async {}),
+            todaySessionRepositoryProvider.overrideWithValue(
+              fakeSessionRepository,
+            ),
+            todayQuizRepositoryProvider.overrideWithValue(fakeQuizRepository),
+          ],
+          child: const ResolRoutineApp(),
+        ),
+      );
+
+      await _pumpUntilVisible(tester, find.textContaining('오답 1개'));
+      await tester.tap(find.textContaining('오답 1개'));
+      await tester.pumpAndSettle();
+      await _pumpUntilVisible(tester, find.text('리포트 상세'));
+
+      expect(find.textContaining('ID L-001'), findsNothing);
+
+      await tester.tap(find.byIcon(Icons.keyboard_arrow_down_rounded).first);
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('ID L-001'), findsOneWidget);
+    },
+  );
+
   testWidgets('parent home deletes imported report from list', (
     WidgetTester tester,
   ) async {

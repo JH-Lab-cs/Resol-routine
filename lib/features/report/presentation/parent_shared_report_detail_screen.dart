@@ -9,7 +9,7 @@ import '../application/report_providers.dart';
 import '../data/models/report_schema_v1.dart';
 import '../data/shared_reports_repository.dart';
 
-class ParentSharedReportDetailScreen extends ConsumerWidget {
+class ParentSharedReportDetailScreen extends ConsumerStatefulWidget {
   const ParentSharedReportDetailScreen({
     super.key,
     required this.sharedReportId,
@@ -18,8 +18,27 @@ class ParentSharedReportDetailScreen extends ConsumerWidget {
   final int sharedReportId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final detailAsync = ref.watch(sharedReportByIdProvider(sharedReportId));
+  ConsumerState<ParentSharedReportDetailScreen> createState() =>
+      _ParentSharedReportDetailScreenState();
+}
+
+class _ParentSharedReportDetailScreenState
+    extends ConsumerState<ParentSharedReportDetailScreen> {
+  final Set<int> _expandedDayIndices = <int>{};
+
+  void _toggleDayExpanded(int index) {
+    setState(() {
+      if (!_expandedDayIndices.add(index)) {
+        _expandedDayIndices.remove(index);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final detailAsync = ref.watch(
+      sharedReportByIdProvider(widget.sharedReportId),
+    );
 
     return Scaffold(
       appBar: AppBar(title: const Text('리포트 상세')),
@@ -43,25 +62,47 @@ class ParentSharedReportDetailScreen extends ConsumerWidget {
               (value, day) => value + day.wrongCount,
             );
 
-            return ListView(
-              children: [
-                _HeaderCard(
-                  detail: detail,
-                  totalSolved: totalSolved,
-                  totalWrong: totalWrong,
+            return CustomScrollView(
+              slivers: [
+                SliverToBoxAdapter(
+                  child: _HeaderCard(
+                    detail: detail,
+                    totalSolved: totalSolved,
+                    totalWrong: totalWrong,
+                  ),
                 ),
-                const SizedBox(height: AppSpacing.md),
-                Text('일자별 요약', style: AppTypography.section),
-                const SizedBox(height: AppSpacing.sm),
+                const SliverToBoxAdapter(
+                  child: SizedBox(height: AppSpacing.md),
+                ),
+                SliverToBoxAdapter(
+                  child: Text('일자별 요약', style: AppTypography.section),
+                ),
+                const SliverToBoxAdapter(
+                  child: SizedBox(height: AppSpacing.sm),
+                ),
                 if (report.days.isEmpty)
-                  const Card(
-                    child: Padding(
-                      padding: EdgeInsets.all(AppSpacing.md),
-                      child: Text('리포트에 일자 데이터가 없습니다.'),
+                  const SliverToBoxAdapter(
+                    child: Card(
+                      child: Padding(
+                        padding: EdgeInsets.all(AppSpacing.md),
+                        child: Text('리포트에 일자 데이터가 없습니다.'),
+                      ),
                     ),
                   )
                 else
-                  ...report.days.map((day) => _DaySummaryCard(day: day)),
+                  SliverList(
+                    delegate: SliverChildBuilderDelegate((context, index) {
+                      final day = report.days[index];
+                      return _DaySummaryCard(
+                        day: day,
+                        expanded: _expandedDayIndices.contains(index),
+                        onToggleExpanded: () => _toggleDayExpanded(index),
+                      );
+                    }, childCount: report.days.length),
+                  ),
+                const SliverToBoxAdapter(
+                  child: SizedBox(height: AppSpacing.lg),
+                ),
               ],
             );
           },
@@ -157,54 +198,80 @@ class _HeaderCard extends StatelessWidget {
 }
 
 class _DaySummaryCard extends StatelessWidget {
-  const _DaySummaryCard({required this.day});
+  const _DaySummaryCard({
+    required this.day,
+    required this.expanded,
+    required this.onToggleExpanded,
+  });
 
   final ReportDay day;
+  final bool expanded;
+  final VoidCallback onToggleExpanded;
 
   @override
   Widget build(BuildContext context) {
     return Card(
       margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '${_formatDayKey(day.dayKey)} · ${displayTrack(day.track.dbValue)}',
-              style: AppTypography.section,
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              '풀이 ${day.solvedCount}/6 · 오답 ${day.wrongCount} · 듣기 정답 ${day.listeningCorrect}/3 · 독해 정답 ${day.readingCorrect}/3',
-              style: AppTypography.body,
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            if (day.wrongReasonCounts.isNotEmpty)
-              Wrap(
-                spacing: AppSpacing.xs,
-                runSpacing: AppSpacing.xs,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        onTap: onToggleExpanded,
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 children: [
-                  for (final entry in day.wrongReasonCounts.entries)
-                    _tag(
-                      '${displayWrongReasonTag(entry.key.dbValue)} ${entry.value}회',
+                  Expanded(
+                    child: Text(
+                      '${_formatDayKey(day.dayKey)} · ${displayTrack(day.track.dbValue)}',
+                      style: AppTypography.section,
                     ),
+                  ),
+                  Icon(
+                    expanded
+                        ? Icons.keyboard_arrow_up_rounded
+                        : Icons.keyboard_arrow_down_rounded,
+                    color: AppColors.textSecondary,
+                  ),
                 ],
               ),
-            const SizedBox(height: AppSpacing.sm),
-            ...day.questions.map((question) {
-              final wrongReason = question.wrongReasonTag;
-              return Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-                child: Text(
-                  wrongReason == null
-                      ? '${displaySkill(question.skill.dbValue)} ${question.typeTag} · ${question.isCorrect ? '정답' : '오답'} · ID ${question.questionId}'
-                      : '${displaySkill(question.skill.dbValue)} ${question.typeTag} · 오답(${displayWrongReasonTag(wrongReason.dbValue)}) · ID ${question.questionId}',
-                  style: AppTypography.label,
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                '풀이 ${day.solvedCount}/6 · 오답 ${day.wrongCount} · 듣기 정답 ${day.listeningCorrect}/3 · 독해 정답 ${day.readingCorrect}/3',
+                style: AppTypography.body,
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              if (day.wrongReasonCounts.isNotEmpty)
+                Wrap(
+                  spacing: AppSpacing.xs,
+                  runSpacing: AppSpacing.xs,
+                  children: [
+                    for (final entry in day.wrongReasonCounts.entries)
+                      _tag(
+                        '${displayWrongReasonTag(entry.key.dbValue)} ${entry.value}회',
+                      ),
+                  ],
                 ),
-              );
-            }),
-          ],
+              if (expanded) ...[
+                const SizedBox(height: AppSpacing.sm),
+                const Divider(height: 1, color: AppColors.divider),
+                const SizedBox(height: AppSpacing.sm),
+                ...day.questions.map((question) {
+                  final wrongReason = question.wrongReasonTag;
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+                    child: Text(
+                      wrongReason == null
+                          ? '${displaySkill(question.skill.dbValue)} ${question.typeTag} · ${question.isCorrect ? '정답' : '오답'} · ID ${question.questionId}'
+                          : '${displaySkill(question.skill.dbValue)} ${question.typeTag} · 오답(${displayWrongReasonTag(wrongReason.dbValue)}) · ID ${question.questionId}',
+                      style: AppTypography.label,
+                    ),
+                  );
+                }),
+              ],
+            ],
+          ),
         ),
       ),
     );
