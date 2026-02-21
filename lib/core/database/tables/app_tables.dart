@@ -207,6 +207,18 @@ class UserSettings extends Table {
   List<String> get customConstraints => const <String>['CHECK (id = 1)'];
 }
 
+class SharedReports extends Table {
+  @override
+  String get tableName => 'shared_reports';
+
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get source =>
+      text().withLength(min: 1, max: DbTextLimits.reportSourceMax)();
+  TextColumn get payloadJson =>
+      text().withLength(min: 2, max: DbTextLimits.reportPayloadMax)();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+}
+
 class Attempts extends Table {
   @override
   String get tableName => 'attempts';

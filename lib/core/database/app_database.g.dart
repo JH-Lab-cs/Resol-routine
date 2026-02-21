@@ -3989,6 +3989,309 @@ class UserSettingsCompanion extends UpdateCompanion<UserSetting> {
   }
 }
 
+class $SharedReportsTable extends SharedReports
+    with TableInfo<$SharedReportsTable, SharedReport> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SharedReportsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _sourceMeta = const VerificationMeta('source');
+  @override
+  late final GeneratedColumn<String> source = GeneratedColumn<String>(
+    'source',
+    aliasedName,
+    false,
+    additionalChecks: GeneratedColumn.checkTextLength(minTextLength: 1),
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _payloadJsonMeta = const VerificationMeta(
+    'payloadJson',
+  );
+  @override
+  late final GeneratedColumn<String> payloadJson = GeneratedColumn<String>(
+    'payload_json',
+    aliasedName,
+    false,
+    additionalChecks: GeneratedColumn.checkTextLength(minTextLength: 2),
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id, source, payloadJson, createdAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'shared_reports';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SharedReport> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('source')) {
+      context.handle(
+        _sourceMeta,
+        source.isAcceptableOrUnknown(data['source']!, _sourceMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_sourceMeta);
+    }
+    if (data.containsKey('payload_json')) {
+      context.handle(
+        _payloadJsonMeta,
+        payloadJson.isAcceptableOrUnknown(
+          data['payload_json']!,
+          _payloadJsonMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_payloadJsonMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  SharedReport map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SharedReport(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      source: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source'],
+      )!,
+      payloadJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}payload_json'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $SharedReportsTable createAlias(String alias) {
+    return $SharedReportsTable(attachedDatabase, alias);
+  }
+}
+
+class SharedReport extends DataClass implements Insertable<SharedReport> {
+  final int id;
+  final String source;
+  final String payloadJson;
+  final DateTime createdAt;
+  const SharedReport({
+    required this.id,
+    required this.source,
+    required this.payloadJson,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['source'] = Variable<String>(source);
+    map['payload_json'] = Variable<String>(payloadJson);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  SharedReportsCompanion toCompanion(bool nullToAbsent) {
+    return SharedReportsCompanion(
+      id: Value(id),
+      source: Value(source),
+      payloadJson: Value(payloadJson),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory SharedReport.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SharedReport(
+      id: serializer.fromJson<int>(json['id']),
+      source: serializer.fromJson<String>(json['source']),
+      payloadJson: serializer.fromJson<String>(json['payloadJson']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'source': serializer.toJson<String>(source),
+      'payloadJson': serializer.toJson<String>(payloadJson),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  SharedReport copyWith({
+    int? id,
+    String? source,
+    String? payloadJson,
+    DateTime? createdAt,
+  }) => SharedReport(
+    id: id ?? this.id,
+    source: source ?? this.source,
+    payloadJson: payloadJson ?? this.payloadJson,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  SharedReport copyWithCompanion(SharedReportsCompanion data) {
+    return SharedReport(
+      id: data.id.present ? data.id.value : this.id,
+      source: data.source.present ? data.source.value : this.source,
+      payloadJson: data.payloadJson.present
+          ? data.payloadJson.value
+          : this.payloadJson,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SharedReport(')
+          ..write('id: $id, ')
+          ..write('source: $source, ')
+          ..write('payloadJson: $payloadJson, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, source, payloadJson, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SharedReport &&
+          other.id == this.id &&
+          other.source == this.source &&
+          other.payloadJson == this.payloadJson &&
+          other.createdAt == this.createdAt);
+}
+
+class SharedReportsCompanion extends UpdateCompanion<SharedReport> {
+  final Value<int> id;
+  final Value<String> source;
+  final Value<String> payloadJson;
+  final Value<DateTime> createdAt;
+  const SharedReportsCompanion({
+    this.id = const Value.absent(),
+    this.source = const Value.absent(),
+    this.payloadJson = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  });
+  SharedReportsCompanion.insert({
+    this.id = const Value.absent(),
+    required String source,
+    required String payloadJson,
+    this.createdAt = const Value.absent(),
+  }) : source = Value(source),
+       payloadJson = Value(payloadJson);
+  static Insertable<SharedReport> custom({
+    Expression<int>? id,
+    Expression<String>? source,
+    Expression<String>? payloadJson,
+    Expression<DateTime>? createdAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (source != null) 'source': source,
+      if (payloadJson != null) 'payload_json': payloadJson,
+      if (createdAt != null) 'created_at': createdAt,
+    });
+  }
+
+  SharedReportsCompanion copyWith({
+    Value<int>? id,
+    Value<String>? source,
+    Value<String>? payloadJson,
+    Value<DateTime>? createdAt,
+  }) {
+    return SharedReportsCompanion(
+      id: id ?? this.id,
+      source: source ?? this.source,
+      payloadJson: payloadJson ?? this.payloadJson,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (source.present) {
+      map['source'] = Variable<String>(source.value);
+    }
+    if (payloadJson.present) {
+      map['payload_json'] = Variable<String>(payloadJson.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SharedReportsCompanion(')
+          ..write('id: $id, ')
+          ..write('source: $source, ')
+          ..write('payloadJson: $payloadJson, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $AttemptsTable extends Attempts with TableInfo<$AttemptsTable, Attempt> {
   @override
   final GeneratedDatabase attachedDatabase;
@@ -5911,6 +6214,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $DailySessionItemsTable dailySessionItems =
       $DailySessionItemsTable(this);
   late final $UserSettingsTable userSettings = $UserSettingsTable(this);
+  late final $SharedReportsTable sharedReports = $SharedReportsTable(this);
   late final $AttemptsTable attempts = $AttemptsTable(this);
   late final $VocabMasterTable vocabMaster = $VocabMasterTable(this);
   late final $VocabUserTable vocabUser = $VocabUserTable(this);
@@ -5928,6 +6232,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     dailySessions,
     dailySessionItems,
     userSettings,
+    sharedReports,
     attempts,
     vocabMaster,
     vocabUser,
@@ -9694,6 +9999,183 @@ typedef $$UserSettingsTableProcessedTableManager =
       UserSetting,
       PrefetchHooks Function()
     >;
+typedef $$SharedReportsTableCreateCompanionBuilder =
+    SharedReportsCompanion Function({
+      Value<int> id,
+      required String source,
+      required String payloadJson,
+      Value<DateTime> createdAt,
+    });
+typedef $$SharedReportsTableUpdateCompanionBuilder =
+    SharedReportsCompanion Function({
+      Value<int> id,
+      Value<String> source,
+      Value<String> payloadJson,
+      Value<DateTime> createdAt,
+    });
+
+class $$SharedReportsTableFilterComposer
+    extends Composer<_$AppDatabase, $SharedReportsTable> {
+  $$SharedReportsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get source => $composableBuilder(
+    column: $table.source,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get payloadJson => $composableBuilder(
+    column: $table.payloadJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$SharedReportsTableOrderingComposer
+    extends Composer<_$AppDatabase, $SharedReportsTable> {
+  $$SharedReportsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get source => $composableBuilder(
+    column: $table.source,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get payloadJson => $composableBuilder(
+    column: $table.payloadJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$SharedReportsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SharedReportsTable> {
+  $$SharedReportsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get source =>
+      $composableBuilder(column: $table.source, builder: (column) => column);
+
+  GeneratedColumn<String> get payloadJson => $composableBuilder(
+    column: $table.payloadJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$SharedReportsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SharedReportsTable,
+          SharedReport,
+          $$SharedReportsTableFilterComposer,
+          $$SharedReportsTableOrderingComposer,
+          $$SharedReportsTableAnnotationComposer,
+          $$SharedReportsTableCreateCompanionBuilder,
+          $$SharedReportsTableUpdateCompanionBuilder,
+          (
+            SharedReport,
+            BaseReferences<_$AppDatabase, $SharedReportsTable, SharedReport>,
+          ),
+          SharedReport,
+          PrefetchHooks Function()
+        > {
+  $$SharedReportsTableTableManager(_$AppDatabase db, $SharedReportsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SharedReportsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SharedReportsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SharedReportsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> source = const Value.absent(),
+                Value<String> payloadJson = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+              }) => SharedReportsCompanion(
+                id: id,
+                source: source,
+                payloadJson: payloadJson,
+                createdAt: createdAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String source,
+                required String payloadJson,
+                Value<DateTime> createdAt = const Value.absent(),
+              }) => SharedReportsCompanion.insert(
+                id: id,
+                source: source,
+                payloadJson: payloadJson,
+                createdAt: createdAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$SharedReportsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SharedReportsTable,
+      SharedReport,
+      $$SharedReportsTableFilterComposer,
+      $$SharedReportsTableOrderingComposer,
+      $$SharedReportsTableAnnotationComposer,
+      $$SharedReportsTableCreateCompanionBuilder,
+      $$SharedReportsTableUpdateCompanionBuilder,
+      (
+        SharedReport,
+        BaseReferences<_$AppDatabase, $SharedReportsTable, SharedReport>,
+      ),
+      SharedReport,
+      PrefetchHooks Function()
+    >;
 typedef $$AttemptsTableCreateCompanionBuilder =
     AttemptsCompanion Function({
       Value<int> id,
@@ -11334,6 +11816,8 @@ class $AppDatabaseManager {
       $$DailySessionItemsTableTableManager(_db, _db.dailySessionItems);
   $$UserSettingsTableTableManager get userSettings =>
       $$UserSettingsTableTableManager(_db, _db.userSettings);
+  $$SharedReportsTableTableManager get sharedReports =>
+      $$SharedReportsTableTableManager(_db, _db.sharedReports);
   $$AttemptsTableTableManager get attempts =>
       $$AttemptsTableTableManager(_db, _db.attempts);
   $$VocabMasterTableTableManager get vocabMaster =>
