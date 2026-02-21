@@ -210,6 +210,58 @@ void main() {
     expect(find.textContaining('총 오답 1문항'), findsOneWidget);
   });
 
+  testWidgets('parent home deletes imported report from list', (
+    WidgetTester tester,
+  ) async {
+    final sharedDb = AppDatabase(executor: NativeDatabase.memory());
+    final fakeSessionRepository = _FakeTodaySessionRepository(sharedDb);
+    final fakeQuizRepository = _FakeTodayQuizRepository(sharedDb);
+    final settingsRepository = UserSettingsRepository(database: sharedDb);
+    final sharedReportsRepository = SharedReportsRepository(database: sharedDb);
+
+    await settingsRepository.updateRole('PARENT');
+    await settingsRepository.updateName('보호자');
+    await sharedReportsRepository.importFromJson(
+      source: 'resolroutine_report_20260221_M3.json',
+      payloadJson: _sampleSharedReportJson(),
+    );
+
+    addTearDown(sharedDb.close);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(sharedDb),
+          appBootstrapProvider.overrideWith((ref) async {}),
+          todaySessionRepositoryProvider.overrideWithValue(
+            fakeSessionRepository,
+          ),
+          todayQuizRepositoryProvider.overrideWithValue(fakeQuizRepository),
+        ],
+        child: const ResolRoutineApp(),
+      ),
+    );
+
+    await _pumpUntilVisible(tester, find.text('리포트 가져오기'));
+    await _pumpUntilVisible(tester, find.textContaining('오답 1개'));
+    expect(find.textContaining('오답 1개'), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.more_vert_rounded).first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('삭제'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('리포트 삭제'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, '삭제'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('아직 가져온 리포트가 없습니다.'), findsOneWidget);
+    expect(find.textContaining('오답 1개'), findsNothing);
+
+    final rows = await (sharedDb.select(sharedDb.sharedReports)).get();
+    expect(rows, isEmpty);
+  });
+
   testWidgets(
     'changing settings does not replace app with entry loading gate',
     (WidgetTester tester) async {

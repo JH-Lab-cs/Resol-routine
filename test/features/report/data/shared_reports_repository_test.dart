@@ -90,5 +90,49 @@ void main() {
         throwsA(isA<FormatException>()),
       );
     });
+
+    test('deleteById removes imported row', () async {
+      final report = ReportSchema.v1(
+        generatedAt: DateTime.utc(2026, 2, 21, 9, 0),
+        student: const ReportStudent(
+          role: 'STUDENT',
+          displayName: '민수',
+          track: Track.m3,
+        ),
+        days: <ReportDay>[
+          ReportDay(
+            dayKey: '20260221',
+            track: Track.m3,
+            solvedCount: 1,
+            wrongCount: 0,
+            listeningCorrect: 1,
+            readingCorrect: 0,
+            wrongReasonCounts: const <WrongReasonTag, int>{},
+            questions: const <ReportQuestionResult>[
+              ReportQuestionResult(
+                questionId: 'Q-L-1',
+                skill: Skill.listening,
+                typeTag: 'L1',
+                isCorrect: true,
+                wrongReasonTag: null,
+              ),
+            ],
+          ),
+        ],
+      );
+
+      final importedId = await repository.importFromJson(
+        source: 'delete_target.json',
+        payloadJson: report.encodeCompact(),
+      );
+      expect((await repository.listSummaries()), hasLength(1));
+
+      final deleted = await repository.deleteById(importedId);
+      expect(deleted, isTrue);
+      expect((await repository.listSummaries()), isEmpty);
+
+      final deletedAgain = await repository.deleteById(importedId);
+      expect(deletedAgain, isFalse);
+    });
   });
 }

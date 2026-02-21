@@ -142,6 +142,13 @@ class SharedReportsRepository {
     );
   }
 
+  Future<bool> deleteById(int id) async {
+    final deletedCount = await (_database.delete(
+      _database.sharedReports,
+    )..where((tbl) => tbl.id.equals(id))).go();
+    return deletedCount > 0;
+  }
+
   String _normalizeSource(String source) {
     final basename = p.basename(source.trim());
     if (basename.isEmpty) {

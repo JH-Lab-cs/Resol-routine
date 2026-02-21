@@ -325,13 +325,15 @@ class _ParentHomeContent extends ConsumerWidget {
   }
 }
 
-class _ParentReportSummaryCard extends StatelessWidget {
+enum _ParentReportMenuAction { delete }
+
+class _ParentReportSummaryCard extends ConsumerWidget {
   const _ParentReportSummaryCard({required this.summary});
 
   final SharedReportSummary summary;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final trackLabel = summary.track == null
         ? '-'
         : displayTrack(summary.track!);
@@ -343,7 +345,28 @@ class _ParentReportSummaryCard extends StatelessWidget {
         subtitle: Text(
           '${summary.latestDayKey ?? '-'} · $trackLabel · 오답 ${summary.totalWrongCount}개',
         ),
-        trailing: const Icon(Icons.chevron_right_rounded),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            PopupMenuButton<_ParentReportMenuAction>(
+              icon: const Icon(Icons.more_vert_rounded),
+              tooltip: '리포트 메뉴',
+              onSelected: (action) async {
+                switch (action) {
+                  case _ParentReportMenuAction.delete:
+                    await _confirmDelete(context, ref);
+                }
+              },
+              itemBuilder: (context) => const [
+                PopupMenuItem<_ParentReportMenuAction>(
+                  value: _ParentReportMenuAction.delete,
+                  child: Text('삭제'),
+                ),
+              ],
+            ),
+            const Icon(Icons.chevron_right_rounded),
+          ],
+        ),
         onTap: () {
           Navigator.of(context).push<void>(
             MaterialPageRoute<void>(
@@ -354,5 +377,44 @@ class _ParentReportSummaryCard extends StatelessWidget {
         },
       ),
     );
+  }
+
+  Future<void> _confirmDelete(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('리포트 삭제'),
+        content: const Text('이 리포트를 삭제할까요?\n삭제하면 되돌릴 수 없습니다.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('취소'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('삭제'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) {
+      return;
+    }
+
+    final deleted = await ref
+        .read(sharedReportsRepositoryProvider)
+        .deleteById(summary.id);
+    ref.invalidate(sharedReportSummariesProvider);
+    ref.invalidate(sharedReportByIdProvider(summary.id));
+
+    if (!context.mounted) {
+      return;
+    }
+
+    final message = deleted ? '리포트를 삭제했습니다.' : '이미 삭제된 리포트입니다.';
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 }
