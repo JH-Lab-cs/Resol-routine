@@ -80,7 +80,7 @@ void main() {
         );
 
         expect(exportPayload.fileName, 'resolroutine_report_20260221_M3.json');
-        expect(exportPayload.report.schemaVersion, 1);
+        expect(exportPayload.report.schemaVersion, 2);
         expect(exportPayload.report.appVersion, '9.9.9+9');
         expect(exportPayload.report.days, hasLength(2));
         expect(exportPayload.report.days.first.dayKey, '20260221');
@@ -120,7 +120,7 @@ void main() {
         );
 
         expect(report.days, isEmpty);
-        expect(report.schemaVersion, 1);
+        expect(report.schemaVersion, 2);
       },
     );
   });

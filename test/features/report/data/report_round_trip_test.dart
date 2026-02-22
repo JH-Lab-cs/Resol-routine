@@ -11,6 +11,7 @@ import 'package:resol_routine/features/report/data/report_export_repository.dart
 import 'package:resol_routine/features/report/data/shared_reports_repository.dart';
 import 'package:resol_routine/features/today/data/today_quiz_repository.dart';
 import 'package:resol_routine/features/today/data/today_session_repository.dart';
+import 'package:resol_routine/features/vocab/data/vocab_quiz_results_repository.dart';
 
 void main() {
   group('Report round-trip', () {
@@ -19,6 +20,7 @@ void main() {
     late TodayQuizRepository quizRepository;
     late ReportExportRepository exportRepository;
     late SharedReportsRepository sharedReportsRepository;
+    late VocabQuizResultsRepository vocabQuizResultsRepository;
 
     setUp(() async {
       database = AppDatabase(executor: NativeDatabase.memory());
@@ -39,6 +41,9 @@ void main() {
         appVersionLoader: () async => '1.2.3+45',
       );
       sharedReportsRepository = SharedReportsRepository(database: database);
+      vocabQuizResultsRepository = VocabQuizResultsRepository(
+        database: database,
+      );
     });
 
     tearDown(() async {
@@ -91,6 +96,14 @@ void main() {
           isCorrect: true,
         );
 
+        await vocabQuizResultsRepository.upsertDailyResult(
+          dayKey: '20260221',
+          track: 'M3',
+          totalCount: 20,
+          correctCount: 18,
+          wrongVocabIds: <String>['vocab_alpha', 'vocab_beta'],
+        );
+
         final exportPayload = await exportRepository.buildExportPayload(
           track: 'M3',
           nowLocal: DateTime(2026, 2, 21, 23, 59),
@@ -116,9 +129,15 @@ void main() {
         expect(summaries.first.topWrongReasonTag, 'VOCAB');
 
         final detail = await sharedReportsRepository.loadById(importedId);
-        expect(detail.report.schemaVersion, 1);
+        expect(detail.report.schemaVersion, 2);
         expect(detail.report.appVersion, '1.2.3+45');
         expect(detail.report.days, hasLength(2));
+        expect(detail.report.days.first.vocabQuiz, isNotNull);
+        expect(detail.report.days.first.vocabQuiz!.correctCount, 18);
+        expect(detail.report.days.first.vocabQuiz!.wrongVocabIds, <String>[
+          'vocab_alpha',
+          'vocab_beta',
+        ]);
         expect(detail.report.days.first.questions, hasLength(2));
         expect(detail.report.days.last.questions, hasLength(3));
 

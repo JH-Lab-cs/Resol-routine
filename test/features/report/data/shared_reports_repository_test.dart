@@ -83,7 +83,7 @@ void main() {
 
     test('rejects malformed payload during import', () async {
       const malformed =
-          '{"schemaVersion":2,"generatedAt":"2026-02-21T00:00:00Z"}';
+          '{"schemaVersion":3,"generatedAt":"2026-02-21T00:00:00Z"}';
 
       await expectLater(
         repository.importFromJson(source: 'bad.json', payloadJson: malformed),
