@@ -8,6 +8,7 @@ import '../../../core/ui/label_maps.dart';
 import '../application/report_providers.dart';
 import '../data/models/report_schema_v1.dart';
 import '../data/shared_reports_repository.dart';
+import 'widgets/vocab_bookmarks_section.dart';
 import 'widgets/vocab_wrong_words_section.dart';
 
 class ParentSharedReportDetailScreen extends ConsumerStatefulWidget {
@@ -70,6 +71,8 @@ class _ParentSharedReportDetailScreenState
               0,
               (value, day) => value + day.wrongCount,
             );
+            final bookmarkedVocabIds =
+                report.vocabBookmarks?.bookmarkedVocabIds ?? const <String>[];
 
             return CustomScrollView(
               slivers: [
@@ -78,6 +81,15 @@ class _ParentSharedReportDetailScreenState
                     detail: detail,
                     totalSolved: totalSolved,
                     totalWrong: totalWrong,
+                    bookmarkedCount: bookmarkedVocabIds.length,
+                  ),
+                ),
+                const SliverToBoxAdapter(
+                  child: SizedBox(height: AppSpacing.md),
+                ),
+                SliverToBoxAdapter(
+                  child: VocabBookmarksSection(
+                    bookmarkedVocabIds: bookmarkedVocabIds,
                   ),
                 ),
                 const SliverToBoxAdapter(
@@ -106,6 +118,9 @@ class _ParentSharedReportDetailScreenState
                         day: day,
                         expanded: _expandedDayIndices.contains(index),
                         onToggleExpanded: () => _toggleDayExpanded(index),
+                        dayToggleKey: ValueKey<String>(
+                          'report-day-toggle-${day.dayKey}-${day.track.dbValue}',
+                        ),
                       );
                     }, childCount: report.days.length),
                   ),
@@ -149,11 +164,13 @@ class _HeaderCard extends StatelessWidget {
     required this.detail,
     required this.totalSolved,
     required this.totalWrong,
+    required this.bookmarkedCount,
   });
 
   final SharedReportRecord detail;
   final int totalSolved;
   final int totalWrong;
+  final int bookmarkedCount;
 
   @override
   Widget build(BuildContext context) {
@@ -193,6 +210,7 @@ class _HeaderCard extends StatelessWidget {
                 _pill('총 풀이 $totalSolved문항'),
                 _pill('총 오답 $totalWrong문항'),
                 _pill('일수 ${detail.report.days.length}일'),
+                _pill('북마크 $bookmarkedCount개'),
               ],
             ),
           ],
@@ -234,17 +252,20 @@ class _DaySummaryCard extends StatelessWidget {
     required this.day,
     required this.expanded,
     required this.onToggleExpanded,
+    required this.dayToggleKey,
   });
 
   final ReportDay day;
   final bool expanded;
   final VoidCallback onToggleExpanded;
+  final Key dayToggleKey;
 
   @override
   Widget build(BuildContext context) {
     return Card(
       margin: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: InkWell(
+        key: dayToggleKey,
         borderRadius: BorderRadius.circular(AppRadius.md),
         onTap: onToggleExpanded,
         child: Padding(
@@ -276,7 +297,7 @@ class _DaySummaryCard extends StatelessWidget {
               if (day.vocabQuiz != null) ...[
                 const SizedBox(height: AppSpacing.xxs),
                 Text(
-                  '단어시험 ${day.vocabQuiz!.correctCount}/${day.vocabQuiz!.totalCount} · 단어 오답 ${day.vocabQuiz!.totalCount - day.vocabQuiz!.correctCount}개',
+                  '단어시험 ${day.vocabQuiz!.correctCount}/${day.vocabQuiz!.totalCount} · ${_formatAccuracy(correctCount: day.vocabQuiz!.correctCount, totalCount: day.vocabQuiz!.totalCount)}',
                   style: AppTypography.label.copyWith(
                     color: AppColors.textSecondary,
                   ),
@@ -352,4 +373,12 @@ class _DaySummaryCard extends StatelessWidget {
   String _formatDayKey(String dayKey) {
     return '${dayKey.substring(0, 4)}-${dayKey.substring(4, 6)}-${dayKey.substring(6, 8)}';
   }
+}
+
+String _formatAccuracy({required int correctCount, required int totalCount}) {
+  if (totalCount <= 0) {
+    return '0%';
+  }
+  final percent = ((correctCount * 100) / totalCount).round();
+  return '$percent%';
 }

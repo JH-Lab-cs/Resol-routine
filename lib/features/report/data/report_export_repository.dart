@@ -34,6 +34,7 @@ class ReportExportRepository {
 
   static const Set<String> _supportedTracks = <String>{'M3', 'H1', 'H2', 'H3'};
   static const int _maxPayloadLength = DbTextLimits.reportPayloadMax;
+  static const int _maxBookmarkedVocabIds = reportMaxBookmarkedVocabIds;
 
   final AppDatabase _database;
   final AppVersionLoader _appVersionLoader;
@@ -47,12 +48,14 @@ class ReportExportRepository {
     final resolvedNow = nowLocal ?? DateTime.now();
     final student = await _loadStudent();
     final days = await _loadDays(track: track);
+    final vocabBookmarks = await _loadVocabBookmarks();
 
-    return ReportSchema.v2(
+    return ReportSchema.v3(
       generatedAt: resolvedNow.toUtc(),
       appVersion: await _appVersionLoader(),
       student: student,
       days: days,
+      vocabBookmarks: vocabBookmarks,
     );
   }
 
@@ -163,11 +166,23 @@ class ReportExportRepository {
       );
     }
 
-    return ReportSchema.v2(
+    if (original.schemaVersion == reportSchemaV2) {
+      return ReportSchema.v2(
+        generatedAt: original.generatedAt,
+        appVersion: original.appVersion,
+        student: original.student,
+        days: trimmedDays,
+      );
+    }
+
+    return ReportSchema.v3(
       generatedAt: original.generatedAt,
       appVersion: original.appVersion,
       student: original.student,
       days: trimmedDays,
+      vocabBookmarks:
+          original.vocabBookmarks ??
+          const ReportVocabBookmarks(bookmarkedVocabIds: <String>[]),
     );
   }
 
@@ -281,11 +296,35 @@ class ReportExportRepository {
       ReportDay.fromJson(
         builtDays[i].toJson(),
         path: 'days[$i]',
-        schemaVersion: reportSchemaV2,
+        schemaVersion: reportCurrentSchemaVersion,
       );
     }
 
     return builtDays;
+  }
+
+  Future<ReportVocabBookmarks> _loadVocabBookmarks() async {
+    final rows = await _database
+        .customSelect(
+          'SELECT vu.vocab_id AS vocab_id '
+          'FROM vocab_user vu '
+          'INNER JOIN vocab_master vm ON vm.id = vu.vocab_id '
+          'WHERE vu.is_bookmarked = 1 '
+          'ORDER BY vu.vocab_id ASC '
+          'LIMIT ?',
+          variables: <Variable<Object>>[Variable<int>(_maxBookmarkedVocabIds)],
+          readsFrom: {_database.vocabUser, _database.vocabMaster},
+        )
+        .get();
+
+    final bookmarkedVocabIds = <String>[];
+    for (final row in rows) {
+      bookmarkedVocabIds.add(row.read<String>('vocab_id'));
+    }
+
+    return ReportVocabBookmarks.fromJson(<String, Object?>{
+      'bookmarkedVocabIds': bookmarkedVocabIds,
+    }, path: 'vocabBookmarks');
   }
 
   String _dayBuilderKey({required String dayKey, required Track track}) {

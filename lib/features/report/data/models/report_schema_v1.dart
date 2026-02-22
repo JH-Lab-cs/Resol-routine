@@ -9,11 +9,13 @@ typedef ReportJsonMap = Map<String, Object?>;
 
 const int reportSchemaV1 = 1;
 const int reportSchemaV2 = 2;
-const int reportCurrentSchemaVersion = reportSchemaV2;
+const int reportSchemaV3 = 3;
+const int reportCurrentSchemaVersion = reportSchemaV3;
 const int reportMaxDays = 3660;
 const int reportMaxQuestionsPerDay = 6;
 const int reportMaxCorrectPerSkill = 3;
 const int reportMaxVocabQuizTotalCount = 20;
+const int reportMaxBookmarkedVocabIds = 2000;
 const int reportMaxAppVersionLength = 64;
 
 const Set<String> _supportedRoles = <String>{'STUDENT', 'PARENT'};
@@ -25,6 +27,7 @@ class ReportSchema {
     required this.appVersion,
     required this.student,
     required this.days,
+    required this.vocabBookmarks,
   });
 
   final int schemaVersion;
@@ -32,6 +35,7 @@ class ReportSchema {
   final String? appVersion;
   final ReportStudent student;
   final List<ReportDay> days;
+  final ReportVocabBookmarks? vocabBookmarks;
 
   factory ReportSchema.v1({
     required DateTime generatedAt,
@@ -45,6 +49,7 @@ class ReportSchema {
       appVersion: appVersion,
       student: student,
       days: List<ReportDay>.unmodifiable(days),
+      vocabBookmarks: null,
     );
   }
 
@@ -60,28 +65,55 @@ class ReportSchema {
       appVersion: appVersion,
       student: student,
       days: List<ReportDay>.unmodifiable(days),
+      vocabBookmarks: null,
+    );
+  }
+
+  factory ReportSchema.v3({
+    required DateTime generatedAt,
+    String? appVersion,
+    required ReportStudent student,
+    required List<ReportDay> days,
+    required ReportVocabBookmarks vocabBookmarks,
+  }) {
+    return ReportSchema(
+      schemaVersion: reportSchemaV3,
+      generatedAt: generatedAt.toUtc(),
+      appVersion: appVersion,
+      student: student,
+      days: List<ReportDay>.unmodifiable(days),
+      vocabBookmarks: vocabBookmarks,
     );
   }
 
   factory ReportSchema.fromJson(ReportJsonMap json, {String path = 'root'}) {
-    _validateAllowedKeys(json, const <String>{
-      'schemaVersion',
-      'generatedAt',
-      'appVersion',
-      'student',
-      'days',
-    }, path: path);
-
     final schemaVersion = _readRequiredInt(
       json,
       'schemaVersion',
       path: '$path.schemaVersion',
     );
-    if (schemaVersion != reportSchemaV1 && schemaVersion != reportSchemaV2) {
-      throw FormatException(
-        'Expected "$path.schemaVersion" to be $reportSchemaV1 or $reportSchemaV2.',
-      );
-    }
+    final allowedRootKeys = switch (schemaVersion) {
+      reportSchemaV1 || reportSchemaV2 => const <String>{
+        'schemaVersion',
+        'generatedAt',
+        'appVersion',
+        'student',
+        'days',
+      },
+      reportSchemaV3 => const <String>{
+        'schemaVersion',
+        'generatedAt',
+        'appVersion',
+        'student',
+        'days',
+        'vocabBookmarks',
+      },
+      _ => throw FormatException(
+        'Expected "$path.schemaVersion" to be '
+        '$reportSchemaV1, $reportSchemaV2, or $reportSchemaV3.',
+      ),
+    };
+    _validateAllowedKeys(json, allowedRootKeys, path: path);
 
     final generatedAtRaw = _readRequiredString(
       json,
@@ -130,12 +162,25 @@ class ReportSchema {
       days.add(day);
     }
 
+    ReportVocabBookmarks? vocabBookmarks;
+    if (schemaVersion == reportSchemaV3) {
+      vocabBookmarks = ReportVocabBookmarks.fromJson(
+        _readRequiredObject(
+          json,
+          'vocabBookmarks',
+          path: '$path.vocabBookmarks',
+        ),
+        path: '$path.vocabBookmarks',
+      );
+    }
+
     return ReportSchema(
       schemaVersion: schemaVersion,
       generatedAt: generatedAt.toUtc(),
       appVersion: appVersion,
       student: student,
       days: List<ReportDay>.unmodifiable(days),
+      vocabBookmarks: vocabBookmarks,
     );
   }
 
@@ -151,6 +196,7 @@ class ReportSchema {
       if (appVersion != null) 'appVersion': appVersion,
       'student': student.toJson(),
       'days': days.map((day) => day.toJson()).toList(growable: false),
+      if (vocabBookmarks != null) 'vocabBookmarks': vocabBookmarks!.toJson(),
     };
   }
 
@@ -251,7 +297,8 @@ class ReportDay {
     String path = 'day',
     int schemaVersion = reportSchemaV1,
   }) {
-    final allowedKeys = schemaVersion == reportSchemaV2
+    final supportsVocabQuiz = schemaVersion >= reportSchemaV2;
+    final allowedKeys = supportsVocabQuiz
         ? const <String>{
             'dayKey',
             'track',
@@ -371,7 +418,7 @@ class ReportDay {
     }
 
     ReportVocabQuizSummary? vocabQuiz;
-    if (schemaVersion == reportSchemaV2 && json.containsKey('vocabQuiz')) {
+    if (supportsVocabQuiz && json.containsKey('vocabQuiz')) {
       final raw = json['vocabQuiz'];
       if (raw == null) {
         throw FormatException('Expected "$path.vocabQuiz" to be an object.');
@@ -540,6 +587,69 @@ class ReportDay {
       }
     }
     return true;
+  }
+}
+
+class ReportVocabBookmarks {
+  const ReportVocabBookmarks({required this.bookmarkedVocabIds});
+
+  final List<String> bookmarkedVocabIds;
+
+  factory ReportVocabBookmarks.fromJson(
+    ReportJsonMap json, {
+    String path = 'vocabBookmarks',
+  }) {
+    _validateAllowedKeys(json, const <String>{
+      'bookmarkedVocabIds',
+    }, path: path);
+
+    final rawIds = _readRequiredArray(
+      json,
+      'bookmarkedVocabIds',
+      path: '$path.bookmarkedVocabIds',
+    );
+    if (rawIds.length > reportMaxBookmarkedVocabIds) {
+      throw FormatException(
+        'Expected "$path.bookmarkedVocabIds" length <= $reportMaxBookmarkedVocabIds.',
+      );
+    }
+
+    final ids = <String>[];
+    final seen = <String>{};
+    for (var i = 0; i < rawIds.length; i++) {
+      final raw = rawIds[i];
+      if (raw is! String) {
+        throw FormatException(
+          'Expected "$path.bookmarkedVocabIds[$i]" to be a string.',
+        );
+      }
+      final normalized = raw.trim();
+      if (normalized.isEmpty) {
+        throw FormatException(
+          'Expected "$path.bookmarkedVocabIds[$i]" to be non-empty.',
+        );
+      }
+      if (normalized.length > DbTextLimits.idMax) {
+        throw FormatException(
+          'Expected "$path.bookmarkedVocabIds[$i]" length <= ${DbTextLimits.idMax}.',
+        );
+      }
+      validateNoHiddenUnicode(normalized, path: '$path.bookmarkedVocabIds[$i]');
+      if (!seen.add(normalized)) {
+        throw FormatException(
+          'Duplicated value at "$path.bookmarkedVocabIds[$i]".',
+        );
+      }
+      ids.add(normalized);
+    }
+
+    return ReportVocabBookmarks(
+      bookmarkedVocabIds: List<String>.unmodifiable(ids),
+    );
+  }
+
+  ReportJsonMap toJson() {
+    return <String, Object?>{'bookmarkedVocabIds': bookmarkedVocabIds};
   }
 }
 

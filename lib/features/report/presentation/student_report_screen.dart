@@ -13,6 +13,7 @@ import '../../../core/ui/label_maps.dart';
 import '../../../core/time/day_key.dart';
 import '../application/report_providers.dart';
 import '../data/models/report_schema_v1.dart';
+import 'widgets/vocab_bookmarks_section.dart';
 import 'widgets/vocab_wrong_words_section.dart';
 
 class StudentReportScreen extends ConsumerStatefulWidget {
@@ -151,6 +152,14 @@ class _ReportBody extends StatelessWidget {
     final todayKey = formatDayKey(DateTime.now());
     final today = _findDayByKey(report.days, todayKey);
     final todayVocabQuiz = today?.vocabQuiz;
+    final bookmarkedVocabIds =
+        report.vocabBookmarks?.bookmarkedVocabIds ?? const <String>[];
+    final todayVocabAccuracy = todayVocabQuiz == null
+        ? null
+        : _formatAccuracy(
+            correctCount: todayVocabQuiz.correctCount,
+            totalCount: todayVocabQuiz.totalCount,
+          );
 
     return ListView(
       children: [
@@ -174,7 +183,7 @@ class _ReportBody extends StatelessWidget {
                       ? '오늘 풀이 데이터가 없습니다.'
                       : todayVocabQuiz == null
                       ? '풀이 문항 ${today.solvedCount}/6 · 오답 ${today.wrongCount}개'
-                      : '풀이 문항 ${today.solvedCount}/6 · 오답 ${today.wrongCount}개 · 단어시험 ${todayVocabQuiz.correctCount}/${todayVocabQuiz.totalCount} · 단어 오답 ${todayVocabQuiz.totalCount - todayVocabQuiz.correctCount}개',
+                      : '풀이 문항 ${today.solvedCount}/6 · 오답 ${today.wrongCount}개 · 단어시험 ${todayVocabQuiz.correctCount}/${todayVocabQuiz.totalCount} · $todayVocabAccuracy',
                   style: AppTypography.body,
                 ),
                 const SizedBox(height: AppSpacing.xs),
@@ -208,6 +217,8 @@ class _ReportBody extends StatelessWidget {
             ),
           ),
         ),
+        const SizedBox(height: AppSpacing.md),
+        VocabBookmarksSection(bookmarkedVocabIds: bookmarkedVocabIds),
         const SizedBox(height: AppSpacing.md),
         if (today == null)
           const Card(
@@ -285,11 +296,7 @@ class _TodayScoreCard extends StatelessWidget {
                 _pill('오답 ${day.wrongCount}개'),
                 if (day.vocabQuiz != null)
                   _pill(
-                    '단어시험 ${day.vocabQuiz!.correctCount}/${day.vocabQuiz!.totalCount}',
-                  ),
-                if (day.vocabQuiz != null)
-                  _pill(
-                    '단어 오답 ${day.vocabQuiz!.totalCount - day.vocabQuiz!.correctCount}개',
+                    '단어시험 ${day.vocabQuiz!.correctCount}/${day.vocabQuiz!.totalCount} · ${_formatAccuracy(correctCount: day.vocabQuiz!.correctCount, totalCount: day.vocabQuiz!.totalCount)}',
                   ),
               ],
             ),
@@ -338,4 +345,12 @@ class _TodayScoreCard extends StatelessWidget {
   String _formatDayKey(String dayKey) {
     return '${dayKey.substring(0, 4)}-${dayKey.substring(4, 6)}-${dayKey.substring(6, 8)}';
   }
+}
+
+String _formatAccuracy({required int correctCount, required int totalCount}) {
+  if (totalCount <= 0) {
+    return '0%';
+  }
+  final percent = ((correctCount * 100) / totalCount).round();
+  return '$percent%';
 }
