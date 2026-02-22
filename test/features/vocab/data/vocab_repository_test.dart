@@ -202,6 +202,88 @@ void main() {
         throwsA(isA<FormatException>()),
       );
     });
+
+    test(
+      'buildQuiz includes bookmarked custom vocabulary and keeps selection invariants',
+      () async {
+        const customBookmarkedIds = <String>[
+          'user_custom_quiz_a',
+          'user_custom_quiz_b',
+          'user_custom_quiz_c',
+        ];
+        await _seedQuizVocabulary(
+          database,
+          baseCount: 27,
+          customBookmarkedIds: customBookmarkedIds,
+        );
+
+        final fixedNow = DateTime.utc(2026, 2, 23, 9, 0);
+        final firstQuiz = await repository.buildQuiz(
+          nowLocal: fixedNow,
+          count: 20,
+        );
+        final secondQuiz = await repository.buildQuiz(
+          nowLocal: fixedNow,
+          count: 20,
+        );
+
+        expect(firstQuiz.length, 20);
+        final quizIds = firstQuiz.map((question) => question.vocabId).toList();
+        expect(quizIds.toSet().length, 20);
+        for (final customId in customBookmarkedIds) {
+          expect(quizIds, contains(customId));
+        }
+
+        for (final question in firstQuiz) {
+          expect(question.options, hasLength(5));
+          expect(
+            question.correctOptionIndex,
+            inInclusiveRange(0, question.options.length - 1),
+          );
+          expect(
+            question.options[question.correctOptionIndex],
+            question.correctMeaning,
+          );
+          expect(
+            question.options.where(
+              (option) => option == question.correctMeaning,
+            ),
+            hasLength(1),
+          );
+        }
+
+        expect(
+          firstQuiz.map(_quizSnapshot).toList(),
+          secondQuiz.map(_quizSnapshot).toList(),
+        );
+      },
+    );
+
+    test(
+      'buildQuiz selects only custom bookmarked items when they are at least 20',
+      () async {
+        final customBookmarkedIds = List<String>.generate(
+          22,
+          (index) => 'user_custom_pool_${index.toString().padLeft(2, '0')}',
+        );
+        await _seedQuizVocabulary(
+          database,
+          baseCount: 12,
+          customBookmarkedIds: customBookmarkedIds,
+        );
+
+        final quiz = await repository.buildQuiz(
+          nowLocal: DateTime.utc(2026, 2, 23, 9, 0),
+          count: 20,
+        );
+
+        expect(quiz.length, 20);
+        expect(quiz.map((question) => question.vocabId).toSet().length, 20);
+        for (final question in quiz) {
+          expect(question.vocabId.startsWith('user_'), isTrue);
+        }
+      },
+    );
   });
 }
 
@@ -218,6 +300,36 @@ Future<void> _insertVocabulary(
       );
 }
 
+Future<void> _seedQuizVocabulary(
+  AppDatabase database, {
+  required int baseCount,
+  required List<String> customBookmarkedIds,
+}) async {
+  await database.batch((batch) {
+    batch.insertAll(database.vocabMaster, <VocabMasterCompanion>[
+      for (var i = 0; i < baseCount; i++)
+        VocabMasterCompanion.insert(
+          id: 'seed_quiz_vocab_$i',
+          lemma: 'seedLemma$i',
+          meaning: 'seedMeaning$i',
+        ),
+      for (var i = 0; i < customBookmarkedIds.length; i++)
+        VocabMasterCompanion.insert(
+          id: customBookmarkedIds[i],
+          lemma: 'customLemma$i',
+          meaning: 'customMeaning$i',
+        ),
+    ]);
+    batch.insertAll(database.vocabUser, <VocabUserCompanion>[
+      for (final customId in customBookmarkedIds)
+        VocabUserCompanion.insert(
+          vocabId: customId,
+          isBookmarked: const Value(true),
+        ),
+    ]);
+  });
+}
+
 Future<VocabMasterData> _loadSingleCustomVocabulary(
   AppDatabase database,
 ) async {
@@ -227,4 +339,8 @@ Future<VocabMasterData> _loadSingleCustomVocabulary(
       .toList();
   expect(customRows, hasLength(1));
   return customRows.single;
+}
+
+String _quizSnapshot(VocabQuizQuestion question) {
+  return '${question.vocabId}|${question.correctOptionIndex}|${question.options.join('||')}';
 }
