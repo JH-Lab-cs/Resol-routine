@@ -5,6 +5,7 @@ import '../../../core/ui/app_tokens.dart';
 import '../../../core/ui/components/app_scaffold.dart';
 import '../../../core/ui/components/primary_pill_button.dart';
 import '../../../core/time/day_key.dart';
+import '../../report/application/report_providers.dart';
 import '../../today/application/today_session_providers.dart';
 import '../application/vocab_providers.dart';
 import '../data/vocab_repository.dart';
@@ -203,6 +204,7 @@ class _TodayVocabQuizScreenState extends ConsumerState<TodayVocabQuizScreen> {
 
     final track = ref.read(selectedTrackProvider);
     final dayKey = formatDayKey(DateTime.now());
+    final container = ProviderScope.containerOf(context, listen: false);
 
     try {
       await ref
@@ -214,6 +216,8 @@ class _TodayVocabQuizScreenState extends ConsumerState<TodayVocabQuizScreen> {
             correctCount: _correctCount,
             wrongVocabIds: _wrongVocabIds.toList(growable: false),
           );
+      container.invalidate(studentCumulativeReportProvider(track));
+      container.invalidate(studentTodayReportProvider(track));
     } catch (error) {
       if (!mounted) {
         return;
