@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:drift/drift.dart' show Variable;
 import 'package:package_info_plus/package_info_plus.dart';
@@ -47,7 +48,7 @@ class ReportExportRepository {
     final student = await _loadStudent();
     final days = await _loadDays(track: track);
 
-    return ReportSchema.v1(
+    return ReportSchema.v2(
       generatedAt: resolvedNow.toUtc(),
       appVersion: await _appVersionLoader(),
       student: student,
@@ -153,7 +154,16 @@ class ReportExportRepository {
         .take(boundedKeepDays)
         .toList(growable: false);
 
-    return ReportSchema.v1(
+    if (original.schemaVersion == reportSchemaV1) {
+      return ReportSchema.v1(
+        generatedAt: original.generatedAt,
+        appVersion: original.appVersion,
+        student: original.student,
+        days: trimmedDays,
+      );
+    }
+
+    return ReportSchema.v2(
       generatedAt: original.generatedAt,
       appVersion: original.appVersion,
       student: original.student,
@@ -249,16 +259,54 @@ class ReportExportRepository {
       dayBuilder.addSolvedQuestion(question);
     }
 
+    final vocabQuizByDayKey = await _loadVocabQuizByDayKey(track: track);
+
     final builtDays = dayBuilders.values
-        .map((builder) => builder.build())
+        .map(
+          (builder) =>
+              builder.build(vocabQuiz: vocabQuizByDayKey[builder.dayKey]),
+        )
         .toList(growable: false);
 
     for (var i = 0; i < builtDays.length; i++) {
       // Re-validate serialized output so exported files always satisfy schema guards.
-      ReportDay.fromJson(builtDays[i].toJson(), path: 'days[$i]');
+      ReportDay.fromJson(
+        builtDays[i].toJson(),
+        path: 'days[$i]',
+        schemaVersion: reportSchemaV2,
+      );
     }
 
     return builtDays;
+  }
+
+  Future<Map<String, ReportVocabQuizSummary>> _loadVocabQuizByDayKey({
+    required String track,
+  }) async {
+    final rows = await _database
+        .customSelect(
+          'SELECT day_key, total_count, correct_count, wrong_vocab_ids_json '
+          'FROM vocab_quiz_results '
+          'WHERE track = ?',
+          variables: <Variable<Object>>[Variable<String>(track)],
+          readsFrom: {_database.vocabQuizResults},
+        )
+        .get();
+
+    final byDayKey = <String, ReportVocabQuizSummary>{};
+    for (final row in rows) {
+      final dayKey = _formatDayKey(row.read<int>('day_key'));
+      final wrongVocabIds = _decodeWrongVocabIds(
+        row.read<String>('wrong_vocab_ids_json'),
+        path: 'vocabQuizResults[$dayKey].wrongVocabIdsJson',
+      );
+      byDayKey[dayKey] = ReportVocabQuizSummary.fromJson(<String, Object?>{
+        'totalCount': row.read<int>('total_count'),
+        'correctCount': row.read<int>('correct_count'),
+        'wrongVocabIds': wrongVocabIds,
+      }, path: 'vocabQuizResults[$dayKey]');
+    }
+    return byDayKey;
   }
 
   String _formatDayKey(int dayKey) {
@@ -277,6 +325,17 @@ class ReportExportRepository {
     } on FormatException {
       return null;
     }
+  }
+
+  List<Object?> _decodeWrongVocabIds(
+    String payloadJson, {
+    required String path,
+  }) {
+    final decoded = jsonDecode(payloadJson);
+    if (decoded is! List<Object?>) {
+      throw FormatException('Expected "$path" to be a JSON array.');
+    }
+    return decoded;
   }
 
   String? _supportedRoleOrNull(String rawRole) {
@@ -371,7 +430,7 @@ class _DayBuilder {
     );
   }
 
-  ReportDay build() {
+  ReportDay build({ReportVocabQuizSummary? vocabQuiz}) {
     final solvedCount = _questions.length;
     final wrongCount = solvedCount - _listeningCorrect - _readingCorrect;
 
@@ -386,6 +445,7 @@ class _DayBuilder {
         _wrongReasonCounts,
       ),
       questions: List<ReportQuestionResult>.unmodifiable(_questions),
+      vocabQuiz: vocabQuiz,
     );
   }
 }

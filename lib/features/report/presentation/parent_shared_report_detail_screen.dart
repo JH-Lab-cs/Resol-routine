@@ -272,6 +272,15 @@ class _DaySummaryCard extends StatelessWidget {
                 '풀이 ${day.solvedCount}/6 · 오답 ${day.wrongCount} · 듣기 정답 ${day.listeningCorrect}/3 · 독해 정답 ${day.readingCorrect}/3',
                 style: AppTypography.body,
               ),
+              if (day.vocabQuiz != null) ...[
+                const SizedBox(height: AppSpacing.xxs),
+                Text(
+                  '단어시험 ${day.vocabQuiz!.correctCount}/${day.vocabQuiz!.totalCount}',
+                  style: AppTypography.label.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
               const SizedBox(height: AppSpacing.xs),
               if (day.wrongReasonCounts.isNotEmpty)
                 Wrap(
@@ -288,6 +297,15 @@ class _DaySummaryCard extends StatelessWidget {
                 const SizedBox(height: AppSpacing.sm),
                 const Divider(height: 1, color: AppColors.divider),
                 const SizedBox(height: AppSpacing.sm),
+                if (day.vocabQuiz != null) ...[
+                  Text(
+                    '단어시험 오답 단어 ID ${day.vocabQuiz!.wrongVocabIds.length}개',
+                    style: AppTypography.label.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                ],
                 ...day.questions.map((question) {
                   final wrongReason = question.wrongReasonTag;
                   return Padding(

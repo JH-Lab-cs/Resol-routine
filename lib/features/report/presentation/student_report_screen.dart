@@ -170,7 +170,9 @@ class _ReportBody extends StatelessWidget {
                 Text(
                   today == null
                       ? '오늘 풀이 데이터가 없습니다.'
-                      : '풀이 문항 ${today.solvedCount}/6 · 오답 ${today.wrongCount}개',
+                      : today.vocabQuiz == null
+                      ? '풀이 문항 ${today.solvedCount}/6 · 오답 ${today.wrongCount}개'
+                      : '풀이 문항 ${today.solvedCount}/6 · 오답 ${today.wrongCount}개 · 단어시험 ${today.vocabQuiz!.correctCount}/${today.vocabQuiz!.totalCount}',
                   style: AppTypography.body,
                 ),
                 const SizedBox(height: AppSpacing.xs),
@@ -265,6 +267,10 @@ class _TodayScoreCard extends StatelessWidget {
                 _pill('듣기 정답 ${day.listeningCorrect}/3'),
                 _pill('독해 정답 ${day.readingCorrect}/3'),
                 _pill('오답 ${day.wrongCount}개'),
+                if (day.vocabQuiz != null)
+                  _pill(
+                    '단어시험 ${day.vocabQuiz!.correctCount}/${day.vocabQuiz!.totalCount}',
+                  ),
               ],
             ),
             const SizedBox(height: AppSpacing.sm),

@@ -8,9 +8,12 @@ import '../../../../core/time/day_key.dart';
 typedef ReportJsonMap = Map<String, Object?>;
 
 const int reportSchemaV1 = 1;
+const int reportSchemaV2 = 2;
+const int reportCurrentSchemaVersion = reportSchemaV2;
 const int reportMaxDays = 3660;
 const int reportMaxQuestionsPerDay = 6;
 const int reportMaxCorrectPerSkill = 3;
+const int reportMaxVocabQuizTotalCount = 20;
 const int reportMaxAppVersionLength = 64;
 
 const Set<String> _supportedRoles = <String>{'STUDENT', 'PARENT'};
@@ -45,6 +48,21 @@ class ReportSchema {
     );
   }
 
+  factory ReportSchema.v2({
+    required DateTime generatedAt,
+    String? appVersion,
+    required ReportStudent student,
+    required List<ReportDay> days,
+  }) {
+    return ReportSchema(
+      schemaVersion: reportSchemaV2,
+      generatedAt: generatedAt.toUtc(),
+      appVersion: appVersion,
+      student: student,
+      days: List<ReportDay>.unmodifiable(days),
+    );
+  }
+
   factory ReportSchema.fromJson(ReportJsonMap json, {String path = 'root'}) {
     _validateAllowedKeys(json, const <String>{
       'schemaVersion',
@@ -59,9 +77,9 @@ class ReportSchema {
       'schemaVersion',
       path: '$path.schemaVersion',
     );
-    if (schemaVersion != reportSchemaV1) {
+    if (schemaVersion != reportSchemaV1 && schemaVersion != reportSchemaV2) {
       throw FormatException(
-        'Expected "$path.schemaVersion" to be $reportSchemaV1.',
+        'Expected "$path.schemaVersion" to be $reportSchemaV1 or $reportSchemaV2.',
       );
     }
 
@@ -101,6 +119,7 @@ class ReportSchema {
       final day = ReportDay.fromJson(
         _asObject(daysJson[i], path: '$path.days[$i]'),
         path: '$path.days[$i]',
+        schemaVersion: schemaVersion,
       );
       final duplicateKey = '${day.dayKey}|${day.track.dbValue}';
       if (!dayKeys.add(duplicateKey)) {
@@ -214,6 +233,7 @@ class ReportDay {
     required this.readingCorrect,
     required this.wrongReasonCounts,
     required this.questions,
+    this.vocabQuiz,
   });
 
   final String dayKey;
@@ -224,18 +244,36 @@ class ReportDay {
   final int readingCorrect;
   final Map<WrongReasonTag, int> wrongReasonCounts;
   final List<ReportQuestionResult> questions;
+  final ReportVocabQuizSummary? vocabQuiz;
 
-  factory ReportDay.fromJson(ReportJsonMap json, {String path = 'day'}) {
-    _validateAllowedKeys(json, const <String>{
-      'dayKey',
-      'track',
-      'solvedCount',
-      'wrongCount',
-      'listeningCorrect',
-      'readingCorrect',
-      'wrongReasonCounts',
-      'questions',
-    }, path: path);
+  factory ReportDay.fromJson(
+    ReportJsonMap json, {
+    String path = 'day',
+    int schemaVersion = reportSchemaV1,
+  }) {
+    final allowedKeys = schemaVersion == reportSchemaV2
+        ? const <String>{
+            'dayKey',
+            'track',
+            'solvedCount',
+            'wrongCount',
+            'listeningCorrect',
+            'readingCorrect',
+            'wrongReasonCounts',
+            'questions',
+            'vocabQuiz',
+          }
+        : const <String>{
+            'dayKey',
+            'track',
+            'solvedCount',
+            'wrongCount',
+            'listeningCorrect',
+            'readingCorrect',
+            'wrongReasonCounts',
+            'questions',
+          };
+    _validateAllowedKeys(json, allowedKeys, path: path);
 
     final dayKey = _readRequiredString(
       json,
@@ -332,6 +370,18 @@ class ReportDay {
       );
     }
 
+    ReportVocabQuizSummary? vocabQuiz;
+    if (schemaVersion == reportSchemaV2 && json.containsKey('vocabQuiz')) {
+      final raw = json['vocabQuiz'];
+      if (raw == null) {
+        throw FormatException('Expected "$path.vocabQuiz" to be an object.');
+      }
+      vocabQuiz = ReportVocabQuizSummary.fromJson(
+        _asObject(raw, path: '$path.vocabQuiz'),
+        path: '$path.vocabQuiz',
+      );
+    }
+
     _validateConsistency(
       path: path,
       solvedCount: solvedCount,
@@ -340,6 +390,7 @@ class ReportDay {
       readingCorrect: readingCorrect,
       wrongReasonCounts: wrongReasonCounts,
       questions: questions,
+      vocabQuiz: vocabQuiz,
     );
 
     return ReportDay(
@@ -353,6 +404,7 @@ class ReportDay {
         wrongReasonCounts,
       ),
       questions: List<ReportQuestionResult>.unmodifiable(questions),
+      vocabQuiz: vocabQuiz,
     );
   }
 
@@ -374,6 +426,7 @@ class ReportDay {
       'questions': questions
           .map((question) => question.toJson())
           .toList(growable: false),
+      if (vocabQuiz != null) 'vocabQuiz': vocabQuiz!.toJson(),
     };
   }
 
@@ -410,6 +463,7 @@ class ReportDay {
     required int readingCorrect,
     required Map<WrongReasonTag, int> wrongReasonCounts,
     required List<ReportQuestionResult> questions,
+    required ReportVocabQuizSummary? vocabQuiz,
   }) {
     if (questions.length != solvedCount) {
       throw FormatException(
@@ -463,6 +517,15 @@ class ReportDay {
         'Expected "$path.wrongReasonCounts" to match question-level tags.',
       );
     }
+
+    if (vocabQuiz != null) {
+      final wrongLimit = vocabQuiz.totalCount - vocabQuiz.correctCount;
+      if (vocabQuiz.wrongVocabIds.length > wrongLimit) {
+        throw FormatException(
+          'Expected "$path.vocabQuiz.wrongVocabIds" length <= wrong answers.',
+        );
+      }
+    }
   }
 
   static bool _sameWrongReasonCounts(
@@ -477,6 +540,114 @@ class ReportDay {
       }
     }
     return true;
+  }
+}
+
+class ReportVocabQuizSummary {
+  const ReportVocabQuizSummary({
+    required this.totalCount,
+    required this.correctCount,
+    required this.wrongVocabIds,
+  });
+
+  final int totalCount;
+  final int correctCount;
+  final List<String> wrongVocabIds;
+
+  factory ReportVocabQuizSummary.fromJson(
+    ReportJsonMap json, {
+    String path = 'vocabQuiz',
+  }) {
+    _validateAllowedKeys(json, const <String>{
+      'totalCount',
+      'correctCount',
+      'wrongVocabIds',
+    }, path: path);
+
+    final totalCount = _readRequiredInt(
+      json,
+      'totalCount',
+      path: '$path.totalCount',
+    );
+    _validateIntRange(
+      totalCount,
+      min: 0,
+      max: reportMaxVocabQuizTotalCount,
+      path: '$path.totalCount',
+    );
+
+    final correctCount = _readRequiredInt(
+      json,
+      'correctCount',
+      path: '$path.correctCount',
+    );
+    _validateIntRange(
+      correctCount,
+      min: 0,
+      max: reportMaxVocabQuizTotalCount,
+      path: '$path.correctCount',
+    );
+    if (correctCount > totalCount) {
+      throw FormatException('Expected "$path.correctCount" <= totalCount.');
+    }
+
+    final rawWrongVocabIds = _readRequiredArray(
+      json,
+      'wrongVocabIds',
+      path: '$path.wrongVocabIds',
+    );
+    if (rawWrongVocabIds.length > totalCount) {
+      throw FormatException(
+        'Expected "$path.wrongVocabIds" length <= "$path.totalCount".',
+      );
+    }
+
+    final wrongVocabIds = <String>[];
+    final seen = <String>{};
+    for (var i = 0; i < rawWrongVocabIds.length; i++) {
+      final raw = rawWrongVocabIds[i];
+      if (raw is! String) {
+        throw FormatException(
+          'Expected "$path.wrongVocabIds[$i]" to be a string.',
+        );
+      }
+      final normalized = raw.trim();
+      if (normalized.isEmpty) {
+        throw FormatException(
+          'Expected "$path.wrongVocabIds[$i]" to be non-empty.',
+        );
+      }
+      if (normalized.length > DbTextLimits.idMax) {
+        throw FormatException(
+          'Expected "$path.wrongVocabIds[$i]" length <= ${DbTextLimits.idMax}.',
+        );
+      }
+      validateNoHiddenUnicode(normalized, path: '$path.wrongVocabIds[$i]');
+      if (!seen.add(normalized)) {
+        throw FormatException('Duplicated value at "$path.wrongVocabIds[$i]".');
+      }
+      wrongVocabIds.add(normalized);
+    }
+
+    if (wrongVocabIds.length > totalCount - correctCount) {
+      throw FormatException(
+        'Expected "$path.wrongVocabIds" length <= wrong answers.',
+      );
+    }
+
+    return ReportVocabQuizSummary(
+      totalCount: totalCount,
+      correctCount: correctCount,
+      wrongVocabIds: List<String>.unmodifiable(wrongVocabIds),
+    );
+  }
+
+  ReportJsonMap toJson() {
+    return <String, Object?>{
+      'totalCount': totalCount,
+      'correctCount': correctCount,
+      'wrongVocabIds': wrongVocabIds,
+    };
   }
 }
 
