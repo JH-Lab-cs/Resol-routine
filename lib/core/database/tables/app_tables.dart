@@ -225,6 +225,39 @@ class SharedReports extends Table {
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 }
 
+class VocabQuizResults extends Table {
+  @override
+  String get tableName => 'vocab_quiz_results';
+
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get dayKey => integer().customConstraint(
+    'NOT NULL CHECK (day_key BETWEEN 19000101 AND 29991231)',
+  )();
+  TextColumn get track => text()
+      .withLength(min: 2, max: 2)
+      .customConstraint("NOT NULL CHECK (track IN ('M3', 'H1', 'H2', 'H3'))")();
+  IntColumn get totalCount => integer().customConstraint(
+    'NOT NULL CHECK (total_count BETWEEN 0 AND 20)',
+  )();
+  IntColumn get correctCount => integer().customConstraint(
+    'NOT NULL CHECK (correct_count BETWEEN 0 AND 20)',
+  )();
+  TextColumn get wrongVocabIdsJson =>
+      text().withLength(min: 2, max: DbTextLimits.vocabWrongVocabIdsJsonMax)();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  List<Set<Column<Object>>> get uniqueKeys => [
+    {dayKey, track},
+  ];
+
+  @override
+  List<String> get customConstraints => const <String>[
+    'CHECK (correct_count <= total_count)',
+  ];
+}
+
 class Attempts extends Table {
   @override
   String get tableName => 'attempts';

@@ -23,6 +23,7 @@ part 'app_database.g.dart';
     DailySessionItems,
     UserSettings,
     SharedReports,
+    VocabQuizResults,
     Attempts,
     VocabMaster,
     VocabUser,
@@ -33,7 +34,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase({QueryExecutor? executor}) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -60,6 +61,9 @@ class AppDatabase extends _$AppDatabase {
       }
       if (from == 6) {
         await _migrateToV7(m);
+      }
+      if (from < 8) {
+        await _migrateToV8(m);
       }
       await _createIndexes();
       await _ensureUserSettingsRow();
@@ -166,6 +170,10 @@ class AppDatabase extends _$AppDatabase {
     );
   }
 
+  Future<void> _migrateToV8(Migrator m) async {
+    await m.createTable(vocabQuizResults);
+  }
+
   Future<void> _createIndexes() async {
     await customStatement(
       'CREATE INDEX IF NOT EXISTS idx_passages_pack_order '
@@ -215,6 +223,10 @@ class AppDatabase extends _$AppDatabase {
     await customStatement(
       'CREATE UNIQUE INDEX IF NOT EXISTS ux_shared_reports_payload_sha256 '
       'ON shared_reports(payload_sha256)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_vocab_quiz_results_day_track '
+      'ON vocab_quiz_results(day_key, track)',
     );
   }
 

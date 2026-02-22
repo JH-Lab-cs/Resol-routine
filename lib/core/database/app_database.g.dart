@@ -4352,6 +4352,528 @@ class SharedReportsCompanion extends UpdateCompanion<SharedReport> {
   }
 }
 
+class $VocabQuizResultsTable extends VocabQuizResults
+    with TableInfo<$VocabQuizResultsTable, VocabQuizResult> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $VocabQuizResultsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _dayKeyMeta = const VerificationMeta('dayKey');
+  @override
+  late final GeneratedColumn<int> dayKey = GeneratedColumn<int>(
+    'day_key',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    $customConstraints:
+        'NOT NULL CHECK (day_key BETWEEN 19000101 AND 29991231)',
+  );
+  static const VerificationMeta _trackMeta = const VerificationMeta('track');
+  @override
+  late final GeneratedColumn<String> track = GeneratedColumn<String>(
+    'track',
+    aliasedName,
+    false,
+    additionalChecks: GeneratedColumn.checkTextLength(
+      minTextLength: 2,
+      maxTextLength: 2,
+    ),
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    $customConstraints:
+        'NOT NULL CHECK (track IN (\'M3\', \'H1\', \'H2\', \'H3\'))',
+  );
+  static const VerificationMeta _totalCountMeta = const VerificationMeta(
+    'totalCount',
+  );
+  @override
+  late final GeneratedColumn<int> totalCount = GeneratedColumn<int>(
+    'total_count',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL CHECK (total_count BETWEEN 0 AND 20)',
+  );
+  static const VerificationMeta _correctCountMeta = const VerificationMeta(
+    'correctCount',
+  );
+  @override
+  late final GeneratedColumn<int> correctCount = GeneratedColumn<int>(
+    'correct_count',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL CHECK (correct_count BETWEEN 0 AND 20)',
+  );
+  static const VerificationMeta _wrongVocabIdsJsonMeta = const VerificationMeta(
+    'wrongVocabIdsJson',
+  );
+  @override
+  late final GeneratedColumn<String> wrongVocabIdsJson =
+      GeneratedColumn<String>(
+        'wrong_vocab_ids_json',
+        aliasedName,
+        false,
+        additionalChecks: GeneratedColumn.checkTextLength(minTextLength: 2),
+        type: DriftSqlType.string,
+        requiredDuringInsert: true,
+      );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    dayKey,
+    track,
+    totalCount,
+    correctCount,
+    wrongVocabIdsJson,
+    createdAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'vocab_quiz_results';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<VocabQuizResult> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('day_key')) {
+      context.handle(
+        _dayKeyMeta,
+        dayKey.isAcceptableOrUnknown(data['day_key']!, _dayKeyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_dayKeyMeta);
+    }
+    if (data.containsKey('track')) {
+      context.handle(
+        _trackMeta,
+        track.isAcceptableOrUnknown(data['track']!, _trackMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_trackMeta);
+    }
+    if (data.containsKey('total_count')) {
+      context.handle(
+        _totalCountMeta,
+        totalCount.isAcceptableOrUnknown(data['total_count']!, _totalCountMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_totalCountMeta);
+    }
+    if (data.containsKey('correct_count')) {
+      context.handle(
+        _correctCountMeta,
+        correctCount.isAcceptableOrUnknown(
+          data['correct_count']!,
+          _correctCountMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_correctCountMeta);
+    }
+    if (data.containsKey('wrong_vocab_ids_json')) {
+      context.handle(
+        _wrongVocabIdsJsonMeta,
+        wrongVocabIdsJson.isAcceptableOrUnknown(
+          data['wrong_vocab_ids_json']!,
+          _wrongVocabIdsJsonMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_wrongVocabIdsJsonMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  List<Set<GeneratedColumn>> get uniqueKeys => [
+    {dayKey, track},
+  ];
+  @override
+  VocabQuizResult map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return VocabQuizResult(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      dayKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}day_key'],
+      )!,
+      track: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}track'],
+      )!,
+      totalCount: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}total_count'],
+      )!,
+      correctCount: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}correct_count'],
+      )!,
+      wrongVocabIdsJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}wrong_vocab_ids_json'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $VocabQuizResultsTable createAlias(String alias) {
+    return $VocabQuizResultsTable(attachedDatabase, alias);
+  }
+}
+
+class VocabQuizResult extends DataClass implements Insertable<VocabQuizResult> {
+  final int id;
+  final int dayKey;
+  final String track;
+  final int totalCount;
+  final int correctCount;
+  final String wrongVocabIdsJson;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const VocabQuizResult({
+    required this.id,
+    required this.dayKey,
+    required this.track,
+    required this.totalCount,
+    required this.correctCount,
+    required this.wrongVocabIdsJson,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['day_key'] = Variable<int>(dayKey);
+    map['track'] = Variable<String>(track);
+    map['total_count'] = Variable<int>(totalCount);
+    map['correct_count'] = Variable<int>(correctCount);
+    map['wrong_vocab_ids_json'] = Variable<String>(wrongVocabIdsJson);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  VocabQuizResultsCompanion toCompanion(bool nullToAbsent) {
+    return VocabQuizResultsCompanion(
+      id: Value(id),
+      dayKey: Value(dayKey),
+      track: Value(track),
+      totalCount: Value(totalCount),
+      correctCount: Value(correctCount),
+      wrongVocabIdsJson: Value(wrongVocabIdsJson),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory VocabQuizResult.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return VocabQuizResult(
+      id: serializer.fromJson<int>(json['id']),
+      dayKey: serializer.fromJson<int>(json['dayKey']),
+      track: serializer.fromJson<String>(json['track']),
+      totalCount: serializer.fromJson<int>(json['totalCount']),
+      correctCount: serializer.fromJson<int>(json['correctCount']),
+      wrongVocabIdsJson: serializer.fromJson<String>(json['wrongVocabIdsJson']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'dayKey': serializer.toJson<int>(dayKey),
+      'track': serializer.toJson<String>(track),
+      'totalCount': serializer.toJson<int>(totalCount),
+      'correctCount': serializer.toJson<int>(correctCount),
+      'wrongVocabIdsJson': serializer.toJson<String>(wrongVocabIdsJson),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  VocabQuizResult copyWith({
+    int? id,
+    int? dayKey,
+    String? track,
+    int? totalCount,
+    int? correctCount,
+    String? wrongVocabIdsJson,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) => VocabQuizResult(
+    id: id ?? this.id,
+    dayKey: dayKey ?? this.dayKey,
+    track: track ?? this.track,
+    totalCount: totalCount ?? this.totalCount,
+    correctCount: correctCount ?? this.correctCount,
+    wrongVocabIdsJson: wrongVocabIdsJson ?? this.wrongVocabIdsJson,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  VocabQuizResult copyWithCompanion(VocabQuizResultsCompanion data) {
+    return VocabQuizResult(
+      id: data.id.present ? data.id.value : this.id,
+      dayKey: data.dayKey.present ? data.dayKey.value : this.dayKey,
+      track: data.track.present ? data.track.value : this.track,
+      totalCount: data.totalCount.present
+          ? data.totalCount.value
+          : this.totalCount,
+      correctCount: data.correctCount.present
+          ? data.correctCount.value
+          : this.correctCount,
+      wrongVocabIdsJson: data.wrongVocabIdsJson.present
+          ? data.wrongVocabIdsJson.value
+          : this.wrongVocabIdsJson,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('VocabQuizResult(')
+          ..write('id: $id, ')
+          ..write('dayKey: $dayKey, ')
+          ..write('track: $track, ')
+          ..write('totalCount: $totalCount, ')
+          ..write('correctCount: $correctCount, ')
+          ..write('wrongVocabIdsJson: $wrongVocabIdsJson, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    dayKey,
+    track,
+    totalCount,
+    correctCount,
+    wrongVocabIdsJson,
+    createdAt,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is VocabQuizResult &&
+          other.id == this.id &&
+          other.dayKey == this.dayKey &&
+          other.track == this.track &&
+          other.totalCount == this.totalCount &&
+          other.correctCount == this.correctCount &&
+          other.wrongVocabIdsJson == this.wrongVocabIdsJson &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class VocabQuizResultsCompanion extends UpdateCompanion<VocabQuizResult> {
+  final Value<int> id;
+  final Value<int> dayKey;
+  final Value<String> track;
+  final Value<int> totalCount;
+  final Value<int> correctCount;
+  final Value<String> wrongVocabIdsJson;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  const VocabQuizResultsCompanion({
+    this.id = const Value.absent(),
+    this.dayKey = const Value.absent(),
+    this.track = const Value.absent(),
+    this.totalCount = const Value.absent(),
+    this.correctCount = const Value.absent(),
+    this.wrongVocabIdsJson = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  });
+  VocabQuizResultsCompanion.insert({
+    this.id = const Value.absent(),
+    required int dayKey,
+    required String track,
+    required int totalCount,
+    required int correctCount,
+    required String wrongVocabIdsJson,
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  }) : dayKey = Value(dayKey),
+       track = Value(track),
+       totalCount = Value(totalCount),
+       correctCount = Value(correctCount),
+       wrongVocabIdsJson = Value(wrongVocabIdsJson);
+  static Insertable<VocabQuizResult> custom({
+    Expression<int>? id,
+    Expression<int>? dayKey,
+    Expression<String>? track,
+    Expression<int>? totalCount,
+    Expression<int>? correctCount,
+    Expression<String>? wrongVocabIdsJson,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (dayKey != null) 'day_key': dayKey,
+      if (track != null) 'track': track,
+      if (totalCount != null) 'total_count': totalCount,
+      if (correctCount != null) 'correct_count': correctCount,
+      if (wrongVocabIdsJson != null) 'wrong_vocab_ids_json': wrongVocabIdsJson,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+    });
+  }
+
+  VocabQuizResultsCompanion copyWith({
+    Value<int>? id,
+    Value<int>? dayKey,
+    Value<String>? track,
+    Value<int>? totalCount,
+    Value<int>? correctCount,
+    Value<String>? wrongVocabIdsJson,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+  }) {
+    return VocabQuizResultsCompanion(
+      id: id ?? this.id,
+      dayKey: dayKey ?? this.dayKey,
+      track: track ?? this.track,
+      totalCount: totalCount ?? this.totalCount,
+      correctCount: correctCount ?? this.correctCount,
+      wrongVocabIdsJson: wrongVocabIdsJson ?? this.wrongVocabIdsJson,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (dayKey.present) {
+      map['day_key'] = Variable<int>(dayKey.value);
+    }
+    if (track.present) {
+      map['track'] = Variable<String>(track.value);
+    }
+    if (totalCount.present) {
+      map['total_count'] = Variable<int>(totalCount.value);
+    }
+    if (correctCount.present) {
+      map['correct_count'] = Variable<int>(correctCount.value);
+    }
+    if (wrongVocabIdsJson.present) {
+      map['wrong_vocab_ids_json'] = Variable<String>(wrongVocabIdsJson.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('VocabQuizResultsCompanion(')
+          ..write('id: $id, ')
+          ..write('dayKey: $dayKey, ')
+          ..write('track: $track, ')
+          ..write('totalCount: $totalCount, ')
+          ..write('correctCount: $correctCount, ')
+          ..write('wrongVocabIdsJson: $wrongVocabIdsJson, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $AttemptsTable extends Attempts with TableInfo<$AttemptsTable, Attempt> {
   @override
   final GeneratedDatabase attachedDatabase;
@@ -6275,6 +6797,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $DailySessionItemsTable(this);
   late final $UserSettingsTable userSettings = $UserSettingsTable(this);
   late final $SharedReportsTable sharedReports = $SharedReportsTable(this);
+  late final $VocabQuizResultsTable vocabQuizResults = $VocabQuizResultsTable(
+    this,
+  );
   late final $AttemptsTable attempts = $AttemptsTable(this);
   late final $VocabMasterTable vocabMaster = $VocabMasterTable(this);
   late final $VocabUserTable vocabUser = $VocabUserTable(this);
@@ -6293,6 +6818,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     dailySessionItems,
     userSettings,
     sharedReports,
+    vocabQuizResults,
     attempts,
     vocabMaster,
     vocabUser,
@@ -10257,6 +10783,269 @@ typedef $$SharedReportsTableProcessedTableManager =
       SharedReport,
       PrefetchHooks Function()
     >;
+typedef $$VocabQuizResultsTableCreateCompanionBuilder =
+    VocabQuizResultsCompanion Function({
+      Value<int> id,
+      required int dayKey,
+      required String track,
+      required int totalCount,
+      required int correctCount,
+      required String wrongVocabIdsJson,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+    });
+typedef $$VocabQuizResultsTableUpdateCompanionBuilder =
+    VocabQuizResultsCompanion Function({
+      Value<int> id,
+      Value<int> dayKey,
+      Value<String> track,
+      Value<int> totalCount,
+      Value<int> correctCount,
+      Value<String> wrongVocabIdsJson,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+    });
+
+class $$VocabQuizResultsTableFilterComposer
+    extends Composer<_$AppDatabase, $VocabQuizResultsTable> {
+  $$VocabQuizResultsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get dayKey => $composableBuilder(
+    column: $table.dayKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get track => $composableBuilder(
+    column: $table.track,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get totalCount => $composableBuilder(
+    column: $table.totalCount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get correctCount => $composableBuilder(
+    column: $table.correctCount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get wrongVocabIdsJson => $composableBuilder(
+    column: $table.wrongVocabIdsJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$VocabQuizResultsTableOrderingComposer
+    extends Composer<_$AppDatabase, $VocabQuizResultsTable> {
+  $$VocabQuizResultsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get dayKey => $composableBuilder(
+    column: $table.dayKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get track => $composableBuilder(
+    column: $table.track,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get totalCount => $composableBuilder(
+    column: $table.totalCount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get correctCount => $composableBuilder(
+    column: $table.correctCount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get wrongVocabIdsJson => $composableBuilder(
+    column: $table.wrongVocabIdsJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$VocabQuizResultsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $VocabQuizResultsTable> {
+  $$VocabQuizResultsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get dayKey =>
+      $composableBuilder(column: $table.dayKey, builder: (column) => column);
+
+  GeneratedColumn<String> get track =>
+      $composableBuilder(column: $table.track, builder: (column) => column);
+
+  GeneratedColumn<int> get totalCount => $composableBuilder(
+    column: $table.totalCount,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get correctCount => $composableBuilder(
+    column: $table.correctCount,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get wrongVocabIdsJson => $composableBuilder(
+    column: $table.wrongVocabIdsJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$VocabQuizResultsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $VocabQuizResultsTable,
+          VocabQuizResult,
+          $$VocabQuizResultsTableFilterComposer,
+          $$VocabQuizResultsTableOrderingComposer,
+          $$VocabQuizResultsTableAnnotationComposer,
+          $$VocabQuizResultsTableCreateCompanionBuilder,
+          $$VocabQuizResultsTableUpdateCompanionBuilder,
+          (
+            VocabQuizResult,
+            BaseReferences<
+              _$AppDatabase,
+              $VocabQuizResultsTable,
+              VocabQuizResult
+            >,
+          ),
+          VocabQuizResult,
+          PrefetchHooks Function()
+        > {
+  $$VocabQuizResultsTableTableManager(
+    _$AppDatabase db,
+    $VocabQuizResultsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$VocabQuizResultsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$VocabQuizResultsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$VocabQuizResultsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int> dayKey = const Value.absent(),
+                Value<String> track = const Value.absent(),
+                Value<int> totalCount = const Value.absent(),
+                Value<int> correctCount = const Value.absent(),
+                Value<String> wrongVocabIdsJson = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+              }) => VocabQuizResultsCompanion(
+                id: id,
+                dayKey: dayKey,
+                track: track,
+                totalCount: totalCount,
+                correctCount: correctCount,
+                wrongVocabIdsJson: wrongVocabIdsJson,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required int dayKey,
+                required String track,
+                required int totalCount,
+                required int correctCount,
+                required String wrongVocabIdsJson,
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+              }) => VocabQuizResultsCompanion.insert(
+                id: id,
+                dayKey: dayKey,
+                track: track,
+                totalCount: totalCount,
+                correctCount: correctCount,
+                wrongVocabIdsJson: wrongVocabIdsJson,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$VocabQuizResultsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $VocabQuizResultsTable,
+      VocabQuizResult,
+      $$VocabQuizResultsTableFilterComposer,
+      $$VocabQuizResultsTableOrderingComposer,
+      $$VocabQuizResultsTableAnnotationComposer,
+      $$VocabQuizResultsTableCreateCompanionBuilder,
+      $$VocabQuizResultsTableUpdateCompanionBuilder,
+      (
+        VocabQuizResult,
+        BaseReferences<_$AppDatabase, $VocabQuizResultsTable, VocabQuizResult>,
+      ),
+      VocabQuizResult,
+      PrefetchHooks Function()
+    >;
 typedef $$AttemptsTableCreateCompanionBuilder =
     AttemptsCompanion Function({
       Value<int> id,
@@ -11899,6 +12688,8 @@ class $AppDatabaseManager {
       $$UserSettingsTableTableManager(_db, _db.userSettings);
   $$SharedReportsTableTableManager get sharedReports =>
       $$SharedReportsTableTableManager(_db, _db.sharedReports);
+  $$VocabQuizResultsTableTableManager get vocabQuizResults =>
+      $$VocabQuizResultsTableTableManager(_db, _db.vocabQuizResults);
   $$AttemptsTableTableManager get attempts =>
       $$AttemptsTableTableManager(_db, _db.attempts);
   $$VocabMasterTableTableManager get vocabMaster =>

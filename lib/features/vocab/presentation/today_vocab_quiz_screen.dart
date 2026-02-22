@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/ui/app_tokens.dart';
 import '../../../core/ui/components/app_scaffold.dart';
 import '../../../core/ui/components/primary_pill_button.dart';
+import '../../../core/time/day_key.dart';
+import '../../today/application/today_session_providers.dart';
 import '../application/vocab_providers.dart';
 import '../data/vocab_repository.dart';
 
@@ -32,6 +34,8 @@ class _TodayVocabQuizScreenState extends ConsumerState<TodayVocabQuizScreen> {
   bool _submitted = false;
   bool _currentCorrect = false;
   int _correctCount = 0;
+  final Set<String> _wrongVocabIds = <String>{};
+  bool _completionPersistAttempted = false;
 
   @override
   Widget build(BuildContext context) {
@@ -137,6 +141,8 @@ class _TodayVocabQuizScreenState extends ConsumerState<TodayVocabQuizScreen> {
                             _currentCorrect = isCorrect;
                             if (isCorrect) {
                               _correctCount += 1;
+                            } else {
+                              _wrongVocabIds.add(question.vocabId);
                             }
                           });
                         },
@@ -161,14 +167,7 @@ class _TodayVocabQuizScreenState extends ConsumerState<TodayVocabQuizScreen> {
                 const SizedBox(height: AppSpacing.sm),
                 PrimaryPillButton(
                   label: _currentIndex == questions.length - 1 ? '완료' : '다음',
-                  onPressed: () {
-                    setState(() {
-                      _currentIndex += 1;
-                      _selectedOptionIndex = null;
-                      _submitted = false;
-                      _currentCorrect = false;
-                    });
-                  },
+                  onPressed: () => _goNextOrComplete(questions),
                 ),
               ],
             ],
@@ -176,6 +175,53 @@ class _TodayVocabQuizScreenState extends ConsumerState<TodayVocabQuizScreen> {
         },
       ),
     );
+  }
+
+  Future<void> _goNextOrComplete(List<VocabQuizQuestion> questions) async {
+    final isLastQuestion = _currentIndex == questions.length - 1;
+    setState(() {
+      _currentIndex += 1;
+      _selectedOptionIndex = null;
+      _submitted = false;
+      _currentCorrect = false;
+    });
+
+    if (!isLastQuestion) {
+      return;
+    }
+
+    await _persistCompletionResult(questions);
+  }
+
+  Future<void> _persistCompletionResult(
+    List<VocabQuizQuestion> questions,
+  ) async {
+    if (_completionPersistAttempted) {
+      return;
+    }
+    _completionPersistAttempted = true;
+
+    final track = ref.read(selectedTrackProvider);
+    final dayKey = formatDayKey(DateTime.now());
+
+    try {
+      await ref
+          .read(vocabQuizResultsRepositoryProvider)
+          .upsertDailyResult(
+            dayKey: dayKey,
+            track: track,
+            totalCount: questions.length,
+            correctCount: _correctCount,
+            wrongVocabIds: _wrongVocabIds.toList(growable: false),
+          );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('단어시험 결과 저장에 실패했습니다.\n$error')));
+    }
   }
 
   Widget _buildEmptyState() {
