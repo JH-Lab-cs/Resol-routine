@@ -8,12 +8,14 @@ class VocabLemmaRepository {
 
   static const int _sqliteInChunkSize = 900;
   static const int _maxLookupIds = 2000;
+  static const int _maxRawLookupIds = _maxLookupIds * 3;
 
   final AppDatabase _database;
 
   Future<Map<String, String>> loadLemmaMapByVocabIds(List<String> ids) async {
-    _validateInputSize(ids.length);
+    _validateRawInputSize(ids.length);
     final normalizedIds = _normalizeIds(ids);
+    _validateDedupedInputSize(normalizedIds.length);
     if (normalizedIds.isEmpty) {
       return const <String, String>{};
     }
@@ -24,7 +26,11 @@ class VocabLemmaRepository {
         _database.vocabMaster,
       )..where((tbl) => tbl.id.isIn(chunk))).get();
       for (final row in rows) {
-        loadedLemmas[row.id] = row.lemma;
+        final lemma = row.lemma;
+        if (containsHiddenUnicode(lemma)) {
+          continue;
+        }
+        loadedLemmas[row.id] = lemma;
       }
     }
 
@@ -70,9 +76,17 @@ class VocabLemmaRepository {
     }
   }
 
-  void _validateInputSize(int length) {
+  void _validateRawInputSize(int length) {
+    if (length > _maxRawLookupIds) {
+      throw FormatException('Expected "ids" length <= $_maxRawLookupIds.');
+    }
+  }
+
+  void _validateDedupedInputSize(int length) {
     if (length > _maxLookupIds) {
-      throw FormatException('Expected "ids" length <= $_maxLookupIds.');
+      throw FormatException(
+        'Expected deduplicated "ids" length <= $_maxLookupIds.',
+      );
     }
   }
 }

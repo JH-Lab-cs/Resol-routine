@@ -66,14 +66,42 @@ void main() {
       expect(lemmaMap['dup_a'], 'lemma_0');
     });
 
-    test('rejects input length over 2000', () async {
-      final tooManyIds = List<String>.generate(
+    test('allows raw input > 2000 when deduplicated size <= 2000', () async {
+      final dedupedIds = List<String>.generate(
+        2000,
+        (index) => 'dedupe_vocab_${index.toString().padLeft(4, '0')}',
+      );
+      await _seedVocabMaster(database, dedupedIds);
+
+      final withDuplicates = <String>[...dedupedIds, ...dedupedIds.take(500)];
+
+      final lemmaMap = await repository.loadLemmaMapByVocabIds(withDuplicates);
+
+      expect(lemmaMap.length, 2000);
+      expect(lemmaMap[dedupedIds.first], 'lemma_0');
+      expect(lemmaMap[dedupedIds.last], 'lemma_1999');
+    });
+
+    test('rejects deduplicated input length over 2000', () async {
+      final tooManyDedupedIds = List<String>.generate(
         2001,
-        (index) => 'oversized_vocab_$index',
+        (index) => 'dedupe_oversized_vocab_$index',
       );
 
       expect(
-        () => repository.loadLemmaMapByVocabIds(tooManyIds),
+        () => repository.loadLemmaMapByVocabIds(tooManyDedupedIds),
+        throwsA(isA<FormatException>()),
+      );
+    });
+
+    test('rejects raw input length over 6000', () async {
+      final tooManyRawIds = List<String>.generate(
+        6001,
+        (index) => 'raw_guard_vocab_${index % 2000}',
+      );
+
+      expect(
+        () => repository.loadLemmaMapByVocabIds(tooManyRawIds),
         throwsA(isA<FormatException>()),
       );
     });
@@ -85,6 +113,35 @@ void main() {
         () => repository.loadLemmaMapByVocabIds(<String>[tooLongId]),
         throwsA(isA<FormatException>()),
       );
+    });
+
+    test('skips rows whose lemma contains hidden unicode', () async {
+      await database
+          .into(database.vocabMaster)
+          .insert(
+            VocabMasterCompanion.insert(
+              id: 'safe_vocab',
+              lemma: 'safeLemma',
+              meaning: 'safe meaning',
+            ),
+          );
+      await database
+          .into(database.vocabMaster)
+          .insert(
+            VocabMasterCompanion.insert(
+              id: 'unsafe_vocab',
+              lemma: 'unsafe\u200BLemma',
+              meaning: 'unsafe meaning',
+            ),
+          );
+
+      final lemmaMap = await repository.loadLemmaMapByVocabIds(<String>[
+        'safe_vocab',
+        'unsafe_vocab',
+      ]);
+
+      expect(lemmaMap['safe_vocab'], 'safeLemma');
+      expect(lemmaMap.containsKey('unsafe_vocab'), isFalse);
     });
   });
 }
