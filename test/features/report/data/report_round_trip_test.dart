@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -96,12 +97,34 @@ void main() {
           isCorrect: true,
         );
 
+        const customVocabId = 'probe_vocab_20260221';
+        const customLemma = 'lemma_probe_token_24680';
+        const customMeaning = 'meaning_probe_token_24680';
+        const customExample = 'example_probe_token_24680';
+        await database
+            .into(database.vocabMaster)
+            .insert(
+              VocabMasterCompanion.insert(
+                id: customVocabId,
+                lemma: customLemma,
+                meaning: customMeaning,
+                example: const Value(customExample),
+              ),
+            );
+        final anotherVocab =
+            await (database.select(database.vocabMaster)
+                  ..where((tbl) => tbl.id.isNotValue(customVocabId))
+                  ..limit(1))
+                .getSingle();
+        final expectedWrongVocabIds = <String>[customVocabId, anotherVocab.id]
+          ..sort();
+
         await vocabQuizResultsRepository.upsertDailyResult(
           dayKey: '20260221',
           track: 'M3',
           totalCount: 20,
           correctCount: 18,
-          wrongVocabIds: <String>['vocab_alpha', 'vocab_beta'],
+          wrongVocabIds: expectedWrongVocabIds.reversed.toList(),
         );
 
         final exportPayload = await exportRepository.buildExportPayload(
@@ -134,10 +157,10 @@ void main() {
         expect(detail.report.days, hasLength(2));
         expect(detail.report.days.first.vocabQuiz, isNotNull);
         expect(detail.report.days.first.vocabQuiz!.correctCount, 18);
-        expect(detail.report.days.first.vocabQuiz!.wrongVocabIds, <String>[
-          'vocab_alpha',
-          'vocab_beta',
-        ]);
+        expect(
+          detail.report.days.first.vocabQuiz!.wrongVocabIds,
+          expectedWrongVocabIds,
+        );
         expect(detail.report.days.first.questions, hasLength(2));
         expect(detail.report.days.last.questions, hasLength(3));
 
@@ -155,6 +178,10 @@ void main() {
         )..limit(1)).getSingle();
 
         final payload = exportPayload.jsonPayload;
+        expect(payload.contains(customVocabId), isTrue);
+        expect(payload.contains(customLemma), isFalse);
+        expect(payload.contains(customMeaning), isFalse);
+        expect(payload.contains(customExample), isFalse);
         expect(payload.contains(questionRow.prompt), isFalse);
         expect(payload.contains(questionRow.optionsJson.a), isFalse);
         expect(payload.contains(explanationRow.whyCorrectKo), isFalse);
@@ -198,13 +225,16 @@ void main() {
         selectedAnswer: 'A',
         isCorrect: true,
       );
+      final vocabRow = await (database.select(
+        database.vocabMaster,
+      )..limit(1)).getSingle();
 
       await vocabQuizResultsRepository.upsertDailyResult(
         dayKey: '20260222',
         track: 'M3',
         totalCount: 20,
         correctCount: 19,
-        wrongVocabIds: <String>['vocab_gamma'],
+        wrongVocabIds: <String>[vocabRow.id],
       );
 
       final exportPayload = await exportRepository.buildExportPayload(
@@ -238,7 +268,7 @@ void main() {
       expect(detail.report.days.first.questions, isEmpty);
       expect(detail.report.days.first.vocabQuiz, isNotNull);
       expect(detail.report.days.first.vocabQuiz!.wrongVocabIds, <String>[
-        'vocab_gamma',
+        vocabRow.id,
       ]);
     });
   });
