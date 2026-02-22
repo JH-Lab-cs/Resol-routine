@@ -13,6 +13,7 @@ import '../../../core/ui/label_maps.dart';
 import '../../../core/time/day_key.dart';
 import '../application/report_providers.dart';
 import '../data/models/report_schema_v1.dart';
+import 'widgets/vocab_wrong_words_section.dart';
 
 class StudentReportScreen extends ConsumerStatefulWidget {
   const StudentReportScreen({super.key, required this.track});
@@ -149,6 +150,7 @@ class _ReportBody extends StatelessWidget {
   Widget build(BuildContext context) {
     final todayKey = formatDayKey(DateTime.now());
     final today = _findDayByKey(report.days, todayKey);
+    final todayVocabQuiz = today?.vocabQuiz;
 
     return ListView(
       children: [
@@ -170,9 +172,9 @@ class _ReportBody extends StatelessWidget {
                 Text(
                   today == null
                       ? '오늘 풀이 데이터가 없습니다.'
-                      : today.vocabQuiz == null
+                      : todayVocabQuiz == null
                       ? '풀이 문항 ${today.solvedCount}/6 · 오답 ${today.wrongCount}개'
-                      : '풀이 문항 ${today.solvedCount}/6 · 오답 ${today.wrongCount}개 · 단어시험 ${today.vocabQuiz!.correctCount}/${today.vocabQuiz!.totalCount}',
+                      : '풀이 문항 ${today.solvedCount}/6 · 오답 ${today.wrongCount}개 · 단어시험 ${todayVocabQuiz.correctCount}/${todayVocabQuiz.totalCount} · 단어 오답 ${todayVocabQuiz.totalCount - todayVocabQuiz.correctCount}개',
                   style: AppTypography.body,
                 ),
                 const SizedBox(height: AppSpacing.xs),
@@ -182,6 +184,20 @@ class _ReportBody extends StatelessWidget {
                     color: AppColors.textSecondary,
                   ),
                 ),
+                if (todayVocabQuiz != null) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(
+                    '틀린 단어 ${todayVocabQuiz.wrongVocabIds.length}개',
+                    style: AppTypography.label.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  VocabWrongWordsSection(
+                    wrongVocabIds: todayVocabQuiz.wrongVocabIds,
+                    maxVisible: 6,
+                  ),
+                ],
                 const SizedBox(height: AppSpacing.md),
                 FilledButton.tonalIcon(
                   onPressed: onShare,
@@ -270,6 +286,10 @@ class _TodayScoreCard extends StatelessWidget {
                 if (day.vocabQuiz != null)
                   _pill(
                     '단어시험 ${day.vocabQuiz!.correctCount}/${day.vocabQuiz!.totalCount}',
+                  ),
+                if (day.vocabQuiz != null)
+                  _pill(
+                    '단어 오답 ${day.vocabQuiz!.totalCount - day.vocabQuiz!.correctCount}개',
                   ),
               ],
             ),

@@ -259,6 +259,66 @@ void main() {
     },
   );
 
+  testWidgets('parent detail shows vocab lemma and unknown id fallback', (
+    WidgetTester tester,
+  ) async {
+    final sharedDb = AppDatabase(executor: NativeDatabase.memory());
+    final fakeSessionRepository = _FakeTodaySessionRepository(sharedDb);
+    final fakeQuizRepository = _FakeTodayQuizRepository(sharedDb);
+    final settingsRepository = UserSettingsRepository(database: sharedDb);
+    final sharedReportsRepository = SharedReportsRepository(database: sharedDb);
+
+    await settingsRepository.updateRole('PARENT');
+    await settingsRepository.updateName('보호자');
+    await sharedDb
+        .into(sharedDb.vocabMaster)
+        .insert(
+          VocabMasterCompanion.insert(
+            id: 'known_vocab_id',
+            lemma: 'orchard',
+            meaning: '과수원',
+          ),
+        );
+    await sharedReportsRepository.importFromJson(
+      source: 'resolroutine_report_20260222_M3.json',
+      payloadJson: _sampleSharedReportWithVocabQuizJson(
+        knownVocabId: 'known_vocab_id',
+      ),
+    );
+
+    addTearDown(sharedDb.close);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(sharedDb),
+          appBootstrapProvider.overrideWith((ref) async {}),
+          todaySessionRepositoryProvider.overrideWithValue(
+            fakeSessionRepository,
+          ),
+          todayQuizRepositoryProvider.overrideWithValue(fakeQuizRepository),
+        ],
+        child: const ResolRoutineApp(),
+      ),
+    );
+
+    await _pumpUntilVisible(tester, find.text('리포트 가져오기'));
+    await _pumpUntilVisible(tester, find.text('민수'));
+    await tester.tap(find.text('민수'));
+    await tester.pumpAndSettle();
+    await _pumpUntilVisible(tester, find.text('리포트 상세'));
+
+    expect(find.text('orchard'), findsNothing);
+    expect(find.text('missing_vocab_id'), findsNothing);
+
+    await tester.tap(find.byIcon(Icons.keyboard_arrow_down_rounded).first);
+    await tester.pumpAndSettle();
+    await _pumpUntilVisible(tester, find.text('orchard'));
+
+    expect(find.text('orchard'), findsOneWidget);
+    expect(find.text('missing_vocab_id'), findsOneWidget);
+  });
+
   testWidgets('parent detail shows deleted state after row removal', (
     WidgetTester tester,
   ) async {
@@ -933,6 +993,35 @@ String _sampleSharedReportJson() {
             'wrongReasonTag': 'VOCAB',
           },
         ],
+      },
+    ],
+  });
+}
+
+String _sampleSharedReportWithVocabQuizJson({required String knownVocabId}) {
+  return jsonEncode(<String, Object?>{
+    'schemaVersion': 2,
+    'generatedAt': '2026-02-22T10:00:00.000Z',
+    'student': <String, Object?>{
+      'role': 'STUDENT',
+      'displayName': '민수',
+      'track': 'M3',
+    },
+    'days': <Object?>[
+      <String, Object?>{
+        'dayKey': '20260222',
+        'track': 'M3',
+        'solvedCount': 0,
+        'wrongCount': 0,
+        'listeningCorrect': 0,
+        'readingCorrect': 0,
+        'wrongReasonCounts': <String, Object?>{},
+        'questions': <Object?>[],
+        'vocabQuiz': <String, Object?>{
+          'totalCount': 20,
+          'correctCount': 18,
+          'wrongVocabIds': <Object?>[knownVocabId, 'missing_vocab_id'],
+        },
       },
     ],
   });

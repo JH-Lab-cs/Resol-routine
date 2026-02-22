@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:drift/drift.dart' show OrderingTerm;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -24,6 +25,8 @@ void main() {
     addTearDown(database.close);
 
     late ReportExportRepository reportExportRepository;
+    late String firstLemma;
+    late String secondLemma;
     await tester.runAsync(() async {
       final starterPackJson = await File(
         'assets/content_packs/starter_pack.json',
@@ -43,6 +46,14 @@ void main() {
         database: database,
         appVersionLoader: () async => '1.0.0+1',
       );
+      final vocabRows =
+          await (database.select(database.vocabMaster)
+                ..orderBy([(tbl) => OrderingTerm(expression: tbl.id)])
+                ..limit(2))
+              .get();
+      expect(vocabRows.length, greaterThanOrEqualTo(2));
+      firstLemma = vocabRows[0].lemma;
+      secondLemma = vocabRows[1].lemma;
 
       final now = DateTime.now();
       final dayKey = formatDayKey(now);
@@ -61,7 +72,7 @@ void main() {
         track: 'M3',
         totalCount: 20,
         correctCount: 18,
-        wrongVocabIds: <String>['vocab_alpha', 'vocab_beta'],
+        wrongVocabIds: <String>[vocabRows[0].id, vocabRows[1].id],
       );
     });
 
@@ -78,7 +89,10 @@ void main() {
     );
 
     await _pumpUntilVisible(tester, find.textContaining('단어시험 18/20'));
+    await _pumpUntilVisible(tester, find.text(firstLemma));
     expect(find.textContaining('단어시험 18/20'), findsAtLeastNWidgets(1));
+    expect(find.text(firstLemma), findsOneWidget);
+    expect(find.text(secondLemma), findsOneWidget);
   });
 }
 

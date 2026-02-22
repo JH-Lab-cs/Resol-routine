@@ -8,6 +8,7 @@ import '../../../core/ui/label_maps.dart';
 import '../application/report_providers.dart';
 import '../data/models/report_schema_v1.dart';
 import '../data/shared_reports_repository.dart';
+import 'widgets/vocab_wrong_words_section.dart';
 
 class ParentSharedReportDetailScreen extends ConsumerStatefulWidget {
   const ParentSharedReportDetailScreen({
@@ -275,7 +276,7 @@ class _DaySummaryCard extends StatelessWidget {
               if (day.vocabQuiz != null) ...[
                 const SizedBox(height: AppSpacing.xxs),
                 Text(
-                  '단어시험 ${day.vocabQuiz!.correctCount}/${day.vocabQuiz!.totalCount}',
+                  '단어시험 ${day.vocabQuiz!.correctCount}/${day.vocabQuiz!.totalCount} · 단어 오답 ${day.vocabQuiz!.totalCount - day.vocabQuiz!.correctCount}개',
                   style: AppTypography.label.copyWith(
                     color: AppColors.textSecondary,
                   ),
@@ -299,12 +300,17 @@ class _DaySummaryCard extends StatelessWidget {
                 const SizedBox(height: AppSpacing.sm),
                 if (day.vocabQuiz != null) ...[
                   Text(
-                    '단어시험 오답 단어 ID ${day.vocabQuiz!.wrongVocabIds.length}개',
+                    '틀린 단어 ${day.vocabQuiz!.wrongVocabIds.length}개',
                     style: AppTypography.label.copyWith(
                       color: AppColors.textSecondary,
                     ),
                   ),
                   const SizedBox(height: AppSpacing.xs),
+                  VocabWrongWordsSection(
+                    wrongVocabIds: day.vocabQuiz!.wrongVocabIds,
+                    maxVisible: 6,
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
                 ],
                 ...day.questions.map((question) {
                   final wrongReason = question.wrongReasonTag;

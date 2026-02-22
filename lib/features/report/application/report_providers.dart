@@ -4,6 +4,7 @@ import '../../../core/database/database_providers.dart';
 import '../data/models/report_schema_v1.dart';
 import '../data/report_export_repository.dart';
 import '../data/shared_reports_repository.dart';
+import '../data/vocab_lemma_repository.dart';
 
 final reportExportRepositoryProvider = Provider<ReportExportRepository>((
   Ref ref,
@@ -17,6 +18,11 @@ final sharedReportsRepositoryProvider = Provider<SharedReportsRepository>((
 ) {
   final database = ref.watch(appDatabaseProvider);
   return SharedReportsRepository(database: database);
+});
+
+final vocabLemmaRepositoryProvider = Provider<VocabLemmaRepository>((Ref ref) {
+  final database = ref.watch(appDatabaseProvider);
+  return VocabLemmaRepository(database: database);
 });
 
 final studentCumulativeReportProvider =
