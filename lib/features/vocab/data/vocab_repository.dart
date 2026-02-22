@@ -197,10 +197,7 @@ class VocabRepository {
     DateTime? nowLocal,
     int count = 20,
   }) async {
-    final questions = await loadTodayQuizQuestions(
-      nowLocal: nowLocal,
-      count: count,
-    );
+    final questions = await buildQuiz(nowLocal: nowLocal, count: count);
     if (questions.isEmpty) {
       return const <VocabListItem>[];
     }
@@ -234,10 +231,14 @@ class VocabRepository {
     return filtered;
   }
 
-  Future<List<VocabQuizQuestion>> loadTodayQuizQuestions({
+  Future<List<VocabQuizQuestion>> buildQuiz({
     DateTime? nowLocal,
     int count = 20,
   }) async {
+    if (count <= 0) {
+      return const <VocabQuizQuestion>[];
+    }
+
     final allItems = await listVocabulary();
     if (allItems.isEmpty) {
       return const <VocabQuizQuestion>[];
@@ -246,6 +247,43 @@ class VocabRepository {
     final dayKey = formatDayKey(nowLocal ?? DateTime.now());
     validateDayKey(dayKey);
 
+    final scoredItems = _sortByDeterministicScore(allItems, dayKey: dayKey);
+    final prioritizedPool = _prioritizeCustomBookmarked(scoredItems);
+    final selectedUniqueItems = _selectUniqueQuizItems(
+      prioritizedPool,
+      count: count,
+    );
+    final selectedItems = _expandQuizItemsIfNeeded(
+      selectedUniqueItems,
+      count: count,
+    );
+
+    if (selectedItems.isEmpty) {
+      return const <VocabQuizQuestion>[];
+    }
+
+    return selectedItems
+        .map(
+          (item) => _buildQuizQuestion(
+            dayKey: dayKey,
+            item: item,
+            allItems: allItems,
+          ),
+        )
+        .toList(growable: false);
+  }
+
+  Future<List<VocabQuizQuestion>> loadTodayQuizQuestions({
+    DateTime? nowLocal,
+    int count = 20,
+  }) {
+    return buildQuiz(nowLocal: nowLocal, count: count);
+  }
+
+  List<VocabListItem> _sortByDeterministicScore(
+    List<VocabListItem> allItems, {
+    required String dayKey,
+  }) {
     final scoredItems =
         <_ScoredVocab>[
           for (final item in allItems)
@@ -260,21 +298,82 @@ class VocabRepository {
           }
           return a.item.id.compareTo(b.item.id);
         });
+    return scoredItems.map((scored) => scored.item).toList(growable: false);
+  }
 
-    final selectedItems = <VocabListItem>[];
-    for (var i = 0; i < count; i++) {
-      selectedItems.add(scoredItems[i % scoredItems.length].item);
+  List<VocabListItem> _prioritizeCustomBookmarked(List<VocabListItem> items) {
+    final customBookmarked = <VocabListItem>[];
+    final others = <VocabListItem>[];
+
+    for (final item in items) {
+      if (item.id.startsWith(_customVocabPrefix) && item.isBookmarked) {
+        customBookmarked.add(item);
+      } else {
+        others.add(item);
+      }
     }
 
-    return selectedItems
-        .map(
-          (item) => _buildQuizQuestion(
-            dayKey: dayKey,
-            item: item,
-            allItems: allItems,
-          ),
-        )
-        .toList(growable: false);
+    return <VocabListItem>[...customBookmarked, ...others];
+  }
+
+  List<VocabListItem> _selectUniqueQuizItems(
+    List<VocabListItem> prioritizedPool, {
+    required int count,
+  }) {
+    final selected = <VocabListItem>[];
+    final selectedIds = <String>{};
+    final selectedMeanings = <String>{};
+
+    for (final item in prioritizedPool) {
+      if (selected.length == count) {
+        break;
+      }
+      if (!selectedIds.add(item.id)) {
+        continue;
+      }
+      if (!selectedMeanings.add(item.meaning)) {
+        continue;
+      }
+      selected.add(item);
+    }
+
+    if (selected.length == count) {
+      return selected;
+    }
+
+    for (final item in prioritizedPool) {
+      if (selected.length == count) {
+        break;
+      }
+      if (!selectedIds.add(item.id)) {
+        continue;
+      }
+      selected.add(item);
+    }
+
+    return selected;
+  }
+
+  List<VocabListItem> _expandQuizItemsIfNeeded(
+    List<VocabListItem> selectedItems, {
+    required int count,
+  }) {
+    if (selectedItems.length >= count) {
+      return selectedItems.sublist(0, count);
+    }
+    if (selectedItems.isEmpty) {
+      return const <VocabListItem>[];
+    }
+
+    final expanded = List<VocabListItem>.from(selectedItems);
+    for (
+      var index = 0;
+      expanded.length < count;
+      index = (index + 1) % selectedItems.length
+    ) {
+      expanded.add(selectedItems[index]);
+    }
+    return expanded;
   }
 
   VocabQuizQuestion _buildQuizQuestion({
@@ -302,8 +401,14 @@ class VocabRepository {
       }
       distractors.add(meaning);
     }
+    final existingOptions = <String>{item.meaning, ...distractors};
     while (distractors.length < 4) {
-      distractors.add('선택지 ${distractors.length + 1}');
+      final placeholder = _buildPlaceholderOption(
+        startingNumber: distractors.length + 1,
+        existingOptions: existingOptions,
+      );
+      distractors.add(placeholder);
+      existingOptions.add(placeholder);
     }
 
     final options = <String>[item.meaning, ...distractors]
@@ -321,6 +426,20 @@ class VocabRepository {
       options: options,
       correctOptionIndex: correctOptionIndex < 0 ? 0 : correctOptionIndex,
     );
+  }
+
+  String _buildPlaceholderOption({
+    required int startingNumber,
+    required Set<String> existingOptions,
+  }) {
+    var candidateNumber = startingNumber;
+    while (true) {
+      final candidate = '선택지 $candidateNumber';
+      if (!existingOptions.contains(candidate)) {
+        return candidate;
+      }
+      candidateNumber += 1;
+    }
   }
 
   _NormalizedVocabularyInput _validateAndNormalizeInput({

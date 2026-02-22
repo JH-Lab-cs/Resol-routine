@@ -16,7 +16,7 @@ final todayVocabQuizProvider = FutureProvider<List<VocabQuizQuestion>>((
   Ref ref,
 ) async {
   final repository = ref.watch(vocabRepositoryProvider);
-  return repository.loadTodayQuizQuestions(count: 20);
+  return repository.buildQuiz(count: 20);
 });
 
 class TodayVocabQuizScreen extends ConsumerStatefulWidget {
