@@ -232,8 +232,8 @@ class HomeScreen extends ConsumerWidget {
         // Proceed. Repository-level raw length guards still apply.
       }
 
-      final payload = await readUtf8WithByteLimit(
-        stream: file.openRead(),
+      final payload = await LimitedUtf8Reader.read(
+        file.openRead(),
         maxBytes: DbTextLimits.reportImportMaxBytes,
         path: 'importFile',
       );

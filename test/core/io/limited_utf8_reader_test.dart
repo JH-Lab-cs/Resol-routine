@@ -5,12 +5,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:resol_routine/core/io/limited_utf8_reader.dart';
 
 void main() {
-  group('readUtf8WithByteLimit', () {
+  group('LimitedUtf8Reader.read', () {
     test('decodes valid utf8 payload within limit', () async {
       final payload = utf8.encode('  {"ok":true}  ');
 
-      final output = await readUtf8WithByteLimit(
-        stream: Stream<List<int>>.fromIterable(<List<int>>[payload]),
+      final output = await LimitedUtf8Reader.read(
+        Stream<List<int>>.fromIterable(<List<int>>[payload]),
         maxBytes: 64,
         path: 'test.file',
       );
@@ -23,8 +23,8 @@ void main() {
       final chunkB = utf8.encode('67890');
 
       await expectLater(
-        () => readUtf8WithByteLimit(
-          stream: Stream<List<int>>.fromIterable(<List<int>>[chunkA, chunkB]),
+        () => LimitedUtf8Reader.read(
+          Stream<List<int>>.fromIterable(<List<int>>[chunkA, chunkB]),
           maxBytes: 9,
           path: 'test.file',
         ),
@@ -36,8 +36,8 @@ void main() {
       const invalidUtf8 = <int>[0xC3, 0x28];
 
       await expectLater(
-        () => readUtf8WithByteLimit(
-          stream: Stream<List<int>>.fromIterable(<List<int>>[invalidUtf8]),
+        () => LimitedUtf8Reader.read(
+          Stream<List<int>>.fromIterable(<List<int>>[invalidUtf8]),
           maxBytes: 16,
           path: 'test.file',
         ),
