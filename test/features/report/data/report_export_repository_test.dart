@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:drift/drift.dart' show OrderingTerm;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -132,12 +133,25 @@ void main() {
     test(
       'includes vocab-only day entries when no daily session exists',
       () async {
+        final vocabRows =
+            await (database.select(database.vocabMaster)
+                  ..orderBy([(tbl) => OrderingTerm(expression: tbl.id)])
+                  ..limit(3))
+                .get();
+        expect(vocabRows.length, greaterThanOrEqualTo(3));
+        final wrongIds = <String>[
+          vocabRows[0].id,
+          vocabRows[1].id,
+          vocabRows[2].id,
+        ];
+        final expectedWrongIds = <String>[...wrongIds]..sort();
+
         await vocabQuizResultsRepository.upsertDailyResult(
           dayKey: '20260222',
           track: 'H3',
           totalCount: 20,
           correctCount: 17,
-          wrongVocabIds: <String>['vocab_a', 'vocab_b', 'vocab_c'],
+          wrongVocabIds: wrongIds,
         );
 
         final report = await reportRepository.buildCumulativeReport(
@@ -155,11 +169,7 @@ void main() {
         expect(day.vocabQuiz, isNotNull);
         expect(day.vocabQuiz!.totalCount, 20);
         expect(day.vocabQuiz!.correctCount, 17);
-        expect(day.vocabQuiz!.wrongVocabIds, <String>[
-          'vocab_a',
-          'vocab_b',
-          'vocab_c',
-        ]);
+        expect(day.vocabQuiz!.wrongVocabIds, expectedWrongIds);
       },
     );
   });

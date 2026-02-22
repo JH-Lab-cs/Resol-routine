@@ -33,6 +33,7 @@ class VocabQuizResultsRepository {
     : _database = database;
 
   static const int _maxCount = 20;
+  static const int _expectedTotalCount = 20;
 
   final AppDatabase _database;
 
@@ -46,7 +47,7 @@ class VocabQuizResultsRepository {
     validateDayKey(dayKey);
     final parsedTrack = trackFromDb(track);
 
-    _validateCount(totalCount, path: 'totalCount');
+    _validateTotalCount(totalCount, path: 'totalCount');
     _validateCount(correctCount, path: 'correctCount');
     if (correctCount > totalCount) {
       throw const FormatException('correctCount must be <= totalCount.');
@@ -57,11 +58,12 @@ class VocabQuizResultsRepository {
       wrongVocabIds,
       path: 'wrongVocabIds',
     );
-    if (normalizedWrongVocabIds.length > wrongCount) {
+    if (normalizedWrongVocabIds.length != wrongCount) {
       throw const FormatException(
-        'wrongVocabIds length must be <= wrongCount.',
+        'wrongVocabIds length must equal wrongCount.',
       );
     }
+    await _validateAllVocabIdsExist(normalizedWrongVocabIds);
 
     final wrongVocabIdsJson = jsonEncode(normalizedWrongVocabIds);
     if (wrongVocabIdsJson.length > DbTextLimits.vocabWrongVocabIdsJsonMax) {
@@ -132,15 +134,15 @@ class VocabQuizResultsRepository {
       row.wrongVocabIdsJson,
       path: 'vocabQuizResults[$parsedDayKey].wrongVocabIdsJson',
     );
-    _validateCount(row.totalCount, path: 'totalCount');
+    _validateTotalCount(row.totalCount, path: 'totalCount');
     _validateCount(row.correctCount, path: 'correctCount');
     if (row.correctCount > row.totalCount) {
       throw const FormatException('correctCount must be <= totalCount.');
     }
     final wrongCount = row.totalCount - row.correctCount;
-    if (wrongVocabIds.length > wrongCount) {
+    if (wrongVocabIds.length != wrongCount) {
       throw const FormatException(
-        'wrongVocabIds length must be <= wrongCount.',
+        'wrongVocabIds length must equal wrongCount.',
       );
     }
 
@@ -177,7 +179,8 @@ class VocabQuizResultsRepository {
     List<String> wrongVocabIds, {
     required String path,
   }) {
-    final unique = <String>{};
+    final seen = <String>{};
+    final normalized = <String>[];
 
     for (var i = 0; i < wrongVocabIds.length; i++) {
       final raw = wrongVocabIds[i].trim();
@@ -190,10 +193,13 @@ class VocabQuizResultsRepository {
         );
       }
       validateNoHiddenUnicode(raw, path: '$path[$i]');
-      unique.add(raw);
+      if (!seen.add(raw)) {
+        throw FormatException('Duplicated value at "$path[$i]".');
+      }
+      normalized.add(raw);
     }
 
-    final normalized = unique.toList()..sort();
+    normalized.sort();
     if (normalized.length > _maxCount) {
       throw const FormatException('wrongVocabIds length must be <= 20.');
     }
@@ -201,9 +207,34 @@ class VocabQuizResultsRepository {
     return normalized;
   }
 
+  Future<void> _validateAllVocabIdsExist(List<String> vocabIds) async {
+    if (vocabIds.isEmpty) {
+      return;
+    }
+
+    final rows = await (_database.select(
+      _database.vocabMaster,
+    )..where((tbl) => tbl.id.isIn(vocabIds))).get();
+    final existingIds = <String>{for (final row in rows) row.id};
+    for (var i = 0; i < vocabIds.length; i++) {
+      if (existingIds.contains(vocabIds[i])) {
+        continue;
+      }
+      throw FormatException(
+        'Expected "wrongVocabIds[$i]" to reference an existing vocab id.',
+      );
+    }
+  }
+
   void _validateCount(int value, {required String path}) {
     if (value < 0 || value > _maxCount) {
       throw FormatException('$path must be between 0 and $_maxCount.');
+    }
+  }
+
+  void _validateTotalCount(int value, {required String path}) {
+    if (value != _expectedTotalCount) {
+      throw FormatException('$path must be exactly $_expectedTotalCount.');
     }
   }
 }
