@@ -6,18 +6,37 @@ class VocabLemmaRepository {
   const VocabLemmaRepository({required AppDatabase database})
     : _database = database;
 
+  static const int _sqliteInChunkSize = 900;
+  static const int _maxLookupIds = 2000;
+
   final AppDatabase _database;
 
   Future<Map<String, String>> loadLemmaMapByVocabIds(List<String> ids) async {
+    _validateInputSize(ids.length);
     final normalizedIds = _normalizeIds(ids);
     if (normalizedIds.isEmpty) {
       return const <String, String>{};
     }
 
-    final rows = await (_database.select(
-      _database.vocabMaster,
-    )..where((tbl) => tbl.id.isIn(normalizedIds))).get();
-    return <String, String>{for (final row in rows) row.id: row.lemma};
+    final loadedLemmas = <String, String>{};
+    for (final chunk in _chunkIds(normalizedIds)) {
+      final rows = await (_database.select(
+        _database.vocabMaster,
+      )..where((tbl) => tbl.id.isIn(chunk))).get();
+      for (final row in rows) {
+        loadedLemmas[row.id] = row.lemma;
+      }
+    }
+
+    // Keep insertion order deterministic based on the normalized input order.
+    final ordered = <String, String>{};
+    for (final id in normalizedIds) {
+      final lemma = loadedLemmas[id];
+      if (lemma != null) {
+        ordered[id] = lemma;
+      }
+    }
+    return ordered;
   }
 
   List<String> _normalizeIds(List<String> ids) {
@@ -40,5 +59,20 @@ class VocabLemmaRepository {
       }
     }
     return normalized;
+  }
+
+  Iterable<List<String>> _chunkIds(List<String> ids) sync* {
+    for (var index = 0; index < ids.length; index += _sqliteInChunkSize) {
+      final end = index + _sqliteInChunkSize > ids.length
+          ? ids.length
+          : index + _sqliteInChunkSize;
+      yield ids.sublist(index, end);
+    }
+  }
+
+  void _validateInputSize(int length) {
+    if (length > _maxLookupIds) {
+      throw FormatException('Expected "ids" length <= $_maxLookupIds.');
+    }
   }
 }
