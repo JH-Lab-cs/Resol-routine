@@ -197,205 +197,225 @@ class _VocabScreenState extends ConsumerState<VocabScreen> {
   }
 
   Future<void> _showAddVocabularySheet() async {
-    final formKey = GlobalKey<FormState>();
-    final lemmaController = TextEditingController();
-    final meaningController = TextEditingController();
-    final posController = TextEditingController();
-    final exampleController = TextEditingController();
-    var isSaving = false;
-
-    await showModalBottomSheet<void>(
+    final saved = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
       builder: (sheetContext) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            return Padding(
-              padding: EdgeInsets.fromLTRB(
-                AppSpacing.lg,
-                0,
-                AppSpacing.lg,
-                MediaQuery.of(context).viewInsets.bottom + AppSpacing.lg,
-              ),
-              child: SingleChildScrollView(
-                child: Form(
-                  key: formKey,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('단어 추가', style: AppTypography.section),
-                      const SizedBox(height: AppSpacing.xs),
-                      Text(
-                        '새 단어를 저장하면 단어장에 바로 추가됩니다.',
-                        style: AppTypography.body.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-                      TextFormField(
-                        controller: lemmaController,
-                        textInputAction: TextInputAction.next,
-                        decoration: const InputDecoration(
-                          labelText: '단어',
-                          hintText: '예: analyze',
-                        ),
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return '단어를 입력해 주세요.';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: AppSpacing.sm),
-                      TextFormField(
-                        controller: meaningController,
-                        textInputAction: TextInputAction.next,
-                        decoration: const InputDecoration(
-                          labelText: '뜻',
-                          hintText: '예: 분석하다',
-                        ),
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return '뜻을 입력해 주세요.';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: AppSpacing.sm),
-                      TextFormField(
-                        controller: posController,
-                        textInputAction: TextInputAction.next,
-                        decoration: const InputDecoration(
-                          labelText: '품사 (선택)',
-                          hintText: '예: verb',
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.sm),
-                      TextFormField(
-                        controller: exampleController,
-                        maxLines: 3,
-                        decoration: const InputDecoration(
-                          labelText: '예문 (선택)',
-                          hintText: '예: We need to analyze the results.',
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.lg),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton(
-                              onPressed: isSaving
-                                  ? null
-                                  : () => Navigator.of(sheetContext).pop(),
-                              child: const Text('취소'),
-                            ),
-                          ),
-                          const SizedBox(width: AppSpacing.sm),
-                          Expanded(
-                            child: FilledButton(
-                              onPressed: isSaving
-                                  ? null
-                                  : () async {
-                                      final navigator = Navigator.of(
-                                        sheetContext,
-                                      );
-                                      final messenger = ScaffoldMessenger.of(
-                                        this.context,
-                                      );
-                                      if (!(formKey.currentState?.validate() ??
-                                          false)) {
-                                        return;
-                                      }
-
-                                      setModalState(() {
-                                        isSaving = true;
-                                      });
-
-                                      try {
-                                        await ref
-                                            .read(vocabRepositoryProvider)
-                                            .addVocabulary(
-                                              lemma: lemmaController.text,
-                                              meaning: meaningController.text,
-                                              pos: posController.text,
-                                              example: exampleController.text,
-                                            );
-
-                                        if (!mounted || !sheetContext.mounted) {
-                                          return;
-                                        }
-                                        navigator.pop();
-                                        ref
-                                                .read(
-                                                  vocabCollectionTabProvider
-                                                      .notifier,
-                                                )
-                                                .state =
-                                            VocabCollectionTab.mine;
-                                        final query = ref.read(
-                                          vocabSearchProvider,
-                                        );
-                                        final tab = ref.read(
-                                          vocabCollectionTabProvider,
-                                        );
-                                        ref.invalidate(
-                                          vocabListProvider((
-                                            tab: tab,
-                                            query: query,
-                                          )),
-                                        );
-                                        messenger.showSnackBar(
-                                          const SnackBar(
-                                            content: Text('단어를 저장했습니다.'),
-                                          ),
-                                        );
-                                      } on FormatException catch (error) {
-                                        if (!mounted) {
-                                          return;
-                                        }
-                                        messenger.showSnackBar(
-                                          SnackBar(
-                                            content: Text(error.message),
-                                          ),
-                                        );
-                                        setModalState(() {
-                                          isSaving = false;
-                                        });
-                                      } catch (_) {
-                                        if (!mounted) {
-                                          return;
-                                        }
-                                        messenger.showSnackBar(
-                                          const SnackBar(
-                                            content: Text('단어 저장에 실패했습니다.'),
-                                          ),
-                                        );
-                                        setModalState(() {
-                                          isSaving = false;
-                                        });
-                                      }
-                                    },
-                              child: const Text('저장'),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            );
+        return _AddVocabularySheet(
+          onSubmit: (draft) {
+            return ref
+                .read(vocabRepositoryProvider)
+                .addVocabulary(
+                  lemma: draft.lemma,
+                  meaning: draft.meaning,
+                  pos: draft.pos,
+                  example: draft.example,
+                );
           },
         );
       },
     );
 
-    lemmaController.dispose();
-    meaningController.dispose();
-    posController.dispose();
-    exampleController.dispose();
+    if (!mounted || saved != true) {
+      return;
+    }
+
+    ref.read(vocabCollectionTabProvider.notifier).state =
+        VocabCollectionTab.mine;
+    final query = ref.read(vocabSearchProvider);
+    final tab = ref.read(vocabCollectionTabProvider);
+    ref.invalidate(vocabListProvider((tab: tab, query: query)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('단어를 저장했습니다.')));
+  }
+}
+
+class _AddVocabularyDraft {
+  const _AddVocabularyDraft({
+    required this.lemma,
+    required this.meaning,
+    required this.pos,
+    required this.example,
+  });
+
+  final String lemma;
+  final String meaning;
+  final String? pos;
+  final String? example;
+}
+
+class _AddVocabularySheet extends StatefulWidget {
+  const _AddVocabularySheet({required this.onSubmit});
+
+  final Future<void> Function(_AddVocabularyDraft draft) onSubmit;
+
+  @override
+  State<_AddVocabularySheet> createState() => _AddVocabularySheetState();
+}
+
+class _AddVocabularySheetState extends State<_AddVocabularySheet> {
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  final TextEditingController _lemmaController = TextEditingController();
+  final TextEditingController _meaningController = TextEditingController();
+  final TextEditingController _posController = TextEditingController();
+  final TextEditingController _exampleController = TextEditingController();
+
+  bool _isSaving = false;
+
+  @override
+  void dispose() {
+    _lemmaController.dispose();
+    _meaningController.dispose();
+    _posController.dispose();
+    _exampleController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        0,
+        AppSpacing.lg,
+        MediaQuery.of(context).viewInsets.bottom + AppSpacing.lg,
+      ),
+      child: SingleChildScrollView(
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('단어 추가', style: AppTypography.section),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                '새 단어를 저장하면 단어장에 바로 추가됩니다.',
+                style: AppTypography.body.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              TextFormField(
+                controller: _lemmaController,
+                textInputAction: TextInputAction.next,
+                decoration: const InputDecoration(
+                  labelText: '단어',
+                  hintText: '예: analyze',
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return '단어를 입력해 주세요.';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              TextFormField(
+                controller: _meaningController,
+                textInputAction: TextInputAction.next,
+                decoration: const InputDecoration(
+                  labelText: '뜻',
+                  hintText: '예: 분석하다',
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return '뜻을 입력해 주세요.';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              TextFormField(
+                controller: _posController,
+                textInputAction: TextInputAction.next,
+                decoration: const InputDecoration(
+                  labelText: '품사 (선택)',
+                  hintText: '예: verb',
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              TextFormField(
+                controller: _exampleController,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  labelText: '예문 (선택)',
+                  hintText: '예: We need to analyze the results.',
+                ),
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: _isSaving
+                          ? null
+                          : () => Navigator.of(context).pop(false),
+                      child: const Text('취소'),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: _isSaving ? null : _submit,
+                      child: const Text('저장'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _submit() async {
+    if (!(_formKey.currentState?.validate() ?? false)) {
+      return;
+    }
+
+    setState(() {
+      _isSaving = true;
+    });
+
+    try {
+      await widget.onSubmit(
+        _AddVocabularyDraft(
+          lemma: _lemmaController.text,
+          meaning: _meaningController.text,
+          pos: _posController.text,
+          example: _exampleController.text,
+        ),
+      );
+
+      if (!mounted) {
+        return;
+      }
+      Navigator.of(context).pop(true);
+    } on FormatException catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+      setState(() {
+        _isSaving = false;
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('단어 저장에 실패했습니다.')));
+      setState(() {
+        _isSaving = false;
+      });
+    }
   }
 }
 
