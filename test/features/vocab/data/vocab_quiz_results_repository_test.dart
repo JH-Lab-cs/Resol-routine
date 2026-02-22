@@ -91,5 +91,18 @@ void main() {
         throwsA(isA<FormatException>()),
       );
     });
+
+    test('rejects wrongVocabIds length that exceeds wrongCount', () async {
+      await expectLater(
+        repository.upsertDailyResult(
+          dayKey: '20260221',
+          track: 'M3',
+          totalCount: 10,
+          correctCount: 9,
+          wrongVocabIds: const <String>['vocab_a', 'vocab_b'],
+        ),
+        throwsA(isA<FormatException>()),
+      );
+    });
   });
 }

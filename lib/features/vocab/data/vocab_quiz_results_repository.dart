@@ -51,14 +51,15 @@ class VocabQuizResultsRepository {
     if (correctCount > totalCount) {
       throw const FormatException('correctCount must be <= totalCount.');
     }
+    final wrongCount = totalCount - correctCount;
 
     final normalizedWrongVocabIds = _normalizeWrongVocabIds(
       wrongVocabIds,
       path: 'wrongVocabIds',
     );
-    if (normalizedWrongVocabIds.length > totalCount) {
+    if (normalizedWrongVocabIds.length > wrongCount) {
       throw const FormatException(
-        'wrongVocabIds length must be <= totalCount.',
+        'wrongVocabIds length must be <= wrongCount.',
       );
     }
 
@@ -136,9 +137,10 @@ class VocabQuizResultsRepository {
     if (row.correctCount > row.totalCount) {
       throw const FormatException('correctCount must be <= totalCount.');
     }
-    if (wrongVocabIds.length > row.totalCount) {
+    final wrongCount = row.totalCount - row.correctCount;
+    if (wrongVocabIds.length > wrongCount) {
       throw const FormatException(
-        'wrongVocabIds length must be <= totalCount.',
+        'wrongVocabIds length must be <= wrongCount.',
       );
     }
 
