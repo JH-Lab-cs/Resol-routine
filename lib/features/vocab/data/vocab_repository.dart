@@ -1,7 +1,10 @@
+import 'dart:math';
+
 import 'package:drift/drift.dart';
 
 import '../../../core/database/app_database.dart';
 import '../../../core/database/db_text_limits.dart';
+import '../../../core/security/hidden_unicode.dart';
 import '../../../core/time/day_key.dart';
 
 class VocabListItem {
@@ -40,6 +43,9 @@ class VocabQuizQuestion {
 
 class VocabRepository {
   const VocabRepository({required AppDatabase database}) : _database = database;
+
+  static const String _customVocabPrefix = 'user_';
+  static final Random _idRandom = Random.secure();
 
   final AppDatabase _database;
 
@@ -117,50 +123,72 @@ class VocabRepository {
     String? pos,
     String? example,
   }) async {
-    final normalizedLemma = lemma.trim();
-    final normalizedMeaning = meaning.trim();
-    final normalizedPos = pos?.trim();
-    final normalizedExample = example?.trim();
+    final normalized = _validateAndNormalizeInput(
+      lemma: lemma,
+      meaning: meaning,
+      pos: pos,
+      example: example,
+    );
+    final vocabId = _buildCustomVocabId();
 
-    if (normalizedLemma.isEmpty) {
-      throw const FormatException('단어를 입력해 주세요.');
-    }
-    if (normalizedMeaning.isEmpty) {
-      throw const FormatException('뜻을 입력해 주세요.');
-    }
-    if (normalizedLemma.length > DbTextLimits.lemmaMax) {
-      throw const FormatException('단어 길이가 너무 깁니다.');
-    }
-    if (normalizedMeaning.length > DbTextLimits.meaningMax) {
-      throw const FormatException('뜻 길이가 너무 깁니다.');
-    }
-
-    final vocabId = 'user_${DateTime.now().toUtc().microsecondsSinceEpoch}';
     await _database
         .into(_database.vocabMaster)
         .insert(
           VocabMasterCompanion.insert(
             id: vocabId,
-            lemma: normalizedLemma,
-            meaning: normalizedMeaning,
-            pos: Value(
-              normalizedPos == null || normalizedPos.isEmpty
-                  ? null
-                  : normalizedPos,
-            ),
-            example: Value(
-              normalizedExample == null || normalizedExample.isEmpty
-                  ? null
-                  : normalizedExample,
-            ),
+            lemma: normalized.lemma,
+            meaning: normalized.meaning,
+            pos: Value(normalized.pos),
+            example: Value(normalized.example),
           ),
         );
+  }
+
+  Future<void> updateVocabulary({
+    required String id,
+    required String lemma,
+    required String meaning,
+    String? pos,
+    String? example,
+  }) async {
+    final normalizedId = _validateCustomVocabId(id, actionVerb: '수정');
+    final normalized = _validateAndNormalizeInput(
+      lemma: lemma,
+      meaning: meaning,
+      pos: pos,
+      example: example,
+    );
+
+    final updatedRows =
+        await (_database.update(
+          _database.vocabMaster,
+        )..where((tbl) => tbl.id.equals(normalizedId))).write(
+          VocabMasterCompanion(
+            lemma: Value(normalized.lemma),
+            meaning: Value(normalized.meaning),
+            pos: Value(normalized.pos),
+            example: Value(normalized.example),
+          ),
+        );
+    if (updatedRows == 0) {
+      throw const FormatException('수정할 단어를 찾지 못했습니다.');
+    }
+  }
+
+  Future<bool> deleteVocabulary({required String id}) async {
+    final normalizedId = _validateCustomVocabId(id, actionVerb: '삭제');
+    final deletedRows = await (_database.delete(
+      _database.vocabMaster,
+    )..where((tbl) => tbl.id.equals(normalizedId))).go();
+    return deletedRows > 0;
   }
 
   Future<List<VocabListItem>> listMyVocabulary({String searchTerm = ''}) async {
     final allItems = await listVocabulary(searchTerm: searchTerm);
     return allItems
-        .where((item) => item.id.startsWith('user_') || item.isBookmarked)
+        .where(
+          (item) => item.id.startsWith(_customVocabPrefix) || item.isBookmarked,
+        )
         .toList(growable: false);
   }
 
@@ -294,6 +322,156 @@ class VocabRepository {
       correctOptionIndex: correctOptionIndex < 0 ? 0 : correctOptionIndex,
     );
   }
+
+  _NormalizedVocabularyInput _validateAndNormalizeInput({
+    required String lemma,
+    required String meaning,
+    String? pos,
+    String? example,
+  }) {
+    final normalizedLemma = lemma.trim();
+    final normalizedMeaning = meaning.trim();
+    final normalizedPos = _normalizeOptionalField(
+      value: pos,
+      path: 'pos',
+      maxLength: DbTextLimits.lemmaMax,
+      lengthErrorMessage: '품사 길이가 너무 깁니다.',
+      hiddenUnicodeErrorMessage: '품사에 허용되지 않는 문자가 포함되어 있습니다.',
+    );
+    final normalizedExample = _normalizeOptionalField(
+      value: example,
+      path: 'example',
+      maxLength: DbTextLimits.meaningMax,
+      lengthErrorMessage: '예문 길이가 너무 깁니다.',
+      hiddenUnicodeErrorMessage: '예문에 허용되지 않는 문자가 포함되어 있습니다.',
+    );
+
+    _validateRequiredField(
+      value: normalizedLemma,
+      path: 'lemma',
+      emptyErrorMessage: '단어를 입력해 주세요.',
+      lengthErrorMessage: '단어 길이가 너무 깁니다.',
+      hiddenUnicodeErrorMessage: '단어에 허용되지 않는 문자가 포함되어 있습니다.',
+      maxLength: DbTextLimits.lemmaMax,
+    );
+    _validateRequiredField(
+      value: normalizedMeaning,
+      path: 'meaning',
+      emptyErrorMessage: '뜻을 입력해 주세요.',
+      lengthErrorMessage: '뜻 길이가 너무 깁니다.',
+      hiddenUnicodeErrorMessage: '뜻에 허용되지 않는 문자가 포함되어 있습니다.',
+      maxLength: DbTextLimits.meaningMax,
+    );
+
+    return _NormalizedVocabularyInput(
+      lemma: normalizedLemma,
+      meaning: normalizedMeaning,
+      pos: normalizedPos,
+      example: normalizedExample,
+    );
+  }
+
+  void _validateRequiredField({
+    required String value,
+    required String path,
+    required String emptyErrorMessage,
+    required String lengthErrorMessage,
+    required String hiddenUnicodeErrorMessage,
+    required int maxLength,
+  }) {
+    if (value.isEmpty) {
+      throw FormatException(emptyErrorMessage);
+    }
+    if (value.length > maxLength) {
+      throw FormatException(lengthErrorMessage);
+    }
+    _validateNoHiddenUnicode(
+      value,
+      path: path,
+      errorMessage: hiddenUnicodeErrorMessage,
+    );
+  }
+
+  String? _normalizeOptionalField({
+    required String? value,
+    required String path,
+    required int maxLength,
+    required String lengthErrorMessage,
+    required String hiddenUnicodeErrorMessage,
+  }) {
+    if (value == null) {
+      return null;
+    }
+
+    final normalized = value.trim();
+    if (normalized.isEmpty) {
+      return null;
+    }
+    if (normalized.length > maxLength) {
+      throw FormatException(lengthErrorMessage);
+    }
+    _validateNoHiddenUnicode(
+      normalized,
+      path: path,
+      errorMessage: hiddenUnicodeErrorMessage,
+    );
+    return normalized;
+  }
+
+  void _validateNoHiddenUnicode(
+    String value, {
+    required String path,
+    required String errorMessage,
+  }) {
+    try {
+      validateNoHiddenUnicode(value, path: path);
+    } on FormatException {
+      throw FormatException(errorMessage);
+    }
+  }
+
+  String _buildCustomVocabId() {
+    final millis = DateTime.now().toUtc().millisecondsSinceEpoch;
+    final randomToken = _idRandom
+        .nextInt(0x1000000)
+        .toRadixString(16)
+        .padLeft(6, '0');
+    final id = '$_customVocabPrefix${millis}_$randomToken';
+    if (id.length > DbTextLimits.idMax) {
+      throw const FormatException('단어 ID를 생성하지 못했습니다.');
+    }
+    return id;
+  }
+
+  String _validateCustomVocabId(String id, {required String actionVerb}) {
+    final normalizedId = id.trim();
+    if (normalizedId.isEmpty || normalizedId.length > DbTextLimits.idMax) {
+      throw const FormatException('유효하지 않은 단어 ID입니다.');
+    }
+    _validateNoHiddenUnicode(
+      normalizedId,
+      path: 'id',
+      errorMessage: '유효하지 않은 단어 ID입니다.',
+    );
+    if (!normalizedId.startsWith(_customVocabPrefix)) {
+      throw FormatException('직접 추가한 단어만 $actionVerb할 수 있습니다.');
+    }
+    return normalizedId;
+  }
+}
+
+class _NormalizedVocabularyInput {
+  const _NormalizedVocabularyInput({
+    required this.lemma,
+    required this.meaning,
+    required this.pos,
+    required this.example,
+  });
+
+  final String lemma;
+  final String meaning;
+  final String? pos;
+  final String? example;
 }
 
 class _ScoredVocab {
