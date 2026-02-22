@@ -225,19 +225,19 @@ class ReportExportRepository {
         )
         .get();
 
-    final dayBuilders = <int, _DayBuilder>{};
+    final dayBuilders = <String, _DayBuilder>{};
     for (final row in rows) {
-      final sessionId = row.read<int>('session_id');
-      final dayBuilder = dayBuilders.putIfAbsent(sessionId, () {
-        final dayKey = _formatDayKey(row.read<int>('day_key'));
-        final rowTrack = _trackOrNull(row.read<String>('track'));
-        if (rowTrack == null) {
-          throw FormatException(
-            'Unsupported track on daily_sessions row: ${row.read<String>('track')}',
-          );
-        }
-        return _DayBuilder(dayKey: dayKey, track: rowTrack);
-      });
+      final dayKey = _formatDayKey(row.read<int>('day_key'));
+      final rowTrack = _trackOrNull(row.read<String>('track'));
+      if (rowTrack == null) {
+        throw FormatException(
+          'Unsupported track on daily_sessions row: ${row.read<String>('track')}',
+        );
+      }
+      final dayBuilder = dayBuilders.putIfAbsent(
+        _dayBuilderKey(dayKey: dayKey, track: rowTrack),
+        () => _DayBuilder(dayKey: dayKey, track: rowTrack),
+      );
 
       final isCorrect = _sqliteBoolOrNull(row.read<int?>('is_correct'));
       if (isCorrect == null) {
@@ -260,6 +260,13 @@ class ReportExportRepository {
     }
 
     final vocabQuizByDayKey = await _loadVocabQuizByDayKey(track: track);
+    final parsedTrack = trackFromDb(track);
+    for (final dayKey in vocabQuizByDayKey.keys) {
+      dayBuilders.putIfAbsent(
+        _dayBuilderKey(dayKey: dayKey, track: parsedTrack),
+        () => _DayBuilder(dayKey: dayKey, track: parsedTrack),
+      );
+    }
 
     final builtDays = dayBuilders.values
         .map(
@@ -267,6 +274,7 @@ class ReportExportRepository {
               builder.build(vocabQuiz: vocabQuizByDayKey[builder.dayKey]),
         )
         .toList(growable: false);
+    builtDays.sort((left, right) => right.dayKey.compareTo(left.dayKey));
 
     for (var i = 0; i < builtDays.length; i++) {
       // Re-validate serialized output so exported files always satisfy schema guards.
@@ -278,6 +286,10 @@ class ReportExportRepository {
     }
 
     return builtDays;
+  }
+
+  String _dayBuilderKey({required String dayKey, required Track track}) {
+    return '$dayKey|${track.dbValue}';
   }
 
   Future<Map<String, ReportVocabQuizSummary>> _loadVocabQuizByDayKey({

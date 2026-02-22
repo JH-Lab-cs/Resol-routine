@@ -9,6 +9,7 @@ import 'package:resol_routine/features/content_pack/data/content_pack_seeder.dar
 import 'package:resol_routine/features/report/data/report_export_repository.dart';
 import 'package:resol_routine/features/today/data/today_quiz_repository.dart';
 import 'package:resol_routine/features/today/data/today_session_repository.dart';
+import 'package:resol_routine/features/vocab/data/vocab_quiz_results_repository.dart';
 
 void main() {
   group('ReportExportRepository', () {
@@ -16,6 +17,7 @@ void main() {
     late TodaySessionRepository sessionRepository;
     late TodayQuizRepository quizRepository;
     late ReportExportRepository reportRepository;
+    late VocabQuizResultsRepository vocabQuizResultsRepository;
 
     setUp(() async {
       database = AppDatabase(executor: NativeDatabase.memory());
@@ -34,6 +36,9 @@ void main() {
       reportRepository = ReportExportRepository(
         database: database,
         appVersionLoader: () async => '9.9.9+9',
+      );
+      vocabQuizResultsRepository = VocabQuizResultsRepository(
+        database: database,
       );
     });
 
@@ -121,6 +126,40 @@ void main() {
 
         expect(report.days, isEmpty);
         expect(report.schemaVersion, 2);
+      },
+    );
+
+    test(
+      'includes vocab-only day entries when no daily session exists',
+      () async {
+        await vocabQuizResultsRepository.upsertDailyResult(
+          dayKey: '20260222',
+          track: 'H3',
+          totalCount: 20,
+          correctCount: 17,
+          wrongVocabIds: <String>['vocab_a', 'vocab_b', 'vocab_c'],
+        );
+
+        final report = await reportRepository.buildCumulativeReport(
+          track: 'H3',
+          nowLocal: DateTime(2026, 2, 22, 20, 0),
+        );
+
+        expect(report.days, hasLength(1));
+        final day = report.days.first;
+        expect(day.dayKey, '20260222');
+        expect(day.track, Track.h3);
+        expect(day.solvedCount, 0);
+        expect(day.wrongCount, 0);
+        expect(day.questions, isEmpty);
+        expect(day.vocabQuiz, isNotNull);
+        expect(day.vocabQuiz!.totalCount, 20);
+        expect(day.vocabQuiz!.correctCount, 17);
+        expect(day.vocabQuiz!.wrongVocabIds, <String>[
+          'vocab_a',
+          'vocab_b',
+          'vocab_c',
+        ]);
       },
     );
   });

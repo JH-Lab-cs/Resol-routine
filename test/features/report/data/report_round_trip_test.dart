@@ -186,6 +186,61 @@ void main() {
         throwsA(isA<FormatException>()),
       );
     });
+
+    test('keeps vocab-only day entries through export and import', () async {
+      final session = await sessionRepository.getOrCreateSession(
+        track: 'M3',
+        nowLocal: DateTime(2026, 2, 21, 8, 0),
+      );
+      await quizRepository.saveAttemptIdempotent(
+        sessionId: session.sessionId,
+        questionId: session.items[0].questionId,
+        selectedAnswer: 'A',
+        isCorrect: true,
+      );
+
+      await vocabQuizResultsRepository.upsertDailyResult(
+        dayKey: '20260222',
+        track: 'M3',
+        totalCount: 20,
+        correctCount: 19,
+        wrongVocabIds: <String>['vocab_gamma'],
+      );
+
+      final exportPayload = await exportRepository.buildExportPayload(
+        track: 'M3',
+        nowLocal: DateTime(2026, 2, 22, 9, 30),
+      );
+
+      expect(exportPayload.report.days.map((day) => day.dayKey), <String>[
+        '20260222',
+        '20260221',
+      ]);
+      expect(exportPayload.report.days.first.solvedCount, 0);
+      expect(exportPayload.report.days.first.questions, isEmpty);
+      expect(exportPayload.report.days.first.vocabQuiz, isNotNull);
+      expect(exportPayload.report.days.first.vocabQuiz!.correctCount, 19);
+
+      final importedId = await sharedReportsRepository.importFromJson(
+        source: exportPayload.fileName,
+        payloadJson: exportPayload.jsonPayload,
+      );
+
+      final summaries = await sharedReportsRepository.listSummaries();
+      expect(summaries, hasLength(1));
+      expect(summaries.first.id, importedId);
+      expect(summaries.first.dayCount, 2);
+      expect(summaries.first.totalSolvedCount, 1);
+
+      final detail = await sharedReportsRepository.loadById(importedId);
+      expect(detail.report.days, hasLength(2));
+      expect(detail.report.days.first.dayKey, '20260222');
+      expect(detail.report.days.first.questions, isEmpty);
+      expect(detail.report.days.first.vocabQuiz, isNotNull);
+      expect(detail.report.days.first.vocabQuiz!.wrongVocabIds, <String>[
+        'vocab_gamma',
+      ]);
+    });
   });
 }
 
