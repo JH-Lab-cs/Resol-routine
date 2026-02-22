@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:drift/drift.dart' show Value;
+import 'package:drift/drift.dart' show InsertMode, Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -98,6 +98,8 @@ void main() {
         );
 
         const customVocabId = 'probe_vocab_20260221';
+        const secondCustomVocabId = 'probe_vocab_20260221_b';
+        const bookmarkOnlyVocabId = 'probe_vocab_20260221_c';
         const customLemma = 'lemma_probe_token_24680';
         const customMeaning = 'meaning_probe_token_24680';
         const customExample = 'example_probe_token_24680';
@@ -111,13 +113,61 @@ void main() {
                 example: const Value(customExample),
               ),
             );
-        final anotherVocab =
-            await (database.select(database.vocabMaster)
-                  ..where((tbl) => tbl.id.isNotValue(customVocabId))
-                  ..limit(1))
-                .getSingle();
-        final expectedWrongVocabIds = <String>[customVocabId, anotherVocab.id]
-          ..sort();
+        await database
+            .into(database.vocabMaster)
+            .insert(
+              VocabMasterCompanion.insert(
+                id: secondCustomVocabId,
+                lemma: 'lemma_probe_token_24681',
+                meaning: 'meaning_probe_token_24681',
+              ),
+            );
+        await database
+            .into(database.vocabMaster)
+            .insert(
+              VocabMasterCompanion.insert(
+                id: bookmarkOnlyVocabId,
+                lemma: 'lemma_probe_token_24682',
+                meaning: 'meaning_probe_token_24682',
+              ),
+            );
+        final expectedWrongVocabIds = <String>[
+          customVocabId,
+          secondCustomVocabId,
+        ]..sort();
+        final expectedBookmarkedVocabIds = <String>[
+          customVocabId,
+          secondCustomVocabId,
+          bookmarkOnlyVocabId,
+        ]..sort();
+
+        await database
+            .into(database.vocabUser)
+            .insert(
+              VocabUserCompanion.insert(
+                vocabId: customVocabId,
+                isBookmarked: const Value(true),
+              ),
+              mode: InsertMode.insertOrReplace,
+            );
+        await database
+            .into(database.vocabUser)
+            .insert(
+              VocabUserCompanion.insert(
+                vocabId: secondCustomVocabId,
+                isBookmarked: const Value(true),
+              ),
+              mode: InsertMode.insertOrReplace,
+            );
+        await database
+            .into(database.vocabUser)
+            .insert(
+              VocabUserCompanion.insert(
+                vocabId: bookmarkOnlyVocabId,
+                isBookmarked: const Value(true),
+              ),
+              mode: InsertMode.insertOrReplace,
+            );
 
         await vocabQuizResultsRepository.upsertDailyResult(
           dayKey: '20260221',
@@ -133,8 +183,13 @@ void main() {
         );
 
         expect(exportPayload.jsonPayload.contains('\n'), isFalse);
+        expect(exportPayload.report.schemaVersion, 3);
         expect(exportPayload.report.days, hasLength(2));
         expect(exportPayload.report.days.first.dayKey, '20260221');
+        expect(
+          exportPayload.report.vocabBookmarks!.bookmarkedVocabIds,
+          expectedBookmarkedVocabIds,
+        );
 
         final importedId = await sharedReportsRepository.importFromJson(
           source: exportPayload.fileName,
@@ -152,7 +207,7 @@ void main() {
         expect(summaries.first.topWrongReasonTag, 'VOCAB');
 
         final detail = await sharedReportsRepository.loadById(importedId);
-        expect(detail.report.schemaVersion, 2);
+        expect(detail.report.schemaVersion, 3);
         expect(detail.report.appVersion, '1.2.3+45');
         expect(detail.report.days, hasLength(2));
         expect(detail.report.days.first.vocabQuiz, isNotNull);
@@ -163,6 +218,10 @@ void main() {
         );
         expect(detail.report.days.first.questions, hasLength(2));
         expect(detail.report.days.last.questions, hasLength(3));
+        expect(
+          detail.report.vocabBookmarks!.bookmarkedVocabIds,
+          expectedBookmarkedVocabIds,
+        );
 
         final questionRow = await (database.select(
           database.questions,
@@ -179,6 +238,7 @@ void main() {
 
         final payload = exportPayload.jsonPayload;
         expect(payload.contains(customVocabId), isTrue);
+        expect(payload.contains(bookmarkOnlyVocabId), isTrue);
         expect(payload.contains(customLemma), isFalse);
         expect(payload.contains(customMeaning), isFalse);
         expect(payload.contains(customExample), isFalse);

@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:drift/drift.dart' show OrderingTerm;
+import 'package:drift/drift.dart' show InsertMode, OrderingTerm, Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -86,7 +86,7 @@ void main() {
         );
 
         expect(exportPayload.fileName, 'resolroutine_report_20260221_M3.json');
-        expect(exportPayload.report.schemaVersion, 2);
+        expect(exportPayload.report.schemaVersion, 3);
         expect(exportPayload.report.appVersion, '9.9.9+9');
         expect(exportPayload.report.days, hasLength(2));
         expect(exportPayload.report.days.first.dayKey, '20260221');
@@ -126,9 +126,86 @@ void main() {
         );
 
         expect(report.days, isEmpty);
-        expect(report.schemaVersion, 2);
+        expect(report.schemaVersion, 3);
       },
     );
+
+    test('includes bookmarked vocab ids in deterministic order', () async {
+      const vocabAId = 'bookmark_vocab_a';
+      const vocabBId = 'bookmark_vocab_b';
+      const vocabCId = 'bookmark_vocab_c';
+      const vocabALemma = 'bookmark_alpha';
+
+      await database
+          .into(database.vocabMaster)
+          .insert(
+            VocabMasterCompanion.insert(
+              id: vocabAId,
+              lemma: vocabALemma,
+              meaning: 'alpha meaning',
+            ),
+          );
+      await database
+          .into(database.vocabMaster)
+          .insert(
+            VocabMasterCompanion.insert(
+              id: vocabBId,
+              lemma: 'bookmark_beta',
+              meaning: 'beta meaning',
+            ),
+          );
+      await database
+          .into(database.vocabMaster)
+          .insert(
+            VocabMasterCompanion.insert(
+              id: vocabCId,
+              lemma: 'bookmark_gamma',
+              meaning: 'gamma meaning',
+            ),
+          );
+
+      await database
+          .into(database.vocabUser)
+          .insert(
+            VocabUserCompanion.insert(
+              vocabId: vocabCId,
+              isBookmarked: const Value(true),
+            ),
+            mode: InsertMode.insertOrReplace,
+          );
+      await database
+          .into(database.vocabUser)
+          .insert(
+            VocabUserCompanion.insert(
+              vocabId: vocabAId,
+              isBookmarked: const Value(true),
+            ),
+            mode: InsertMode.insertOrReplace,
+          );
+      await database
+          .into(database.vocabUser)
+          .insert(
+            VocabUserCompanion.insert(
+              vocabId: vocabBId,
+              isBookmarked: const Value(true),
+            ),
+            mode: InsertMode.insertOrReplace,
+          );
+
+      final report = await reportRepository.buildCumulativeReport(
+        track: 'M3',
+        nowLocal: DateTime(2026, 2, 21, 12, 0),
+      );
+
+      expect(report.vocabBookmarks, isNotNull);
+      expect(report.vocabBookmarks!.bookmarkedVocabIds, <String>[
+        vocabAId,
+        vocabBId,
+        vocabCId,
+      ]);
+      expect(report.encodeCompact().contains(vocabAId), isTrue);
+      expect(report.encodeCompact().contains(vocabALemma), isFalse);
+    });
 
     test(
       'includes vocab-only day entries when no daily session exists',

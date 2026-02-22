@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:drift/drift.dart' show OrderingTerm;
+import 'package:drift/drift.dart' show InsertMode, OrderingTerm, Value;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -27,6 +27,7 @@ void main() {
     late ReportExportRepository reportExportRepository;
     late String firstLemma;
     late String secondLemma;
+    late String bookmarkedLemma;
     await tester.runAsync(() async {
       final starterPackJson = await File(
         'assets/content_packs/starter_pack.json',
@@ -54,6 +55,17 @@ void main() {
       expect(vocabRows.length, greaterThanOrEqualTo(2));
       firstLemma = vocabRows[0].lemma;
       secondLemma = vocabRows[1].lemma;
+      bookmarkedLemma = 'bookmark_probe_lemma';
+      const bookmarkedVocabId = 'aaa_bookmark_probe';
+      await database
+          .into(database.vocabMaster)
+          .insert(
+            VocabMasterCompanion.insert(
+              id: bookmarkedVocabId,
+              lemma: bookmarkedLemma,
+              meaning: 'bookmark probe meaning',
+            ),
+          );
 
       final now = DateTime.now();
       final dayKey = formatDayKey(now);
@@ -74,6 +86,15 @@ void main() {
         correctCount: 18,
         wrongVocabIds: <String>[vocabRows[0].id, vocabRows[1].id],
       );
+      await database
+          .into(database.vocabUser)
+          .insert(
+            VocabUserCompanion.insert(
+              vocabId: bookmarkedVocabId,
+              isBookmarked: const Value(true),
+            ),
+            mode: InsertMode.insertOrReplace,
+          );
     });
 
     await tester.pumpWidget(
@@ -88,11 +109,18 @@ void main() {
       ),
     );
 
-    await _pumpUntilVisible(tester, find.textContaining('단어시험 18/20'));
+    await _pumpUntilVisible(tester, find.textContaining('단어시험 18/20 · 90%'));
     await _pumpUntilVisible(tester, find.text(firstLemma));
-    expect(find.textContaining('단어시험 18/20'), findsAtLeastNWidgets(1));
+    expect(find.textContaining('단어시험 18/20 · 90%'), findsAtLeastNWidgets(1));
     expect(find.text(firstLemma), findsOneWidget);
     expect(find.text(secondLemma), findsOneWidget);
+    expect(find.text('북마크 단어장'), findsOneWidget);
+    expect(find.text(bookmarkedLemma), findsNothing);
+
+    await tester.tap(find.text('북마크 단어장'));
+    await tester.pumpAndSettle();
+
+    expect(find.text(bookmarkedLemma), findsOneWidget);
   });
 }
 

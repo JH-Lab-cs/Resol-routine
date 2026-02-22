@@ -252,7 +252,9 @@ void main() {
 
       expect(find.textContaining('ID L-001'), findsNothing);
 
-      await tester.tap(find.byIcon(Icons.keyboard_arrow_down_rounded).first);
+      await tester.tap(
+        find.byKey(const ValueKey('report-day-toggle-20260221-M3')),
+      );
       await tester.pumpAndSettle();
 
       expect(find.textContaining('ID L-001'), findsOneWidget);
@@ -311,12 +313,74 @@ void main() {
     expect(find.text('orchard'), findsNothing);
     expect(find.text('missing_vocab_id'), findsNothing);
 
-    await tester.tap(find.byIcon(Icons.keyboard_arrow_down_rounded).first);
+    await tester.tap(
+      find.byKey(const ValueKey('report-day-toggle-20260222-M3')),
+    );
     await tester.pumpAndSettle();
     await _pumpUntilVisible(tester, find.text('orchard'));
 
     expect(find.text('orchard'), findsOneWidget);
     expect(find.text('missing_vocab_id'), findsOneWidget);
+  });
+
+  testWidgets('parent detail shows bookmark lemmas and fallback ids', (
+    WidgetTester tester,
+  ) async {
+    final sharedDb = AppDatabase(executor: NativeDatabase.memory());
+    final fakeSessionRepository = _FakeTodaySessionRepository(sharedDb);
+    final fakeQuizRepository = _FakeTodayQuizRepository(sharedDb);
+    final settingsRepository = UserSettingsRepository(database: sharedDb);
+    final sharedReportsRepository = SharedReportsRepository(database: sharedDb);
+
+    await settingsRepository.updateRole('PARENT');
+    await settingsRepository.updateName('보호자');
+    await sharedDb
+        .into(sharedDb.vocabMaster)
+        .insert(
+          VocabMasterCompanion.insert(
+            id: 'known_bookmark_id',
+            lemma: 'glimmer',
+            meaning: '반짝임',
+          ),
+        );
+    await sharedReportsRepository.importFromJson(
+      source: 'resolroutine_report_20260223_M3.json',
+      payloadJson: _sampleSharedReportWithBookmarksJson(
+        knownBookmarkId: 'known_bookmark_id',
+      ),
+    );
+
+    addTearDown(sharedDb.close);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(sharedDb),
+          appBootstrapProvider.overrideWith((ref) async {}),
+          todaySessionRepositoryProvider.overrideWithValue(
+            fakeSessionRepository,
+          ),
+          todayQuizRepositoryProvider.overrideWithValue(fakeQuizRepository),
+        ],
+        child: const ResolRoutineApp(),
+      ),
+    );
+
+    await _pumpUntilVisible(tester, find.text('리포트 가져오기'));
+    await _pumpUntilVisible(tester, find.text('민수'));
+    await tester.tap(find.text('민수'));
+    await tester.pumpAndSettle();
+    await _pumpUntilVisible(tester, find.text('리포트 상세'));
+
+    expect(find.text('glimmer'), findsNothing);
+    expect(find.text('missing_bookmark_id'), findsNothing);
+
+    await tester.tap(find.text('북마크 단어장'));
+    await tester.pumpAndSettle();
+    await _pumpUntilVisible(tester, find.text('glimmer'));
+
+    expect(find.text('glimmer'), findsOneWidget);
+    expect(find.text('missing_bookmark_id'), findsOneWidget);
   });
 
   testWidgets('parent detail shows deleted state after row removal', (
@@ -1024,6 +1088,33 @@ String _sampleSharedReportWithVocabQuizJson({required String knownVocabId}) {
         },
       },
     ],
+  });
+}
+
+String _sampleSharedReportWithBookmarksJson({required String knownBookmarkId}) {
+  return jsonEncode(<String, Object?>{
+    'schemaVersion': 3,
+    'generatedAt': '2026-02-23T10:00:00.000Z',
+    'student': <String, Object?>{
+      'role': 'STUDENT',
+      'displayName': '민수',
+      'track': 'M3',
+    },
+    'days': <Object?>[
+      <String, Object?>{
+        'dayKey': '20260223',
+        'track': 'M3',
+        'solvedCount': 0,
+        'wrongCount': 0,
+        'listeningCorrect': 0,
+        'readingCorrect': 0,
+        'wrongReasonCounts': <String, Object?>{},
+        'questions': <Object?>[],
+      },
+    ],
+    'vocabBookmarks': <String, Object?>{
+      'bookmarkedVocabIds': <Object?>[knownBookmarkId, 'missing_bookmark_id'],
+    },
   });
 }
 

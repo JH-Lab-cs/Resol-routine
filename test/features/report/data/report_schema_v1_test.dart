@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:resol_routine/core/database/db_text_limits.dart';
 import 'package:resol_routine/core/domain/domain_enums.dart';
 import 'package:resol_routine/features/report/data/models/report_schema_v1.dart';
 
@@ -100,6 +101,48 @@ void main() {
       ]);
     });
 
+    test('accepts valid v3 payload with vocabBookmarks', () {
+      final payload = <String, Object?>{
+        'schemaVersion': 3,
+        'generatedAt': '2026-02-21T10:30:00.000Z',
+        'student': <String, Object?>{
+          'role': 'STUDENT',
+          'displayName': '민수',
+          'track': 'M3',
+        },
+        'days': <Object?>[
+          <String, Object?>{
+            'dayKey': '20260221',
+            'track': 'M3',
+            'solvedCount': 1,
+            'wrongCount': 0,
+            'listeningCorrect': 1,
+            'readingCorrect': 0,
+            'wrongReasonCounts': <String, Object?>{},
+            'questions': <Object?>[
+              <String, Object?>{
+                'questionId': 'Q-L-1',
+                'skill': 'LISTENING',
+                'typeTag': 'L2',
+                'isCorrect': true,
+              },
+            ],
+          },
+        ],
+        'vocabBookmarks': <String, Object?>{
+          'bookmarkedVocabIds': <Object?>['vocab_a', 'vocab_b'],
+        },
+      };
+
+      final schema = ReportSchema.decode(jsonEncode(payload));
+      expect(schema.schemaVersion, reportSchemaV3);
+      expect(schema.vocabBookmarks, isNotNull);
+      expect(schema.vocabBookmarks!.bookmarkedVocabIds, <String>[
+        'vocab_a',
+        'vocab_b',
+      ]);
+    });
+
     test('rejects unknown keys for strict schema guard', () {
       final payload = _basePayload();
       final day =
@@ -165,6 +208,75 @@ void main() {
         'totalCount': 20,
         'correctCount': 19,
         'wrongVocabIds': <Object?>['vocab_a', 'vocab_b'],
+      };
+
+      expect(
+        () => ReportSchema.decode(jsonEncode(payload)),
+        throwsA(isA<FormatException>()),
+      );
+    });
+
+    test('rejects unknown keys in v3 vocabBookmarks', () {
+      final payload = _basePayload();
+      payload['schemaVersion'] = 3;
+      payload['vocabBookmarks'] = <String, Object?>{
+        'bookmarkedVocabIds': <Object?>['vocab_a'],
+        'lemma': 'not_allowed',
+      };
+
+      expect(
+        () => ReportSchema.decode(jsonEncode(payload)),
+        throwsA(isA<FormatException>()),
+      );
+    });
+
+    test('rejects duplicated bookmarked vocab ids in v3', () {
+      final payload = _basePayload();
+      payload['schemaVersion'] = 3;
+      payload['vocabBookmarks'] = <String, Object?>{
+        'bookmarkedVocabIds': <Object?>['vocab_a', 'vocab_a'],
+      };
+
+      expect(
+        () => ReportSchema.decode(jsonEncode(payload)),
+        throwsA(isA<FormatException>()),
+      );
+    });
+
+    test('rejects hidden unicode in v3 bookmarked vocab ids', () {
+      final payload = _basePayload();
+      payload['schemaVersion'] = 3;
+      payload['vocabBookmarks'] = <String, Object?>{
+        'bookmarkedVocabIds': <Object?>['vocab_a\u200B'],
+      };
+
+      expect(
+        () => ReportSchema.decode(jsonEncode(payload)),
+        throwsA(isA<FormatException>()),
+      );
+    });
+
+    test('rejects id length overflow in v3 bookmarked vocab ids', () {
+      final payload = _basePayload();
+      payload['schemaVersion'] = 3;
+      payload['vocabBookmarks'] = <String, Object?>{
+        'bookmarkedVocabIds': <Object?>['x' * (DbTextLimits.idMax + 1)],
+      };
+
+      expect(
+        () => ReportSchema.decode(jsonEncode(payload)),
+        throwsA(isA<FormatException>()),
+      );
+    });
+
+    test('rejects bookmarked vocab ids list overflow in v3', () {
+      final payload = _basePayload();
+      payload['schemaVersion'] = 3;
+      payload['vocabBookmarks'] = <String, Object?>{
+        'bookmarkedVocabIds': List<Object?>.generate(
+          reportMaxBookmarkedVocabIds + 1,
+          (index) => 'vocab_$index',
+        ),
       };
 
       expect(
