@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/database/db_text_limits.dart';
+import '../../../core/io/limited_utf8_reader.dart';
 import '../../../core/ui/app_tokens.dart';
 import '../../../core/ui/components/app_scaffold.dart';
 import '../../../core/ui/components/hero_progress_card.dart';
@@ -224,18 +225,18 @@ class HomeScreen extends ConsumerWidget {
           if (!context.mounted) {
             return;
           }
-          final maxMb = (DbTextLimits.reportImportMaxBytes / (1024 * 1024))
-              .toStringAsFixed(0);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('파일이 너무 큽니다. ${maxMb}MB 이하 파일만 가져올 수 있어요.')),
-          );
+          _showImportSizeLimitSnackBar(context);
           return;
         }
       } catch (_) {
         // Proceed. Repository-level raw length guards still apply.
       }
 
-      final payload = await file.readAsString();
+      final payload = await readUtf8WithByteLimit(
+        stream: file.openRead(),
+        maxBytes: DbTextLimits.reportImportMaxBytes,
+        path: 'importFile',
+      );
       final source = file.path.isEmpty ? 'shared_report.json' : file.path;
       await ref
           .read(sharedReportsRepositoryProvider)
@@ -253,6 +254,10 @@ class HomeScreen extends ConsumerWidget {
       if (!context.mounted) {
         return;
       }
+      if (_isImportSizeLimitError(error)) {
+        _showImportSizeLimitSnackBar(context);
+        return;
+      }
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('리포트 형식이 올바르지 않습니다.\n$error')));
@@ -264,6 +269,18 @@ class HomeScreen extends ConsumerWidget {
         context,
       ).showSnackBar(SnackBar(content: Text('리포트를 가져오지 못했습니다.\n$error')));
     }
+  }
+
+  bool _isImportSizeLimitError(FormatException error) {
+    return error.message == 'File exceeds max bytes at "importFile".';
+  }
+
+  void _showImportSizeLimitSnackBar(BuildContext context) {
+    final maxMb = (DbTextLimits.reportImportMaxBytes / (1024 * 1024))
+        .toStringAsFixed(0);
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('파일이 너무 큽니다(최대 ${maxMb}MB).')));
   }
 }
 
