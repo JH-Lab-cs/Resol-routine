@@ -97,9 +97,9 @@ void main() {
           isCorrect: true,
         );
 
-        const customVocabId = 'probe_vocab_20260221';
-        const secondCustomVocabId = 'probe_vocab_20260221_b';
-        const bookmarkOnlyVocabId = 'probe_vocab_20260221_c';
+        const customVocabId = 'user_probe_vocab_20260221';
+        const secondCustomVocabId = 'user_probe_vocab_20260221_b';
+        const bookmarkOnlyVocabId = 'user_probe_vocab_20260221_c';
         const customLemma = 'lemma_probe_token_24680';
         const customMeaning = 'meaning_probe_token_24680';
         const customExample = 'example_probe_token_24680';
@@ -183,12 +183,17 @@ void main() {
         );
 
         expect(exportPayload.jsonPayload.contains('\n'), isFalse);
-        expect(exportPayload.report.schemaVersion, 3);
+        expect(exportPayload.report.schemaVersion, 4);
         expect(exportPayload.report.days, hasLength(2));
         expect(exportPayload.report.days.first.dayKey, '20260221');
         expect(
           exportPayload.report.vocabBookmarks!.bookmarkedVocabIds,
           expectedBookmarkedVocabIds,
+        );
+        expect(exportPayload.report.customVocab, isNotNull);
+        expect(
+          exportPayload.report.customVocab!.lemmasById[customVocabId],
+          customLemma,
         );
 
         final importedId = await sharedReportsRepository.importFromJson(
@@ -207,7 +212,7 @@ void main() {
         expect(summaries.first.topWrongReasonTag, 'VOCAB');
 
         final detail = await sharedReportsRepository.loadById(importedId);
-        expect(detail.report.schemaVersion, 3);
+        expect(detail.report.schemaVersion, 4);
         expect(detail.report.appVersion, '1.2.3+45');
         expect(detail.report.days, hasLength(2));
         expect(detail.report.days.first.vocabQuiz, isNotNull);
@@ -221,6 +226,11 @@ void main() {
         expect(
           detail.report.vocabBookmarks!.bookmarkedVocabIds,
           expectedBookmarkedVocabIds,
+        );
+        expect(detail.report.customVocab, isNotNull);
+        expect(
+          detail.report.customVocab!.lemmasById[customVocabId],
+          customLemma,
         );
 
         final questionRow = await (database.select(
@@ -239,7 +249,7 @@ void main() {
         final payload = exportPayload.jsonPayload;
         expect(payload.contains(customVocabId), isTrue);
         expect(payload.contains(bookmarkOnlyVocabId), isTrue);
-        expect(payload.contains(customLemma), isFalse);
+        expect(payload.contains(customLemma), isTrue);
         expect(payload.contains(customMeaning), isFalse);
         expect(payload.contains(customExample), isFalse);
         expect(payload.contains(questionRow.prompt), isFalse);

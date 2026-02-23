@@ -143,6 +143,58 @@ void main() {
       ]);
     });
 
+    test('accepts valid v4 payload with custom vocab lemmas', () {
+      final payload = <String, Object?>{
+        'schemaVersion': 4,
+        'generatedAt': '2026-02-21T10:30:00.000Z',
+        'student': <String, Object?>{
+          'role': 'STUDENT',
+          'displayName': '민수',
+          'track': 'M3',
+        },
+        'days': <Object?>[
+          <String, Object?>{
+            'dayKey': '20260221',
+            'track': 'M3',
+            'solvedCount': 1,
+            'wrongCount': 0,
+            'listeningCorrect': 1,
+            'readingCorrect': 0,
+            'wrongReasonCounts': <String, Object?>{},
+            'questions': <Object?>[
+              <String, Object?>{
+                'questionId': 'Q-L-1',
+                'skill': 'LISTENING',
+                'typeTag': 'L2',
+                'isCorrect': true,
+              },
+            ],
+            'vocabQuiz': <String, Object?>{
+              'totalCount': 20,
+              'correctCount': 19,
+              'wrongVocabIds': <Object?>['user_vocab_a'],
+            },
+          },
+        ],
+        'vocabBookmarks': <String, Object?>{
+          'bookmarkedVocabIds': <Object?>['user_vocab_a', 'user_vocab_b'],
+        },
+        'customVocab': <String, Object?>{
+          'lemmasById': <String, Object?>{
+            'user_vocab_a': 'glimmer',
+            'user_vocab_b': 'spark',
+          },
+        },
+      };
+
+      final schema = ReportSchema.decode(jsonEncode(payload));
+      expect(schema.schemaVersion, reportSchemaV4);
+      expect(schema.vocabBookmarks, isNotNull);
+      expect(schema.customVocab, isNotNull);
+      expect(schema.customVocab!.lemmasById['user_vocab_a'], 'glimmer');
+      expect(schema.customVocab!.lemmasById['user_vocab_b'], 'spark');
+    });
+
     test('rejects unknown keys for strict schema guard', () {
       final payload = _basePayload();
       final day =
@@ -279,6 +331,85 @@ void main() {
         ),
       };
 
+      expect(
+        () => ReportSchema.decode(jsonEncode(payload)),
+        throwsA(isA<FormatException>()),
+      );
+    });
+
+    test('rejects hidden unicode in v4 custom vocab lemma values', () {
+      final payload = _basePayload();
+      payload['schemaVersion'] = 4;
+      payload['vocabBookmarks'] = <String, Object?>{
+        'bookmarkedVocabIds': <Object?>['user_vocab_a'],
+      };
+      payload['customVocab'] = <String, Object?>{
+        'lemmasById': <String, Object?>{'user_vocab_a': 'gleam\u200B'},
+      };
+
+      expect(
+        () => ReportSchema.decode(jsonEncode(payload)),
+        throwsA(isA<FormatException>()),
+      );
+    });
+
+    test('rejects non-user id keys in v4 custom vocab map', () {
+      final payload = _basePayload();
+      payload['schemaVersion'] = 4;
+      payload['vocabBookmarks'] = <String, Object?>{
+        'bookmarkedVocabIds': <Object?>['user_vocab_a'],
+      };
+      payload['customVocab'] = <String, Object?>{
+        'lemmasById': <String, Object?>{'vocab_a': 'glimmer'},
+      };
+
+      expect(
+        () => ReportSchema.decode(jsonEncode(payload)),
+        throwsA(isA<FormatException>()),
+      );
+    });
+
+    test('rejects custom vocab map overflow in v4', () {
+      final payload = _basePayload();
+      payload['schemaVersion'] = 4;
+      payload['vocabBookmarks'] = <String, Object?>{
+        'bookmarkedVocabIds': const <Object?>[],
+      };
+      payload['customVocab'] = <String, Object?>{
+        'lemmasById': <String, Object?>{
+          for (var i = 0; i <= reportMaxCustomVocabLemmaEntries; i++)
+            'user_vocab_$i': 'lemma_$i',
+        },
+      };
+
+      expect(
+        () => ReportSchema.decode(jsonEncode(payload)),
+        throwsA(isA<FormatException>()),
+      );
+    });
+
+    test('rejects custom vocab key and value length overflow in v4', () {
+      final payload = _basePayload();
+      payload['schemaVersion'] = 4;
+      payload['vocabBookmarks'] = <String, Object?>{
+        'bookmarkedVocabIds': const <Object?>[],
+      };
+      payload['customVocab'] = <String, Object?>{
+        'lemmasById': <String, Object?>{
+          'user_${'x' * DbTextLimits.idMax}': 'lemma',
+        },
+      };
+
+      expect(
+        () => ReportSchema.decode(jsonEncode(payload)),
+        throwsA(isA<FormatException>()),
+      );
+
+      payload['customVocab'] = <String, Object?>{
+        'lemmasById': <String, Object?>{
+          'user_vocab_a': 'l' * (DbTextLimits.lemmaMax + 1),
+        },
+      };
       expect(
         () => ReportSchema.decode(jsonEncode(payload)),
         throwsA(isA<FormatException>()),
