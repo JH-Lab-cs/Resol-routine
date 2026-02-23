@@ -4,11 +4,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/database/db_text_limits.dart';
 import '../../../core/io/limited_utf8_reader.dart';
+import '../../../core/ui/app_copy_ko.dart';
 import '../../../core/ui/app_tokens.dart';
 import '../../../core/ui/components/app_scaffold.dart';
 import '../../../core/ui/components/hero_progress_card.dart';
 import '../../../core/ui/components/routine_card.dart';
 import '../../../core/ui/components/section_title.dart';
+import '../../../core/ui/components/skeleton.dart';
+import '../../../core/ui/haptics.dart';
 import '../../../core/ui/label_maps.dart';
 import '../../my/application/profile_ui_prefs_provider.dart';
 import '../../report/application/report_providers.dart';
@@ -41,9 +44,14 @@ class HomeScreen extends ConsumerWidget {
     return AppPageBody(
       showDecorativeBackground: true,
       child: settingsState.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        skipLoadingOnRefresh: true,
+        skipLoadingOnReload: true,
+        loading: () => const _HomeLoadingSkeleton(),
         error: (error, _) => Center(
-          child: Text('홈 데이터를 불러오지 못했어요.\n$error', textAlign: TextAlign.center),
+          child: Text(
+            '${AppCopyKo.loadFailed('홈 데이터')}\n$error',
+            textAlign: TextAlign.center,
+          ),
         ),
         data: (settings) {
           if (settings.role == 'PARENT') {
@@ -56,12 +64,15 @@ class HomeScreen extends ConsumerWidget {
           final displayName = ref.watch(displayNameProvider);
           final profilePrefs = ref.watch(profileUiPrefsProvider);
           final summary = ref.watch(homeRoutineSummaryProvider(selectedTrack));
+          final isSummaryRefreshing = summary.isLoading && summary.hasValue;
 
           return summary.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
+            skipLoadingOnRefresh: true,
+            skipLoadingOnReload: true,
+            loading: () => const _HomeLoadingSkeleton(),
             error: (error, _) => Center(
               child: Text(
-                '홈 데이터를 불러오지 못했어요.\n$error',
+                '${AppCopyKo.loadFailed('홈 데이터')}\n$error',
                 textAlign: TextAlign.center,
               ),
             ),
@@ -69,126 +80,140 @@ class HomeScreen extends ConsumerWidget {
               final completed = data.progress.completed;
               final ctaLabel = _ctaLabel(completed: completed, total: 6);
 
-              return ListView(
+              return Stack(
                 children: [
-                  Text('오늘도 화이팅, $displayName! 👋', style: AppTypography.title),
-                  const SizedBox(height: AppSpacing.xs),
-                  Text(
-                    '매일 6문제로 완성하는 1등급 습관',
-                    style: AppTypography.body.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  Row(
+                  ListView(
                     children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              '현재 트랙 ${displayTrack(selectedTrack)}',
-                              style: AppTypography.label.copyWith(
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
-                            const SizedBox(height: AppSpacing.xxs),
-                            Text(
-                              '학습 학년 · 듣기 ${profilePrefs.listeningGradeLabel} · 독해 ${profilePrefs.readingGradeLabel}',
-                              style: AppTypography.label.copyWith(
-                                color: AppColors.textSecondary,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
+                      Text(
+                        '오늘도 화이팅, $displayName! 👋',
+                        style: AppTypography.title,
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        '매일 6문제로 완성하는 1등급 습관',
+                        style: AppTypography.body.copyWith(
+                          color: AppColors.textSecondary,
                         ),
                       ),
-                      const SizedBox(width: AppSpacing.sm),
-                      InkWell(
-                        onTap: onOpenMy,
-                        borderRadius: BorderRadius.circular(
-                          AppRadius.buttonPill,
-                        ),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: AppSpacing.md,
-                            vertical: AppSpacing.xs,
+                      const SizedBox(height: AppSpacing.md),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '현재 트랙 ${displayTrack(selectedTrack)}',
+                                  style: AppTypography.label.copyWith(
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                                const SizedBox(height: AppSpacing.xxs),
+                                Text(
+                                  '학습 학년 · 듣기 ${profilePrefs.listeningGradeLabel} · 독해 ${profilePrefs.readingGradeLabel}',
+                                  style: AppTypography.label.copyWith(
+                                    color: AppColors.textSecondary,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
                           ),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
+                          const SizedBox(width: AppSpacing.sm),
+                          InkWell(
+                            onTap: onOpenMy,
                             borderRadius: BorderRadius.circular(
                               AppRadius.buttonPill,
                             ),
-                            border: Border.all(color: AppColors.border),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                '학습 설정',
-                                style: AppTypography.label.copyWith(
-                                  color: AppColors.primary,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: AppSpacing.md,
+                                vertical: AppSpacing.xs,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(
+                                  AppRadius.buttonPill,
                                 ),
+                                border: Border.all(color: AppColors.border),
                               ),
-                              const SizedBox(width: AppSpacing.xs),
-                              const Icon(
-                                Icons.arrow_forward_ios_rounded,
-                                size: 14,
-                                color: AppColors.textSecondary,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    '학습 설정',
+                                    style: AppTypography.label.copyWith(
+                                      color: AppColors.primary,
+                                    ),
+                                  ),
+                                  const SizedBox(width: AppSpacing.xs),
+                                  const Icon(
+                                    Icons.arrow_forward_ios_rounded,
+                                    size: 14,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ],
                               ),
-                            ],
+                            ),
                           ),
-                        ),
+                        ],
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.mdLg),
-                  HeroProgressCard(
-                    completed: completed,
-                    total: 6,
-                    listeningCompleted: data.progress.listeningCompleted,
-                    readingCompleted: data.progress.readingCompleted,
-                    ctaLabel: ctaLabel,
-                    onTap: onOpenQuiz,
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                  const SectionTitle(title: '나의 학습 루틴'),
-                  const SizedBox(height: AppSpacing.md),
-                  GridView.count(
-                    physics: const NeverScrollableScrollPhysics(),
-                    shrinkWrap: true,
-                    crossAxisCount: 2,
-                    crossAxisSpacing: AppSpacing.md,
-                    mainAxisSpacing: AppSpacing.md,
-                    childAspectRatio: 1.12,
-                    children: [
-                      RoutineCard(
-                        title: '하루 루틴 문제풀기',
-                        subtitle: '오늘 6문제 학습',
-                        icon: Icons.play_circle_fill_rounded,
+                      const SizedBox(height: AppSpacing.mdLg),
+                      HeroProgressCard(
+                        completed: completed,
+                        total: 6,
+                        listeningCompleted: data.progress.listeningCompleted,
+                        readingCompleted: data.progress.readingCompleted,
+                        ctaLabel: ctaLabel,
                         onTap: onOpenQuiz,
                       ),
-                      RoutineCard(
-                        title: '오늘의 단어 암기',
-                        subtitle: '핵심 단어 복습',
-                        icon: Icons.menu_book_rounded,
-                        onTap: onOpenVocab,
-                      ),
-                      RoutineCard(
-                        title: '오답 복습',
-                        subtitle: '실수 원인 점검',
-                        icon: Icons.assignment_late_rounded,
-                        onTap: onOpenWrongNotes,
-                      ),
-                      RoutineCard(
-                        title: '오늘의 단어 시험',
-                        subtitle: '20문제 5지선다',
-                        icon: Icons.quiz_rounded,
-                        onTap: onOpenTodayVocabQuiz,
+                      const SizedBox(height: AppSpacing.lg),
+                      const SectionTitle(title: '나의 학습 루틴'),
+                      const SizedBox(height: AppSpacing.md),
+                      GridView.count(
+                        physics: const NeverScrollableScrollPhysics(),
+                        shrinkWrap: true,
+                        crossAxisCount: 2,
+                        crossAxisSpacing: AppSpacing.md,
+                        mainAxisSpacing: AppSpacing.md,
+                        childAspectRatio: 1.12,
+                        children: [
+                          RoutineCard(
+                            title: '하루 루틴 문제풀기',
+                            subtitle: '오늘 6문제 학습',
+                            icon: Icons.play_circle_fill_rounded,
+                            onTap: onOpenQuiz,
+                          ),
+                          RoutineCard(
+                            title: '오늘의 단어 암기',
+                            subtitle: '핵심 단어 복습',
+                            icon: Icons.menu_book_rounded,
+                            onTap: onOpenVocab,
+                          ),
+                          RoutineCard(
+                            title: '오답 복습',
+                            subtitle: '실수 원인 점검',
+                            icon: Icons.assignment_late_rounded,
+                            onTap: onOpenWrongNotes,
+                          ),
+                          RoutineCard(
+                            title: '오늘의 단어 시험',
+                            subtitle: '20문제 5지선다',
+                            icon: Icons.quiz_rounded,
+                            onTap: onOpenTodayVocabQuiz,
+                          ),
+                        ],
                       ),
                     ],
                   ),
+                  if (isSummaryRefreshing)
+                    const Positioned(
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      child: LinearProgressIndicator(minHeight: 2),
+                    ),
                 ],
               );
             },
@@ -243,6 +268,7 @@ class HomeScreen extends ConsumerWidget {
           .importFromJson(source: source, payloadJson: payload);
 
       ref.invalidate(sharedReportSummariesProvider);
+      Haptics.success();
 
       if (!context.mounted) {
         return;
@@ -251,6 +277,7 @@ class HomeScreen extends ConsumerWidget {
         context,
       ).showSnackBar(const SnackBar(content: Text('리포트를 가져왔습니다.')));
     } on FormatException catch (error) {
+      Haptics.warning();
       if (!context.mounted) {
         return;
       }
@@ -258,16 +285,17 @@ class HomeScreen extends ConsumerWidget {
         _showImportSizeLimitSnackBar(context);
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('리포트 형식이 올바르지 않습니다.\n$error')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${AppCopyKo.reportImportInvalid}\n$error')),
+      );
     } catch (error) {
+      Haptics.warning();
       if (!context.mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('리포트를 가져오지 못했습니다.\n$error')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${AppCopyKo.reportImportFailed}\n$error')),
+      );
     }
   }
 
@@ -292,51 +320,64 @@ class _ParentHomeContent extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final summariesAsync = ref.watch(sharedReportSummariesProvider);
+    final isRefreshing = summariesAsync.isLoading && summariesAsync.hasValue;
 
-    return ListView(
+    return Stack(
       children: [
-        Text('가정 리포트', style: AppTypography.title),
-        const SizedBox(height: AppSpacing.xs),
-        Text(
-          '학생이 공유한 JSON 리포트를 가져와서 학습 추이를 확인하세요.',
-          style: AppTypography.body.copyWith(color: AppColors.textSecondary),
-        ),
-        const SizedBox(height: AppSpacing.md),
-        FilledButton.icon(
-          onPressed: onImportReport,
-          icon: const Icon(Icons.upload_file_rounded),
-          label: const Text('리포트 가져오기'),
-        ),
-        const SizedBox(height: AppSpacing.lg),
-        const SectionTitle(title: '가져온 리포트'),
-        const SizedBox(height: AppSpacing.sm),
-        summariesAsync.when(
-          loading: () => const Padding(
-            padding: EdgeInsets.only(top: AppSpacing.lg),
-            child: Center(child: CircularProgressIndicator()),
-          ),
-          error: (error, _) => Padding(
-            padding: const EdgeInsets.only(top: AppSpacing.md),
-            child: Text('리포트 목록을 불러오지 못했습니다.\n$error'),
-          ),
-          data: (summaries) {
-            if (summaries.isEmpty) {
-              return const Card(
-                child: Padding(
-                  padding: EdgeInsets.all(AppSpacing.md),
-                  child: Text('아직 가져온 리포트가 없습니다.'),
-                ),
-              );
-            }
+        ListView(
+          children: [
+            Text('가정 리포트', style: AppTypography.title),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              '학생이 공유한 JSON 리포트를 가져와서 학습 추이를 확인하세요.',
+              style: AppTypography.body.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            FilledButton.icon(
+              onPressed: onImportReport,
+              icon: const Icon(Icons.upload_file_rounded),
+              label: const Text('리포트 가져오기'),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            const SectionTitle(title: '가져온 리포트'),
+            const SizedBox(height: AppSpacing.sm),
+            summariesAsync.when(
+              skipLoadingOnReload: true,
+              skipLoadingOnRefresh: true,
+              loading: () => const _ParentHomeLoadingSkeleton(),
+              error: (error, _) => Padding(
+                padding: const EdgeInsets.only(top: AppSpacing.md),
+                child: Text('${AppCopyKo.loadFailed('리포트 목록')}\n$error'),
+              ),
+              data: (summaries) {
+                if (summaries.isEmpty) {
+                  return const Card(
+                    child: Padding(
+                      padding: EdgeInsets.all(AppSpacing.md),
+                      child: Text(AppCopyKo.emptyImportedReports),
+                    ),
+                  );
+                }
 
-            return Column(
-              children: [
-                for (final summary in summaries)
-                  _ParentReportSummaryCard(summary: summary),
-              ],
-            );
-          },
+                return Column(
+                  children: [
+                    for (final summary in summaries)
+                      _ParentReportSummaryCard(summary: summary),
+                  ],
+                );
+              },
+            ),
+          ],
         ),
+        if (isRefreshing)
+          const Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: LinearProgressIndicator(minHeight: 2),
+          ),
       ],
     );
   }
@@ -358,9 +399,15 @@ class _ParentReportSummaryCard extends ConsumerWidget {
     return Card(
       margin: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: ListTile(
-        title: Text(summary.studentDisplayName ?? summary.source),
+        title: Text(
+          summary.studentDisplayName ?? summary.source,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
         subtitle: Text(
           '${summary.latestDayKey ?? '-'} · $trackLabel · 오답 ${summary.totalWrongCount}개',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
@@ -424,6 +471,11 @@ class _ParentReportSummaryCard extends ConsumerWidget {
         .deleteById(summary.id);
     ref.invalidate(sharedReportSummariesProvider);
     ref.invalidate(sharedReportByIdProvider(summary.id));
+    if (deleted) {
+      Haptics.success();
+    } else {
+      Haptics.warning();
+    }
 
     if (!context.mounted) {
       return;
@@ -433,5 +485,74 @@ class _ParentReportSummaryCard extends ConsumerWidget {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
+  }
+}
+
+class _HomeLoadingSkeleton extends StatelessWidget {
+  const _HomeLoadingSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      key: const ValueKey<String>('home-loading-skeleton'),
+      children: const [
+        SkeletonLine(width: 180, height: 28),
+        SizedBox(height: AppSpacing.xs),
+        SkeletonLine(width: 240),
+        SizedBox(height: AppSpacing.md),
+        SkeletonCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SkeletonLine(width: 120, height: 14),
+              SizedBox(height: AppSpacing.xs),
+              SkeletonLine(width: 220, height: 14),
+              SizedBox(height: AppSpacing.md),
+              SkeletonLine(height: 42, radius: AppRadius.buttonPill),
+            ],
+          ),
+        ),
+        SizedBox(height: AppSpacing.md),
+        SkeletonCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SkeletonLine(width: 120),
+              SizedBox(height: AppSpacing.sm),
+              SkeletonLine(height: 94, radius: AppRadius.md),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ParentHomeLoadingSkeleton extends StatelessWidget {
+  const _ParentHomeLoadingSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      key: const ValueKey<String>('parent-home-loading-skeleton'),
+      children: const [
+        SkeletonCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SkeletonLine(height: 42, radius: AppRadius.buttonPill),
+              SizedBox(height: AppSpacing.sm),
+              SkeletonLine(width: 150),
+            ],
+          ),
+        ),
+        SizedBox(height: AppSpacing.sm),
+        SkeletonListTile(),
+        SizedBox(height: AppSpacing.sm),
+        SkeletonListTile(),
+        SizedBox(height: AppSpacing.sm),
+        SkeletonListTile(),
+      ],
+    );
   }
 }

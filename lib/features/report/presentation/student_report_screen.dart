@@ -7,8 +7,11 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../../core/domain/domain_enums.dart';
+import '../../../core/ui/app_copy_ko.dart';
 import '../../../core/ui/app_tokens.dart';
 import '../../../core/ui/components/app_scaffold.dart';
+import '../../../core/ui/components/skeleton.dart';
+import '../../../core/ui/haptics.dart';
 import '../../../core/ui/label_maps.dart';
 import '../../../core/time/day_key.dart';
 import '../application/report_providers.dart';
@@ -34,42 +37,60 @@ class _StudentReportScreenState extends ConsumerState<StudentReportScreen> {
     final reportAsync = ref.watch(
       studentCumulativeReportProvider(widget.track),
     );
+    final isRefreshing = reportAsync.isLoading && reportAsync.hasValue;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('리포트'),
         actions: [
-          IconButton(
-            tooltip: '리포트 공유',
-            onPressed: _isSharing
-                ? null
-                : () {
-                    _shareReport();
-                  },
-            icon: _isSharing
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.ios_share_rounded),
+          Semantics(
+            label: '리포트 공유',
+            button: true,
+            child: IconButton(
+              tooltip: '리포트 공유',
+              onPressed: _isSharing
+                  ? null
+                  : () {
+                      _shareReport();
+                    },
+              icon: _isSharing
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.ios_share_rounded),
+            ),
           ),
         ],
       ),
       body: AppPageBody(
-        child: reportAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (error, _) => Center(
-            child: Text(
-              '리포트를 불러오지 못했습니다.\n$error',
-              textAlign: TextAlign.center,
+        child: Stack(
+          children: [
+            reportAsync.when(
+              skipLoadingOnReload: true,
+              skipLoadingOnRefresh: true,
+              loading: () => const _StudentReportLoadingSkeleton(),
+              error: (error, _) => Center(
+                child: Text(
+                  '${AppCopyKo.loadFailed('리포트')}\n$error',
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              data: (report) => _ReportBody(
+                track: widget.track,
+                report: report,
+                onShare: _isSharing ? null : _shareReport,
+              ),
             ),
-          ),
-          data: (report) => _ReportBody(
-            track: widget.track,
-            report: report,
-            onShare: _isSharing ? null : _shareReport,
-          ),
+            if (isRefreshing)
+              const Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: LinearProgressIndicator(minHeight: 2),
+              ),
+          ],
         ),
       ),
     );
@@ -106,18 +127,22 @@ class _StudentReportScreenState extends ConsumerState<StudentReportScreen> {
       }
 
       final message = result.status == ShareResultStatus.success
-          ? '리포트를 공유했습니다.'
-          : '공유를 취소했습니다.';
+          ? AppCopyKo.reportShareSuccess
+          : AppCopyKo.actionCanceled;
+      if (result.status == ShareResultStatus.success) {
+        Haptics.success();
+      }
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(message)));
     } catch (error) {
+      Haptics.warning();
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('리포트 공유에 실패했습니다.\n$error')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${AppCopyKo.reportShareFailed}\n$error')),
+      );
     } finally {
       if (exportFile != null) {
         try {
@@ -194,6 +219,8 @@ class _ReportBody extends StatelessWidget {
                   style: AppTypography.label.copyWith(
                     color: AppColors.textSecondary,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 if (todayVocabQuiz != null) ...[
                   const SizedBox(height: AppSpacing.sm),
@@ -272,6 +299,48 @@ class _ReportBody extends StatelessWidget {
       }
     }
     return null;
+  }
+}
+
+class _StudentReportLoadingSkeleton extends StatelessWidget {
+  const _StudentReportLoadingSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      key: const ValueKey<String>('student-report-loading-skeleton'),
+      children: const [
+        SkeletonLine(width: 160, height: 28),
+        SizedBox(height: AppSpacing.xs),
+        SkeletonLine(width: 260),
+        SizedBox(height: AppSpacing.md),
+        SkeletonCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SkeletonLine(width: 100, height: 20),
+              SizedBox(height: AppSpacing.sm),
+              SkeletonLine(width: 240),
+              SizedBox(height: AppSpacing.xs),
+              SkeletonLine(width: 180),
+              SizedBox(height: AppSpacing.md),
+              SkeletonLine(height: 42, radius: AppRadius.buttonPill),
+            ],
+          ),
+        ),
+        SizedBox(height: AppSpacing.md),
+        SkeletonCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SkeletonLine(width: 140, height: 20),
+              SizedBox(height: AppSpacing.sm),
+              SkeletonLine(height: 120, radius: AppRadius.md),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 }
 
