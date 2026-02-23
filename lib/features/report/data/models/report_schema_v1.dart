@@ -10,12 +10,14 @@ typedef ReportJsonMap = Map<String, Object?>;
 const int reportSchemaV1 = 1;
 const int reportSchemaV2 = 2;
 const int reportSchemaV3 = 3;
-const int reportCurrentSchemaVersion = reportSchemaV3;
+const int reportSchemaV4 = 4;
+const int reportCurrentSchemaVersion = reportSchemaV4;
 const int reportMaxDays = 3660;
 const int reportMaxQuestionsPerDay = 6;
 const int reportMaxCorrectPerSkill = 3;
 const int reportMaxVocabQuizTotalCount = 20;
 const int reportMaxBookmarkedVocabIds = 2000;
+const int reportMaxCustomVocabLemmaEntries = reportMaxBookmarkedVocabIds;
 const int reportMaxAppVersionLength = 64;
 
 const Set<String> _supportedRoles = <String>{'STUDENT', 'PARENT'};
@@ -28,6 +30,7 @@ class ReportSchema {
     required this.student,
     required this.days,
     required this.vocabBookmarks,
+    required this.customVocab,
   });
 
   final int schemaVersion;
@@ -36,6 +39,7 @@ class ReportSchema {
   final ReportStudent student;
   final List<ReportDay> days;
   final ReportVocabBookmarks? vocabBookmarks;
+  final ReportCustomVocab? customVocab;
 
   factory ReportSchema.v1({
     required DateTime generatedAt,
@@ -50,6 +54,7 @@ class ReportSchema {
       student: student,
       days: List<ReportDay>.unmodifiable(days),
       vocabBookmarks: null,
+      customVocab: null,
     );
   }
 
@@ -66,6 +71,7 @@ class ReportSchema {
       student: student,
       days: List<ReportDay>.unmodifiable(days),
       vocabBookmarks: null,
+      customVocab: null,
     );
   }
 
@@ -83,6 +89,26 @@ class ReportSchema {
       student: student,
       days: List<ReportDay>.unmodifiable(days),
       vocabBookmarks: vocabBookmarks,
+      customVocab: null,
+    );
+  }
+
+  factory ReportSchema.v4({
+    required DateTime generatedAt,
+    String? appVersion,
+    required ReportStudent student,
+    required List<ReportDay> days,
+    required ReportVocabBookmarks vocabBookmarks,
+    required ReportCustomVocab customVocab,
+  }) {
+    return ReportSchema(
+      schemaVersion: reportSchemaV4,
+      generatedAt: generatedAt.toUtc(),
+      appVersion: appVersion,
+      student: student,
+      days: List<ReportDay>.unmodifiable(days),
+      vocabBookmarks: vocabBookmarks,
+      customVocab: customVocab,
     );
   }
 
@@ -108,9 +134,18 @@ class ReportSchema {
         'days',
         'vocabBookmarks',
       },
+      reportSchemaV4 => const <String>{
+        'schemaVersion',
+        'generatedAt',
+        'appVersion',
+        'student',
+        'days',
+        'vocabBookmarks',
+        'customVocab',
+      },
       _ => throw FormatException(
         'Expected "$path.schemaVersion" to be '
-        '$reportSchemaV1, $reportSchemaV2, or $reportSchemaV3.',
+        '$reportSchemaV1, $reportSchemaV2, $reportSchemaV3, or $reportSchemaV4.',
       ),
     };
     _validateAllowedKeys(json, allowedRootKeys, path: path);
@@ -163,7 +198,7 @@ class ReportSchema {
     }
 
     ReportVocabBookmarks? vocabBookmarks;
-    if (schemaVersion == reportSchemaV3) {
+    if (schemaVersion >= reportSchemaV3) {
       vocabBookmarks = ReportVocabBookmarks.fromJson(
         _readRequiredObject(
           json,
@@ -174,6 +209,14 @@ class ReportSchema {
       );
     }
 
+    ReportCustomVocab? customVocab;
+    if (schemaVersion == reportSchemaV4) {
+      customVocab = ReportCustomVocab.fromJson(
+        _readRequiredObject(json, 'customVocab', path: '$path.customVocab'),
+        path: '$path.customVocab',
+      );
+    }
+
     return ReportSchema(
       schemaVersion: schemaVersion,
       generatedAt: generatedAt.toUtc(),
@@ -181,6 +224,7 @@ class ReportSchema {
       student: student,
       days: List<ReportDay>.unmodifiable(days),
       vocabBookmarks: vocabBookmarks,
+      customVocab: customVocab,
     );
   }
 
@@ -197,6 +241,7 @@ class ReportSchema {
       'student': student.toJson(),
       'days': days.map((day) => day.toJson()).toList(growable: false),
       if (vocabBookmarks != null) 'vocabBookmarks': vocabBookmarks!.toJson(),
+      if (customVocab != null) 'customVocab': customVocab!.toJson(),
     };
   }
 
@@ -650,6 +695,91 @@ class ReportVocabBookmarks {
 
   ReportJsonMap toJson() {
     return <String, Object?>{'bookmarkedVocabIds': bookmarkedVocabIds};
+  }
+}
+
+class ReportCustomVocab {
+  const ReportCustomVocab({required this.lemmasById});
+
+  final Map<String, String> lemmasById;
+
+  factory ReportCustomVocab.fromJson(
+    ReportJsonMap json, {
+    String path = 'customVocab',
+  }) {
+    _validateAllowedKeys(json, const <String>{'lemmasById'}, path: path);
+
+    final rawLemmasById = _readRequiredObject(
+      json,
+      'lemmasById',
+      path: '$path.lemmasById',
+    );
+    if (rawLemmasById.length > reportMaxCustomVocabLemmaEntries) {
+      throw FormatException(
+        'Expected "$path.lemmasById" size <= $reportMaxCustomVocabLemmaEntries.',
+      );
+    }
+
+    final normalized = <String, String>{};
+    for (final entry in rawLemmasById.entries) {
+      final normalizedId = entry.key.trim();
+      if (normalizedId.isEmpty) {
+        throw FormatException(
+          'Expected "$path.lemmasById.${entry.key}" key to be non-empty.',
+        );
+      }
+      if (!normalizedId.startsWith('user_')) {
+        throw FormatException(
+          'Expected "$path.lemmasById.${entry.key}" key to start with "user_".',
+        );
+      }
+      if (normalizedId.length > DbTextLimits.idMax) {
+        throw FormatException(
+          'Expected "$path.lemmasById.${entry.key}" key length <= ${DbTextLimits.idMax}.',
+        );
+      }
+      validateNoHiddenUnicode(
+        normalizedId,
+        path: '$path.lemmasById.${entry.key}',
+      );
+      if (normalized.containsKey(normalizedId)) {
+        throw FormatException(
+          'Duplicated key "$normalizedId" at "$path.lemmasById".',
+        );
+      }
+
+      final rawLemma = entry.value;
+      if (rawLemma is! String) {
+        throw FormatException(
+          'Expected "$path.lemmasById.${entry.key}" value to be a string.',
+        );
+      }
+      final normalizedLemma = rawLemma.trim();
+      if (normalizedLemma.isEmpty) {
+        throw FormatException(
+          'Expected "$path.lemmasById.${entry.key}" value to be non-empty.',
+        );
+      }
+      if (normalizedLemma.length > DbTextLimits.lemmaMax) {
+        throw FormatException(
+          'Expected "$path.lemmasById.${entry.key}" value length <= ${DbTextLimits.lemmaMax}.',
+        );
+      }
+      validateNoHiddenUnicode(
+        normalizedLemma,
+        path: '$path.lemmasById.${entry.key}',
+      );
+
+      normalized[normalizedId] = normalizedLemma;
+    }
+
+    return ReportCustomVocab(
+      lemmasById: Map<String, String>.unmodifiable(normalized),
+    );
+  }
+
+  ReportJsonMap toJson() {
+    return <String, Object?>{'lemmasById': lemmasById};
   }
 }
 

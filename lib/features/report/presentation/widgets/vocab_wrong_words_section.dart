@@ -8,10 +8,12 @@ class VocabWrongWordsSection extends ConsumerStatefulWidget {
   const VocabWrongWordsSection({
     super.key,
     required this.wrongVocabIds,
+    this.customLemmaById,
     this.maxVisible = 6,
   });
 
   final List<String> wrongVocabIds;
+  final Map<String, String>? customLemmaById;
   final int maxVisible;
 
   @override
@@ -32,7 +34,8 @@ class _VocabWrongWordsSectionState
   @override
   void didUpdateWidget(covariant VocabWrongWordsSection oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!_sameIds(oldWidget.wrongVocabIds, widget.wrongVocabIds)) {
+    if (!_sameIds(oldWidget.wrongVocabIds, widget.wrongVocabIds) ||
+        !_sameLemmaMap(oldWidget.customLemmaById, widget.customLemmaById)) {
       _lemmaMapFuture = _loadLemmaMap();
     }
   }
@@ -82,10 +85,20 @@ class _VocabWrongWordsSectionState
     );
   }
 
-  Future<Map<String, String>> _loadLemmaMap() {
-    return ref
+  Future<Map<String, String>> _loadLemmaMap() async {
+    final customMap = _resolveCustomLemmas(widget.wrongVocabIds);
+    final missingIds = <String>[
+      for (final id in widget.wrongVocabIds)
+        if (!customMap.containsKey(id)) id,
+    ];
+    if (missingIds.isEmpty) {
+      return customMap;
+    }
+
+    final repositoryMap = await ref
         .read(vocabLemmaRepositoryProvider)
-        .loadLemmaMapByVocabIds(widget.wrongVocabIds);
+        .loadLemmaMapByVocabIds(missingIds);
+    return <String, String>{...repositoryMap, ...customMap};
   }
 
   Widget _chip(String text) {
@@ -114,6 +127,41 @@ class _VocabWrongWordsSectionState
     }
     for (var i = 0; i < left.length; i++) {
       if (left[i] != right[i]) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  Map<String, String> _resolveCustomLemmas(List<String> ids) {
+    final customLemmaById = widget.customLemmaById;
+    if (customLemmaById == null || customLemmaById.isEmpty) {
+      return const <String, String>{};
+    }
+
+    final resolved = <String, String>{};
+    for (final id in ids) {
+      final lemma = customLemmaById[id];
+      if (lemma == null) {
+        continue;
+      }
+      resolved[id] = lemma;
+    }
+    return resolved;
+  }
+
+  bool _sameLemmaMap(Map<String, String>? left, Map<String, String>? right) {
+    if (identical(left, right)) {
+      return true;
+    }
+    if (left == null || right == null) {
+      return left == right;
+    }
+    if (left.length != right.length) {
+      return false;
+    }
+    for (final entry in left.entries) {
+      if (right[entry.key] != entry.value) {
         return false;
       }
     }

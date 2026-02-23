@@ -35,6 +35,8 @@ class ReportExportRepository {
   static const Set<String> _supportedTracks = <String>{'M3', 'H1', 'H2', 'H3'};
   static const int _maxPayloadLength = DbTextLimits.reportPayloadMax;
   static const int _maxBookmarkedVocabIds = reportMaxBookmarkedVocabIds;
+  static const int _maxCustomLemmaEntries = reportMaxCustomVocabLemmaEntries;
+  static const int _sqliteInChunkSize = 900;
 
   final AppDatabase _database;
   final AppVersionLoader _appVersionLoader;
@@ -49,13 +51,18 @@ class ReportExportRepository {
     final student = await _loadStudent();
     final days = await _loadDays(track: track);
     final vocabBookmarks = await _loadVocabBookmarks();
+    final customVocab = await _loadCustomVocab(
+      days: days,
+      vocabBookmarks: vocabBookmarks,
+    );
 
-    return ReportSchema.v3(
+    return ReportSchema.v4(
       generatedAt: resolvedNow.toUtc(),
       appVersion: await _appVersionLoader(),
       student: student,
       days: days,
       vocabBookmarks: vocabBookmarks,
+      customVocab: customVocab,
     );
   }
 
@@ -106,27 +113,34 @@ class ReportExportRepository {
       );
     }
 
-    final totalDays = cumulativeReport.days.length;
-    if (totalDays == 0) {
-      throw FormatException(
-        'Export report payload exceeds $_maxPayloadLength characters.',
-      );
+    ReportSchema candidateReport = cumulativeReport;
+    if (cumulativeReport.days.isNotEmpty) {
+      final trimResult = _findMaxFittingRecentDays(cumulativeReport);
+      if (trimResult.keptDays > 0) {
+        final trimmedReport = _copyWithRecentDays(
+          cumulativeReport,
+          trimResult.keptDays,
+        );
+        if (trimResult.payload.length <= _maxPayloadLength) {
+          return _PreparedExport(
+            report: trimmedReport,
+            canonicalPayload: trimResult.payload,
+          );
+        }
+        candidateReport = trimmedReport;
+      } else {
+        candidateReport = _copyWithRecentDays(cumulativeReport, 1);
+      }
     }
 
-    final trimResult = _findMaxFittingRecentDays(cumulativeReport);
-    if (trimResult.keptDays <= 0) {
-      throw FormatException(
-        'Export report payload exceeds $_maxPayloadLength characters even with one day.',
-      );
+    final customTrimmed = _trimCustomVocabToFit(candidateReport);
+    if (customTrimmed != null) {
+      return customTrimmed;
     }
 
-    final trimmedReport = _copyWithRecentDays(
-      cumulativeReport,
-      trimResult.keptDays,
-    );
-    return _PreparedExport(
-      report: trimmedReport,
-      canonicalPayload: trimResult.payload,
+    throw FormatException(
+      'Export report payload exceeds $_maxPayloadLength characters '
+      'even after trimming days and custom vocab.',
     );
   }
 
@@ -175,7 +189,19 @@ class ReportExportRepository {
       );
     }
 
-    return ReportSchema.v3(
+    if (original.schemaVersion == reportSchemaV3) {
+      return ReportSchema.v3(
+        generatedAt: original.generatedAt,
+        appVersion: original.appVersion,
+        student: original.student,
+        days: trimmedDays,
+        vocabBookmarks:
+            original.vocabBookmarks ??
+            const ReportVocabBookmarks(bookmarkedVocabIds: <String>[]),
+      );
+    }
+
+    return ReportSchema.v4(
       generatedAt: original.generatedAt,
       appVersion: original.appVersion,
       student: original.student,
@@ -183,7 +209,109 @@ class ReportExportRepository {
       vocabBookmarks:
           original.vocabBookmarks ??
           const ReportVocabBookmarks(bookmarkedVocabIds: <String>[]),
+      customVocab: _filterCustomVocabForTrimmedDays(
+        customVocab: original.customVocab,
+        days: trimmedDays,
+        vocabBookmarks:
+            original.vocabBookmarks ??
+            const ReportVocabBookmarks(bookmarkedVocabIds: <String>[]),
+      ),
     );
+  }
+
+  _PreparedExport? _trimCustomVocabToFit(ReportSchema report) {
+    final payload = report.encodeCompact();
+    if (payload.length <= _maxPayloadLength) {
+      return _PreparedExport(report: report, canonicalPayload: payload);
+    }
+    if (report.schemaVersion != reportSchemaV4 || report.customVocab == null) {
+      return null;
+    }
+
+    final entries = report.customVocab!.lemmasById.entries.toList(
+      growable: false,
+    );
+    if (entries.isEmpty) {
+      return null;
+    }
+
+    var left = 0;
+    var right = entries.length;
+    _CustomTrimResult? best;
+
+    while (left <= right) {
+      final mid = (left + right) >> 1;
+      final candidateReport = _copyWithCustomVocabEntries(report, mid);
+      final candidatePayload = candidateReport.encodeCompact();
+      if (candidatePayload.length <= _maxPayloadLength) {
+        best = _CustomTrimResult(
+          payload: candidatePayload,
+          report: candidateReport,
+        );
+        left = mid + 1;
+      } else {
+        right = mid - 1;
+      }
+    }
+
+    if (best == null) {
+      return null;
+    }
+    return _PreparedExport(report: best.report, canonicalPayload: best.payload);
+  }
+
+  ReportSchema _copyWithCustomVocabEntries(ReportSchema report, int keepCount) {
+    if (report.schemaVersion != reportSchemaV4 || report.customVocab == null) {
+      return report;
+    }
+
+    final entries = report.customVocab!.lemmasById.entries.toList(
+      growable: false,
+    );
+    final boundedKeepCount = keepCount.clamp(0, entries.length);
+    final trimmedMap = <String, String>{
+      for (final entry in entries.take(boundedKeepCount))
+        entry.key: entry.value,
+    };
+
+    return ReportSchema.v4(
+      generatedAt: report.generatedAt,
+      appVersion: report.appVersion,
+      student: report.student,
+      days: report.days,
+      vocabBookmarks:
+          report.vocabBookmarks ??
+          const ReportVocabBookmarks(bookmarkedVocabIds: <String>[]),
+      customVocab: ReportCustomVocab(lemmasById: trimmedMap),
+    );
+  }
+
+  ReportCustomVocab _filterCustomVocabForTrimmedDays({
+    required ReportCustomVocab? customVocab,
+    required List<ReportDay> days,
+    required ReportVocabBookmarks vocabBookmarks,
+  }) {
+    if (customVocab == null || customVocab.lemmasById.isEmpty) {
+      return const ReportCustomVocab(lemmasById: <String, String>{});
+    }
+
+    final prioritizedIds = _prioritizeCustomVocabIds(
+      days: days,
+      bookmarkedVocabIds: vocabBookmarks.bookmarkedVocabIds,
+    );
+    final filtered = <String, String>{};
+    for (final id in prioritizedIds) {
+      final lemma = customVocab.lemmasById[id];
+      if (lemma == null) {
+        continue;
+      }
+      filtered[id] = lemma;
+      if (filtered.length >= _maxCustomLemmaEntries) {
+        break;
+      }
+    }
+
+    return ReportCustomVocab(lemmasById: filtered);
   }
 
   String buildFileName({required String dayKey, required String track}) {
@@ -327,6 +455,95 @@ class ReportExportRepository {
     }, path: 'vocabBookmarks');
   }
 
+  Future<ReportCustomVocab> _loadCustomVocab({
+    required List<ReportDay> days,
+    required ReportVocabBookmarks vocabBookmarks,
+  }) async {
+    final prioritizedIds = _prioritizeCustomVocabIds(
+      days: days,
+      bookmarkedVocabIds: vocabBookmarks.bookmarkedVocabIds,
+    );
+    if (prioritizedIds.isEmpty) {
+      return const ReportCustomVocab(lemmasById: <String, String>{});
+    }
+
+    final boundedIds = prioritizedIds
+        .take(_maxCustomLemmaEntries)
+        .toList(growable: false);
+    final lemmaById = <String, String>{};
+    for (final chunk in _chunkIds(boundedIds)) {
+      final placeholders = List<String>.filled(chunk.length, '?').join(', ');
+      final rows = await _database
+          .customSelect(
+            'SELECT id, lemma '
+            'FROM vocab_master '
+            'WHERE id IN ($placeholders)',
+            variables: <Variable<Object>>[
+              for (final id in chunk) Variable<String>(id),
+            ],
+            readsFrom: {_database.vocabMaster},
+          )
+          .get();
+      for (final row in rows) {
+        lemmaById[row.read<String>('id')] = row.read<String>('lemma');
+      }
+    }
+    final orderedLemmasById = <String, String>{};
+    for (final id in boundedIds) {
+      final lemma = lemmaById[id];
+      if (lemma == null) {
+        continue;
+      }
+      orderedLemmasById[id] = lemma;
+    }
+
+    return ReportCustomVocab.fromJson(<String, Object?>{
+      'lemmasById': orderedLemmasById,
+    }, path: 'customVocab');
+  }
+
+  List<String> _prioritizeCustomVocabIds({
+    required List<ReportDay> days,
+    required List<String> bookmarkedVocabIds,
+  }) {
+    final ordered = <String>[];
+    final seen = <String>{};
+
+    void add(String id) {
+      if (!id.startsWith('user_')) {
+        return;
+      }
+      if (!seen.add(id)) {
+        return;
+      }
+      ordered.add(id);
+    }
+
+    for (final id in bookmarkedVocabIds) {
+      add(id);
+    }
+    for (final day in days) {
+      final vocabQuiz = day.vocabQuiz;
+      if (vocabQuiz == null) {
+        continue;
+      }
+      for (final id in vocabQuiz.wrongVocabIds) {
+        add(id);
+      }
+    }
+
+    return ordered;
+  }
+
+  Iterable<List<String>> _chunkIds(List<String> ids) sync* {
+    for (var index = 0; index < ids.length; index += _sqliteInChunkSize) {
+      final end = index + _sqliteInChunkSize > ids.length
+          ? ids.length
+          : index + _sqliteInChunkSize;
+      yield ids.sublist(index, end);
+    }
+  }
+
   String _dayBuilderKey({required String dayKey, required Track track}) {
     return '$dayKey|${track.dbValue}';
   }
@@ -437,6 +654,13 @@ class _TrimResult {
 
   final int keptDays;
   final String payload;
+}
+
+class _CustomTrimResult {
+  const _CustomTrimResult({required this.payload, required this.report});
+
+  final String payload;
+  final ReportSchema report;
 }
 
 class _DayBuilder {

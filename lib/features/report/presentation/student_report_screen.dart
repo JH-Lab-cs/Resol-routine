@@ -154,6 +154,8 @@ class _ReportBody extends StatelessWidget {
     final todayVocabQuiz = today?.vocabQuiz;
     final bookmarkedVocabIds =
         report.vocabBookmarks?.bookmarkedVocabIds ?? const <String>[];
+    final customLemmaById =
+        report.customVocab?.lemmasById ?? const <String, String>{};
     final todayVocabAccuracy = todayVocabQuiz == null
         ? null
         : _formatAccuracy(
@@ -204,6 +206,7 @@ class _ReportBody extends StatelessWidget {
                   const SizedBox(height: AppSpacing.xs),
                   VocabWrongWordsSection(
                     wrongVocabIds: todayVocabQuiz.wrongVocabIds,
+                    customLemmaById: customLemmaById,
                     maxVisible: 6,
                   ),
                 ],
@@ -218,7 +221,10 @@ class _ReportBody extends StatelessWidget {
           ),
         ),
         const SizedBox(height: AppSpacing.md),
-        VocabBookmarksSection(bookmarkedVocabIds: bookmarkedVocabIds),
+        VocabBookmarksSection(
+          bookmarkedVocabIds: bookmarkedVocabIds,
+          customLemmaById: customLemmaById,
+        ),
         const SizedBox(height: AppSpacing.md),
         if (today == null)
           const Card(

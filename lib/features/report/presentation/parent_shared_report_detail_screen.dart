@@ -73,6 +73,8 @@ class _ParentSharedReportDetailScreenState
             );
             final bookmarkedVocabIds =
                 report.vocabBookmarks?.bookmarkedVocabIds ?? const <String>[];
+            final customLemmaById =
+                report.customVocab?.lemmasById ?? const <String, String>{};
 
             return CustomScrollView(
               slivers: [
@@ -90,6 +92,7 @@ class _ParentSharedReportDetailScreenState
                 SliverToBoxAdapter(
                   child: VocabBookmarksSection(
                     bookmarkedVocabIds: bookmarkedVocabIds,
+                    customLemmaById: customLemmaById,
                   ),
                 ),
                 const SliverToBoxAdapter(
@@ -116,6 +119,7 @@ class _ParentSharedReportDetailScreenState
                       final day = report.days[index];
                       return _DaySummaryCard(
                         day: day,
+                        customLemmaById: customLemmaById,
                         expanded: _expandedDayIndices.contains(index),
                         onToggleExpanded: () => _toggleDayExpanded(index),
                         dayToggleKey: ValueKey<String>(
@@ -250,12 +254,14 @@ class _HeaderCard extends StatelessWidget {
 class _DaySummaryCard extends StatelessWidget {
   const _DaySummaryCard({
     required this.day,
+    required this.customLemmaById,
     required this.expanded,
     required this.onToggleExpanded,
     required this.dayToggleKey,
   });
 
   final ReportDay day;
+  final Map<String, String> customLemmaById;
   final bool expanded;
   final VoidCallback onToggleExpanded;
   final Key dayToggleKey;
@@ -329,6 +335,7 @@ class _DaySummaryCard extends StatelessWidget {
                   const SizedBox(height: AppSpacing.xs),
                   VocabWrongWordsSection(
                     wrongVocabIds: day.vocabQuiz!.wrongVocabIds,
+                    customLemmaById: customLemmaById,
                     maxVisible: 6,
                   ),
                   const SizedBox(height: AppSpacing.sm),
