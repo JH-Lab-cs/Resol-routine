@@ -258,6 +258,60 @@ class VocabQuizResults extends Table {
   ];
 }
 
+class MockExamSessions extends Table {
+  @override
+  String get tableName => 'mock_exam_sessions';
+
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get examType => text().customConstraint(
+    "NOT NULL CHECK (exam_type IN ('WEEKLY', 'MONTHLY'))",
+  )();
+  TextColumn get periodKey => text().withLength(min: 6, max: 8)();
+  TextColumn get track => text()
+      .withLength(min: 2, max: 2)
+      .customConstraint("NOT NULL CHECK (track IN ('M3', 'H1', 'H2', 'H3'))")();
+  IntColumn get plannedItems =>
+      integer().customConstraint('NOT NULL CHECK (planned_items >= 0)')();
+  IntColumn get completedItems => integer().customConstraint(
+    'NOT NULL DEFAULT 0 CHECK (completed_items >= 0)',
+  )();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get completedAt => dateTime().nullable()();
+
+  @override
+  List<Set<Column<Object>>> get uniqueKeys => [
+    {examType, periodKey, track},
+  ];
+
+  @override
+  List<String> get customConstraints => const <String>[
+    'CHECK (completed_items <= planned_items)',
+  ];
+}
+
+class MockExamSessionItems extends Table {
+  @override
+  String get tableName => 'mock_exam_session_items';
+
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get sessionId => integer().references(
+    MockExamSessions,
+    #id,
+    onDelete: KeyAction.cascade,
+  )();
+  IntColumn get orderIndex =>
+      integer().customConstraint('NOT NULL CHECK (order_index >= 0)')();
+  TextColumn get questionId =>
+      text().references(Questions, #id, onDelete: KeyAction.cascade)();
+
+  @override
+  List<Set<Column<Object>>> get uniqueKeys => [
+    {sessionId, orderIndex},
+    {sessionId, questionId},
+  ];
+}
+
 class Attempts extends Table {
   @override
   String get tableName => 'attempts';
@@ -270,11 +324,21 @@ class Attempts extends Table {
     #id,
     onDelete: KeyAction.setNull,
   )();
+  IntColumn get mockSessionId => integer().nullable().references(
+    MockExamSessions,
+    #id,
+    onDelete: KeyAction.setNull,
+  )();
   TextColumn get userAnswerJson => text()();
   BoolColumn get isCorrect => boolean()();
   IntColumn get responseTimeMs => integer().nullable()();
   DateTimeColumn get attemptedAt =>
       dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  List<String> get customConstraints => const <String>[
+    'CHECK (NOT (session_id IS NOT NULL AND mock_session_id IS NOT NULL))',
+  ];
 }
 
 class VocabMaster extends Table {

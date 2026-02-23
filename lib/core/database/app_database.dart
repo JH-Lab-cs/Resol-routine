@@ -24,6 +24,8 @@ part 'app_database.g.dart';
     UserSettings,
     SharedReports,
     VocabQuizResults,
+    MockExamSessions,
+    MockExamSessionItems,
     Attempts,
     VocabMaster,
     VocabUser,
@@ -34,7 +36,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase({QueryExecutor? executor}) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 10;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -68,6 +70,9 @@ class AppDatabase extends _$AppDatabase {
       if (from < 9) {
         await _migrateToV9(m);
       }
+      if (from < 10) {
+        await _migrateToV10(m);
+      }
       await _createIndexes();
       await _ensureUserSettingsRow();
     },
@@ -93,7 +98,17 @@ class AppDatabase extends _$AppDatabase {
         );
 
         await customStatement('ALTER TABLE attempts RENAME TO attempts_old');
-        await m.createTable(attempts);
+        await customStatement(
+          'CREATE TABLE attempts ('
+          'id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, '
+          'question_id TEXT NOT NULL REFERENCES questions(id) ON DELETE CASCADE, '
+          'session_id INTEGER REFERENCES daily_sessions(id) ON DELETE SET NULL, '
+          'user_answer_json TEXT NOT NULL, '
+          'is_correct INTEGER NOT NULL CHECK (is_correct IN (0, 1)), '
+          'response_time_ms INTEGER, '
+          'attempted_at INTEGER NOT NULL'
+          ')',
+        );
         await customStatement(
           'INSERT INTO attempts ('
           'id, question_id, session_id, user_answer_json, is_correct, '
@@ -181,6 +196,33 @@ class AppDatabase extends _$AppDatabase {
     await m.addColumn(vocabMaster, vocabMaster.deletedAt);
   }
 
+  Future<void> _migrateToV10(Migrator m) async {
+    await customStatement('PRAGMA foreign_keys = OFF');
+    try {
+      await transaction(() async {
+        await m.createTable(mockExamSessions);
+        await m.createTable(mockExamSessionItems);
+
+        await customStatement(
+          'ALTER TABLE attempts RENAME TO attempts_old_v10',
+        );
+        await m.createTable(attempts);
+        await customStatement(
+          'INSERT INTO attempts ('
+          'id, question_id, session_id, mock_session_id, user_answer_json, '
+          'is_correct, response_time_ms, attempted_at'
+          ') '
+          'SELECT id, question_id, session_id, NULL, user_answer_json, '
+          'is_correct, response_time_ms, attempted_at '
+          'FROM attempts_old_v10',
+        );
+        await customStatement('DROP TABLE attempts_old_v10');
+      });
+    } finally {
+      await customStatement('PRAGMA foreign_keys = ON');
+    }
+  }
+
   Future<void> _createIndexes() async {
     await customStatement(
       'CREATE INDEX IF NOT EXISTS idx_passages_pack_order '
@@ -211,9 +253,18 @@ class AppDatabase extends _$AppDatabase {
       'ON attempts(session_id)',
     );
     await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_attempts_mock_session '
+      'ON attempts(mock_session_id)',
+    );
+    await customStatement(
       'CREATE UNIQUE INDEX IF NOT EXISTS ux_attempts_session_question '
       'ON attempts(session_id, question_id) '
       'WHERE session_id IS NOT NULL',
+    );
+    await customStatement(
+      'CREATE UNIQUE INDEX IF NOT EXISTS ux_attempts_mock_session_question '
+      'ON attempts(mock_session_id, question_id) '
+      'WHERE mock_session_id IS NOT NULL',
     );
     await customStatement(
       'CREATE INDEX IF NOT EXISTS idx_daily_session_items_question '
@@ -238,6 +289,18 @@ class AppDatabase extends _$AppDatabase {
     await customStatement(
       'CREATE INDEX IF NOT EXISTS idx_vocab_quiz_results_day_track '
       'ON vocab_quiz_results(day_key, track)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_mock_exam_sessions_lookup '
+      'ON mock_exam_sessions(exam_type, period_key, track)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_mock_exam_sessions_completed_at '
+      'ON mock_exam_sessions(completed_at)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_mock_exam_session_items_session '
+      'ON mock_exam_session_items(session_id)',
     );
   }
 

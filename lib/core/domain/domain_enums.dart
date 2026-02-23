@@ -2,6 +2,8 @@ enum Skill { listening, reading }
 
 enum Track { m3, h1, h2, h3 }
 
+enum MockExamType { weekly, monthly }
+
 enum WrongReasonTag { vocab, evidence, inference, careless, time }
 
 extension SkillDbValue on Skill {
@@ -26,6 +28,17 @@ extension TrackDbValue on Track {
         return 'H2';
       case Track.h3:
         return 'H3';
+    }
+  }
+}
+
+extension MockExamTypeDbValue on MockExamType {
+  String get dbValue {
+    switch (this) {
+      case MockExamType.weekly:
+        return 'WEEKLY';
+      case MockExamType.monthly:
+        return 'MONTHLY';
     }
   }
 }
@@ -55,6 +68,17 @@ Skill skillFromDb(String raw) {
       return Skill.reading;
     default:
       throw FormatException('Unsupported skill value: "$raw"');
+  }
+}
+
+MockExamType mockExamTypeFromDb(String raw) {
+  switch (raw) {
+    case 'WEEKLY':
+      return MockExamType.weekly;
+    case 'MONTHLY':
+      return MockExamType.monthly;
+    default:
+      throw FormatException('Unsupported mock exam type value: "$raw"');
   }
 }
 
