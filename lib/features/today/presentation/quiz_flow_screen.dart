@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/domain/domain_enums.dart';
+import '../../../core/ui/app_copy_ko.dart';
 import '../../../core/ui/app_tokens.dart';
+import '../../../core/ui/components/app_snackbars.dart';
 import '../../../core/ui/components/primary_pill_button.dart';
 import '../../../core/ui/label_maps.dart';
 import '../../my/application/my_stats_providers.dart';
@@ -95,9 +97,7 @@ class _QuizFlowScreenState extends ConsumerState<QuizFlowScreen> {
       setState(() {
         _isLoading = false;
       });
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('퀴즈 로딩 실패: $error')));
+      AppSnackbars.showError(context, '${AppCopyKo.quizLoadFailed}\n$error');
     }
   }
 
@@ -267,8 +267,9 @@ class _QuizFlowScreenState extends ConsumerState<QuizFlowScreen> {
                   ? null
                   : () async {
                       if (!_isCorrect && _selectedWrongReasonTag == null) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('오답 태그를 선택해 주세요.')),
+                        AppSnackbars.showWarning(
+                          context,
+                          AppCopyKo.wrongTagRequired,
                         );
                         return;
                       }
@@ -505,12 +506,17 @@ class _QuizFlowScreenState extends ConsumerState<QuizFlowScreen> {
                   style: AppTypography.label,
                 ),
                 const Spacer(),
-                IconButton(
-                  onPressed: () => _playListeningAudio(question),
-                  icon: const Icon(Icons.volume_up_rounded),
-                  style: IconButton.styleFrom(
-                    backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-                    foregroundColor: AppColors.primary,
+                Semantics(
+                  label: '듣기 재생',
+                  button: true,
+                  child: IconButton(
+                    onPressed: () => _playListeningAudio(question),
+                    icon: const Icon(Icons.volume_up_rounded),
+                    tooltip: '듣기 재생',
+                    style: IconButton.styleFrom(
+                      backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                      foregroundColor: AppColors.primary,
+                    ),
                   ),
                 ),
               ],
@@ -637,9 +643,7 @@ class _QuizFlowScreenState extends ConsumerState<QuizFlowScreen> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('$error')));
+      AppSnackbars.showError(context, '$error');
     } finally {
       if (mounted) {
         setState(() {
@@ -650,8 +654,10 @@ class _QuizFlowScreenState extends ConsumerState<QuizFlowScreen> {
   }
 
   void _playListeningAudio(QuizQuestionDetail question) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('"${question.questionId}" 문항의 듣기 재생을 시작합니다.')),
+    AppSnackbars.showSuccess(
+      context,
+      '"${question.questionId}" 문항의 듣기 재생을 시작합니다.',
+      haptic: false,
     );
   }
 

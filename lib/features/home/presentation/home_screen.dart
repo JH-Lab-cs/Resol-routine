@@ -7,11 +7,11 @@ import '../../../core/io/limited_utf8_reader.dart';
 import '../../../core/ui/app_copy_ko.dart';
 import '../../../core/ui/app_tokens.dart';
 import '../../../core/ui/components/app_scaffold.dart';
+import '../../../core/ui/components/app_snackbars.dart';
 import '../../../core/ui/components/hero_progress_card.dart';
 import '../../../core/ui/components/routine_card.dart';
 import '../../../core/ui/components/section_title.dart';
 import '../../../core/ui/components/skeleton.dart';
-import '../../../core/ui/haptics.dart';
 import '../../../core/ui/label_maps.dart';
 import '../../my/application/profile_ui_prefs_provider.dart';
 import '../../report/application/report_providers.dart';
@@ -268,16 +268,12 @@ class HomeScreen extends ConsumerWidget {
           .importFromJson(source: source, payloadJson: payload);
 
       ref.invalidate(sharedReportSummariesProvider);
-      Haptics.success();
 
       if (!context.mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('리포트를 가져왔습니다.')));
+      AppSnackbars.showSuccess(context, AppCopyKo.reportImportSuccess);
     } on FormatException catch (error) {
-      Haptics.warning();
       if (!context.mounted) {
         return;
       }
@@ -285,16 +281,17 @@ class HomeScreen extends ConsumerWidget {
         _showImportSizeLimitSnackBar(context);
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${AppCopyKo.reportImportInvalid}\n$error')),
+      AppSnackbars.showWarning(
+        context,
+        '${AppCopyKo.reportImportInvalid}\n$error',
       );
     } catch (error) {
-      Haptics.warning();
       if (!context.mounted) {
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${AppCopyKo.reportImportFailed}\n$error')),
+      AppSnackbars.showError(
+        context,
+        '${AppCopyKo.reportImportFailed}\n$error',
       );
     }
   }
@@ -306,9 +303,10 @@ class HomeScreen extends ConsumerWidget {
   void _showImportSizeLimitSnackBar(BuildContext context) {
     final maxMb = (DbTextLimits.reportImportMaxBytes / (1024 * 1024))
         .toStringAsFixed(0);
-    ScaffoldMessenger.of(
+    AppSnackbars.showWarning(
       context,
-    ).showSnackBar(SnackBar(content: Text('파일이 너무 큽니다(최대 ${maxMb}MB).')));
+      AppCopyKo.importSizeExceeded(maxMb: maxMb),
+    );
   }
 }
 
@@ -412,21 +410,25 @@ class _ParentReportSummaryCard extends ConsumerWidget {
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            PopupMenuButton<_ParentReportMenuAction>(
-              icon: const Icon(Icons.more_vert_rounded),
-              tooltip: '리포트 메뉴',
-              onSelected: (action) async {
-                switch (action) {
-                  case _ParentReportMenuAction.delete:
-                    await _confirmDelete(context, ref);
-                }
-              },
-              itemBuilder: (context) => const [
-                PopupMenuItem<_ParentReportMenuAction>(
-                  value: _ParentReportMenuAction.delete,
-                  child: Text('삭제'),
-                ),
-              ],
+            Semantics(
+              label: '리포트 메뉴',
+              button: true,
+              child: PopupMenuButton<_ParentReportMenuAction>(
+                icon: const Icon(Icons.more_vert_rounded),
+                tooltip: '리포트 메뉴',
+                onSelected: (action) async {
+                  switch (action) {
+                    case _ParentReportMenuAction.delete:
+                      await _confirmDelete(context, ref);
+                  }
+                },
+                itemBuilder: (context) => const [
+                  PopupMenuItem<_ParentReportMenuAction>(
+                    value: _ParentReportMenuAction.delete,
+                    child: Text('삭제'),
+                  ),
+                ],
+              ),
             ),
             const Icon(Icons.chevron_right_rounded),
           ],
@@ -471,20 +473,19 @@ class _ParentReportSummaryCard extends ConsumerWidget {
         .deleteById(summary.id);
     ref.invalidate(sharedReportSummariesProvider);
     ref.invalidate(sharedReportByIdProvider(summary.id));
-    if (deleted) {
-      Haptics.success();
-    } else {
-      Haptics.warning();
-    }
 
     if (!context.mounted) {
       return;
     }
 
-    final message = deleted ? '리포트를 삭제했습니다.' : '이미 삭제된 리포트입니다.';
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    final message = deleted
+        ? AppCopyKo.reportDeleteSuccess
+        : AppCopyKo.reportDeleteAlready;
+    if (deleted) {
+      AppSnackbars.showSuccess(context, message);
+    } else {
+      AppSnackbars.showWarning(context, message);
+    }
   }
 }
 

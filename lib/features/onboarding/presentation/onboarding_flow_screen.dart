@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/database/db_text_limits.dart';
+import '../../../core/ui/app_copy_ko.dart';
 import '../../../core/ui/app_tokens.dart';
+import '../../../core/ui/components/app_snackbars.dart';
 import '../../../core/ui/components/primary_pill_button.dart';
 import '../../../core/ui/input_formatters/birth_date_input_formatter.dart';
 import '../../my/application/profile_ui_prefs_provider.dart';
@@ -403,9 +405,7 @@ class _OnboardingFlowScreenState extends ConsumerState<OnboardingFlowScreen> {
     }
     if (trimmedBirthDate.isNotEmpty &&
         !isValidBirthDateText(trimmedBirthDate)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('생년월일을 YYYY-MM-DD 형식으로 입력해 주세요.')),
-      );
+      AppSnackbars.showWarning(context, AppCopyKo.birthDateInvalid);
       return;
     }
 
@@ -442,9 +442,10 @@ class _OnboardingFlowScreenState extends ConsumerState<OnboardingFlowScreen> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(
+      AppSnackbars.showError(
         context,
-      ).showSnackBar(SnackBar(content: Text('설정 저장에 실패했습니다.\n$error')));
+        '${AppCopyKo.settingsSaveFailed}\n$error',
+      );
       setState(() {
         _saving = false;
       });

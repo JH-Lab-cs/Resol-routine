@@ -3,7 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
+import '../../../core/ui/app_copy_ko.dart';
 import '../../../core/ui/app_tokens.dart';
+import '../../../core/ui/components/app_snackbars.dart';
 import '../application/profile_ui_prefs_provider.dart';
 import '../../settings/application/user_settings_providers.dart';
 import 'membership_plan_screen.dart';
@@ -29,7 +31,10 @@ class MySettingsScreen extends ConsumerWidget {
       body: settingsState.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => Center(
-          child: Text('설정을 불러오지 못했습니다.\n$error', textAlign: TextAlign.center),
+          child: Text(
+            '${AppCopyKo.loadFailed('설정')}\n$error',
+            textAlign: TextAlign.center,
+          ),
         ),
         data: (settings) {
           return ListView(
@@ -210,9 +215,7 @@ class MySettingsScreen extends ConsumerWidget {
       return;
     }
     Navigator.of(context).popUntil((route) => route.isFirst);
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('로그아웃되었습니다.')));
+    AppSnackbars.showSuccess(context, AppCopyKo.logoutSuccess);
   }
 
   Future<void> _withdraw(BuildContext context, WidgetRef ref) async {
@@ -247,9 +250,7 @@ class MySettingsScreen extends ConsumerWidget {
       return;
     }
     Navigator.of(context).popUntil((route) => route.isFirst);
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('탈퇴 처리되었습니다.')));
+    AppSnackbars.showSuccess(context, AppCopyKo.withdrawSuccess);
   }
 
   void _resetProfileUiPrefs(WidgetRef ref) {
@@ -296,15 +297,9 @@ class _ContactSupportScreen extends StatelessWidget {
                   OutlinedButton.icon(
                     onPressed: () {
                       Clipboard.setData(ClipboardData(text: email));
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          behavior: SnackBarBehavior.floating,
-                          backgroundColor: AppColors.primary,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          content: const Text('문의 메일 주소를 복사했어요.'),
-                        ),
+                      AppSnackbars.showSuccess(
+                        context,
+                        AppCopyKo.settingsCopiedEmail,
                       );
                     },
                     icon: const Icon(Icons.copy_rounded),

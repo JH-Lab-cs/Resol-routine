@@ -10,8 +10,8 @@ import '../../../core/domain/domain_enums.dart';
 import '../../../core/ui/app_copy_ko.dart';
 import '../../../core/ui/app_tokens.dart';
 import '../../../core/ui/components/app_scaffold.dart';
+import '../../../core/ui/components/app_snackbars.dart';
 import '../../../core/ui/components/skeleton.dart';
-import '../../../core/ui/haptics.dart';
 import '../../../core/ui/label_maps.dart';
 import '../../../core/time/day_key.dart';
 import '../application/report_providers.dart';
@@ -126,23 +126,16 @@ class _StudentReportScreenState extends ConsumerState<StudentReportScreen> {
         return;
       }
 
-      final message = result.status == ShareResultStatus.success
-          ? AppCopyKo.reportShareSuccess
-          : AppCopyKo.actionCanceled;
       if (result.status == ShareResultStatus.success) {
-        Haptics.success();
+        AppSnackbars.showSuccess(context, AppCopyKo.reportShareSuccess);
+      } else {
+        AppSnackbars.showCanceled(context);
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message)));
     } catch (error) {
-      Haptics.warning();
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${AppCopyKo.reportShareFailed}\n$error')),
-      );
+      AppSnackbars.showError(context, '${AppCopyKo.reportShareFailed}\n$error');
     } finally {
       if (exportFile != null) {
         try {

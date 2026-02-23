@@ -4,8 +4,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/ui/app_copy_ko.dart';
 import '../../../core/ui/app_tokens.dart';
 import '../../../core/ui/components/app_scaffold.dart';
+import '../../../core/ui/components/app_snackbars.dart';
 import '../../../core/ui/label_maps.dart';
 import '../../home/application/home_providers.dart';
 import '../application/my_stats_providers.dart';
@@ -31,7 +33,10 @@ class MyScreen extends ConsumerWidget {
       child: settingsState.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => Center(
-          child: Text('내 정보를 불러오지 못했습니다.\n$error', textAlign: TextAlign.center),
+          child: Text(
+            '${AppCopyKo.loadFailed('내 정보')}\n$error',
+            textAlign: TextAlign.center,
+          ),
         ),
         data: (settings) {
           final profilePrefs = ref.watch(profileUiPrefsProvider);
@@ -48,19 +53,24 @@ class MyScreen extends ConsumerWidget {
                 children: [
                   Text('내 정보', style: AppTypography.title),
                   const Spacer(),
-                  IconButton(
-                    onPressed: () {
-                      Navigator.of(context).push<void>(
-                        MaterialPageRoute<void>(
-                          builder: (_) => const MySettingsScreen(),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.settings_rounded),
-                    style: IconButton.styleFrom(
-                      backgroundColor: const Color(0xFFE9EBF3),
-                      foregroundColor: AppColors.textPrimary,
-                      minimumSize: const Size(48, 48),
+                  Semantics(
+                    label: '설정',
+                    button: true,
+                    child: IconButton(
+                      onPressed: () {
+                        Navigator.of(context).push<void>(
+                          MaterialPageRoute<void>(
+                            builder: (_) => const MySettingsScreen(),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.settings_rounded),
+                      tooltip: '설정',
+                      style: IconButton.styleFrom(
+                        backgroundColor: const Color(0xFFE9EBF3),
+                        foregroundColor: AppColors.textPrimary,
+                        minimumSize: const Size(48, 48),
+                      ),
                     ),
                   ),
                 ],
@@ -200,9 +210,7 @@ class MyScreen extends ConsumerWidget {
     if (!context.mounted) {
       return;
     }
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('오늘 세션을 삭제했습니다.')));
+    AppSnackbars.showSuccess(context, AppCopyKo.todaySessionDeleteSuccess);
   }
 }
 

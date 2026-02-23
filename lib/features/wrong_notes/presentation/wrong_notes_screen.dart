@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/domain/domain_enums.dart';
+import '../../../core/ui/app_copy_ko.dart';
 import '../../../core/ui/app_tokens.dart';
 import '../../../core/ui/components/app_scaffold.dart';
 import '../../../core/ui/components/section_title.dart';
@@ -27,11 +28,12 @@ class WrongNotesScreen extends ConsumerWidget {
           Expanded(
             child: wrongNotesAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (error, _) =>
-                  Center(child: Text('오답을 불러오지 못했습니다.\n$error')),
+              error: (error, _) => Center(
+                child: Text('${AppCopyKo.loadFailed('오답노트')}\n$error'),
+              ),
               data: (items) {
                 if (items.isEmpty) {
-                  return const Center(child: Text('아직 오답이 없습니다.'));
+                  return const Center(child: Text(AppCopyKo.emptyWrongNotes));
                 }
 
                 return ListView.separated(
@@ -84,7 +86,8 @@ class WrongNoteDetailScreen extends ConsumerWidget {
       appBar: AppBar(title: const Text('오답 상세')),
       body: detailAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => Center(child: Text('상세를 불러오지 못했습니다.\n$error')),
+        error: (error, _) =>
+            Center(child: Text('${AppCopyKo.loadFailed('오답 상세')}\n$error')),
         data: (detail) {
           final evidenceIds = detail.question.evidenceSentenceIds.toSet();
 

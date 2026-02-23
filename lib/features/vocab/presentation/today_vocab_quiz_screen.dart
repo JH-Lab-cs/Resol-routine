@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/ui/app_copy_ko.dart';
 import '../../../core/ui/app_tokens.dart';
 import '../../../core/ui/components/app_scaffold.dart';
+import '../../../core/ui/components/app_snackbars.dart';
 import '../../../core/ui/components/primary_pill_button.dart';
 import '../../../core/time/day_key.dart';
 import '../../report/application/report_providers.dart';
@@ -46,7 +48,8 @@ class _TodayVocabQuizScreenState extends ConsumerState<TodayVocabQuizScreen> {
       appBar: AppBar(title: const Text('오늘의 단어 시험')),
       body: quizAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => Center(child: Text('단어 시험을 불러오지 못했습니다.\n$error')),
+        error: (error, _) =>
+            Center(child: Text('${AppCopyKo.vocabQuizLoadFailed}\n$error')),
         data: (questions) {
           if (questions.isEmpty) {
             return _buildEmptyState();
@@ -222,9 +225,10 @@ class _TodayVocabQuizScreenState extends ConsumerState<TodayVocabQuizScreen> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(
+      AppSnackbars.showError(
         context,
-      ).showSnackBar(SnackBar(content: Text('단어시험 결과 저장에 실패했습니다.\n$error')));
+        '${AppCopyKo.vocabQuizSaveFailed}\n$error',
+      );
     }
   }
 

@@ -542,6 +542,14 @@ class _FilterBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Widget chipA11y({required String label, required Widget child}) {
+      return Semantics(
+        button: true,
+        label: label,
+        child: Tooltip(message: label, child: child),
+      );
+    }
+
     return Container(
       color: AppColors.background,
       padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
@@ -549,75 +557,105 @@ class _FilterBar extends StatelessWidget {
         scrollDirection: Axis.horizontal,
         child: Row(
           children: [
-            ChoiceChip(
-              key: const ValueKey<String>('filter-range-all'),
-              label: const Text('전체'),
-              selected: range == _ReportRange.all,
-              onSelected: (_) => onRangeChanged(_ReportRange.all),
+            chipA11y(
+              label: '기간 전체',
+              child: ChoiceChip(
+                key: const ValueKey<String>('filter-range-all'),
+                label: const Text('전체'),
+                selected: range == _ReportRange.all,
+                onSelected: (_) => onRangeChanged(_ReportRange.all),
+              ),
             ),
             const SizedBox(width: AppSpacing.xs),
-            ChoiceChip(
-              key: const ValueKey<String>('filter-range-last7'),
-              label: const Text('최근 7일'),
-              selected: range == _ReportRange.last7Days,
-              onSelected: (_) => onRangeChanged(_ReportRange.last7Days),
+            chipA11y(
+              label: '기간 최근 7일',
+              child: ChoiceChip(
+                key: const ValueKey<String>('filter-range-last7'),
+                label: const Text('최근 7일'),
+                selected: range == _ReportRange.last7Days,
+                onSelected: (_) => onRangeChanged(_ReportRange.last7Days),
+              ),
             ),
             const SizedBox(width: AppSpacing.xs),
-            FilterChip(
-              key: const ValueKey<String>('filter-only-wrong'),
-              label: const Text('오답만'),
-              selected: onlyWrong,
-              onSelected: onOnlyWrongChanged,
+            chipA11y(
+              label: '오답만 보기',
+              child: FilterChip(
+                key: const ValueKey<String>('filter-only-wrong'),
+                label: const Text('오답만'),
+                selected: onlyWrong,
+                onSelected: onOnlyWrongChanged,
+              ),
             ),
             const SizedBox(width: AppSpacing.xs),
-            ChoiceChip(
-              key: const ValueKey<String>('filter-skill-all'),
-              label: const Text('스킬 전체'),
-              selected: skill == null,
-              onSelected: (_) => onSkillChanged(null),
+            chipA11y(
+              label: '스킬 전체',
+              child: ChoiceChip(
+                key: const ValueKey<String>('filter-skill-all'),
+                label: const Text('스킬 전체'),
+                selected: skill == null,
+                onSelected: (_) => onSkillChanged(null),
+              ),
             ),
             const SizedBox(width: AppSpacing.xs),
-            ChoiceChip(
-              key: const ValueKey<String>('filter-skill-LISTENING'),
-              label: const Text('듣기'),
-              selected: skill == Skill.listening,
-              onSelected: (_) => onSkillChanged(Skill.listening),
+            chipA11y(
+              label: '스킬 듣기',
+              child: ChoiceChip(
+                key: const ValueKey<String>('filter-skill-LISTENING'),
+                label: const Text('듣기'),
+                selected: skill == Skill.listening,
+                onSelected: (_) => onSkillChanged(Skill.listening),
+              ),
             ),
             const SizedBox(width: AppSpacing.xs),
-            ChoiceChip(
-              key: const ValueKey<String>('filter-skill-READING'),
-              label: const Text('독해'),
-              selected: skill == Skill.reading,
-              onSelected: (_) => onSkillChanged(Skill.reading),
+            chipA11y(
+              label: '스킬 독해',
+              child: ChoiceChip(
+                key: const ValueKey<String>('filter-skill-READING'),
+                label: const Text('독해'),
+                selected: skill == Skill.reading,
+                onSelected: (_) => onSkillChanged(Skill.reading),
+              ),
             ),
             const SizedBox(width: AppSpacing.xs),
-            ChoiceChip(
-              key: const ValueKey<String>('filter-wrong-all'),
-              label: const Text('오답이유 전체'),
-              selected: wrongReason == null,
-              onSelected: (_) => onWrongReasonChanged(null),
+            chipA11y(
+              label: '오답 이유 전체',
+              child: ChoiceChip(
+                key: const ValueKey<String>('filter-wrong-all'),
+                label: const Text('오답이유 전체'),
+                selected: wrongReason == null,
+                onSelected: (_) => onWrongReasonChanged(null),
+              ),
             ),
             const SizedBox(width: AppSpacing.xs),
             for (final reason in WrongReasonTag.values) ...[
-              ChoiceChip(
-                key: ValueKey<String>('filter-wrong-${reason.dbValue}'),
-                label: Text(displayWrongReasonTag(reason.dbValue)),
-                selected: wrongReason == reason,
-                onSelected: (_) => onWrongReasonChanged(reason),
+              chipA11y(
+                label: '오답 이유 ${displayWrongReasonTag(reason.dbValue)}',
+                child: ChoiceChip(
+                  key: ValueKey<String>('filter-wrong-${reason.dbValue}'),
+                  label: Text(displayWrongReasonTag(reason.dbValue)),
+                  selected: wrongReason == reason,
+                  onSelected: (_) => onWrongReasonChanged(reason),
+                ),
               ),
               const SizedBox(width: AppSpacing.xs),
             ],
-            ActionChip(
-              key: const ValueKey<String>('filter-typeTag'),
-              label: Text(typeTag == null ? '유형 선택' : '유형 $typeTag'),
-              onPressed: onTypeTagTap,
+            chipA11y(
+              label: typeTag == null ? '유형 선택' : '유형 $typeTag',
+              child: ActionChip(
+                key: const ValueKey<String>('filter-typeTag'),
+                label: Text(typeTag == null ? '유형 선택' : '유형 $typeTag'),
+                onPressed: onTypeTagTap,
+              ),
             ),
             if (typeTag != null) ...[
               const SizedBox(width: AppSpacing.xs),
-              ActionChip(
-                key: const ValueKey<String>('filter-typeTag-clear'),
-                label: const Text('유형 해제'),
-                onPressed: onTypeTagClear,
+              chipA11y(
+                label: '유형 필터 해제',
+                child: ActionChip(
+                  key: const ValueKey<String>('filter-typeTag-clear'),
+                  label: const Text('유형 해제'),
+                  onPressed: onTypeTagClear,
+                ),
               ),
             ],
           ],

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/ui/app_copy_ko.dart';
 import '../../../core/ui/app_tokens.dart';
 import '../../../core/ui/components/app_scaffold.dart';
+import '../../../core/ui/components/app_snackbars.dart';
 import '../../../core/ui/components/section_title.dart';
 import '../application/vocab_providers.dart';
 import '../data/vocab_repository.dart';
@@ -65,10 +67,14 @@ class _VocabScreenState extends ConsumerState<VocabScreen> {
                 ? '오늘 학습할 단어를 확인해 보세요.'
                 : '직접 저장한 단어와 북마크를 관리해 보세요.',
             trailing: selectedTab == VocabCollectionTab.mine
-                ? IconButton(
-                    onPressed: _showAddVocabularySheet,
-                    icon: const Icon(Icons.add_rounded),
-                    tooltip: '단어 추가',
+                ? Semantics(
+                    label: '단어 추가',
+                    button: true,
+                    child: IconButton(
+                      onPressed: _showAddVocabularySheet,
+                      icon: const Icon(Icons.add_rounded),
+                      tooltip: '단어 추가',
+                    ),
                   )
                 : null,
           ),
@@ -98,14 +104,14 @@ class _VocabScreenState extends ConsumerState<VocabScreen> {
             child: vocabAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (error, _) =>
-                  Center(child: Text('단어를 불러오지 못했습니다.\n$error')),
+                  Center(child: Text('${AppCopyKo.loadFailed('단어')}\n$error')),
               data: (items) {
                 if (items.isEmpty) {
                   return Center(
                     child: Text(
                       selectedTab == VocabCollectionTab.today
-                          ? '오늘의 단어가 없습니다.'
-                          : '나만의 단어가 없습니다.',
+                          ? AppCopyKo.emptyTodayVocabulary
+                          : AppCopyKo.emptyMyVocabulary,
                     ),
                   );
                 }
@@ -150,52 +156,73 @@ class _VocabScreenState extends ConsumerState<VocabScreen> {
                                       ),
                                     ),
                                   ),
-                                  IconButton(
-                                    icon: Icon(
-                                      item.isBookmarked
-                                          ? Icons.bookmark_rounded
-                                          : Icons.bookmark_border_rounded,
-                                      color: item.isBookmarked
-                                          ? AppColors.primary
-                                          : AppColors.textSecondary,
+                                  Semantics(
+                                    label: item.isBookmarked ? '북마크 해제' : '북마크',
+                                    button: true,
+                                    child: IconButton(
+                                      icon: Icon(
+                                        item.isBookmarked
+                                            ? Icons.bookmark_rounded
+                                            : Icons.bookmark_border_rounded,
+                                        color: item.isBookmarked
+                                            ? AppColors.primary
+                                            : AppColors.textSecondary,
+                                      ),
+                                      tooltip: item.isBookmarked
+                                          ? '북마크 해제'
+                                          : '북마크',
+                                      onPressed: () async {
+                                        await ref
+                                            .read(vocabRepositoryProvider)
+                                            .toggleBookmark(item.id);
+                                        ref.invalidate(
+                                          vocabListProvider(request),
+                                        );
+                                      },
                                     ),
-                                    onPressed: () async {
-                                      await ref
-                                          .read(vocabRepositoryProvider)
-                                          .toggleBookmark(item.id);
-                                      ref.invalidate(
-                                        vocabListProvider(request),
-                                      );
-                                    },
                                   ),
                                   if (canManageCustom)
-                                    PopupMenuButton<_VocabItemMenuAction>(
-                                      tooltip: '단어 메뉴',
-                                      icon: const Icon(Icons.more_vert_rounded),
-                                      onSelected: (action) async {
-                                        switch (action) {
-                                          case _VocabItemMenuAction.edit:
-                                            await _showEditVocabularySheet(
-                                              item,
-                                            );
-                                            break;
-                                          case _VocabItemMenuAction.delete:
-                                            await _confirmDeleteVocabulary(
-                                              item,
-                                            );
-                                            break;
-                                        }
-                                      },
-                                      itemBuilder: (context) => const [
-                                        PopupMenuItem<_VocabItemMenuAction>(
-                                          value: _VocabItemMenuAction.edit,
-                                          child: Text('수정'),
-                                        ),
-                                        PopupMenuItem<_VocabItemMenuAction>(
-                                          value: _VocabItemMenuAction.delete,
-                                          child: Text('삭제'),
-                                        ),
-                                      ],
+                                    Semantics(
+                                      label: '단어 메뉴',
+                                      button: true,
+                                      child:
+                                          PopupMenuButton<_VocabItemMenuAction>(
+                                            tooltip: '단어 메뉴',
+                                            icon: const Icon(
+                                              Icons.more_vert_rounded,
+                                            ),
+                                            onSelected: (action) async {
+                                              switch (action) {
+                                                case _VocabItemMenuAction.edit:
+                                                  await _showEditVocabularySheet(
+                                                    item,
+                                                  );
+                                                  break;
+                                                case _VocabItemMenuAction
+                                                    .delete:
+                                                  await _confirmDeleteVocabulary(
+                                                    item,
+                                                  );
+                                                  break;
+                                              }
+                                            },
+                                            itemBuilder: (context) => const [
+                                              PopupMenuItem<
+                                                _VocabItemMenuAction
+                                              >(
+                                                value:
+                                                    _VocabItemMenuAction.edit,
+                                                child: Text('수정'),
+                                              ),
+                                              PopupMenuItem<
+                                                _VocabItemMenuAction
+                                              >(
+                                                value:
+                                                    _VocabItemMenuAction.delete,
+                                                child: Text('삭제'),
+                                              ),
+                                            ],
+                                          ),
                                     ),
                                 ],
                               ),
@@ -254,9 +281,7 @@ class _VocabScreenState extends ConsumerState<VocabScreen> {
     ref.read(vocabCollectionTabProvider.notifier).state =
         VocabCollectionTab.mine;
     _invalidateVocabList();
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('단어를 저장했습니다.')));
+    AppSnackbars.showSuccess(context, AppCopyKo.vocabSaved);
   }
 
   Future<void> _showEditVocabularySheet(VocabListItem item) async {
@@ -288,9 +313,7 @@ class _VocabScreenState extends ConsumerState<VocabScreen> {
     }
 
     _invalidateVocabList();
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('단어를 수정했습니다.')));
+    AppSnackbars.showSuccess(context, AppCopyKo.vocabUpdated);
   }
 
   Future<void> _confirmDeleteVocabulary(VocabListItem item) async {
@@ -325,24 +348,21 @@ class _VocabScreenState extends ConsumerState<VocabScreen> {
       if (!mounted) {
         return;
       }
-      final message = deleted ? '단어를 삭제했습니다.' : '이미 삭제된 단어입니다.';
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message)));
+      if (deleted) {
+        AppSnackbars.showSuccess(context, AppCopyKo.vocabDeleted);
+      } else {
+        AppSnackbars.showWarning(context, AppCopyKo.vocabAlreadyDeleted);
+      }
     } on FormatException catch (error) {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error.message)));
+      AppSnackbars.showWarning(context, error.message);
     } catch (_) {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('단어 삭제에 실패했습니다.')));
+      AppSnackbars.showError(context, AppCopyKo.vocabDeleteFailed);
     }
   }
 
@@ -566,9 +586,7 @@ class _AddVocabularySheetState extends State<_AddVocabularySheet> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error.message)));
+      AppSnackbars.showWarning(context, error.message);
       setState(() {
         _isSaving = false;
       });
@@ -576,9 +594,7 @@ class _AddVocabularySheetState extends State<_AddVocabularySheet> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('단어 저장에 실패했습니다.')));
+      AppSnackbars.showError(context, AppCopyKo.vocabSaveFailed);
       setState(() {
         _isSaving = false;
       });
