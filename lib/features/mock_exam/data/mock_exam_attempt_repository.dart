@@ -18,6 +18,18 @@ class MockExamCompletionReport {
   final WrongReasonTag? topWrongReasonTag;
 }
 
+class MockExamSessionProgress {
+  const MockExamSessionProgress({
+    required this.completed,
+    required this.listeningCompleted,
+    required this.readingCompleted,
+  });
+
+  final int completed;
+  final int listeningCompleted;
+  final int readingCompleted;
+}
+
 class MockExamAttemptRepository {
   const MockExamAttemptRepository({required AppDatabase database})
     : _database = database;
@@ -126,6 +138,28 @@ class MockExamAttemptRepository {
       _database.mockExamSessions,
     )..where((tbl) => tbl.id.equals(mockSessionId))).getSingle();
     return session.plannedItems;
+  }
+
+  Future<MockExamSessionProgress> loadSessionProgress(int mockSessionId) async {
+    final summaryRows = await _database
+        .customSelect(
+          'SELECT '
+          'COUNT(*) AS completed, '
+          'SUM(CASE WHEN q.skill = \'LISTENING\' THEN 1 ELSE 0 END) AS listening_completed, '
+          'SUM(CASE WHEN q.skill = \'READING\' THEN 1 ELSE 0 END) AS reading_completed '
+          'FROM attempts a '
+          'INNER JOIN questions q ON q.id = a.question_id '
+          'WHERE a.mock_session_id = ?',
+          variables: <Variable<Object>>[Variable<int>(mockSessionId)],
+          readsFrom: {_database.attempts, _database.questions},
+        )
+        .getSingle();
+
+    return MockExamSessionProgress(
+      completed: summaryRows.read<int?>('completed') ?? 0,
+      listeningCompleted: summaryRows.read<int?>('listening_completed') ?? 0,
+      readingCompleted: summaryRows.read<int?>('reading_completed') ?? 0,
+    );
   }
 
   Future<MockExamCompletionReport> loadCompletionReport(

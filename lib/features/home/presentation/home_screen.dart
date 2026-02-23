@@ -25,6 +25,7 @@ class HomeScreen extends ConsumerWidget {
   const HomeScreen({
     super.key,
     required this.onOpenQuiz,
+    required this.onOpenWeeklyMockExam,
     required this.onOpenVocab,
     required this.onOpenTodayVocabQuiz,
     required this.onOpenWrongNotes,
@@ -32,6 +33,7 @@ class HomeScreen extends ConsumerWidget {
   });
 
   final VoidCallback onOpenQuiz;
+  final VoidCallback onOpenWeeklyMockExam;
   final VoidCallback onOpenVocab;
   final VoidCallback onOpenTodayVocabQuiz;
   final VoidCallback onOpenWrongNotes;
@@ -202,6 +204,36 @@ class HomeScreen extends ConsumerWidget {
                             subtitle: '20문제 5지선다',
                             icon: Icons.quiz_rounded,
                             onTap: onOpenTodayVocabQuiz,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
+                      const SectionTitle(title: '모의고사'),
+                      const SizedBox(height: AppSpacing.md),
+                      GridView.count(
+                        physics: const NeverScrollableScrollPhysics(),
+                        shrinkWrap: true,
+                        crossAxisCount: 2,
+                        crossAxisSpacing: AppSpacing.md,
+                        mainAxisSpacing: AppSpacing.md,
+                        childAspectRatio: 1.12,
+                        children: [
+                          RoutineCard(
+                            title: '주간 모의고사',
+                            subtitle: '듣기 10 + 독해 10',
+                            icon: Icons.event_note_rounded,
+                            onTap: onOpenWeeklyMockExam,
+                          ),
+                          RoutineCard(
+                            title: '월간 모의고사',
+                            subtitle: 'A2.6.2에서 제공 예정',
+                            icon: Icons.calendar_month_rounded,
+                            onTap: () {
+                              AppSnackbars.showWarning(
+                                context,
+                                '월간 모의고사는 곧 제공됩니다.',
+                              );
+                            },
                           ),
                         ],
                       ),

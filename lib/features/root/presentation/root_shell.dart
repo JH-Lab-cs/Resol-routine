@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/ui/components/app_scaffold.dart';
 import '../../home/presentation/home_screen.dart';
 import '../../my/presentation/my_screen.dart';
+import '../../mock_exam/presentation/weekly_mock_flow_screen.dart';
 import '../../today/application/today_session_providers.dart';
 import '../../today/presentation/quiz_flow_screen.dart';
 import '../../vocab/presentation/today_vocab_quiz_screen.dart';
@@ -26,6 +27,7 @@ class _RootShellState extends ConsumerState<RootShell> {
     final tabs = <Widget>[
       HomeScreen(
         onOpenQuiz: _openQuiz,
+        onOpenWeeklyMockExam: _openWeeklyMockExam,
         onOpenVocab: () => _selectTab(1),
         onOpenTodayVocabQuiz: _openTodayVocabQuiz,
         onOpenWrongNotes: () => _selectTab(2),
@@ -111,6 +113,28 @@ class _RootShellState extends ConsumerState<RootShell> {
 
           if (action == VocabQuizExitAction.vocab) {
             _selectTab(1);
+            return;
+          }
+
+          _selectTab(0);
+        });
+  }
+
+  void _openWeeklyMockExam() {
+    final track = ref.read(selectedTrackProvider);
+    Navigator.of(context)
+        .push<MockExamFlowExitAction>(
+          MaterialPageRoute<MockExamFlowExitAction>(
+            builder: (_) => WeeklyMockFlowScreen(track: track),
+          ),
+        )
+        .then((action) {
+          if (!mounted || action == null) {
+            return;
+          }
+
+          if (action == MockExamFlowExitAction.wrongNotes) {
+            _selectTab(2);
             return;
           }
 
