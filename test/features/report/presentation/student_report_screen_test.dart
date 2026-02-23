@@ -18,6 +18,40 @@ import 'package:resol_routine/features/today/data/today_session_repository.dart'
 import 'package:resol_routine/features/vocab/data/vocab_quiz_results_repository.dart';
 
 void main() {
+  testWidgets('shows loading skeleton first and handles text scale safely', (
+    WidgetTester tester,
+  ) async {
+    final database = AppDatabase(executor: NativeDatabase.memory());
+    final reportExportRepository = ReportExportRepository(
+      database: database,
+      appVersionLoader: () async => '1.0.0+1',
+    );
+    addTearDown(database.close);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(database),
+          reportExportRepositoryProvider.overrideWithValue(
+            reportExportRepository,
+          ),
+        ],
+        child: MediaQuery(
+          data: const MediaQueryData(textScaler: TextScaler.linear(1.4)),
+          child: const MaterialApp(home: StudentReportScreen(track: 'M3')),
+        ),
+      ),
+    );
+
+    expect(
+      find.byKey(const ValueKey<String>('student-report-loading-skeleton')),
+      findsOneWidget,
+    );
+
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('shows vocab quiz summary on student report when available', (
     WidgetTester tester,
   ) async {
