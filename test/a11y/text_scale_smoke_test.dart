@@ -80,6 +80,7 @@ void main() {
             child: MaterialApp(
               home: HomeScreen(
                 onOpenQuiz: () {},
+                onOpenWeeklyMockExam: () {},
                 onOpenVocab: () {},
                 onOpenTodayVocabQuiz: () {},
                 onOpenWrongNotes: () {},
