@@ -252,6 +252,10 @@ void main() {
 
       expect(find.textContaining('ID L-001'), findsNothing);
 
+      await _scrollUntilVisible(
+        tester,
+        find.byKey(const ValueKey('report-day-toggle-20260221-M3')),
+      );
       await tester.tap(
         find.byKey(const ValueKey('report-day-toggle-20260221-M3')),
       );
@@ -313,6 +317,10 @@ void main() {
     expect(find.text('orchard'), findsNothing);
     expect(find.text('missing_vocab_id'), findsNothing);
 
+    await _scrollUntilVisible(
+      tester,
+      find.byKey(const ValueKey('report-day-toggle-20260222-M3')),
+    );
     await tester.tap(
       find.byKey(const ValueKey('report-day-toggle-20260222-M3')),
     );
@@ -726,6 +734,7 @@ void main() {
     await tester.tap(find.text('학습 리포트'));
     await tester.pumpAndSettle();
     expect(find.text('리포트'), findsOneWidget);
+    await _scrollUntilVisible(tester, find.text('JSON 리포트 공유'));
     expect(find.text('JSON 리포트 공유'), findsOneWidget);
 
     await tester.pageBack();
@@ -864,6 +873,15 @@ Future<void> _pumpUntilVisible(
   }
 
   fail('Did not find expected widget after ${maxPumps * 50}ms.');
+}
+
+Future<void> _scrollUntilVisible(WidgetTester tester, Finder finder) async {
+  await tester.scrollUntilVisible(
+    finder,
+    240,
+    scrollable: find.byType(Scrollable).first,
+  );
+  await tester.pumpAndSettle();
 }
 
 class _FakeTodaySessionRepository extends TodaySessionRepository {
