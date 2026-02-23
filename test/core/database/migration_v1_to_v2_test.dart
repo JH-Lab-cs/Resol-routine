@@ -8,7 +8,7 @@ import 'package:path/path.dart' as p;
 import 'package:resol_routine/core/database/app_database.dart';
 
 void main() {
-  test('migrates v1 schema to v9 while preserving rows', () async {
+  test('migrates v1 schema to v10 while preserving rows', () async {
     final tempDir = await Directory.systemTemp.createTemp('resol_migration_');
     final dbFile = File(p.join(tempDir.path, 'migration_v1.sqlite'));
 
@@ -29,7 +29,7 @@ void main() {
     final userVersionRow = await database
         .customSelect('PRAGMA user_version', readsFrom: {})
         .getSingle();
-    expect(userVersionRow.read<int>('user_version'), 9);
+    expect(userVersionRow.read<int>('user_version'), 10);
 
     final attemptsRow = await database
         .customSelect('SELECT COUNT(*) AS count FROM attempts', readsFrom: {})
@@ -123,6 +123,35 @@ void main() {
         .get();
     expect(
       vocabMasterColumns.any((row) => row.read<String>('name') == 'deleted_at'),
+      isTrue,
+    );
+
+    final mockExamSessionsCount = await database
+        .customSelect(
+          'SELECT COUNT(*) AS count FROM mock_exam_sessions',
+          readsFrom: {database.mockExamSessions},
+        )
+        .getSingle();
+    expect(mockExamSessionsCount.read<int>('count'), 0);
+
+    final mockExamSessionItemsCount = await database
+        .customSelect(
+          'SELECT COUNT(*) AS count FROM mock_exam_session_items',
+          readsFrom: {database.mockExamSessionItems},
+        )
+        .getSingle();
+    expect(mockExamSessionItemsCount.read<int>('count'), 0);
+
+    final attemptsColumns = await database
+        .customSelect(
+          "PRAGMA table_info('attempts')",
+          readsFrom: {database.attempts},
+        )
+        .get();
+    expect(
+      attemptsColumns.any(
+        (row) => row.read<String>('name') == 'mock_session_id',
+      ),
       isTrue,
     );
   });
