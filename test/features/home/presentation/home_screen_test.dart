@@ -36,6 +36,7 @@ void main() {
           home: HomeScreen(
             onOpenQuiz: () {},
             onOpenWeeklyMockExam: () {},
+            onOpenMonthlyMockExam: () {},
             onOpenVocab: () {},
             onOpenTodayVocabQuiz: () {},
             onOpenWrongNotes: () {},
@@ -93,6 +94,7 @@ void main() {
             home: HomeScreen(
               onOpenQuiz: () {},
               onOpenWeeklyMockExam: () {},
+              onOpenMonthlyMockExam: () {},
               onOpenVocab: () {},
               onOpenTodayVocabQuiz: () {},
               onOpenWrongNotes: () {},

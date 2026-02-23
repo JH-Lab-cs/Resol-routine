@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,6 +11,7 @@ import 'package:resol_routine/core/domain/domain_enums.dart';
 import 'package:resol_routine/features/home/presentation/home_screen.dart';
 import 'package:resol_routine/features/my/presentation/my_screen.dart';
 import 'package:resol_routine/features/my/presentation/my_settings_screen.dart';
+import 'package:resol_routine/features/mock_exam/presentation/monthly_mock_flow_screen.dart';
 import 'package:resol_routine/features/report/application/report_providers.dart';
 import 'package:resol_routine/features/report/data/models/report_schema_v1.dart';
 import 'package:resol_routine/features/report/data/shared_reports_repository.dart';
@@ -81,6 +83,7 @@ void main() {
               home: HomeScreen(
                 onOpenQuiz: () {},
                 onOpenWeeklyMockExam: () {},
+                onOpenMonthlyMockExam: () {},
                 onOpenVocab: () {},
                 onOpenTodayVocabQuiz: () {},
                 onOpenWrongNotes: () {},
@@ -251,6 +254,31 @@ void main() {
     },
   );
 
+  testWidgets('monthly mock flow remains stable at text scale 2.0', (
+    WidgetTester tester,
+  ) async {
+    final database = AppDatabase(executor: NativeDatabase.memory());
+    addTearDown(database.close);
+
+    await _seedMockExamQuestionPool(
+      database,
+      track: 'M3',
+      listeningCount: 20,
+      readingCount: 30,
+    );
+
+    await tester.pumpWidget(
+      _withTextScale(
+        ProviderScope(
+          overrides: [appDatabaseProvider.overrideWithValue(database)],
+          child: const MaterialApp(home: MonthlyMockFlowScreen(track: 'M3')),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('student report screen remains stable at text scale 2.0', (
     WidgetTester tester,
   ) async {
@@ -363,6 +391,147 @@ class _FakeTodaySessionRepository extends TodaySessionRepository {
     DateTime? nowLocal,
   }) async {
     return bundle;
+  }
+}
+
+Future<void> _seedMockExamQuestionPool(
+  AppDatabase database, {
+  required String track,
+  required int listeningCount,
+  required int readingCount,
+}) async {
+  final packId = 'a11y_mock_pack_$track';
+  final scriptId = 'a11y_mock_script_$track';
+  final passageId = 'a11y_mock_passage_$track';
+  const listeningSentenceId = 'ls-1';
+  const readingSentenceId = 'rs-1';
+
+  await database
+      .into(database.contentPacks)
+      .insert(
+        ContentPacksCompanion.insert(
+          id: packId,
+          version: 1,
+          locale: 'en-US',
+          title: 'A11y Mock Pack $track',
+          checksum: 'sha256:$packId',
+        ),
+      );
+
+  await database
+      .into(database.scripts)
+      .insert(
+        ScriptsCompanion.insert(
+          id: scriptId,
+          packId: packId,
+          sentencesJson: const <Sentence>[
+            Sentence(id: listeningSentenceId, text: 'Listening source line'),
+          ],
+          turnsJson: const <Turn>[
+            Turn(speaker: 'S1', sentenceIds: <String>[listeningSentenceId]),
+          ],
+          ttsPlanJson: const TtsPlan(
+            repeatPolicy: <String, Object?>{
+              'mode': 'per_turn',
+              'repeatCount': 1,
+            },
+            pauseRangeMs: NumericRange(min: 300, max: 600),
+            rateRange: NumericRange(min: 0.95, max: 1.05),
+            pitchRange: NumericRange(min: 0.0, max: 1.2),
+            voiceRoles: <String, String>{
+              'S1': 'en-US-Standard-C',
+              'S2': 'en-US-Standard-E',
+              'N': 'en-US-Standard-A',
+            },
+          ),
+          orderIndex: 0,
+        ),
+      );
+
+  await database
+      .into(database.passages)
+      .insert(
+        PassagesCompanion.insert(
+          id: passageId,
+          packId: packId,
+          sentencesJson: const <Sentence>[
+            Sentence(id: readingSentenceId, text: 'Reading source line'),
+          ],
+          orderIndex: 0,
+        ),
+      );
+
+  const options = OptionMap(
+    a: 'Alpha',
+    b: 'Beta',
+    c: 'Gamma',
+    d: 'Delta',
+    e: 'Epsilon',
+  );
+  const wrongMap = OptionMap(a: '정답', b: '오답', c: '오답', d: '오답', e: '오답');
+
+  for (var i = 0; i < listeningCount; i++) {
+    final questionId = 'A11Y_Q_${track}_L_${i + 1}';
+    await database
+        .into(database.questions)
+        .insert(
+          QuestionsCompanion.insert(
+            id: questionId,
+            skill: Skill.listening.dbValue,
+            typeTag: 'L${i + 1}',
+            track: track,
+            difficulty: 2,
+            passageId: const Value(null),
+            scriptId: Value(scriptId),
+            prompt: 'A11y mock listening question ${i + 1}',
+            optionsJson: options,
+            answerKey: 'A',
+            orderIndex: i,
+          ),
+        );
+    await database
+        .into(database.explanations)
+        .insert(
+          ExplanationsCompanion.insert(
+            id: 'A11Y_EX_$questionId',
+            questionId: questionId,
+            evidenceSentenceIdsJson: const <String>[listeningSentenceId],
+            whyCorrectKo: '근거가 일치합니다.',
+            whyWrongKoJson: wrongMap,
+          ),
+        );
+  }
+
+  for (var i = 0; i < readingCount; i++) {
+    final questionId = 'A11Y_Q_${track}_R_${i + 1}';
+    await database
+        .into(database.questions)
+        .insert(
+          QuestionsCompanion.insert(
+            id: questionId,
+            skill: Skill.reading.dbValue,
+            typeTag: 'R${i + 1}',
+            track: track,
+            difficulty: 2,
+            passageId: Value(passageId),
+            scriptId: const Value(null),
+            prompt: 'A11y mock reading question ${i + 1}',
+            optionsJson: options,
+            answerKey: 'A',
+            orderIndex: listeningCount + i,
+          ),
+        );
+    await database
+        .into(database.explanations)
+        .insert(
+          ExplanationsCompanion.insert(
+            id: 'A11Y_EX_$questionId',
+            questionId: questionId,
+            evidenceSentenceIdsJson: const <String>[readingSentenceId],
+            whyCorrectKo: '근거가 일치합니다.',
+            whyWrongKoJson: wrongMap,
+          ),
+        );
   }
 }
 
