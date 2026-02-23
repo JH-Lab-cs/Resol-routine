@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -142,6 +143,30 @@ void main() {
 
       expect(lemmaMap['safe_vocab'], 'safeLemma');
       expect(lemmaMap.containsKey('unsafe_vocab'), isFalse);
+    });
+
+    test('returns lemma even when vocab row is soft-deleted', () async {
+      const deletedId = 'user_soft_deleted_vocab';
+      await database
+          .into(database.vocabMaster)
+          .insert(
+            VocabMasterCompanion.insert(
+              id: deletedId,
+              lemma: 'softDeletedLemma',
+              meaning: 'soft deleted meaning',
+            ),
+          );
+      await (database.update(
+        database.vocabMaster,
+      )..where((tbl) => tbl.id.equals(deletedId))).write(
+        VocabMasterCompanion(deletedAt: Value(DateTime.now().toUtc())),
+      );
+
+      final lemmaMap = await repository.loadLemmaMapByVocabIds(<String>[
+        deletedId,
+      ]);
+
+      expect(lemmaMap[deletedId], 'softDeletedLemma');
     });
   });
 }

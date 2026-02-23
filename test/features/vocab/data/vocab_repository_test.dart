@@ -158,36 +158,40 @@ void main() {
       );
     });
 
-    test('deletes custom vocabulary and cascades vocab_user rows', () async {
-      const customId = 'user_delete_target';
-      await _insertVocabulary(
-        database,
-        id: customId,
-        lemma: 'custom',
-        meaning: '사용자 단어',
-      );
-      await database
-          .into(database.vocabUser)
-          .insert(
-            VocabUserCompanion.insert(
-              vocabId: customId,
-              isBookmarked: const Value(true),
-            ),
-          );
+    test(
+      'soft deletes custom vocabulary and removes vocab_user rows',
+      () async {
+        const customId = 'user_delete_target';
+        await _insertVocabulary(
+          database,
+          id: customId,
+          lemma: 'custom',
+          meaning: '사용자 단어',
+        );
+        await database
+            .into(database.vocabUser)
+            .insert(
+              VocabUserCompanion.insert(
+                vocabId: customId,
+                isBookmarked: const Value(true),
+              ),
+            );
 
-      final deleted = await repository.deleteVocabulary(id: customId);
-      expect(deleted, isTrue);
+        final deleted = await repository.deleteVocabulary(id: customId);
+        expect(deleted, isTrue);
 
-      final deletedVocab = await (database.select(
-        database.vocabMaster,
-      )..where((tbl) => tbl.id.equals(customId))).getSingleOrNull();
-      final deletedVocabUser = await (database.select(
-        database.vocabUser,
-      )..where((tbl) => tbl.vocabId.equals(customId))).getSingleOrNull();
+        final deletedVocab = await (database.select(
+          database.vocabMaster,
+        )..where((tbl) => tbl.id.equals(customId))).getSingleOrNull();
+        final deletedVocabUser = await (database.select(
+          database.vocabUser,
+        )..where((tbl) => tbl.vocabId.equals(customId))).getSingleOrNull();
 
-      expect(deletedVocab, isNull);
-      expect(deletedVocabUser, isNull);
-    });
+        expect(deletedVocab, isNotNull);
+        expect(deletedVocab!.deletedAt, isNotNull);
+        expect(deletedVocabUser, isNull);
+      },
+    );
 
     test('rejects delete for non-custom id', () async {
       await _insertVocabulary(
@@ -284,6 +288,88 @@ void main() {
         }
       },
     );
+
+    test(
+      'hides soft-deleted custom vocabulary from lists and search',
+      () async {
+        await _insertVocabulary(
+          database,
+          id: 'user_active_vocab',
+          lemma: 'active_word',
+          meaning: '활성 단어',
+        );
+        await _insertVocabulary(
+          database,
+          id: 'user_deleted_vocab',
+          lemma: 'deleted_word',
+          meaning: '삭제 단어',
+        );
+
+        final deleted = await repository.deleteVocabulary(
+          id: 'user_deleted_vocab',
+        );
+        expect(deleted, isTrue);
+
+        final myVocabulary = await repository.listMyVocabulary();
+        expect(
+          myVocabulary.map((item) => item.id),
+          contains('user_active_vocab'),
+        );
+        expect(
+          myVocabulary.map((item) => item.id),
+          isNot(contains('user_deleted_vocab')),
+        );
+
+        final searchResult = await repository.listMyVocabulary(
+          searchTerm: 'deleted_word',
+        );
+        expect(searchResult, isEmpty);
+      },
+    );
+
+    test('excludes soft-deleted custom vocabulary from quiz pool', () async {
+      const deletedCustomId = 'user_deleted_quiz_vocab';
+      await _seedQuizVocabulary(
+        database,
+        baseCount: 30,
+        customBookmarkedIds: <String>['user_quiz_custom_a', deletedCustomId],
+      );
+      await (database.update(
+        database.vocabMaster,
+      )..where((tbl) => tbl.id.equals(deletedCustomId))).write(
+        VocabMasterCompanion(deletedAt: Value(DateTime.now().toUtc())),
+      );
+
+      final quiz = await repository.buildQuiz(
+        nowLocal: DateTime.utc(2026, 2, 23, 9, 0),
+        count: 20,
+      );
+      expect(quiz.length, 20);
+      expect(
+        quiz.map((question) => question.vocabId),
+        isNot(contains(deletedCustomId)),
+      );
+    });
+
+    test('rejects update for soft-deleted custom id', () async {
+      const deletedCustomId = 'user_deleted_update_target';
+      await _insertVocabulary(
+        database,
+        id: deletedCustomId,
+        lemma: 'custom',
+        meaning: '사용자 단어',
+      );
+      await repository.deleteVocabulary(id: deletedCustomId);
+
+      await expectLater(
+        repository.updateVocabulary(
+          id: deletedCustomId,
+          lemma: 'updated',
+          meaning: '수정',
+        ),
+        throwsA(isA<FormatException>()),
+      );
+    });
   });
 }
 

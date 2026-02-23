@@ -8,7 +8,7 @@ import 'package:path/path.dart' as p;
 import 'package:resol_routine/core/database/app_database.dart';
 
 void main() {
-  test('migrates v1 schema to v8 while preserving rows', () async {
+  test('migrates v1 schema to v9 while preserving rows', () async {
     final tempDir = await Directory.systemTemp.createTemp('resol_migration_');
     final dbFile = File(p.join(tempDir.path, 'migration_v1.sqlite'));
 
@@ -29,7 +29,7 @@ void main() {
     final userVersionRow = await database
         .customSelect('PRAGMA user_version', readsFrom: {})
         .getSingle();
-    expect(userVersionRow.read<int>('user_version'), 8);
+    expect(userVersionRow.read<int>('user_version'), 9);
 
     final attemptsRow = await database
         .customSelect('SELECT COUNT(*) AS count FROM attempts', readsFrom: {})
@@ -114,6 +114,17 @@ void main() {
         )
         .getSingle();
     expect(vocabQuizResultsCount.read<int>('count'), 0);
+
+    final vocabMasterColumns = await database
+        .customSelect(
+          "PRAGMA table_info('vocab_master')",
+          readsFrom: {database.vocabMaster},
+        )
+        .get();
+    expect(
+      vocabMasterColumns.any((row) => row.read<String>('name') == 'deleted_at'),
+      isTrue,
+    );
   });
 }
 
