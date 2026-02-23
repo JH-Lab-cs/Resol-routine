@@ -289,6 +289,7 @@ class VocabMaster extends Table {
       text().withLength(min: 1, max: DbTextLimits.meaningMax)();
   TextColumn get example => text().nullable()();
   TextColumn get ipa => text().nullable()();
+  DateTimeColumn get deletedAt => dateTime().nullable()();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 
   @override

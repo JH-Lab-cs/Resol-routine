@@ -34,7 +34,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase({QueryExecutor? executor}) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 9;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -64,6 +64,9 @@ class AppDatabase extends _$AppDatabase {
       }
       if (from < 8) {
         await _migrateToV8(m);
+      }
+      if (from < 9) {
+        await _migrateToV9(m);
       }
       await _createIndexes();
       await _ensureUserSettingsRow();
@@ -174,6 +177,10 @@ class AppDatabase extends _$AppDatabase {
     await m.createTable(vocabQuizResults);
   }
 
+  Future<void> _migrateToV9(Migrator m) async {
+    await m.addColumn(vocabMaster, vocabMaster.deletedAt);
+  }
+
   Future<void> _createIndexes() async {
     await customStatement(
       'CREATE INDEX IF NOT EXISTS idx_passages_pack_order '
@@ -215,6 +222,10 @@ class AppDatabase extends _$AppDatabase {
     await customStatement(
       'CREATE INDEX IF NOT EXISTS idx_vocab_srs_due_at '
       'ON vocab_srs_state(due_at)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_vocab_master_deleted_at '
+      'ON vocab_master(deleted_at)',
     );
     await customStatement(
       'CREATE INDEX IF NOT EXISTS idx_shared_reports_created_at '

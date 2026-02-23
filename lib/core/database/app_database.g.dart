@@ -5422,6 +5422,17 @@ class $VocabMasterTable extends VocabMaster
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -5442,6 +5453,7 @@ class $VocabMasterTable extends VocabMaster
     meaning,
     example,
     ipa,
+    deletedAt,
     createdAt,
   ];
   @override
@@ -5495,6 +5507,12 @@ class $VocabMasterTable extends VocabMaster
         ipa.isAcceptableOrUnknown(data['ipa']!, _ipaMeta),
       );
     }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -5534,6 +5552,10 @@ class $VocabMasterTable extends VocabMaster
         DriftSqlType.string,
         data['${effectivePrefix}ipa'],
       ),
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -5554,6 +5576,7 @@ class VocabMasterData extends DataClass implements Insertable<VocabMasterData> {
   final String meaning;
   final String? example;
   final String? ipa;
+  final DateTime? deletedAt;
   final DateTime createdAt;
   const VocabMasterData({
     required this.id,
@@ -5562,6 +5585,7 @@ class VocabMasterData extends DataClass implements Insertable<VocabMasterData> {
     required this.meaning,
     this.example,
     this.ipa,
+    this.deletedAt,
     required this.createdAt,
   });
   @override
@@ -5579,6 +5603,9 @@ class VocabMasterData extends DataClass implements Insertable<VocabMasterData> {
     if (!nullToAbsent || ipa != null) {
       map['ipa'] = Variable<String>(ipa);
     }
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt);
+    }
     map['created_at'] = Variable<DateTime>(createdAt);
     return map;
   }
@@ -5593,6 +5620,9 @@ class VocabMasterData extends DataClass implements Insertable<VocabMasterData> {
           ? const Value.absent()
           : Value(example),
       ipa: ipa == null && nullToAbsent ? const Value.absent() : Value(ipa),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
       createdAt: Value(createdAt),
     );
   }
@@ -5609,6 +5639,7 @@ class VocabMasterData extends DataClass implements Insertable<VocabMasterData> {
       meaning: serializer.fromJson<String>(json['meaning']),
       example: serializer.fromJson<String?>(json['example']),
       ipa: serializer.fromJson<String?>(json['ipa']),
+      deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
     );
   }
@@ -5622,6 +5653,7 @@ class VocabMasterData extends DataClass implements Insertable<VocabMasterData> {
       'meaning': serializer.toJson<String>(meaning),
       'example': serializer.toJson<String?>(example),
       'ipa': serializer.toJson<String?>(ipa),
+      'deletedAt': serializer.toJson<DateTime?>(deletedAt),
       'createdAt': serializer.toJson<DateTime>(createdAt),
     };
   }
@@ -5633,6 +5665,7 @@ class VocabMasterData extends DataClass implements Insertable<VocabMasterData> {
     String? meaning,
     Value<String?> example = const Value.absent(),
     Value<String?> ipa = const Value.absent(),
+    Value<DateTime?> deletedAt = const Value.absent(),
     DateTime? createdAt,
   }) => VocabMasterData(
     id: id ?? this.id,
@@ -5641,6 +5674,7 @@ class VocabMasterData extends DataClass implements Insertable<VocabMasterData> {
     meaning: meaning ?? this.meaning,
     example: example.present ? example.value : this.example,
     ipa: ipa.present ? ipa.value : this.ipa,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
     createdAt: createdAt ?? this.createdAt,
   );
   VocabMasterData copyWithCompanion(VocabMasterCompanion data) {
@@ -5651,6 +5685,7 @@ class VocabMasterData extends DataClass implements Insertable<VocabMasterData> {
       meaning: data.meaning.present ? data.meaning.value : this.meaning,
       example: data.example.present ? data.example.value : this.example,
       ipa: data.ipa.present ? data.ipa.value : this.ipa,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
     );
   }
@@ -5664,6 +5699,7 @@ class VocabMasterData extends DataClass implements Insertable<VocabMasterData> {
           ..write('meaning: $meaning, ')
           ..write('example: $example, ')
           ..write('ipa: $ipa, ')
+          ..write('deletedAt: $deletedAt, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
         .toString();
@@ -5671,7 +5707,7 @@ class VocabMasterData extends DataClass implements Insertable<VocabMasterData> {
 
   @override
   int get hashCode =>
-      Object.hash(id, lemma, pos, meaning, example, ipa, createdAt);
+      Object.hash(id, lemma, pos, meaning, example, ipa, deletedAt, createdAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -5682,6 +5718,7 @@ class VocabMasterData extends DataClass implements Insertable<VocabMasterData> {
           other.meaning == this.meaning &&
           other.example == this.example &&
           other.ipa == this.ipa &&
+          other.deletedAt == this.deletedAt &&
           other.createdAt == this.createdAt);
 }
 
@@ -5692,6 +5729,7 @@ class VocabMasterCompanion extends UpdateCompanion<VocabMasterData> {
   final Value<String> meaning;
   final Value<String?> example;
   final Value<String?> ipa;
+  final Value<DateTime?> deletedAt;
   final Value<DateTime> createdAt;
   final Value<int> rowid;
   const VocabMasterCompanion({
@@ -5701,6 +5739,7 @@ class VocabMasterCompanion extends UpdateCompanion<VocabMasterData> {
     this.meaning = const Value.absent(),
     this.example = const Value.absent(),
     this.ipa = const Value.absent(),
+    this.deletedAt = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -5711,6 +5750,7 @@ class VocabMasterCompanion extends UpdateCompanion<VocabMasterData> {
     required String meaning,
     this.example = const Value.absent(),
     this.ipa = const Value.absent(),
+    this.deletedAt = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
@@ -5723,6 +5763,7 @@ class VocabMasterCompanion extends UpdateCompanion<VocabMasterData> {
     Expression<String>? meaning,
     Expression<String>? example,
     Expression<String>? ipa,
+    Expression<DateTime>? deletedAt,
     Expression<DateTime>? createdAt,
     Expression<int>? rowid,
   }) {
@@ -5733,6 +5774,7 @@ class VocabMasterCompanion extends UpdateCompanion<VocabMasterData> {
       if (meaning != null) 'meaning': meaning,
       if (example != null) 'example': example,
       if (ipa != null) 'ipa': ipa,
+      if (deletedAt != null) 'deleted_at': deletedAt,
       if (createdAt != null) 'created_at': createdAt,
       if (rowid != null) 'rowid': rowid,
     });
@@ -5745,6 +5787,7 @@ class VocabMasterCompanion extends UpdateCompanion<VocabMasterData> {
     Value<String>? meaning,
     Value<String?>? example,
     Value<String?>? ipa,
+    Value<DateTime?>? deletedAt,
     Value<DateTime>? createdAt,
     Value<int>? rowid,
   }) {
@@ -5755,6 +5798,7 @@ class VocabMasterCompanion extends UpdateCompanion<VocabMasterData> {
       meaning: meaning ?? this.meaning,
       example: example ?? this.example,
       ipa: ipa ?? this.ipa,
+      deletedAt: deletedAt ?? this.deletedAt,
       createdAt: createdAt ?? this.createdAt,
       rowid: rowid ?? this.rowid,
     );
@@ -5781,6 +5825,9 @@ class VocabMasterCompanion extends UpdateCompanion<VocabMasterData> {
     if (ipa.present) {
       map['ipa'] = Variable<String>(ipa.value);
     }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -5799,6 +5846,7 @@ class VocabMasterCompanion extends UpdateCompanion<VocabMasterData> {
           ..write('meaning: $meaning, ')
           ..write('example: $example, ')
           ..write('ipa: $ipa, ')
+          ..write('deletedAt: $deletedAt, ')
           ..write('createdAt: $createdAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -11499,6 +11547,7 @@ typedef $$VocabMasterTableCreateCompanionBuilder =
       required String meaning,
       Value<String?> example,
       Value<String?> ipa,
+      Value<DateTime?> deletedAt,
       Value<DateTime> createdAt,
       Value<int> rowid,
     });
@@ -11510,6 +11559,7 @@ typedef $$VocabMasterTableUpdateCompanionBuilder =
       Value<String> meaning,
       Value<String?> example,
       Value<String?> ipa,
+      Value<DateTime?> deletedAt,
       Value<DateTime> createdAt,
       Value<int> rowid,
     });
@@ -11594,6 +11644,11 @@ class $$VocabMasterTableFilterComposer
 
   ColumnFilters<String> get ipa => $composableBuilder(
     column: $table.ipa,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -11692,6 +11747,11 @@ class $$VocabMasterTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -11724,6 +11784,9 @@ class $$VocabMasterTableAnnotationComposer
 
   GeneratedColumn<String> get ipa =>
       $composableBuilder(column: $table.ipa, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -11813,6 +11876,7 @@ class $$VocabMasterTableTableManager
                 Value<String> meaning = const Value.absent(),
                 Value<String?> example = const Value.absent(),
                 Value<String?> ipa = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => VocabMasterCompanion(
@@ -11822,6 +11886,7 @@ class $$VocabMasterTableTableManager
                 meaning: meaning,
                 example: example,
                 ipa: ipa,
+                deletedAt: deletedAt,
                 createdAt: createdAt,
                 rowid: rowid,
               ),
@@ -11833,6 +11898,7 @@ class $$VocabMasterTableTableManager
                 required String meaning,
                 Value<String?> example = const Value.absent(),
                 Value<String?> ipa = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => VocabMasterCompanion.insert(
@@ -11842,6 +11908,7 @@ class $$VocabMasterTableTableManager
                 meaning: meaning,
                 example: example,
                 ipa: ipa,
+                deletedAt: deletedAt,
                 createdAt: createdAt,
                 rowid: rowid,
               ),

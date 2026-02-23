@@ -64,7 +64,8 @@ class VocabRepository {
           'COALESCE(vu.is_bookmarked, 0) AS is_bookmarked '
           'FROM vocab_master vm '
           'LEFT JOIN vocab_user vu ON vu.vocab_id = vm.id '
-          'WHERE (? = 0 OR LOWER(vm.lemma) LIKE ?) '
+          'WHERE vm.deleted_at IS NULL '
+          'AND (? = 0 OR LOWER(vm.lemma) LIKE ?) '
           'ORDER BY vm.lemma ASC',
           variables: [
             Variable<int>(hasKeyword ? 1 : 0),
@@ -152,6 +153,16 @@ class VocabRepository {
     String? example,
   }) async {
     final normalizedId = _validateCustomVocabId(id, actionVerb: '수정');
+    final targetRow = await (_database.select(
+      _database.vocabMaster,
+    )..where((tbl) => tbl.id.equals(normalizedId))).getSingleOrNull();
+    if (targetRow == null) {
+      throw const FormatException('수정할 단어를 찾지 못했습니다.');
+    }
+    if (targetRow.deletedAt != null) {
+      throw const FormatException('삭제된 단어는 수정할 수 없습니다.');
+    }
+
     final normalized = _validateAndNormalizeInput(
       lemma: lemma,
       meaning: meaning,
@@ -160,16 +171,17 @@ class VocabRepository {
     );
 
     final updatedRows =
-        await (_database.update(
-          _database.vocabMaster,
-        )..where((tbl) => tbl.id.equals(normalizedId))).write(
-          VocabMasterCompanion(
-            lemma: Value(normalized.lemma),
-            meaning: Value(normalized.meaning),
-            pos: Value(normalized.pos),
-            example: Value(normalized.example),
-          ),
-        );
+        await (_database.update(_database.vocabMaster)..where(
+              (tbl) => tbl.id.equals(normalizedId) & tbl.deletedAt.isNull(),
+            ))
+            .write(
+              VocabMasterCompanion(
+                lemma: Value(normalized.lemma),
+                meaning: Value(normalized.meaning),
+                pos: Value(normalized.pos),
+                example: Value(normalized.example),
+              ),
+            );
     if (updatedRows == 0) {
       throw const FormatException('수정할 단어를 찾지 못했습니다.');
     }
@@ -177,10 +189,28 @@ class VocabRepository {
 
   Future<bool> deleteVocabulary({required String id}) async {
     final normalizedId = _validateCustomVocabId(id, actionVerb: '삭제');
-    final deletedRows = await (_database.delete(
-      _database.vocabMaster,
-    )..where((tbl) => tbl.id.equals(normalizedId))).go();
-    return deletedRows > 0;
+    return _database.transaction(() async {
+      final existingRow = await (_database.select(
+        _database.vocabMaster,
+      )..where((tbl) => tbl.id.equals(normalizedId))).getSingleOrNull();
+      if (existingRow == null || existingRow.deletedAt != null) {
+        return false;
+      }
+
+      await (_database.delete(
+        _database.vocabUser,
+      )..where((tbl) => tbl.vocabId.equals(normalizedId))).go();
+
+      final updatedRows =
+          await (_database.update(_database.vocabMaster)..where(
+                (tbl) => tbl.id.equals(normalizedId) & tbl.deletedAt.isNull(),
+              ))
+              .write(
+                VocabMasterCompanion(deletedAt: Value(DateTime.now().toUtc())),
+              );
+
+      return updatedRows > 0;
+    });
   }
 
   Future<List<VocabListItem>> listMyVocabulary({String searchTerm = ''}) async {
