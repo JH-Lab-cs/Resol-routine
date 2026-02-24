@@ -85,6 +85,13 @@ class QuizQuestionDetail {
   final List<SourceLine> sourceLines;
 }
 
+class QuestionOrderRef {
+  const QuestionOrderRef({required this.questionId, required this.orderIndex});
+
+  final String questionId;
+  final int orderIndex;
+}
+
 class TodayQuizRepository {
   const TodayQuizRepository({required AppDatabase database})
     : _database = database;
@@ -183,6 +190,79 @@ class TodayQuizRepository {
       scriptsById: scriptsById,
       passagesById: passagesById,
     );
+  }
+
+  Future<List<QuizQuestionDetail>> loadQuestionDetailsByOrder(
+    List<QuestionOrderRef> refs,
+  ) async {
+    if (refs.isEmpty) {
+      return const <QuizQuestionDetail>[];
+    }
+
+    final uniqueQuestionIds = refs
+        .map((ref) => ref.questionId)
+        .toSet()
+        .toList(growable: false);
+    final questions = await (_database.select(
+      _database.questions,
+    )..where((tbl) => tbl.id.isIn(uniqueQuestionIds))).get();
+    final questionById = <String, Question>{
+      for (final question in questions) question.id: question,
+    };
+    if (questionById.length != uniqueQuestionIds.length) {
+      throw StateError('Some questions are missing for mock exam session.');
+    }
+
+    final explanations = await (_database.select(
+      _database.explanations,
+    )..where((tbl) => tbl.questionId.isIn(uniqueQuestionIds))).get();
+    final explanationByQuestionId = <String, Explanation>{
+      for (final explanation in explanations)
+        explanation.questionId: explanation,
+    };
+    if (explanationByQuestionId.length != uniqueQuestionIds.length) {
+      throw StateError('Some explanations are missing for mock exam session.');
+    }
+
+    final scriptIds = <String>{};
+    final passageIds = <String>{};
+    for (final question in questions) {
+      final skill = skillFromDb(question.skill);
+      if (skill == Skill.listening) {
+        final scriptId = question.scriptId;
+        if (scriptId != null) {
+          scriptIds.add(scriptId);
+        }
+      } else {
+        final passageId = question.passageId;
+        if (passageId != null) {
+          passageIds.add(passageId);
+        }
+      }
+    }
+
+    final scriptsById = await _loadScriptsByIds(scriptIds);
+    final passagesById = await _loadPassagesByIds(passageIds);
+
+    return refs
+        .map((ref) {
+          final question = questionById[ref.questionId];
+          if (question == null) {
+            throw StateError('Question not found: ${ref.questionId}');
+          }
+          final explanation = explanationByQuestionId[ref.questionId];
+          if (explanation == null) {
+            throw StateError('Explanation not found: ${ref.questionId}');
+          }
+          return _buildQuestionDetail(
+            orderIndex: ref.orderIndex,
+            question: question,
+            explanation: explanation,
+            scriptsById: scriptsById,
+            passagesById: passagesById,
+          );
+        })
+        .toList(growable: false);
   }
 
   QuizQuestionDetail _buildQuestionDetail({

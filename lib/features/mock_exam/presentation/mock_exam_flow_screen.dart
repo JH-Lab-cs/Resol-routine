@@ -175,13 +175,15 @@ class _MockExamFlowScreenState extends ConsumerState<MockExamFlowScreen> {
     List<MockExamSessionItemBundle> items,
   ) async {
     final todayQuizRepository = ref.read(todayQuizRepositoryProvider);
-    final futures = items.map((item) {
-      return todayQuizRepository.loadQuestionDetail(
-        questionId: item.questionId,
-        orderIndex: item.orderIndex,
-      );
-    });
-    return Future.wait(futures);
+    final refs = items
+        .map(
+          (item) => QuestionOrderRef(
+            questionId: item.questionId,
+            orderIndex: item.orderIndex,
+          ),
+        )
+        .toList(growable: false);
+    return todayQuizRepository.loadQuestionDetailsByOrder(refs);
   }
 
   @override
@@ -776,6 +778,8 @@ class _MockExamFlowScreenState extends ConsumerState<MockExamFlowScreen> {
 
       ref.invalidate(myStatsProvider(widget.track));
       ref.invalidate(wrongNoteListProvider);
+      ref.invalidate(mockExamCurrentSummaryProvider);
+      ref.invalidate(mockExamRecentSessionsProvider);
     } on StateError catch (error) {
       if (!mounted) {
         return;

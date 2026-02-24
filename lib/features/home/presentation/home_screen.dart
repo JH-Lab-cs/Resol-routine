@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/database/db_text_limits.dart';
+import '../../../core/domain/domain_enums.dart';
 import '../../../core/io/limited_utf8_reader.dart';
 import '../../../core/ui/app_copy_ko.dart';
 import '../../../core/ui/app_tokens.dart';
@@ -14,6 +15,9 @@ import '../../../core/ui/components/section_title.dart';
 import '../../../core/ui/components/skeleton.dart';
 import '../../../core/ui/label_maps.dart';
 import '../../my/application/profile_ui_prefs_provider.dart';
+import '../../mock_exam/application/mock_exam_providers.dart';
+import '../../mock_exam/data/mock_exam_session_repository.dart';
+import '../../mock_exam/presentation/mock_exam_result_screen.dart';
 import '../../report/application/report_providers.dart';
 import '../../report/data/shared_reports_repository.dart';
 import '../../report/presentation/parent_shared_report_detail_screen.dart';
@@ -67,6 +71,22 @@ class HomeScreen extends ConsumerWidget {
           final selectedTrack = ref.watch(selectedTrackProvider);
           final displayName = ref.watch(displayNameProvider);
           final profilePrefs = ref.watch(profileUiPrefsProvider);
+          final weeklyMockSummaryAsync = ref.watch(
+            mockExamCurrentSummaryProvider(
+              MockExamCurrentSummaryQuery(
+                type: MockExamType.weekly,
+                track: selectedTrack,
+              ),
+            ),
+          );
+          final monthlyMockSummaryAsync = ref.watch(
+            mockExamCurrentSummaryProvider(
+              MockExamCurrentSummaryQuery(
+                type: MockExamType.monthly,
+                track: selectedTrack,
+              ),
+            ),
+          );
           final summary = ref.watch(homeRoutineSummaryProvider(selectedTrack));
           final isSummaryRefreshing = summary.isLoading && summary.hasValue;
 
@@ -220,17 +240,47 @@ class HomeScreen extends ConsumerWidget {
                         mainAxisSpacing: AppSpacing.md,
                         childAspectRatio: 1.12,
                         children: [
-                          RoutineCard(
-                            title: '주간 모의고사',
-                            subtitle: '듣기 10 + 독해 10',
-                            icon: Icons.event_note_rounded,
-                            onTap: onOpenWeeklyMockExam,
+                          Builder(
+                            builder: (context) {
+                              final cardModel = _buildMockCardModel(
+                                type: MockExamType.weekly,
+                                summary: weeklyMockSummaryAsync.valueOrNull,
+                              );
+                              return RoutineCard(
+                                key: const ValueKey<String>(
+                                  'home-mock-weekly-card',
+                                ),
+                                title: '주간 모의고사',
+                                subtitle: cardModel.subtitle,
+                                icon: Icons.event_note_rounded,
+                                onTap: () => _handleMockCardTap(
+                                  context: context,
+                                  cardModel: cardModel,
+                                  fallbackOpenFlow: onOpenWeeklyMockExam,
+                                ),
+                              );
+                            },
                           ),
-                          RoutineCard(
-                            title: '월간 모의고사',
-                            subtitle: '풀모의고사 45문항',
-                            icon: Icons.calendar_month_rounded,
-                            onTap: onOpenMonthlyMockExam,
+                          Builder(
+                            builder: (context) {
+                              final cardModel = _buildMockCardModel(
+                                type: MockExamType.monthly,
+                                summary: monthlyMockSummaryAsync.valueOrNull,
+                              );
+                              return RoutineCard(
+                                key: const ValueKey<String>(
+                                  'home-mock-monthly-card',
+                                ),
+                                title: '월간 모의고사',
+                                subtitle: cardModel.subtitle,
+                                icon: Icons.calendar_month_rounded,
+                                onTap: () => _handleMockCardTap(
+                                  context: context,
+                                  cardModel: cardModel,
+                                  fallbackOpenFlow: onOpenMonthlyMockExam,
+                                ),
+                              );
+                            },
                           ),
                         ],
                       ),
@@ -260,6 +310,70 @@ class HomeScreen extends ConsumerWidget {
       return '지금까지 푼 문제 이어하기';
     }
     return '오늘 루틴 완료 🎉';
+  }
+
+  _MockCardUiModel _buildMockCardModel({
+    required MockExamType type,
+    required MockExamSessionSummary? summary,
+  }) {
+    final plannedItems = switch (type) {
+      MockExamType.weekly => 20,
+      MockExamType.monthly => 45,
+    };
+    final defaultDescription = switch (type) {
+      MockExamType.weekly => '듣기 10 + 독해 10',
+      MockExamType.monthly => '풀모의고사 45문항',
+    };
+
+    if (summary == null || summary.completedItems <= 0) {
+      return _MockCardUiModel(
+        type: type,
+        status: _MockHomeCardStatus.notStarted,
+        subtitle: '$defaultDescription · 시작하기',
+      );
+    }
+
+    if (summary.completedItems >= summary.plannedItems) {
+      return _MockCardUiModel(
+        type: type,
+        status: _MockHomeCardStatus.completed,
+        summary: summary,
+        subtitle: '결과 보기 · 정답 ${summary.correctCount}/${summary.plannedItems}',
+      );
+    }
+
+    return _MockCardUiModel(
+      type: type,
+      status: _MockHomeCardStatus.inProgress,
+      summary: summary,
+      subtitle:
+          '이어하기 · ${summary.completedItems}/${summary.plannedItems} '
+          '(총 $plannedItems)',
+    );
+  }
+
+  void _handleMockCardTap({
+    required BuildContext context,
+    required _MockCardUiModel cardModel,
+    required VoidCallback fallbackOpenFlow,
+  }) {
+    if (cardModel.status != _MockHomeCardStatus.completed ||
+        cardModel.summary == null) {
+      fallbackOpenFlow();
+      return;
+    }
+
+    Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => MockExamResultScreen(
+          mockSessionId: cardModel.summary!.sessionId,
+          examTitle: switch (cardModel.type) {
+            MockExamType.weekly => '주간 모의고사',
+            MockExamType.monthly => '월간 모의고사',
+          },
+        ),
+      ),
+    );
   }
 
   Future<void> _importReportFile(BuildContext context, WidgetRef ref) async {
@@ -337,6 +451,22 @@ class HomeScreen extends ConsumerWidget {
       AppCopyKo.importSizeExceeded(maxMb: maxMb),
     );
   }
+}
+
+enum _MockHomeCardStatus { notStarted, inProgress, completed }
+
+class _MockCardUiModel {
+  const _MockCardUiModel({
+    required this.type,
+    required this.status,
+    required this.subtitle,
+    this.summary,
+  });
+
+  final MockExamType type;
+  final _MockHomeCardStatus status;
+  final String subtitle;
+  final MockExamSessionSummary? summary;
 }
 
 class _ParentHomeContent extends ConsumerWidget {

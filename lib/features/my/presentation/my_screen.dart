@@ -10,6 +10,7 @@ import '../../../core/ui/components/app_scaffold.dart';
 import '../../../core/ui/components/app_snackbars.dart';
 import '../../../core/ui/label_maps.dart';
 import '../../home/application/home_providers.dart';
+import '../../mock_exam/presentation/mock_exam_history_screen.dart';
 import '../application/my_stats_providers.dart';
 import '../../settings/application/user_settings_providers.dart';
 import '../../settings/data/user_settings_repository.dart';
@@ -140,6 +141,26 @@ class MyScreen extends ConsumerWidget {
                         MaterialPageRoute<void>(
                           builder: (_) =>
                               StudentReportScreen(track: settings.track),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Card(
+                  child: ListTile(
+                    leading: const Icon(
+                      Icons.history_edu_rounded,
+                      color: AppColors.primary,
+                    ),
+                    title: const Text('모의고사 기록'),
+                    subtitle: const Text('주간/월간 모의고사 결과 확인'),
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: () {
+                      Navigator.of(context).push<void>(
+                        MaterialPageRoute<void>(
+                          builder: (_) =>
+                              MockExamHistoryScreen(track: settings.track),
                         ),
                       );
                     },

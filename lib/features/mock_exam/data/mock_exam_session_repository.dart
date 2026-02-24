@@ -49,6 +49,32 @@ class MockExamSessionItemBundle {
   final Skill skill;
 }
 
+class MockExamSessionSummary {
+  const MockExamSessionSummary({
+    required this.sessionId,
+    required this.examType,
+    required this.periodKey,
+    required this.track,
+    required this.plannedItems,
+    required this.completedItems,
+    required this.correctCount,
+    required this.wrongCount,
+    required this.updatedAt,
+    required this.completedAt,
+  });
+
+  final int sessionId;
+  final MockExamType examType;
+  final String periodKey;
+  final String track;
+  final int plannedItems;
+  final int completedItems;
+  final int correctCount;
+  final int wrongCount;
+  final DateTime updatedAt;
+  final DateTime? completedAt;
+}
+
 class MockExamSessionRepository {
   const MockExamSessionRepository({required AppDatabase database})
     : _database = database;
@@ -63,6 +89,94 @@ class MockExamSessionRepository {
   );
 
   final AppDatabase _database;
+
+  Future<List<MockExamSessionSummary>> listRecent({
+    required MockExamType type,
+    required String track,
+    required int limit,
+  }) async {
+    if (limit <= 0) {
+      throw const FormatException('limit must be >= 1');
+    }
+    trackFromDb(track);
+
+    final rows = await _database
+        .customSelect(
+          'SELECT '
+          'mes.id AS session_id, '
+          'mes.exam_type AS exam_type, '
+          'mes.period_key AS period_key, '
+          'mes.track AS track, '
+          'mes.planned_items AS planned_items, '
+          'mes.completed_items AS completed_items, '
+          'mes.updated_at AS updated_at, '
+          'mes.completed_at AS completed_at, '
+          'SUM(CASE WHEN a.is_correct = 1 THEN 1 ELSE 0 END) AS correct_count, '
+          'SUM(CASE WHEN a.is_correct = 0 THEN 1 ELSE 0 END) AS wrong_count '
+          'FROM mock_exam_sessions mes '
+          'LEFT JOIN attempts a ON a.mock_session_id = mes.id '
+          'WHERE mes.exam_type = ? AND mes.track = ? '
+          'GROUP BY '
+          'mes.id, mes.exam_type, mes.period_key, mes.track, '
+          'mes.planned_items, mes.completed_items, mes.updated_at, mes.completed_at '
+          'ORDER BY mes.period_key DESC, mes.updated_at DESC '
+          'LIMIT ?',
+          variables: <Variable<Object>>[
+            Variable<String>(type.dbValue),
+            Variable<String>(track),
+            Variable<int>(limit),
+          ],
+          readsFrom: {_database.mockExamSessions, _database.attempts},
+        )
+        .get();
+
+    return rows.map(_readSummary).toList(growable: false);
+  }
+
+  Future<MockExamSessionSummary?> findCurrentPeriodSummary({
+    required MockExamType type,
+    required String track,
+    DateTime? nowLocal,
+  }) async {
+    trackFromDb(track);
+    final resolvedNow = nowLocal ?? DateTime.now();
+    final periodKey = buildMockExamPeriodKey(type: type, nowLocal: resolvedNow);
+    validateMockExamPeriodKey(type: type, periodKey: periodKey);
+
+    final row = await _database
+        .customSelect(
+          'SELECT '
+          'mes.id AS session_id, '
+          'mes.exam_type AS exam_type, '
+          'mes.period_key AS period_key, '
+          'mes.track AS track, '
+          'mes.planned_items AS planned_items, '
+          'mes.completed_items AS completed_items, '
+          'mes.updated_at AS updated_at, '
+          'mes.completed_at AS completed_at, '
+          'SUM(CASE WHEN a.is_correct = 1 THEN 1 ELSE 0 END) AS correct_count, '
+          'SUM(CASE WHEN a.is_correct = 0 THEN 1 ELSE 0 END) AS wrong_count '
+          'FROM mock_exam_sessions mes '
+          'LEFT JOIN attempts a ON a.mock_session_id = mes.id '
+          'WHERE mes.exam_type = ? AND mes.period_key = ? AND mes.track = ? '
+          'GROUP BY '
+          'mes.id, mes.exam_type, mes.period_key, mes.track, '
+          'mes.planned_items, mes.completed_items, mes.updated_at, mes.completed_at '
+          'LIMIT 1',
+          variables: <Variable<Object>>[
+            Variable<String>(type.dbValue),
+            Variable<String>(periodKey),
+            Variable<String>(track),
+          ],
+          readsFrom: {_database.mockExamSessions, _database.attempts},
+        )
+        .getSingleOrNull();
+
+    if (row == null) {
+      return null;
+    }
+    return _readSummary(row);
+  }
 
   Future<MockExamSessionBundle> getOrCreateSession({
     required MockExamType type,
@@ -277,6 +391,21 @@ class MockExamSessionRepository {
       plannedItems: session.plannedItems,
       completedItems: session.completedItems,
       items: items,
+    );
+  }
+
+  MockExamSessionSummary _readSummary(QueryRow row) {
+    return MockExamSessionSummary(
+      sessionId: row.read<int>('session_id'),
+      examType: mockExamTypeFromDb(row.read<String>('exam_type')),
+      periodKey: row.read<String>('period_key'),
+      track: row.read<String>('track'),
+      plannedItems: row.read<int>('planned_items'),
+      completedItems: row.read<int>('completed_items'),
+      correctCount: row.read<int?>('correct_count') ?? 0,
+      wrongCount: row.read<int?>('wrong_count') ?? 0,
+      updatedAt: row.read<DateTime>('updated_at'),
+      completedAt: row.read<DateTime?>('completed_at'),
     );
   }
 
