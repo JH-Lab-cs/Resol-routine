@@ -11,13 +11,16 @@ const int reportSchemaV1 = 1;
 const int reportSchemaV2 = 2;
 const int reportSchemaV3 = 3;
 const int reportSchemaV4 = 4;
-const int reportCurrentSchemaVersion = reportSchemaV4;
+const int reportSchemaV5 = 5;
+const int reportCurrentSchemaVersion = reportSchemaV5;
 const int reportMaxDays = 3660;
 const int reportMaxQuestionsPerDay = 6;
 const int reportMaxCorrectPerSkill = 3;
 const int reportMaxVocabQuizTotalCount = 20;
 const int reportMaxBookmarkedVocabIds = 2000;
 const int reportMaxCustomVocabLemmaEntries = reportMaxBookmarkedVocabIds;
+const int reportMaxWeeklyMockExamSummaries = 104;
+const int reportMaxMonthlyMockExamSummaries = 60;
 const int reportMaxAppVersionLength = 64;
 
 const Set<String> _supportedRoles = <String>{'STUDENT', 'PARENT'};
@@ -31,6 +34,7 @@ class ReportSchema {
     required this.days,
     required this.vocabBookmarks,
     required this.customVocab,
+    required this.mockExams,
   });
 
   final int schemaVersion;
@@ -40,6 +44,7 @@ class ReportSchema {
   final List<ReportDay> days;
   final ReportVocabBookmarks? vocabBookmarks;
   final ReportCustomVocab? customVocab;
+  final ReportMockExams? mockExams;
 
   factory ReportSchema.v1({
     required DateTime generatedAt,
@@ -55,6 +60,7 @@ class ReportSchema {
       days: List<ReportDay>.unmodifiable(days),
       vocabBookmarks: null,
       customVocab: null,
+      mockExams: null,
     );
   }
 
@@ -72,6 +78,7 @@ class ReportSchema {
       days: List<ReportDay>.unmodifiable(days),
       vocabBookmarks: null,
       customVocab: null,
+      mockExams: null,
     );
   }
 
@@ -90,6 +97,7 @@ class ReportSchema {
       days: List<ReportDay>.unmodifiable(days),
       vocabBookmarks: vocabBookmarks,
       customVocab: null,
+      mockExams: null,
     );
   }
 
@@ -109,6 +117,28 @@ class ReportSchema {
       days: List<ReportDay>.unmodifiable(days),
       vocabBookmarks: vocabBookmarks,
       customVocab: customVocab,
+      mockExams: null,
+    );
+  }
+
+  factory ReportSchema.v5({
+    required DateTime generatedAt,
+    String? appVersion,
+    required ReportStudent student,
+    required List<ReportDay> days,
+    required ReportVocabBookmarks vocabBookmarks,
+    required ReportCustomVocab customVocab,
+    required ReportMockExams mockExams,
+  }) {
+    return ReportSchema(
+      schemaVersion: reportSchemaV5,
+      generatedAt: generatedAt.toUtc(),
+      appVersion: appVersion,
+      student: student,
+      days: List<ReportDay>.unmodifiable(days),
+      vocabBookmarks: vocabBookmarks,
+      customVocab: customVocab,
+      mockExams: mockExams,
     );
   }
 
@@ -143,9 +173,20 @@ class ReportSchema {
         'vocabBookmarks',
         'customVocab',
       },
+      reportSchemaV5 => const <String>{
+        'schemaVersion',
+        'generatedAt',
+        'appVersion',
+        'student',
+        'days',
+        'vocabBookmarks',
+        'customVocab',
+        'mockExams',
+      },
       _ => throw FormatException(
         'Expected "$path.schemaVersion" to be '
-        '$reportSchemaV1, $reportSchemaV2, $reportSchemaV3, or $reportSchemaV4.',
+        '$reportSchemaV1, $reportSchemaV2, $reportSchemaV3, '
+        '$reportSchemaV4, or $reportSchemaV5.',
       ),
     };
     _validateAllowedKeys(json, allowedRootKeys, path: path);
@@ -210,10 +251,22 @@ class ReportSchema {
     }
 
     ReportCustomVocab? customVocab;
-    if (schemaVersion == reportSchemaV4) {
+    if (schemaVersion >= reportSchemaV4) {
       customVocab = ReportCustomVocab.fromJson(
         _readRequiredObject(json, 'customVocab', path: '$path.customVocab'),
         path: '$path.customVocab',
+      );
+    }
+
+    ReportMockExams? mockExams;
+    if (schemaVersion >= reportSchemaV5 && json.containsKey('mockExams')) {
+      final rawMockExams = json['mockExams'];
+      if (rawMockExams == null) {
+        throw FormatException('Expected "$path.mockExams" to be an object.');
+      }
+      mockExams = ReportMockExams.fromJson(
+        _asObject(rawMockExams, path: '$path.mockExams'),
+        path: '$path.mockExams',
       );
     }
 
@@ -225,6 +278,7 @@ class ReportSchema {
       days: List<ReportDay>.unmodifiable(days),
       vocabBookmarks: vocabBookmarks,
       customVocab: customVocab,
+      mockExams: mockExams,
     );
   }
 
@@ -242,6 +296,7 @@ class ReportSchema {
       'days': days.map((day) => day.toJson()).toList(growable: false),
       if (vocabBookmarks != null) 'vocabBookmarks': vocabBookmarks!.toJson(),
       if (customVocab != null) 'customVocab': customVocab!.toJson(),
+      if (mockExams != null) 'mockExams': mockExams!.toJson(),
     };
   }
 
@@ -780,6 +835,251 @@ class ReportCustomVocab {
 
   ReportJsonMap toJson() {
     return <String, Object?>{'lemmasById': lemmasById};
+  }
+}
+
+class ReportMockExams {
+  const ReportMockExams({required this.weekly, required this.monthly});
+
+  final List<ReportMockExamSummary> weekly;
+  final List<ReportMockExamSummary> monthly;
+
+  factory ReportMockExams.fromJson(
+    ReportJsonMap json, {
+    String path = 'mockExams',
+  }) {
+    _validateAllowedKeys(json, const <String>{'weekly', 'monthly'}, path: path);
+
+    final weeklyJson = _readRequiredArray(json, 'weekly', path: '$path.weekly');
+    if (weeklyJson.length > reportMaxWeeklyMockExamSummaries) {
+      throw FormatException(
+        'Expected "$path.weekly" length <= $reportMaxWeeklyMockExamSummaries.',
+      );
+    }
+    final weekly = <ReportMockExamSummary>[];
+    final weeklyKeys = <String>{};
+    for (var i = 0; i < weeklyJson.length; i++) {
+      final summary = ReportMockExamSummary.fromJson(
+        _asObject(weeklyJson[i], path: '$path.weekly[$i]'),
+        examType: MockExamType.weekly,
+        path: '$path.weekly[$i]',
+      );
+      final uniqueKey = '${summary.periodKey}|${summary.track.dbValue}';
+      if (!weeklyKeys.add(uniqueKey)) {
+        throw FormatException('Duplicated value at "$path.weekly[$i]".');
+      }
+      weekly.add(summary);
+    }
+
+    final monthlyJson = _readRequiredArray(
+      json,
+      'monthly',
+      path: '$path.monthly',
+    );
+    if (monthlyJson.length > reportMaxMonthlyMockExamSummaries) {
+      throw FormatException(
+        'Expected "$path.monthly" length <= $reportMaxMonthlyMockExamSummaries.',
+      );
+    }
+    final monthly = <ReportMockExamSummary>[];
+    final monthlyKeys = <String>{};
+    for (var i = 0; i < monthlyJson.length; i++) {
+      final summary = ReportMockExamSummary.fromJson(
+        _asObject(monthlyJson[i], path: '$path.monthly[$i]'),
+        examType: MockExamType.monthly,
+        path: '$path.monthly[$i]',
+      );
+      final uniqueKey = '${summary.periodKey}|${summary.track.dbValue}';
+      if (!monthlyKeys.add(uniqueKey)) {
+        throw FormatException('Duplicated value at "$path.monthly[$i]".');
+      }
+      monthly.add(summary);
+    }
+
+    return ReportMockExams(
+      weekly: List<ReportMockExamSummary>.unmodifiable(weekly),
+      monthly: List<ReportMockExamSummary>.unmodifiable(monthly),
+    );
+  }
+
+  ReportJsonMap toJson() {
+    return <String, Object?>{
+      'weekly': weekly.map((entry) => entry.toJson()).toList(growable: false),
+      'monthly': monthly.map((entry) => entry.toJson()).toList(growable: false),
+    };
+  }
+}
+
+class ReportMockExamSummary {
+  const ReportMockExamSummary({
+    required this.periodKey,
+    required this.track,
+    required this.totalCount,
+    required this.listeningCorrect,
+    required this.readingCorrect,
+    required this.correctCount,
+    required this.wrongCount,
+    required this.completedAt,
+  });
+
+  final String periodKey;
+  final Track track;
+  final int totalCount;
+  final int listeningCorrect;
+  final int readingCorrect;
+  final int correctCount;
+  final int wrongCount;
+  final DateTime completedAt;
+
+  factory ReportMockExamSummary.fromJson(
+    ReportJsonMap json, {
+    required MockExamType examType,
+    String path = 'mockExamSummary',
+  }) {
+    _validateAllowedKeys(json, const <String>{
+      'periodKey',
+      'track',
+      'totalCount',
+      'listeningCorrect',
+      'readingCorrect',
+      'correctCount',
+      'wrongCount',
+      'completedAt',
+    }, path: path);
+
+    final periodKey = _readRequiredString(
+      json,
+      'periodKey',
+      path: '$path.periodKey',
+      maxLength: 8,
+    );
+    validateNoHiddenUnicode(periodKey, path: '$path.periodKey');
+
+    final periodPattern = switch (examType) {
+      MockExamType.weekly => RegExp(r'^\d{4}W\d{2}$'),
+      MockExamType.monthly => RegExp(r'^\d{6}$'),
+    };
+    if (!periodPattern.hasMatch(periodKey)) {
+      throw FormatException(
+        'Expected "$path.periodKey" to match '
+        '${examType == MockExamType.weekly ? "YYYYWww" : "YYYYMM"}.',
+      );
+    }
+
+    final trackRaw = _readRequiredString(
+      json,
+      'track',
+      path: '$path.track',
+      maxLength: 2,
+    );
+    validateNoHiddenUnicode(trackRaw, path: '$path.track');
+    final track = trackFromDb(trackRaw);
+
+    final totalCount = _readRequiredInt(
+      json,
+      'totalCount',
+      path: '$path.totalCount',
+    );
+    final expectedTotalCount = switch (examType) {
+      MockExamType.weekly => 20,
+      MockExamType.monthly => 45,
+    };
+    if (totalCount != expectedTotalCount) {
+      throw FormatException(
+        'Expected "$path.totalCount" to be $expectedTotalCount.',
+      );
+    }
+
+    final listeningCorrect = _readRequiredInt(
+      json,
+      'listeningCorrect',
+      path: '$path.listeningCorrect',
+    );
+    final readingCorrect = _readRequiredInt(
+      json,
+      'readingCorrect',
+      path: '$path.readingCorrect',
+    );
+    final listeningMax = switch (examType) {
+      MockExamType.weekly => 10,
+      MockExamType.monthly => 17,
+    };
+    final readingMax = switch (examType) {
+      MockExamType.weekly => 10,
+      MockExamType.monthly => 28,
+    };
+    _validateIntRange(
+      listeningCorrect,
+      min: 0,
+      max: listeningMax,
+      path: '$path.listeningCorrect',
+    );
+    _validateIntRange(
+      readingCorrect,
+      min: 0,
+      max: readingMax,
+      path: '$path.readingCorrect',
+    );
+
+    final correctCount = _readRequiredInt(
+      json,
+      'correctCount',
+      path: '$path.correctCount',
+    );
+    if (correctCount != listeningCorrect + readingCorrect) {
+      throw FormatException(
+        'Expected "$path.correctCount" to equal listening+reading correct.',
+      );
+    }
+
+    final wrongCount = _readRequiredInt(
+      json,
+      'wrongCount',
+      path: '$path.wrongCount',
+    );
+    if (wrongCount != totalCount - correctCount) {
+      throw FormatException(
+        'Expected "$path.wrongCount" to equal total-correct.',
+      );
+    }
+
+    final completedAtRaw = _readRequiredString(
+      json,
+      'completedAt',
+      path: '$path.completedAt',
+      maxLength: 64,
+    );
+    validateNoHiddenUnicode(completedAtRaw, path: '$path.completedAt');
+    final completedAt = DateTime.tryParse(completedAtRaw);
+    if (completedAt == null) {
+      throw FormatException(
+        'Expected "$path.completedAt" to be a valid ISO-8601 datetime.',
+      );
+    }
+
+    return ReportMockExamSummary(
+      periodKey: periodKey,
+      track: track,
+      totalCount: totalCount,
+      listeningCorrect: listeningCorrect,
+      readingCorrect: readingCorrect,
+      correctCount: correctCount,
+      wrongCount: wrongCount,
+      completedAt: completedAt.toUtc(),
+    );
+  }
+
+  ReportJsonMap toJson() {
+    return <String, Object?>{
+      'periodKey': periodKey,
+      'track': track.dbValue,
+      'totalCount': totalCount,
+      'listeningCorrect': listeningCorrect,
+      'readingCorrect': readingCorrect,
+      'correctCount': correctCount,
+      'wrongCount': wrongCount,
+      'completedAt': completedAt.toUtc().toIso8601String(),
+    };
   }
 }
 

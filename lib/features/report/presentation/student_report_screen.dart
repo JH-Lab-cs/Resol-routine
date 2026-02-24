@@ -16,6 +16,7 @@ import '../../../core/ui/label_maps.dart';
 import '../../../core/time/day_key.dart';
 import '../application/report_providers.dart';
 import '../data/models/report_schema_v1.dart';
+import 'widgets/mock_exam_summary_section.dart';
 import 'widgets/vocab_bookmarks_section.dart';
 import 'widgets/vocab_wrong_words_section.dart';
 
@@ -245,6 +246,8 @@ class _ReportBody extends StatelessWidget {
           bookmarkedVocabIds: bookmarkedVocabIds,
           customLemmaById: customLemmaById,
         ),
+        const SizedBox(height: AppSpacing.md),
+        MockExamSummarySection(mockExams: report.mockExams),
         const SizedBox(height: AppSpacing.md),
         if (today == null)
           const Card(

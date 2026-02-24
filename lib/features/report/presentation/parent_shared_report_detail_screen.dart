@@ -11,6 +11,7 @@ import '../../../core/ui/label_maps.dart';
 import '../application/report_providers.dart';
 import '../data/models/report_schema_v1.dart';
 import '../data/shared_reports_repository.dart';
+import 'widgets/mock_exam_summary_section.dart';
 import 'widgets/vocab_bookmarks_section.dart';
 import 'widgets/vocab_wrong_words_section.dart';
 
@@ -246,6 +247,15 @@ class _ParentSharedReportDetailScreenState
                       child: VocabBookmarksSection(
                         bookmarkedVocabIds: bookmarkedVocabIds,
                         customLemmaById: customLemmaById,
+                      ),
+                    ),
+                    const SliverToBoxAdapter(
+                      child: SizedBox(height: AppSpacing.md),
+                    ),
+                    SliverToBoxAdapter(
+                      child: MockExamSummarySection(
+                        mockExams: report.mockExams,
+                        maxVisiblePerType: 12,
                       ),
                     ),
                     const SliverToBoxAdapter(
