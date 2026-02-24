@@ -17,3 +17,21 @@ final mockExamAttemptRepositoryProvider = Provider<MockExamAttemptRepository>((
   final database = ref.watch(appDatabaseProvider);
   return MockExamAttemptRepository(database: database);
 });
+
+final mockExamResultSummaryProvider =
+    FutureProvider.family<MockExamResultSummary, int>((Ref ref, int sessionId) {
+      final repository = ref.watch(mockExamAttemptRepositoryProvider);
+      return repository.loadResultSummary(sessionId: sessionId);
+    });
+
+final mockExamReviewItemsProvider =
+    FutureProvider.family<List<MockReviewItem>, int>((Ref ref, int sessionId) {
+      final repository = ref.watch(mockExamAttemptRepositoryProvider);
+      return repository.listReviewItems(sessionId: sessionId);
+    });
+
+final mockExamWrongItemsProvider =
+    FutureProvider.family<List<MockWrongItem>, int>((Ref ref, int sessionId) {
+      final repository = ref.watch(mockExamAttemptRepositoryProvider);
+      return repository.listWrongItems(sessionId: sessionId);
+    });
