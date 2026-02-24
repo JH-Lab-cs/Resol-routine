@@ -12,6 +12,7 @@ import 'package:resol_routine/features/home/presentation/home_screen.dart';
 import 'package:resol_routine/features/my/presentation/my_screen.dart';
 import 'package:resol_routine/features/my/presentation/my_settings_screen.dart';
 import 'package:resol_routine/features/mock_exam/presentation/monthly_mock_flow_screen.dart';
+import 'package:resol_routine/features/mock_exam/presentation/mock_exam_result_screen.dart';
 import 'package:resol_routine/features/report/application/report_providers.dart';
 import 'package:resol_routine/features/report/data/models/report_schema_v1.dart';
 import 'package:resol_routine/features/report/data/shared_reports_repository.dart';
@@ -26,6 +27,8 @@ import 'package:resol_routine/features/today/data/today_session_repository.dart'
 import 'package:resol_routine/features/today/presentation/quiz_flow_screen.dart';
 import 'package:resol_routine/features/vocab/presentation/vocab_screen.dart';
 import 'package:resol_routine/features/wrong_notes/presentation/wrong_notes_screen.dart';
+import 'package:resol_routine/features/mock_exam/data/mock_exam_attempt_repository.dart';
+import 'package:resol_routine/features/mock_exam/data/mock_exam_session_repository.dart';
 
 void main() {
   testWidgets('root shell (student/parent) remains stable at text scale 2.0', (
@@ -272,6 +275,72 @@ void main() {
         ProviderScope(
           overrides: [appDatabaseProvider.overrideWithValue(database)],
           child: const MaterialApp(home: MonthlyMockFlowScreen(track: 'M3')),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('mock result screen remains stable at text scale 2.0', (
+    WidgetTester tester,
+  ) async {
+    final database = AppDatabase(executor: NativeDatabase.memory());
+    addTearDown(database.close);
+
+    await _seedMockExamQuestionPool(
+      database,
+      track: 'M3',
+      listeningCount: 8,
+      readingCount: 8,
+    );
+
+    final sessionRepository = MockExamSessionRepository(database: database);
+    final attemptRepository = MockExamAttemptRepository(database: database);
+    final session = await sessionRepository.getOrCreateSession(
+      type: MockExamType.weekly,
+      track: 'M3',
+      plan: const MockExamQuestionPlan(listeningCount: 2, readingCount: 2),
+      nowLocal: DateTime.utc(2026, 3, 1, 2, 0),
+    );
+
+    await attemptRepository.saveAttemptIdempotent(
+      mockSessionId: session.sessionId,
+      questionId: session.items[0].questionId,
+      selectedAnswer: 'A',
+      isCorrect: true,
+    );
+    await attemptRepository.saveAttemptIdempotent(
+      mockSessionId: session.sessionId,
+      questionId: session.items[1].questionId,
+      selectedAnswer: 'B',
+      isCorrect: false,
+      wrongReasonTag: WrongReasonTag.vocab,
+    );
+    await attemptRepository.saveAttemptIdempotent(
+      mockSessionId: session.sessionId,
+      questionId: session.items[2].questionId,
+      selectedAnswer: 'A',
+      isCorrect: true,
+    );
+    await attemptRepository.saveAttemptIdempotent(
+      mockSessionId: session.sessionId,
+      questionId: session.items[3].questionId,
+      selectedAnswer: 'C',
+      isCorrect: false,
+      wrongReasonTag: WrongReasonTag.evidence,
+    );
+
+    await tester.pumpWidget(
+      _withTextScale(
+        ProviderScope(
+          overrides: [appDatabaseProvider.overrideWithValue(database)],
+          child: MaterialApp(
+            home: MockExamResultScreen(
+              mockSessionId: session.sessionId,
+              examTitle: '주간 모의고사',
+            ),
+          ),
         ),
       ),
     );

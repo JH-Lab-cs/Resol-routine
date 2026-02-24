@@ -162,6 +162,75 @@ void main() {
         expect(refreshed.completedAt, isNotNull);
       },
     );
+
+    test(
+      'loadResultSummary and listWrongItems reflect review counts',
+      () async {
+        final bundle = await sessionRepository.getOrCreateSession(
+          type: MockExamType.weekly,
+          track: 'M3',
+          plan: const MockExamQuestionPlan(listeningCount: 2, readingCount: 2),
+          nowLocal: DateTime.utc(2026, 2, 20, 1, 30),
+        );
+
+        await attemptRepository.saveAttemptIdempotent(
+          mockSessionId: bundle.sessionId,
+          questionId: bundle.items[0].questionId,
+          selectedAnswer: 'A',
+          isCorrect: true,
+        );
+        await attemptRepository.saveAttemptIdempotent(
+          mockSessionId: bundle.sessionId,
+          questionId: bundle.items[1].questionId,
+          selectedAnswer: 'B',
+          isCorrect: false,
+          wrongReasonTag: WrongReasonTag.vocab,
+        );
+        await attemptRepository.saveAttemptIdempotent(
+          mockSessionId: bundle.sessionId,
+          questionId: bundle.items[2].questionId,
+          selectedAnswer: 'C',
+          isCorrect: false,
+          wrongReasonTag: WrongReasonTag.vocab,
+        );
+        await attemptRepository.saveAttemptIdempotent(
+          mockSessionId: bundle.sessionId,
+          questionId: bundle.items[3].questionId,
+          selectedAnswer: 'A',
+          isCorrect: true,
+        );
+
+        final summary = await attemptRepository.loadResultSummary(
+          sessionId: bundle.sessionId,
+        );
+        expect(summary.sessionId, bundle.sessionId);
+        expect(summary.examType, MockExamType.weekly);
+        expect(summary.track, Track.m3);
+        expect(summary.plannedItems, 4);
+        expect(summary.completedItems, 4);
+        expect(summary.listeningCorrectCount, 1);
+        expect(summary.readingCorrectCount, 1);
+        expect(summary.wrongCount, 2);
+        expect(summary.topWrongReasonTag, WrongReasonTag.vocab);
+        expect(summary.elapsed, isNotNull);
+
+        final wrongItems = await attemptRepository.listWrongItems(
+          sessionId: bundle.sessionId,
+        );
+        expect(wrongItems, hasLength(2));
+        expect(
+          wrongItems.map((item) => item.orderIndex).toList(),
+          orderedEquals(<int>[1, 2]),
+        );
+
+        final reviewItems = await attemptRepository.listReviewItems(
+          sessionId: bundle.sessionId,
+        );
+        expect(reviewItems, hasLength(4));
+        expect(reviewItems.where((item) => !item.isCorrect), hasLength(2));
+        expect(reviewItems.where((item) => item.isCorrect), hasLength(2));
+      },
+    );
   });
 }
 
