@@ -121,6 +121,43 @@ void main() {
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
 
+      await _seedMockExamQuestionPool(
+        database,
+        track: 'M3',
+        listeningCount: 1,
+        readingCount: 0,
+      );
+      final mockSessionRepository = MockExamSessionRepository(
+        database: database,
+      );
+      final mockAttemptRepository = MockExamAttemptRepository(
+        database: database,
+      );
+      final mockSession = await mockSessionRepository.getOrCreateSession(
+        type: MockExamType.weekly,
+        track: 'M3',
+        plan: const MockExamQuestionPlan(listeningCount: 1, readingCount: 0),
+        nowLocal: DateTime.utc(2026, 3, 2, 2, 0),
+      );
+      await mockAttemptRepository.saveAttemptIdempotent(
+        mockSessionId: mockSession.sessionId,
+        questionId: mockSession.items.first.questionId,
+        selectedAnswer: 'B',
+        isCorrect: false,
+        wrongReasonTag: WrongReasonTag.vocab,
+      );
+
+      await tester.pumpWidget(
+        _withTextScale(
+          ProviderScope(
+            overrides: [appDatabaseProvider.overrideWithValue(database)],
+            child: const MaterialApp(home: Scaffold(body: WrongNotesScreen())),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+
       await tester.pumpWidget(
         _withTextScale(
           ProviderScope(
