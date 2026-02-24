@@ -745,6 +745,8 @@ class _MockExamFlowScreenState extends ConsumerState<MockExamFlowScreen> {
     });
 
     try {
+      final wasCompletedBeforeSave =
+          _progress.completed >= session.plannedItems;
       final question = _questions[_currentIndex];
       final attemptRepository = ref.read(mockExamAttemptRepositoryProvider);
       await attemptRepository.saveAttemptIdempotent(
@@ -763,6 +765,9 @@ class _MockExamFlowScreenState extends ConsumerState<MockExamFlowScreen> {
         completionReport = await attemptRepository.loadCompletionReport(
           session.sessionId,
         );
+        if (!wasCompletedBeforeSave) {
+          await _pruneMockHistoryBestEffort();
+        }
       }
 
       if (!mounted) {
@@ -791,6 +796,14 @@ class _MockExamFlowScreenState extends ConsumerState<MockExamFlowScreen> {
           _saving = false;
         });
       }
+    }
+  }
+
+  Future<void> _pruneMockHistoryBestEffort() async {
+    try {
+      await ref.read(mockExamSessionRepositoryProvider).pruneOldSessions();
+    } catch (error) {
+      debugPrint('Mock history pruning skipped: $error');
     }
   }
 

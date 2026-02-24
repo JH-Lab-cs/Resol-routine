@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/domain/domain_enums.dart';
 import '../../../core/ui/app_copy_ko.dart';
 import '../../../core/ui/app_tokens.dart';
+import '../../../core/ui/components/app_snackbars.dart';
 import '../application/mock_exam_providers.dart';
 import '../data/mock_exam_session_repository.dart';
 import 'mock_exam_result_screen.dart';
@@ -73,7 +74,9 @@ class _MockExamHistoryScreenState extends ConsumerState<MockExamHistoryScreen> {
                 ),
                 data: (items) {
                   if (items.isEmpty) {
-                    return const Center(child: Text('아직 모의고사 기록이 없습니다.'));
+                    return const Center(
+                      child: Text(AppCopyKo.emptyMockHistory),
+                    );
                   }
                   return ListView.separated(
                     itemCount: items.length,
@@ -99,7 +102,29 @@ class _MockExamHistoryScreenState extends ConsumerState<MockExamHistoryScreen> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          trailing: const Icon(Icons.chevron_right_rounded),
+                          trailing: PopupMenuButton<_HistoryMenuAction>(
+                            key: ValueKey<String>(
+                              'mock-history-menu-${item.sessionId}',
+                            ),
+                            tooltip: '기록 메뉴',
+                            icon: const Icon(Icons.more_vert_rounded),
+                            onSelected: (action) {
+                              if (action == _HistoryMenuAction.delete) {
+                                _deleteSession(item);
+                              }
+                            },
+                            itemBuilder: (_) => [
+                              PopupMenuItem<_HistoryMenuAction>(
+                                key: ValueKey<String>(
+                                  'mock-history-delete-${item.sessionId}',
+                                ),
+                                value: _HistoryMenuAction.delete,
+                                child: const Text(
+                                  AppCopyKo.mockHistoryDeleteAction,
+                                ),
+                              ),
+                            ],
+                          ),
                           onTap: () {
                             Navigator.of(context).push(
                               MaterialPageRoute<void>(
@@ -141,4 +166,60 @@ class _MockExamHistoryScreenState extends ConsumerState<MockExamHistoryScreen> {
     }
     return '진행중 ${item.completedItems}/${item.plannedItems}';
   }
+
+  Future<void> _deleteSession(MockExamSessionSummary item) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        final title = _titleForType(item.examType);
+        return AlertDialog(
+          title: Text(AppCopyKo.mockHistoryDeleteTitle(title)),
+          content: Text(
+            AppCopyKo.mockHistoryDeleteMessage(
+              examLabel: title,
+              periodKey: item.periodKey,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text(AppCopyKo.mockHistoryDeleteCancel),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text(AppCopyKo.mockHistoryDeleteConfirm),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true || !mounted) {
+      return;
+    }
+
+    try {
+      await ref
+          .read(mockExamSessionRepositoryProvider)
+          .deleteSessionById(item.sessionId);
+      if (!mounted) {
+        return;
+      }
+      ref.invalidate(mockExamRecentSessionsProvider);
+      ref.invalidate(mockExamCurrentSummaryProvider);
+      AppSnackbars.showSuccess(context, AppCopyKo.mockHistoryDeleteSuccess);
+    } on StateError {
+      if (!mounted) {
+        return;
+      }
+      AppSnackbars.showWarning(context, AppCopyKo.mockHistoryDeleteAlready);
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      AppSnackbars.showError(context, AppCopyKo.mockHistoryDeleteFailed);
+    }
+  }
 }
+
+enum _HistoryMenuAction { delete }

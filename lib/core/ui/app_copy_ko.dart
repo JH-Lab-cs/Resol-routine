@@ -47,6 +47,24 @@ class AppCopyKo {
   static const String wrongNoteOpenResult = '결과 보기';
   static const String mockExamWeekly = '주간 모의고사';
   static const String mockExamMonthly = '월간 모의고사';
+  static const String emptyMockHistory = '아직 모의고사 기록이 없습니다.';
+  static const String mockHistoryDeleteAction = '삭제';
+  static const String mockHistoryDeleteCancel = '취소';
+  static const String mockHistoryDeleteConfirm = '삭제';
+  static const String mockHistoryDeleteSuccess = '모의고사 기록을 삭제했습니다.';
+  static const String mockHistoryDeleteFailed = '모의고사 기록 삭제에 실패했습니다.';
+  static const String mockHistoryDeleteAlready = '이미 삭제된 모의고사 기록입니다.';
+
+  static String mockHistoryDeleteTitle(String examLabel) {
+    return '$examLabel 기록 삭제';
+  }
+
+  static String mockHistoryDeleteMessage({
+    required String examLabel,
+    required String periodKey,
+  }) {
+    return '$examLabel $periodKey 기록을 삭제할까요?\n삭제하면 복구할 수 없습니다.';
+  }
 
   static String wrongNoteMockMeta({
     required String examLabel,

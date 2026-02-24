@@ -90,6 +90,61 @@ class MockExamSessionRepository {
 
   final AppDatabase _database;
 
+  Future<void> deleteSessionById(int sessionId) async {
+    if (sessionId <= 0) {
+      throw const FormatException('sessionId must be >= 1');
+    }
+
+    await _database.transaction(() async {
+      final existing = await _findSessionById(sessionId);
+      if (existing == null) {
+        throw StateError('MOCK_SESSION_NOT_FOUND: $sessionId');
+      }
+      await _deleteSessionGraph(sessionId);
+    });
+  }
+
+  Future<void> pruneOldSessions({
+    int weeklyKeep = 52,
+    int monthlyKeep = 12,
+  }) async {
+    _validateRetentionCount(name: 'weeklyKeep', value: weeklyKeep);
+    _validateRetentionCount(name: 'monthlyKeep', value: monthlyKeep);
+
+    await _database.transaction(() async {
+      final rows = await _database
+          .customSelect(
+            'SELECT id, exam_type, track '
+            'FROM mock_exam_sessions '
+            'WHERE completed_at IS NOT NULL '
+            'ORDER BY exam_type ASC, track ASC, completed_at DESC, id DESC',
+            readsFrom: {_database.mockExamSessions},
+          )
+          .get();
+
+      final keptPerGroup = <String, int>{};
+      final deleteIds = <int>[];
+      for (final row in rows) {
+        final examType = mockExamTypeFromDb(row.read<String>('exam_type'));
+        final keepLimit = examType == MockExamType.weekly
+            ? weeklyKeep
+            : monthlyKeep;
+        final groupKey =
+            '${row.read<String>('exam_type')}|${row.read<String>('track')}';
+        final keptCount = keptPerGroup[groupKey] ?? 0;
+        if (keptCount < keepLimit) {
+          keptPerGroup[groupKey] = keptCount + 1;
+          continue;
+        }
+        deleteIds.add(row.read<int>('id'));
+      }
+
+      for (final sessionId in deleteIds) {
+        await _deleteSessionGraph(sessionId);
+      }
+    });
+  }
+
   Future<List<MockExamSessionSummary>> listRecent({
     required MockExamType type,
     required String track,
@@ -307,6 +362,15 @@ class MockExamSessionRepository {
     )..where((tbl) => tbl.id.equals(sessionId))).getSingleOrNull();
   }
 
+  Future<void> _deleteSessionGraph(int sessionId) async {
+    await (_database.delete(
+      _database.attempts,
+    )..where((tbl) => tbl.mockSessionId.equals(sessionId))).go();
+    await (_database.delete(
+      _database.mockExamSessions,
+    )..where((tbl) => tbl.id.equals(sessionId))).go();
+  }
+
   Future<List<String>> _loadQuestionPool({
     required String track,
     required Skill skill,
@@ -418,6 +482,12 @@ class MockExamSessionRepository {
         message.contains('mock_exam_sessions.exam_type') ||
         message.contains('mock_exam_sessions.period_key') ||
         message.contains('mock_exam_sessions.track');
+  }
+
+  void _validateRetentionCount({required String name, required int value}) {
+    if (value < 0) {
+      throw FormatException('$name must be >= 0');
+    }
   }
 }
 
