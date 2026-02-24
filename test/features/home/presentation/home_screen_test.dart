@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,6 +12,7 @@ import 'package:resol_routine/core/domain/domain_enums.dart';
 import 'package:resol_routine/features/home/application/home_providers.dart';
 import 'package:resol_routine/features/home/presentation/home_screen.dart';
 import 'package:resol_routine/features/mock_exam/application/mock_exam_providers.dart';
+import 'package:resol_routine/features/mock_exam/data/mock_exam_period_key.dart';
 import 'package:resol_routine/features/mock_exam/data/mock_exam_session_repository.dart';
 import 'package:resol_routine/features/report/application/report_providers.dart';
 import 'package:resol_routine/features/report/data/shared_reports_repository.dart';
@@ -266,4 +268,113 @@ void main() {
     expect(weeklyOpenCount, 2);
     expect(find.text('주간 모의고사 결과'), findsAtLeastNWidgets(1));
   });
+
+  testWidgets(
+    'home weekly card returns to start state after deleting session',
+    (WidgetTester tester) async {
+      final database = AppDatabase(executor: NativeDatabase.memory());
+      addTearDown(database.close);
+
+      final settingsRepository = UserSettingsRepository(database: database);
+      await settingsRepository.updateRole('STUDENT');
+      await settingsRepository.updateName('학생');
+      await settingsRepository.updateTrack('M3');
+
+      final nowLocal = DateTime.now();
+      final weeklyPeriodKey = buildMockExamPeriodKey(
+        type: MockExamType.weekly,
+        nowLocal: nowLocal,
+      );
+      final sessionRepository = MockExamSessionRepository(database: database);
+      final completedSessionId = await database
+          .into(database.mockExamSessions)
+          .insert(
+            MockExamSessionsCompanion.insert(
+              examType: MockExamType.weekly.dbValue,
+              periodKey: weeklyPeriodKey,
+              track: 'M3',
+              plannedItems: 20,
+              completedItems: const Value(20),
+              completedAt: Value(nowLocal.toUtc()),
+            ),
+          );
+
+      var homeBuildSeed = 0;
+
+      Future<void> pumpHome() async {
+        await tester.pumpWidget(
+          ProviderScope(
+            key: ValueKey<int>(homeBuildSeed),
+            overrides: [
+              appDatabaseProvider.overrideWithValue(database),
+              homeRoutineSummaryProvider.overrideWith((ref, track) async {
+                return const HomeRoutineSummary(
+                  session: DailySessionBundle(
+                    sessionId: 1,
+                    dayKey: '20260301',
+                    track: 'M3',
+                    plannedItems: 6,
+                    completedItems: 0,
+                    items: <DailySessionItemBundle>[
+                      DailySessionItemBundle(
+                        orderIndex: 0,
+                        questionId: 'Q-MOCK-1',
+                        skill: 'LISTENING',
+                      ),
+                    ],
+                  ),
+                  progress: SessionProgress(
+                    completed: 0,
+                    listeningCompleted: 0,
+                    readingCompleted: 0,
+                  ),
+                );
+              }),
+            ],
+            child: MaterialApp(
+              home: Scaffold(
+                body: HomeScreen(
+                  onOpenQuiz: () {},
+                  onOpenWeeklyMockExam: () {},
+                  onOpenMonthlyMockExam: () {},
+                  onOpenVocab: () {},
+                  onOpenTodayVocabQuiz: () {},
+                  onOpenWrongNotes: () {},
+                  onOpenMy: () {},
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        await tester.scrollUntilVisible(
+          find.byKey(const ValueKey<String>('home-mock-weekly-card')),
+          300,
+          scrollable: find.byType(Scrollable).first,
+        );
+        await tester.pumpAndSettle();
+      }
+
+      await pumpHome();
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey<String>('home-mock-weekly-card')),
+          matching: find.textContaining('결과 보기'),
+        ),
+        findsOneWidget,
+      );
+
+      await sessionRepository.deleteSessionById(completedSessionId);
+      homeBuildSeed += 1;
+      await pumpHome();
+
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey<String>('home-mock-weekly-card')),
+          matching: find.textContaining('시작하기'),
+        ),
+        findsOneWidget,
+      );
+    },
+  );
 }

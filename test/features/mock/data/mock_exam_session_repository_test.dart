@@ -1,4 +1,4 @@
-import 'package:drift/drift.dart' show Value;
+import 'package:drift/drift.dart' show Value, Variable;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -186,6 +186,162 @@ void main() {
         expect(summaries.last.sessionId, olderSession.sessionId);
         expect(summaries.last.correctCount, 1);
         expect(summaries.last.wrongCount, 1);
+      },
+    );
+
+    test(
+      'deleteSessionById removes session items and attempts together',
+      () async {
+        final session = await repository.getOrCreateSession(
+          type: MockExamType.weekly,
+          track: 'M3',
+          plan: const MockExamQuestionPlan(listeningCount: 2, readingCount: 2),
+          nowLocal: DateTime.utc(2026, 3, 2, 9, 0),
+        );
+        await attemptRepository.saveAttemptIdempotent(
+          mockSessionId: session.sessionId,
+          questionId: session.items[0].questionId,
+          selectedAnswer: 'B',
+          isCorrect: false,
+          wrongReasonTag: WrongReasonTag.vocab,
+        );
+
+        await repository.deleteSessionById(session.sessionId);
+
+        final deletedSession = await (database.select(
+          database.mockExamSessions,
+        )..where((tbl) => tbl.id.equals(session.sessionId))).getSingleOrNull();
+        final remainingItems = await (database.select(
+          database.mockExamSessionItems,
+        )..where((tbl) => tbl.sessionId.equals(session.sessionId))).get();
+        final remainingAttempts = await (database.select(
+          database.attempts,
+        )..where((tbl) => tbl.mockSessionId.equals(session.sessionId))).get();
+
+        expect(deletedSession, isNull);
+        expect(remainingItems, isEmpty);
+        expect(remainingAttempts, isEmpty);
+      },
+    );
+
+    test(
+      'pruneOldSessions keeps recent completed sessions and preserves in-progress sessions',
+      () async {
+        final weeklyIds = <int>[];
+        final monthlyIds = <int>[];
+        for (var i = 0; i < 60; i++) {
+          final completedAt = DateTime.utc(
+            2026,
+            12,
+            31,
+          ).subtract(Duration(days: i * 7));
+          final weekValue = (i % 52) + 1;
+          final year = 2026 - (i ~/ 52);
+          final periodKey = '${year}W${weekValue.toString().padLeft(2, '0')}';
+          final id = await database
+              .into(database.mockExamSessions)
+              .insert(
+                MockExamSessionsCompanion.insert(
+                  examType: MockExamType.weekly.dbValue,
+                  periodKey: periodKey,
+                  track: 'M3',
+                  plannedItems: 20,
+                  completedItems: const Value(20),
+                  completedAt: Value(completedAt),
+                ),
+              );
+          weeklyIds.add(id);
+        }
+        for (var i = 0; i < 20; i++) {
+          final completedAt = DateTime.utc(
+            2026,
+            12,
+            31,
+          ).subtract(Duration(days: i * 30));
+          final monthDate = DateTime.utc(2026, 12 - i, 1);
+          final periodKey =
+              '${monthDate.year.toString().padLeft(4, '0')}${monthDate.month.toString().padLeft(2, '0')}';
+          final id = await database
+              .into(database.mockExamSessions)
+              .insert(
+                MockExamSessionsCompanion.insert(
+                  examType: MockExamType.monthly.dbValue,
+                  periodKey: periodKey,
+                  track: 'M3',
+                  plannedItems: 45,
+                  completedItems: const Value(45),
+                  completedAt: Value(completedAt),
+                ),
+              );
+          monthlyIds.add(id);
+        }
+
+        final inProgressWeeklyId = await database
+            .into(database.mockExamSessions)
+            .insert(
+              MockExamSessionsCompanion.insert(
+                examType: MockExamType.weekly.dbValue,
+                periodKey: '2026W53',
+                track: 'M3',
+                plannedItems: 20,
+                completedItems: const Value(3),
+                completedAt: const Value(null),
+              ),
+            );
+        final inProgressMonthlyId = await database
+            .into(database.mockExamSessions)
+            .insert(
+              MockExamSessionsCompanion.insert(
+                examType: MockExamType.monthly.dbValue,
+                periodKey: '202701',
+                track: 'M3',
+                plannedItems: 45,
+                completedItems: const Value(4),
+                completedAt: const Value(null),
+              ),
+            );
+
+        await repository.pruneOldSessions(weeklyKeep: 52, monthlyKeep: 12);
+
+        final remainingWeeklyCompleted = await database
+            .customSelect(
+              'SELECT id FROM mock_exam_sessions '
+              'WHERE exam_type = ? AND completed_at IS NOT NULL '
+              'ORDER BY completed_at DESC, id DESC',
+              variables: [Variable<String>(MockExamType.weekly.dbValue)],
+              readsFrom: {database.mockExamSessions},
+            )
+            .get();
+        final remainingMonthlyCompleted = await database
+            .customSelect(
+              'SELECT id FROM mock_exam_sessions '
+              'WHERE exam_type = ? AND completed_at IS NOT NULL '
+              'ORDER BY completed_at DESC, id DESC',
+              variables: [Variable<String>(MockExamType.monthly.dbValue)],
+              readsFrom: {database.mockExamSessions},
+            )
+            .get();
+
+        expect(remainingWeeklyCompleted, hasLength(52));
+        expect(remainingMonthlyCompleted, hasLength(12));
+        expect(
+          remainingWeeklyCompleted.map((row) => row.read<int>('id')).toSet(),
+          equals(weeklyIds.take(52).toSet()),
+        );
+        expect(
+          remainingMonthlyCompleted.map((row) => row.read<int>('id')).toSet(),
+          equals(monthlyIds.take(12).toSet()),
+        );
+
+        final inProgressWeekly = await (database.select(
+          database.mockExamSessions,
+        )..where((tbl) => tbl.id.equals(inProgressWeeklyId))).getSingleOrNull();
+        final inProgressMonthly =
+            await (database.select(database.mockExamSessions)
+                  ..where((tbl) => tbl.id.equals(inProgressMonthlyId)))
+                .getSingleOrNull();
+        expect(inProgressWeekly, isNotNull);
+        expect(inProgressMonthly, isNotNull);
       },
     );
   });

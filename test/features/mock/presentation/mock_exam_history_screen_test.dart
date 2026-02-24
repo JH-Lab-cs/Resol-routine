@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:resol_routine/core/ui/app_copy_ko.dart';
 import 'package:resol_routine/core/database/app_database.dart';
 import 'package:resol_routine/core/database/converters/json_models.dart';
 import 'package:resol_routine/core/database/database_providers.dart';
@@ -28,11 +29,11 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('아직 모의고사 기록이 없습니다.'), findsOneWidget);
+      expect(find.text(AppCopyKo.emptyMockHistory), findsOneWidget);
 
       await tester.tap(find.byKey(const ValueKey('mock-history-tab-monthly')));
       await tester.pumpAndSettle();
-      expect(find.text('아직 모의고사 기록이 없습니다.'), findsOneWidget);
+      expect(find.text(AppCopyKo.emptyMockHistory), findsOneWidget);
     });
 
     testWidgets('renders session history and opens result screen on tap', (
@@ -99,6 +100,72 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('mock-history-tab-monthly')));
       await tester.pumpAndSettle();
       expect(find.textContaining('월간 모의고사'), findsOneWidget);
+    });
+
+    testWidgets('deletes history item after confirmation and shows snackbar', (
+      WidgetTester tester,
+    ) async {
+      final database = AppDatabase(executor: NativeDatabase.memory());
+      addTearDown(database.close);
+
+      await _seedMockExamQuestionPool(
+        database,
+        track: 'M3',
+        listeningCount: 20,
+        readingCount: 30,
+      );
+
+      final sessionRepository = MockExamSessionRepository(database: database);
+      final attemptRepository = MockExamAttemptRepository(database: database);
+      final session = await sessionRepository.getOrCreateSession(
+        type: MockExamType.weekly,
+        track: 'M3',
+        plan: const MockExamQuestionPlan(listeningCount: 2, readingCount: 2),
+        nowLocal: DateTime.utc(2026, 3, 8, 9, 0),
+      );
+      for (var i = 0; i < session.items.length; i++) {
+        await attemptRepository.saveAttemptIdempotent(
+          mockSessionId: session.sessionId,
+          questionId: session.items[i].questionId,
+          selectedAnswer: i == 0 ? 'B' : 'A',
+          isCorrect: i != 0,
+          wrongReasonTag: i == 0 ? WrongReasonTag.vocab : null,
+        );
+      }
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [appDatabaseProvider.overrideWithValue(database)],
+          child: const MaterialApp(home: MockExamHistoryScreen(track: 'M3')),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(ValueKey<String>('mock-history-item-${session.sessionId}')),
+        findsOneWidget,
+      );
+
+      await tester.tap(
+        find.byKey(ValueKey<String>('mock-history-menu-${session.sessionId}')),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(
+          ValueKey<String>('mock-history-delete-${session.sessionId}'),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('기록 삭제'), findsOneWidget);
+      await tester.tap(find.text(AppCopyKo.mockHistoryDeleteConfirm));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(ValueKey<String>('mock-history-item-${session.sessionId}')),
+        findsNothing,
+      );
+      expect(find.text(AppCopyKo.mockHistoryDeleteSuccess), findsOneWidget);
     });
   });
 }
