@@ -85,6 +85,41 @@ void main() {
     );
 
     test(
+      'loadQuestionDetailsByOrder hydrates question details in input order',
+      () async {
+        final session = await sessionRepository.getOrCreateSession(
+          track: 'M3',
+          nowLocal: DateTime(2026, 2, 19, 9, 8),
+        );
+
+        final refs = session.items
+            .map(
+              (item) => QuestionOrderRef(
+                questionId: item.questionId,
+                orderIndex: item.orderIndex,
+              ),
+            )
+            .toList(growable: false);
+
+        final questions = await quizRepository.loadQuestionDetailsByOrder(refs);
+
+        expect(questions, hasLength(6));
+        expect(
+          questions.map((q) => q.questionId).toList(growable: false),
+          orderedEquals(
+            refs.map((ref) => ref.questionId).toList(growable: false),
+          ),
+        );
+        expect(
+          questions.map((q) => q.orderIndex).toList(growable: false),
+          orderedEquals(
+            refs.map((ref) => ref.orderIndex).toList(growable: false),
+          ),
+        );
+      },
+    );
+
+    test(
       'loadSessionCompletionReport computes counts and top wrong reason',
       () async {
         final session = await sessionRepository.getOrCreateSession(

@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:resol_routine/core/database/app_database.dart';
 import 'package:resol_routine/core/database/converters/json_models.dart';
 import 'package:resol_routine/core/domain/domain_enums.dart';
+import 'package:resol_routine/features/mock_exam/data/mock_exam_attempt_repository.dart';
 import 'package:resol_routine/features/mock_exam/data/mock_exam_period_key.dart';
 import 'package:resol_routine/features/mock_exam/data/mock_exam_session_repository.dart';
 
@@ -12,10 +13,12 @@ void main() {
   group('MockExamSessionRepository', () {
     late AppDatabase database;
     late MockExamSessionRepository repository;
+    late MockExamAttemptRepository attemptRepository;
 
     setUp(() async {
       database = AppDatabase(executor: NativeDatabase.memory());
       repository = MockExamSessionRepository(database: database);
+      attemptRepository = MockExamAttemptRepository(database: database);
       await _seedQuestionPool(
         database,
         track: 'M3',
@@ -124,6 +127,65 @@ void main() {
             ),
           ),
         );
+      },
+    );
+
+    test(
+      'listRecent returns summaries sorted by period with score counts',
+      () async {
+        final olderSession = await repository.getOrCreateSession(
+          type: MockExamType.weekly,
+          track: 'M3',
+          plan: const MockExamQuestionPlan(listeningCount: 2, readingCount: 2),
+          nowLocal: DateTime.utc(2026, 2, 20, 9, 0),
+        );
+        await attemptRepository.saveAttemptIdempotent(
+          mockSessionId: olderSession.sessionId,
+          questionId: olderSession.items[0].questionId,
+          selectedAnswer: 'A',
+          isCorrect: true,
+        );
+        await attemptRepository.saveAttemptIdempotent(
+          mockSessionId: olderSession.sessionId,
+          questionId: olderSession.items[1].questionId,
+          selectedAnswer: 'B',
+          isCorrect: false,
+          wrongReasonTag: WrongReasonTag.vocab,
+        );
+
+        final newerSession = await repository.getOrCreateSession(
+          type: MockExamType.weekly,
+          track: 'M3',
+          plan: const MockExamQuestionPlan(listeningCount: 2, readingCount: 2),
+          nowLocal: DateTime.utc(2026, 2, 27, 9, 0),
+        );
+        await attemptRepository.saveAttemptIdempotent(
+          mockSessionId: newerSession.sessionId,
+          questionId: newerSession.items[0].questionId,
+          selectedAnswer: 'A',
+          isCorrect: true,
+        );
+        await attemptRepository.saveAttemptIdempotent(
+          mockSessionId: newerSession.sessionId,
+          questionId: newerSession.items[1].questionId,
+          selectedAnswer: 'A',
+          isCorrect: true,
+        );
+
+        final summaries = await repository.listRecent(
+          type: MockExamType.weekly,
+          track: 'M3',
+          limit: 10,
+        );
+
+        expect(summaries, hasLength(2));
+        expect(summaries.first.sessionId, newerSession.sessionId);
+        expect(summaries.first.correctCount, 2);
+        expect(summaries.first.wrongCount, 0);
+
+        expect(summaries.last.sessionId, olderSession.sessionId);
+        expect(summaries.last.correctCount, 1);
+        expect(summaries.last.wrongCount, 1);
       },
     );
   });
