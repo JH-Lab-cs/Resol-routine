@@ -44,4 +44,16 @@ class AppCopyKo {
   static const String quizLoadFailed = '퀴즈를 불러오지 못했습니다.';
   static const String vocabQuizLoadFailed = '단어 시험을 불러오지 못했습니다.';
   static const String vocabQuizSaveFailed = '단어시험 결과 저장에 실패했습니다.';
+  static const String wrongNoteOpenResult = '결과 보기';
+  static const String mockExamWeekly = '주간 모의고사';
+  static const String mockExamMonthly = '월간 모의고사';
+
+  static String wrongNoteMockMeta({
+    required String examLabel,
+    required String periodKey,
+    required String completedDate,
+    required String trackLabel,
+  }) {
+    return '$examLabel · $periodKey · $completedDate · $trackLabel';
+  }
 }

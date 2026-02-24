@@ -7,6 +7,7 @@ import '../../../core/ui/app_tokens.dart';
 import '../../../core/ui/components/app_scaffold.dart';
 import '../../../core/ui/components/section_title.dart';
 import '../../../core/ui/label_maps.dart';
+import '../../mock_exam/presentation/mock_exam_result_screen.dart';
 import '../application/wrong_note_providers.dart';
 
 class WrongNotesScreen extends ConsumerWidget {
@@ -42,6 +43,10 @@ class WrongNotesScreen extends ConsumerWidget {
                       const SizedBox(height: AppSpacing.sm),
                   itemBuilder: (context, index) {
                     final item = items[index];
+                    final isMock =
+                        item.mockSessionId != null &&
+                        item.mockType != null &&
+                        item.periodKey != null;
                     return Card(
                       child: ListTile(
                         onTap: () {
@@ -54,12 +59,52 @@ class WrongNotesScreen extends ConsumerWidget {
                           );
                         },
                         title: Text(
-                          '${item.dayKey} · ${displayTrack(item.track.dbValue)} · ${item.typeTag}',
+                          isMock
+                              ? '${displaySkill(item.skill.dbValue)} · ${item.typeTag} · 오답'
+                              : '${item.dayKey} · ${displayTrack(item.track.dbValue)} · ${item.typeTag}',
                         ),
                         subtitle: Text(
-                          '${displaySkill(item.skill.dbValue)} · 오답',
+                          isMock
+                              ? AppCopyKo.wrongNoteMockMeta(
+                                  examLabel: _mockExamLabel(item.mockType!),
+                                  periodKey: item.periodKey!,
+                                  completedDate: _formatDateOnly(
+                                    item.completedAt ?? item.attemptedAt,
+                                  ),
+                                  trackLabel: displayTrack(item.track.dbValue),
+                                )
+                              : '${displaySkill(item.skill.dbValue)} · 오답',
                         ),
-                        trailing: const Icon(Icons.chevron_right_rounded),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (isMock)
+                              Semantics(
+                                label: AppCopyKo.wrongNoteOpenResult,
+                                button: true,
+                                child: IconButton(
+                                  key: ValueKey<String>(
+                                    'wrong-note-open-result-${item.attemptId}',
+                                  ),
+                                  tooltip: AppCopyKo.wrongNoteOpenResult,
+                                  icon: const Icon(Icons.assessment_outlined),
+                                  onPressed: () {
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute<void>(
+                                        builder: (_) => MockExamResultScreen(
+                                          mockSessionId: item.mockSessionId!,
+                                          examTitle: _mockExamLabel(
+                                            item.mockType!,
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                            const Icon(Icons.chevron_right_rounded),
+                          ],
+                        ),
                       ),
                     );
                   },
@@ -71,6 +116,23 @@ class WrongNotesScreen extends ConsumerWidget {
       ),
     );
   }
+}
+
+String _mockExamLabel(MockExamType type) {
+  switch (type) {
+    case MockExamType.weekly:
+      return AppCopyKo.mockExamWeekly;
+    case MockExamType.monthly:
+      return AppCopyKo.mockExamMonthly;
+  }
+}
+
+String _formatDateOnly(DateTime dateTime) {
+  final local = dateTime.toLocal();
+  final year = local.year.toString().padLeft(4, '0');
+  final month = local.month.toString().padLeft(2, '0');
+  final day = local.day.toString().padLeft(2, '0');
+  return '$year-$month-$day';
 }
 
 class WrongNoteDetailScreen extends ConsumerWidget {
