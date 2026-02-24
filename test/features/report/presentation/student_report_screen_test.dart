@@ -8,8 +8,11 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:resol_routine/core/database/app_database.dart';
 import 'package:resol_routine/core/database/database_providers.dart';
+import 'package:resol_routine/core/domain/domain_enums.dart';
 import 'package:resol_routine/core/time/day_key.dart';
 import 'package:resol_routine/features/content_pack/data/content_pack_seeder.dart';
+import 'package:resol_routine/features/mock_exam/data/mock_exam_attempt_repository.dart';
+import 'package:resol_routine/features/mock_exam/data/mock_exam_session_repository.dart';
 import 'package:resol_routine/features/report/application/report_providers.dart';
 import 'package:resol_routine/features/report/data/report_export_repository.dart';
 import 'package:resol_routine/features/report/presentation/student_report_screen.dart';
@@ -77,6 +80,12 @@ void main() {
       final vocabQuizResultsRepository = VocabQuizResultsRepository(
         database: database,
       );
+      final mockExamSessionRepository = MockExamSessionRepository(
+        database: database,
+      );
+      final mockExamAttemptRepository = MockExamAttemptRepository(
+        database: database,
+      );
       reportExportRepository = ReportExportRepository(
         database: database,
         appVersionLoader: () async => '1.0.0+1',
@@ -120,6 +129,21 @@ void main() {
         correctCount: 18,
         wrongVocabIds: <String>[vocabRows[0].id, vocabRows[1].id],
       );
+
+      const testPlan = MockExamQuestionPlan(listeningCount: 3, readingCount: 3);
+      final weeklySession = await mockExamSessionRepository.getOrCreateSession(
+        type: MockExamType.weekly,
+        track: 'M3',
+        plan: testPlan,
+        nowLocal: DateTime(2026, 2, 21, 18, 0),
+      );
+      await _completeMockSession(
+        repository: mockExamAttemptRepository,
+        session: weeklySession,
+        listeningCorrectTarget: 2,
+        readingCorrectTarget: 2,
+      );
+
       await database
           .into(database.vocabUser)
           .insert(
@@ -149,12 +173,20 @@ void main() {
     expect(find.text(firstLemma), findsOneWidget);
     expect(find.text(secondLemma), findsOneWidget);
     expect(find.text('북마크 단어장'), findsOneWidget);
+    expect(find.text('모의고사 요약'), findsOneWidget);
     expect(find.text(bookmarkedLemma), findsNothing);
 
     await tester.tap(find.text('북마크 단어장'));
     await tester.pumpAndSettle();
 
     expect(find.text(bookmarkedLemma), findsOneWidget);
+
+    await tester.ensureVisible(find.text('모의고사 요약'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('모의고사 요약'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('2026W08'), findsOneWidget);
+    expect(find.textContaining('정답 4/20 · 20%'), findsOneWidget);
   });
 }
 
@@ -171,4 +203,31 @@ Future<void> _pumpUntilVisible(
   }
 
   fail('Did not find expected widget after ${maxPumps * 50}ms.');
+}
+
+Future<void> _completeMockSession({
+  required MockExamAttemptRepository repository,
+  required MockExamSessionBundle session,
+  required int listeningCorrectTarget,
+  required int readingCorrectTarget,
+}) async {
+  var listeningSeen = 0;
+  var readingSeen = 0;
+  for (final item in session.items) {
+    late final bool isCorrect;
+    if (item.skill == Skill.listening) {
+      listeningSeen += 1;
+      isCorrect = listeningSeen <= listeningCorrectTarget;
+    } else {
+      readingSeen += 1;
+      isCorrect = readingSeen <= readingCorrectTarget;
+    }
+    await repository.saveAttemptIdempotent(
+      mockSessionId: session.sessionId,
+      questionId: item.questionId,
+      selectedAnswer: 'A',
+      isCorrect: isCorrect,
+      wrongReasonTag: isCorrect ? null : WrongReasonTag.vocab,
+    );
+  }
 }

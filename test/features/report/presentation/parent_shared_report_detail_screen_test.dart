@@ -21,7 +21,7 @@ void main() {
       );
       addTearDown(database.close);
 
-      final report = ReportSchema.v4(
+      final report = ReportSchema.v5(
         generatedAt: DateTime.utc(2026, 2, 21, 12, 0),
         appVersion: '1.0.0+1',
         student: const ReportStudent(
@@ -60,6 +60,21 @@ void main() {
         customVocab: const ReportCustomVocab(
           lemmasById: <String, String>{'user_custom_vocab_1': 'glimmer'},
         ),
+        mockExams: ReportMockExams(
+          weekly: <ReportMockExamSummary>[
+            ReportMockExamSummary(
+              periodKey: '2026W08',
+              track: Track.m3,
+              totalCount: 20,
+              listeningCorrect: 7,
+              readingCorrect: 8,
+              correctCount: 15,
+              wrongCount: 5,
+              completedAt: DateTime.utc(2026, 2, 21, 10, 30),
+            ),
+          ],
+          monthly: const <ReportMockExamSummary>[],
+        ),
       );
       final sharedReportId = await sharedReportsRepository.importFromJson(
         source: 'resolroutine_report_20260221_M3.json',
@@ -95,6 +110,11 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('glimmer'), findsAtLeastNWidgets(1));
       expect(find.text('user_custom_vocab_1'), findsNothing);
+
+      await tester.tap(find.text('모의고사 요약'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('2026W08'), findsOneWidget);
+      expect(find.textContaining('정답 15/20 · 75%'), findsOneWidget);
     },
   );
 
@@ -203,6 +223,10 @@ void main() {
     );
 
     await _pumpUntilVisible(tester, find.text('리포트 상세'));
+    await _scrollUntilVisible(
+      tester,
+      find.byKey(const ValueKey<String>('filter-range-last7')),
+    );
     await tester.tap(find.byKey(const ValueKey<String>('filter-range-last7')));
     await tester.pumpAndSettle();
     await tester.ensureVisible(

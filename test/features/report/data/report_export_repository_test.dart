@@ -7,6 +7,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:resol_routine/core/domain/domain_enums.dart';
 import 'package:resol_routine/core/database/app_database.dart';
 import 'package:resol_routine/features/content_pack/data/content_pack_seeder.dart';
+import 'package:resol_routine/features/mock_exam/data/mock_exam_attempt_repository.dart';
+import 'package:resol_routine/features/mock_exam/data/mock_exam_session_repository.dart';
 import 'package:resol_routine/features/report/data/report_export_repository.dart';
 import 'package:resol_routine/features/today/data/today_quiz_repository.dart';
 import 'package:resol_routine/features/today/data/today_session_repository.dart';
@@ -19,6 +21,8 @@ void main() {
     late TodayQuizRepository quizRepository;
     late ReportExportRepository reportRepository;
     late VocabQuizResultsRepository vocabQuizResultsRepository;
+    late MockExamSessionRepository mockExamSessionRepository;
+    late MockExamAttemptRepository mockExamAttemptRepository;
 
     setUp(() async {
       database = AppDatabase(executor: NativeDatabase.memory());
@@ -41,6 +45,8 @@ void main() {
       vocabQuizResultsRepository = VocabQuizResultsRepository(
         database: database,
       );
+      mockExamSessionRepository = MockExamSessionRepository(database: database);
+      mockExamAttemptRepository = MockExamAttemptRepository(database: database);
     });
 
     tearDown(() async {
@@ -86,9 +92,12 @@ void main() {
         );
 
         expect(exportPayload.fileName, 'resolroutine_report_20260221_M3.json');
-        expect(exportPayload.report.schemaVersion, 4);
+        expect(exportPayload.report.schemaVersion, 5);
         expect(exportPayload.report.appVersion, '9.9.9+9');
         expect(exportPayload.report.days, hasLength(2));
+        expect(exportPayload.report.mockExams, isNotNull);
+        expect(exportPayload.report.mockExams!.weekly, isEmpty);
+        expect(exportPayload.report.mockExams!.monthly, isEmpty);
         expect(exportPayload.report.days.first.dayKey, '20260221');
         expect(exportPayload.report.days.first.solvedCount, 1);
         expect(exportPayload.report.days.first.wrongCount, 1);
@@ -126,7 +135,7 @@ void main() {
         );
 
         expect(report.days, isEmpty);
-        expect(report.schemaVersion, 4);
+        expect(report.schemaVersion, 5);
       },
     );
 
@@ -251,5 +260,89 @@ void main() {
         expect(day.vocabQuiz!.wrongVocabIds, expectedWrongIds);
       },
     );
+
+    test('includes completed weekly and monthly mock summaries', () async {
+      const testPlan = MockExamQuestionPlan(listeningCount: 3, readingCount: 3);
+      final weeklySession = await mockExamSessionRepository.getOrCreateSession(
+        type: MockExamType.weekly,
+        track: 'M3',
+        plan: testPlan,
+        nowLocal: DateTime(2026, 2, 21, 9, 0),
+      );
+      final monthlySession = await mockExamSessionRepository.getOrCreateSession(
+        type: MockExamType.monthly,
+        track: 'M3',
+        plan: testPlan,
+        nowLocal: DateTime(2026, 2, 22, 9, 0),
+      );
+
+      await _completeMockSession(
+        repository: mockExamAttemptRepository,
+        session: weeklySession,
+        listeningCorrectTarget: 2,
+        readingCorrectTarget: 2,
+      );
+      await _completeMockSession(
+        repository: mockExamAttemptRepository,
+        session: monthlySession,
+        listeningCorrectTarget: 2,
+        readingCorrectTarget: 3,
+      );
+
+      final report = await reportRepository.buildCumulativeReport(
+        track: 'M3',
+        nowLocal: DateTime(2026, 2, 22, 23, 59),
+      );
+
+      expect(report.schemaVersion, 5);
+      expect(report.mockExams, isNotNull);
+      expect(report.mockExams!.weekly, hasLength(1));
+      expect(report.mockExams!.monthly, hasLength(1));
+
+      final weekly = report.mockExams!.weekly.first;
+      expect(weekly.periodKey, '2026W08');
+      expect(weekly.track, Track.m3);
+      expect(weekly.totalCount, 20);
+      expect(weekly.listeningCorrect, 2);
+      expect(weekly.readingCorrect, 2);
+      expect(weekly.correctCount, 4);
+      expect(weekly.wrongCount, 16);
+
+      final monthly = report.mockExams!.monthly.first;
+      expect(monthly.periodKey, '202602');
+      expect(monthly.track, Track.m3);
+      expect(monthly.totalCount, 45);
+      expect(monthly.listeningCorrect, 2);
+      expect(monthly.readingCorrect, 3);
+      expect(monthly.correctCount, 5);
+      expect(monthly.wrongCount, 40);
+    });
   });
+}
+
+Future<void> _completeMockSession({
+  required MockExamAttemptRepository repository,
+  required MockExamSessionBundle session,
+  required int listeningCorrectTarget,
+  required int readingCorrectTarget,
+}) async {
+  var listeningSeen = 0;
+  var readingSeen = 0;
+  for (final item in session.items) {
+    late final bool isCorrect;
+    if (item.skill == Skill.listening) {
+      listeningSeen += 1;
+      isCorrect = listeningSeen <= listeningCorrectTarget;
+    } else {
+      readingSeen += 1;
+      isCorrect = readingSeen <= readingCorrectTarget;
+    }
+    await repository.saveAttemptIdempotent(
+      mockSessionId: session.sessionId,
+      questionId: item.questionId,
+      selectedAnswer: 'A',
+      isCorrect: isCorrect,
+      wrongReasonTag: isCorrect ? null : WrongReasonTag.vocab,
+    );
+  }
 }

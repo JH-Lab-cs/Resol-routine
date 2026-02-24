@@ -195,6 +195,170 @@ void main() {
       expect(schema.customVocab!.lemmasById['user_vocab_b'], 'spark');
     });
 
+    test('accepts valid v5 payload with mock exam summaries', () {
+      final payload = <String, Object?>{
+        'schemaVersion': 5,
+        'generatedAt': '2026-02-21T10:30:00.000Z',
+        'student': <String, Object?>{
+          'role': 'STUDENT',
+          'displayName': '민수',
+          'track': 'M3',
+        },
+        'days': <Object?>[
+          <String, Object?>{
+            'dayKey': '20260221',
+            'track': 'M3',
+            'solvedCount': 1,
+            'wrongCount': 0,
+            'listeningCorrect': 1,
+            'readingCorrect': 0,
+            'wrongReasonCounts': <String, Object?>{},
+            'questions': <Object?>[
+              <String, Object?>{
+                'questionId': 'Q-L-1',
+                'skill': 'LISTENING',
+                'typeTag': 'L2',
+                'isCorrect': true,
+              },
+            ],
+          },
+        ],
+        'vocabBookmarks': <String, Object?>{
+          'bookmarkedVocabIds': <Object?>['user_vocab_a'],
+        },
+        'customVocab': <String, Object?>{
+          'lemmasById': <String, Object?>{'user_vocab_a': 'glimmer'},
+        },
+        'mockExams': <String, Object?>{
+          'weekly': <Object?>[
+            <String, Object?>{
+              'periodKey': '2026W08',
+              'track': 'M3',
+              'totalCount': 20,
+              'listeningCorrect': 7,
+              'readingCorrect': 8,
+              'correctCount': 15,
+              'wrongCount': 5,
+              'completedAt': '2026-02-21T10:30:00.000Z',
+            },
+          ],
+          'monthly': <Object?>[
+            <String, Object?>{
+              'periodKey': '202602',
+              'track': 'M3',
+              'totalCount': 45,
+              'listeningCorrect': 13,
+              'readingCorrect': 24,
+              'correctCount': 37,
+              'wrongCount': 8,
+              'completedAt': '2026-02-21T10:30:00.000Z',
+            },
+          ],
+        },
+      };
+
+      final schema = ReportSchema.decode(jsonEncode(payload));
+      expect(schema.schemaVersion, reportSchemaV5);
+      expect(schema.mockExams, isNotNull);
+      expect(schema.mockExams!.weekly, hasLength(1));
+      expect(schema.mockExams!.monthly, hasLength(1));
+      expect(schema.mockExams!.weekly.first.correctCount, 15);
+      expect(schema.mockExams!.monthly.first.correctCount, 37);
+    });
+
+    test('rejects invalid weekly totalCount in v5 mock exam summary', () {
+      final payload = _basePayload();
+      payload['schemaVersion'] = 5;
+      payload['vocabBookmarks'] = <String, Object?>{
+        'bookmarkedVocabIds': <Object?>['user_vocab_a'],
+      };
+      payload['customVocab'] = <String, Object?>{
+        'lemmasById': <String, Object?>{'user_vocab_a': 'glimmer'},
+      };
+      payload['mockExams'] = <String, Object?>{
+        'weekly': <Object?>[
+          <String, Object?>{
+            'periodKey': '2026W08',
+            'track': 'M3',
+            'totalCount': 45,
+            'listeningCorrect': 7,
+            'readingCorrect': 8,
+            'correctCount': 15,
+            'wrongCount': 30,
+            'completedAt': '2026-02-21T10:30:00.000Z',
+          },
+        ],
+        'monthly': <Object?>[],
+      };
+
+      expect(
+        () => ReportSchema.decode(jsonEncode(payload)),
+        throwsA(isA<FormatException>()),
+      );
+    });
+
+    test('rejects duplicated periodKey-track in v5 mock exam summaries', () {
+      final payload = _basePayload();
+      payload['schemaVersion'] = 5;
+      payload['vocabBookmarks'] = <String, Object?>{
+        'bookmarkedVocabIds': <Object?>['user_vocab_a'],
+      };
+      payload['customVocab'] = <String, Object?>{
+        'lemmasById': <String, Object?>{'user_vocab_a': 'glimmer'},
+      };
+      payload['mockExams'] = <String, Object?>{
+        'weekly': <Object?>[
+          <String, Object?>{
+            'periodKey': '2026W08',
+            'track': 'M3',
+            'totalCount': 20,
+            'listeningCorrect': 7,
+            'readingCorrect': 8,
+            'correctCount': 15,
+            'wrongCount': 5,
+            'completedAt': '2026-02-21T10:30:00.000Z',
+          },
+          <String, Object?>{
+            'periodKey': '2026W08',
+            'track': 'M3',
+            'totalCount': 20,
+            'listeningCorrect': 6,
+            'readingCorrect': 8,
+            'correctCount': 14,
+            'wrongCount': 6,
+            'completedAt': '2026-02-20T10:30:00.000Z',
+          },
+        ],
+        'monthly': <Object?>[],
+      };
+
+      expect(
+        () => ReportSchema.decode(jsonEncode(payload)),
+        throwsA(isA<FormatException>()),
+      );
+    });
+
+    test('rejects unknown keys in v5 mockExams', () {
+      final payload = _basePayload();
+      payload['schemaVersion'] = 5;
+      payload['vocabBookmarks'] = <String, Object?>{
+        'bookmarkedVocabIds': <Object?>['user_vocab_a'],
+      };
+      payload['customVocab'] = <String, Object?>{
+        'lemmasById': <String, Object?>{'user_vocab_a': 'glimmer'},
+      };
+      payload['mockExams'] = <String, Object?>{
+        'weekly': <Object?>[],
+        'monthly': <Object?>[],
+        'details': 'not_allowed',
+      };
+
+      expect(
+        () => ReportSchema.decode(jsonEncode(payload)),
+        throwsA(isA<FormatException>()),
+      );
+    });
+
     test('rejects unknown keys for strict schema guard', () {
       final payload = _basePayload();
       final day =
