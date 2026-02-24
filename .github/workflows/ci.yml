@@ -43,3 +43,6 @@ jobs:
 
       - name: Android debug build smoke
         run: flutter build apk --debug
+
+      - name: Android release build smoke
+        run: flutter build apk --release
