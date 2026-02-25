@@ -1,0 +1,72 @@
+name: iOS build smoke
+
+on:
+  workflow_dispatch:
+
+  pull_request:
+    paths:
+      - "ios/**"
+      - "lib/**"
+      - "pubspec.yaml"
+      - "pubspec.lock"
+      - ".github/workflows/**"
+      - "tool/**"
+
+  push:
+    branches: ["main"]
+    paths:
+      - "ios/**"
+      - "lib/**"
+      - "pubspec.yaml"
+      - "pubspec.lock"
+      - ".github/workflows/**"
+      - "tool/**"
+
+concurrency:
+  group: ios-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ios-build-smoke:
+    runs-on: macos-14
+    timeout-minutes: 40
+    env:
+      COCOAPODS_DISABLE_STATS: "true"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Pin Xcode only when needed.
+      # - name: Setup Xcode
+      #   uses: maxim-lobanov/setup-xcode@v1
+      #   with:
+      #     xcode-version: "15.4"
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: "stable"
+          cache: true
+
+      - name: Flutter pub get
+        run: flutter pub get
+
+      - name: Codegen gate
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Security gate (bidi)
+        run: python3 tool/security/check_bidi.py
+
+      - name: Format check
+        run: dart format --set-exit-if-changed .
+
+      - name: Analyze
+        run: dart analyze
+
+      # Keep iOS smoke lean. Tests already run in Android CI.
+      # - name: Tests
+      #   run: flutter test
+
+      - name: iOS build (release, no codesign)
+        run: flutter build ios --release --no-codesign
