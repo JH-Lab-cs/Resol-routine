@@ -11,6 +11,7 @@ class UserSettingsModel {
     required this.track,
     required this.notificationsEnabled,
     required this.studyReminderEnabled,
+    required this.devToolsEnabled,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -21,6 +22,7 @@ class UserSettingsModel {
   final String track;
   final bool notificationsEnabled;
   final bool studyReminderEnabled;
+  final bool devToolsEnabled;
   final DateTime createdAt;
   final DateTime updatedAt;
 }
@@ -131,6 +133,15 @@ class UserSettingsRepository {
     );
   }
 
+  Future<void> updateDevToolsEnabled(bool enabled) {
+    return _update(
+      UserSettingsCompanion(
+        devToolsEnabled: Value(enabled),
+        updatedAt: Value(DateTime.now().toUtc()),
+      ),
+    );
+  }
+
   Future<void> resetForLogout() {
     final nowUtc = DateTime.now().toUtc();
     return _update(
@@ -141,6 +152,7 @@ class UserSettingsRepository {
         track: const Value(defaultTrack),
         notificationsEnabled: const Value(true),
         studyReminderEnabled: const Value(true),
+        devToolsEnabled: const Value(false),
         createdAt: Value(nowUtc),
         updatedAt: Value(nowUtc),
       ),
@@ -157,6 +169,7 @@ class UserSettingsRepository {
         track: const Value(defaultTrack),
         notificationsEnabled: const Value(true),
         studyReminderEnabled: const Value(true),
+        devToolsEnabled: const Value(false),
         createdAt: Value(nowUtc),
         updatedAt: Value(nowUtc),
       ),
@@ -184,6 +197,7 @@ class UserSettingsRepository {
       track: row.track,
       notificationsEnabled: row.notificationsEnabled,
       studyReminderEnabled: row.studyReminderEnabled,
+      devToolsEnabled: row.devToolsEnabled,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     );

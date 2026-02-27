@@ -3522,6 +3522,21 @@ class $UserSettingsTable extends UserSettings
     ),
     defaultValue: const Constant(true),
   );
+  static const VerificationMeta _devToolsEnabledMeta = const VerificationMeta(
+    'devToolsEnabled',
+  );
+  @override
+  late final GeneratedColumn<bool> devToolsEnabled = GeneratedColumn<bool>(
+    'dev_tools_enabled',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("dev_tools_enabled" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -3555,6 +3570,7 @@ class $UserSettingsTable extends UserSettings
     track,
     notificationsEnabled,
     studyReminderEnabled,
+    devToolsEnabled,
     createdAt,
     updatedAt,
   ];
@@ -3618,6 +3634,15 @@ class $UserSettingsTable extends UserSettings
         ),
       );
     }
+    if (data.containsKey('dev_tools_enabled')) {
+      context.handle(
+        _devToolsEnabledMeta,
+        devToolsEnabled.isAcceptableOrUnknown(
+          data['dev_tools_enabled']!,
+          _devToolsEnabledMeta,
+        ),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -3667,6 +3692,10 @@ class $UserSettingsTable extends UserSettings
         DriftSqlType.bool,
         data['${effectivePrefix}study_reminder_enabled'],
       )!,
+      devToolsEnabled: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}dev_tools_enabled'],
+      )!,
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -3692,6 +3721,7 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
   final String track;
   final bool notificationsEnabled;
   final bool studyReminderEnabled;
+  final bool devToolsEnabled;
   final DateTime createdAt;
   final DateTime updatedAt;
   const UserSetting({
@@ -3702,6 +3732,7 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
     required this.track,
     required this.notificationsEnabled,
     required this.studyReminderEnabled,
+    required this.devToolsEnabled,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -3715,6 +3746,7 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
     map['track'] = Variable<String>(track);
     map['notifications_enabled'] = Variable<bool>(notificationsEnabled);
     map['study_reminder_enabled'] = Variable<bool>(studyReminderEnabled);
+    map['dev_tools_enabled'] = Variable<bool>(devToolsEnabled);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     return map;
@@ -3729,6 +3761,7 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
       track: Value(track),
       notificationsEnabled: Value(notificationsEnabled),
       studyReminderEnabled: Value(studyReminderEnabled),
+      devToolsEnabled: Value(devToolsEnabled),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -3751,6 +3784,7 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
       studyReminderEnabled: serializer.fromJson<bool>(
         json['studyReminderEnabled'],
       ),
+      devToolsEnabled: serializer.fromJson<bool>(json['devToolsEnabled']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
     );
@@ -3766,6 +3800,7 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
       'track': serializer.toJson<String>(track),
       'notificationsEnabled': serializer.toJson<bool>(notificationsEnabled),
       'studyReminderEnabled': serializer.toJson<bool>(studyReminderEnabled),
+      'devToolsEnabled': serializer.toJson<bool>(devToolsEnabled),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
     };
@@ -3779,6 +3814,7 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
     String? track,
     bool? notificationsEnabled,
     bool? studyReminderEnabled,
+    bool? devToolsEnabled,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) => UserSetting(
@@ -3789,6 +3825,7 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
     track: track ?? this.track,
     notificationsEnabled: notificationsEnabled ?? this.notificationsEnabled,
     studyReminderEnabled: studyReminderEnabled ?? this.studyReminderEnabled,
+    devToolsEnabled: devToolsEnabled ?? this.devToolsEnabled,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );
@@ -3807,6 +3844,9 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
       studyReminderEnabled: data.studyReminderEnabled.present
           ? data.studyReminderEnabled.value
           : this.studyReminderEnabled,
+      devToolsEnabled: data.devToolsEnabled.present
+          ? data.devToolsEnabled.value
+          : this.devToolsEnabled,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -3822,6 +3862,7 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
           ..write('track: $track, ')
           ..write('notificationsEnabled: $notificationsEnabled, ')
           ..write('studyReminderEnabled: $studyReminderEnabled, ')
+          ..write('devToolsEnabled: $devToolsEnabled, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -3837,6 +3878,7 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
     track,
     notificationsEnabled,
     studyReminderEnabled,
+    devToolsEnabled,
     createdAt,
     updatedAt,
   );
@@ -3851,6 +3893,7 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
           other.track == this.track &&
           other.notificationsEnabled == this.notificationsEnabled &&
           other.studyReminderEnabled == this.studyReminderEnabled &&
+          other.devToolsEnabled == this.devToolsEnabled &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -3863,6 +3906,7 @@ class UserSettingsCompanion extends UpdateCompanion<UserSetting> {
   final Value<String> track;
   final Value<bool> notificationsEnabled;
   final Value<bool> studyReminderEnabled;
+  final Value<bool> devToolsEnabled;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   const UserSettingsCompanion({
@@ -3873,6 +3917,7 @@ class UserSettingsCompanion extends UpdateCompanion<UserSetting> {
     this.track = const Value.absent(),
     this.notificationsEnabled = const Value.absent(),
     this.studyReminderEnabled = const Value.absent(),
+    this.devToolsEnabled = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   });
@@ -3884,6 +3929,7 @@ class UserSettingsCompanion extends UpdateCompanion<UserSetting> {
     this.track = const Value.absent(),
     this.notificationsEnabled = const Value.absent(),
     this.studyReminderEnabled = const Value.absent(),
+    this.devToolsEnabled = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   });
@@ -3895,6 +3941,7 @@ class UserSettingsCompanion extends UpdateCompanion<UserSetting> {
     Expression<String>? track,
     Expression<bool>? notificationsEnabled,
     Expression<bool>? studyReminderEnabled,
+    Expression<bool>? devToolsEnabled,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
   }) {
@@ -3908,6 +3955,7 @@ class UserSettingsCompanion extends UpdateCompanion<UserSetting> {
         'notifications_enabled': notificationsEnabled,
       if (studyReminderEnabled != null)
         'study_reminder_enabled': studyReminderEnabled,
+      if (devToolsEnabled != null) 'dev_tools_enabled': devToolsEnabled,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
     });
@@ -3921,6 +3969,7 @@ class UserSettingsCompanion extends UpdateCompanion<UserSetting> {
     Value<String>? track,
     Value<bool>? notificationsEnabled,
     Value<bool>? studyReminderEnabled,
+    Value<bool>? devToolsEnabled,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
   }) {
@@ -3932,6 +3981,7 @@ class UserSettingsCompanion extends UpdateCompanion<UserSetting> {
       track: track ?? this.track,
       notificationsEnabled: notificationsEnabled ?? this.notificationsEnabled,
       studyReminderEnabled: studyReminderEnabled ?? this.studyReminderEnabled,
+      devToolsEnabled: devToolsEnabled ?? this.devToolsEnabled,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -3963,6 +4013,9 @@ class UserSettingsCompanion extends UpdateCompanion<UserSetting> {
         studyReminderEnabled.value,
       );
     }
+    if (devToolsEnabled.present) {
+      map['dev_tools_enabled'] = Variable<bool>(devToolsEnabled.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -3982,6 +4035,7 @@ class UserSettingsCompanion extends UpdateCompanion<UserSetting> {
           ..write('track: $track, ')
           ..write('notificationsEnabled: $notificationsEnabled, ')
           ..write('studyReminderEnabled: $studyReminderEnabled, ')
+          ..write('devToolsEnabled: $devToolsEnabled, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -11451,6 +11505,7 @@ typedef $$UserSettingsTableCreateCompanionBuilder =
       Value<String> track,
       Value<bool> notificationsEnabled,
       Value<bool> studyReminderEnabled,
+      Value<bool> devToolsEnabled,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
     });
@@ -11463,6 +11518,7 @@ typedef $$UserSettingsTableUpdateCompanionBuilder =
       Value<String> track,
       Value<bool> notificationsEnabled,
       Value<bool> studyReminderEnabled,
+      Value<bool> devToolsEnabled,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
     });
@@ -11508,6 +11564,11 @@ class $$UserSettingsTableFilterComposer
 
   ColumnFilters<bool> get studyReminderEnabled => $composableBuilder(
     column: $table.studyReminderEnabled,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get devToolsEnabled => $composableBuilder(
+    column: $table.devToolsEnabled,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -11566,6 +11627,11 @@ class $$UserSettingsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get devToolsEnabled => $composableBuilder(
+    column: $table.devToolsEnabled,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -11610,6 +11676,11 @@ class $$UserSettingsTableAnnotationComposer
 
   GeneratedColumn<bool> get studyReminderEnabled => $composableBuilder(
     column: $table.studyReminderEnabled,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get devToolsEnabled => $composableBuilder(
+    column: $table.devToolsEnabled,
     builder: (column) => column,
   );
 
@@ -11658,6 +11729,7 @@ class $$UserSettingsTableTableManager
                 Value<String> track = const Value.absent(),
                 Value<bool> notificationsEnabled = const Value.absent(),
                 Value<bool> studyReminderEnabled = const Value.absent(),
+                Value<bool> devToolsEnabled = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
               }) => UserSettingsCompanion(
@@ -11668,6 +11740,7 @@ class $$UserSettingsTableTableManager
                 track: track,
                 notificationsEnabled: notificationsEnabled,
                 studyReminderEnabled: studyReminderEnabled,
+                devToolsEnabled: devToolsEnabled,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
               ),
@@ -11680,6 +11753,7 @@ class $$UserSettingsTableTableManager
                 Value<String> track = const Value.absent(),
                 Value<bool> notificationsEnabled = const Value.absent(),
                 Value<bool> studyReminderEnabled = const Value.absent(),
+                Value<bool> devToolsEnabled = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
               }) => UserSettingsCompanion.insert(
@@ -11690,6 +11764,7 @@ class $$UserSettingsTableTableManager
                 track: track,
                 notificationsEnabled: notificationsEnabled,
                 studyReminderEnabled: studyReminderEnabled,
+                devToolsEnabled: devToolsEnabled,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
               ),

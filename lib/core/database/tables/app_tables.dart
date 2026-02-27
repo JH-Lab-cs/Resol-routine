@@ -200,6 +200,8 @@ class UserSettings extends Table {
       boolean().withDefault(const Constant(true))();
   BoolColumn get studyReminderEnabled =>
       boolean().withDefault(const Constant(true))();
+  BoolColumn get devToolsEnabled =>
+      boolean().withDefault(const Constant(false))();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
 

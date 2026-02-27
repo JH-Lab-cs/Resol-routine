@@ -8,20 +8,28 @@ import '../../../core/ui/app_tokens.dart';
 import '../../../core/ui/components/app_snackbars.dart';
 import '../application/profile_ui_prefs_provider.dart';
 import '../../settings/application/user_settings_providers.dart';
+import '../../settings/data/user_settings_repository.dart';
 import 'membership_plan_screen.dart';
+import 'profile_manage_screen.dart';
 
 final mySettingsVersionProvider = FutureProvider<String>((Ref ref) async {
   final packageInfo = await PackageInfo.fromPlatform();
   return '${packageInfo.version}+${packageInfo.buildNumber}';
 });
 
-class MySettingsScreen extends ConsumerWidget {
+class MySettingsScreen extends ConsumerStatefulWidget {
   const MySettingsScreen({super.key});
 
+  @override
+  ConsumerState<MySettingsScreen> createState() => _MySettingsScreenState();
+}
+
+class _MySettingsScreenState extends ConsumerState<MySettingsScreen> {
   static const String _supportEmail = 'support@resolroutine.app';
+  int _versionTapCount = 0;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final settingsState = ref.watch(userSettingsProvider);
     final versionAsync = ref.watch(mySettingsVersionProvider);
 
@@ -37,6 +45,10 @@ class MySettingsScreen extends ConsumerWidget {
           ),
         ),
         data: (settings) {
+          final normalizedName = settings.displayName.trim().isEmpty
+              ? '이름 미설정'
+              : settings.displayName.trim();
+          final studentCode = _buildStudentCode(settings);
           return ListView(
             padding: const EdgeInsets.fromLTRB(
               AppSpacing.mdLg,
@@ -45,6 +57,26 @@ class MySettingsScreen extends ConsumerWidget {
               AppSpacing.lg,
             ),
             children: [
+              _SettingsProfileCard(
+                displayName: normalizedName,
+                studentCode: studentCode,
+                onCopyCode: () => _copyStudentCode(context, studentCode),
+              ),
+              const SizedBox(height: AppSpacing.mdLg),
+              Card(
+                child: _ListTile(
+                  title: '내 정보 수정',
+                  onTap: () {
+                    Navigator.of(context).push<void>(
+                      MaterialPageRoute<void>(
+                        builder: (_) =>
+                            ProfileManageScreen(initialSettings: settings),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: AppSpacing.mdLg),
               const _SectionHeader(title: '멤버십'),
               const SizedBox(height: AppSpacing.xs),
               _ActionCard(
@@ -156,6 +188,8 @@ class MySettingsScreen extends ConsumerWidget {
               const SizedBox(height: AppSpacing.md),
               Card(
                 child: ListTile(
+                  key: const ValueKey<String>('settings-app-version-row'),
+                  onTap: _handleVersionTap,
                   leading: const Icon(
                     Icons.info_outline_rounded,
                     color: AppColors.textSecondary,
@@ -261,6 +295,157 @@ class MySettingsScreen extends ConsumerWidget {
       ageLabel: '고1',
       birthDate: '',
       avatarImagePath: null,
+    );
+  }
+
+  Future<void> _copyStudentCode(BuildContext context, String code) async {
+    await Clipboard.setData(ClipboardData(text: code));
+    if (!context.mounted) {
+      return;
+    }
+    AppSnackbars.showSuccess(context, '학생 코드를 복사했어요.');
+  }
+
+  String _buildStudentCode(UserSettingsModel settings) {
+    final normalizedName = settings.displayName.trim().isEmpty
+        ? 'USER'
+        : settings.displayName.trim();
+    final seed =
+        '$normalizedName|${settings.createdAt.microsecondsSinceEpoch}|${settings.track}';
+    var hash = 17;
+    for (final codeUnit in seed.codeUnits) {
+      hash = 37 * hash + codeUnit;
+      hash &= 0x7fffffff;
+    }
+    final main = ((hash % 9000) + 1000).toString().padLeft(4, '0');
+    return 'RSL-$main-${settings.track}';
+  }
+
+  Future<void> _handleVersionTap() async {
+    _versionTapCount += 1;
+    if (_versionTapCount < 7) {
+      return;
+    }
+    _versionTapCount = 0;
+
+    final settings = ref.read(userSettingsProvider).valueOrNull;
+    if (settings == null) {
+      return;
+    }
+
+    final next = !settings.devToolsEnabled;
+    try {
+      await ref.read(userSettingsProvider.notifier).updateDevToolsEnabled(next);
+      if (!mounted) {
+        return;
+      }
+      AppSnackbars.showSuccess(
+        context,
+        next ? '개발자 메뉴를 활성화했습니다.' : '개발자 메뉴를 비활성화했습니다.',
+      );
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      AppSnackbars.showError(context, AppCopyKo.settingsSaveFailed);
+    }
+  }
+}
+
+class _SettingsProfileCard extends StatelessWidget {
+  const _SettingsProfileCard({
+    required this.displayName,
+    required this.studentCode,
+    required this.onCopyCode,
+  });
+
+  final String displayName;
+  final String studentCode;
+  final VoidCallback onCopyCode;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.mdLg),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 84,
+            height: 84,
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              color: Color(0xFFF1F2F6),
+            ),
+            child: const Icon(
+              Icons.person_rounded,
+              size: 44,
+              color: Color(0xFFA4A7AF),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '$displayName 님',
+                  style: AppTypography.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.sm,
+                    vertical: AppSpacing.xs,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF0F1F6),
+                    borderRadius: BorderRadius.circular(AppRadius.md),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          '코드: $studentCode',
+                          style: AppTypography.body.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.xs),
+                      Semantics(
+                        label: '학생 코드 복사',
+                        button: true,
+                        child: IconButton(
+                          key: const ValueKey<String>(
+                            'settings-copy-student-code',
+                          ),
+                          tooltip: '학생 코드 복사',
+                          visualDensity: VisualDensity.compact,
+                          onPressed: onCopyCode,
+                          icon: const Icon(
+                            Icons.content_copy_rounded,
+                            size: 20,
+                            color: Color(0xFF9EA2AD),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -57,6 +57,12 @@ class UserSettingsNotifier extends AsyncNotifier<UserSettingsModel> {
     );
   }
 
+  Future<void> updateDevToolsEnabled(bool enabled) async {
+    await _persistAndPublish(
+      (repository) => repository.updateDevToolsEnabled(enabled),
+    );
+  }
+
   Future<void> logout() async {
     await _persistAndPublish((repository) => repository.resetForLogout());
   }

@@ -25,6 +25,7 @@ class AppCopyKo {
   static const String reportImportFailed = '리포트를 가져오지 못했습니다.';
   static const String reportImportInvalid = '리포트 형식이 올바르지 않습니다.';
   static const String reportDeleteSuccess = '리포트를 삭제했습니다.';
+  static const String reportDeleteFailed = '리포트 삭제에 실패했습니다.';
   static const String reportDeleteAlready = '이미 삭제된 리포트입니다.';
   static const String reportShareSuccess = '리포트를 공유했습니다.';
   static const String reportShareFailed = '리포트 공유에 실패했습니다.';
@@ -54,6 +55,9 @@ class AppCopyKo {
   static const String mockHistoryDeleteSuccess = '모의고사 기록을 삭제했습니다.';
   static const String mockHistoryDeleteFailed = '모의고사 기록 삭제에 실패했습니다.';
   static const String mockHistoryDeleteAlready = '이미 삭제된 모의고사 기록입니다.';
+  static const String parentInviteCodeInvalid = '초대 코드는 숫자 6자리여야 합니다.';
+  static const String parentChildAdded = '자녀를 추가했습니다.';
+  static const String parentChildAddFailed = '자녀를 추가하지 못했습니다.';
 
   static String mockHistoryDeleteTitle(String examLabel) {
     return '$examLabel 기록 삭제';

@@ -36,7 +36,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase({QueryExecutor? executor}) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 10;
+  int get schemaVersion => 11;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -72,6 +72,9 @@ class AppDatabase extends _$AppDatabase {
       }
       if (from < 10) {
         await _migrateToV10(m);
+      }
+      if (from < 11) {
+        await _migrateToV11(m);
       }
       await _createIndexes();
       await _ensureUserSettingsRow();
@@ -221,6 +224,20 @@ class AppDatabase extends _$AppDatabase {
     } finally {
       await customStatement('PRAGMA foreign_keys = ON');
     }
+  }
+
+  Future<void> _migrateToV11(Migrator m) async {
+    final columns = await customSelect(
+      "PRAGMA table_info('user_settings')",
+      readsFrom: {userSettings},
+    ).get();
+    final hasDevToolsEnabled = columns.any(
+      (row) => row.read<String>('name') == 'dev_tools_enabled',
+    );
+    if (hasDevToolsEnabled) {
+      return;
+    }
+    await m.addColumn(userSettings, userSettings.devToolsEnabled);
   }
 
   Future<void> _createIndexes() async {
