@@ -8,7 +8,7 @@ import 'package:path/path.dart' as p;
 import 'package:resol_routine/core/database/app_database.dart';
 
 void main() {
-  test('migrates v1 schema to v10 while preserving rows', () async {
+  test('migrates v1 schema to v11 while preserving rows', () async {
     final tempDir = await Directory.systemTemp.createTemp('resol_migration_');
     final dbFile = File(p.join(tempDir.path, 'migration_v1.sqlite'));
 
@@ -29,7 +29,7 @@ void main() {
     final userVersionRow = await database
         .customSelect('PRAGMA user_version', readsFrom: {})
         .getSingle();
-    expect(userVersionRow.read<int>('user_version'), 10);
+    expect(userVersionRow.read<int>('user_version'), 11);
 
     final attemptsRow = await database
         .customSelect('SELECT COUNT(*) AS count FROM attempts', readsFrom: {})
@@ -77,7 +77,8 @@ void main() {
 
     final userSettingsRow = await database
         .customSelect(
-          'SELECT role, display_name, birth_date, track FROM user_settings WHERE id = 1',
+          'SELECT role, display_name, birth_date, track, dev_tools_enabled '
+          'FROM user_settings WHERE id = 1',
           readsFrom: {database.userSettings},
         )
         .getSingle();
@@ -85,6 +86,7 @@ void main() {
     expect(userSettingsRow.read<String>('display_name'), '');
     expect(userSettingsRow.read<String>('birth_date'), '');
     expect(userSettingsRow.read<String>('track'), 'M3');
+    expect(userSettingsRow.read<bool>('dev_tools_enabled'), isFalse);
 
     final sharedReportsCountRow = await database
         .customSelect(

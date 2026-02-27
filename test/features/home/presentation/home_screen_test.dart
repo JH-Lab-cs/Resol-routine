@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
@@ -9,24 +7,22 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:resol_routine/core/database/app_database.dart';
 import 'package:resol_routine/core/database/database_providers.dart';
 import 'package:resol_routine/core/domain/domain_enums.dart';
+import 'package:resol_routine/features/dev/application/dev_tools_providers.dart';
 import 'package:resol_routine/features/home/application/home_providers.dart';
 import 'package:resol_routine/features/home/presentation/home_screen.dart';
 import 'package:resol_routine/features/mock_exam/application/mock_exam_providers.dart';
 import 'package:resol_routine/features/mock_exam/data/mock_exam_period_key.dart';
 import 'package:resol_routine/features/mock_exam/data/mock_exam_session_repository.dart';
-import 'package:resol_routine/features/report/application/report_providers.dart';
-import 'package:resol_routine/features/report/data/shared_reports_repository.dart';
 import 'package:resol_routine/features/settings/data/user_settings_repository.dart';
 import 'package:resol_routine/features/today/data/today_quiz_repository.dart';
 import 'package:resol_routine/features/today/data/today_session_repository.dart';
 
 void main() {
-  testWidgets('shows parent home skeleton while report summaries load', (
+  testWidgets('shows child selector and add action in parent home', (
     WidgetTester tester,
   ) async {
     final database = AppDatabase(executor: NativeDatabase.memory());
     addTearDown(database.close);
-    final summariesCompleter = Completer<List<SharedReportSummary>>();
 
     final settingsRepository = UserSettingsRepository(database: database);
     await settingsRepository.updateRole('PARENT');
@@ -36,9 +32,7 @@ void main() {
       ProviderScope(
         overrides: [
           appDatabaseProvider.overrideWithValue(database),
-          sharedReportSummariesProvider.overrideWith((ref) {
-            return summariesCompleter.future;
-          }),
+          devToolsVisibleProvider.overrideWith((ref) => false),
         ],
         child: MaterialApp(
           home: HomeScreen(
@@ -48,20 +42,19 @@ void main() {
             onOpenVocab: () {},
             onOpenTodayVocabQuiz: () {},
             onOpenWrongNotes: () {},
+            onOpenWrongReview: () {},
             onOpenMy: () {},
           ),
         ),
       ),
     );
 
-    await tester.pump(const Duration(milliseconds: 120));
-    expect(
-      find.byKey(const ValueKey<String>('parent-home-loading-skeleton')),
-      findsOneWidget,
-    );
-
-    summariesCompleter.complete(const <SharedReportSummary>[]);
     await tester.pumpAndSettle();
+    expect(find.text('자녀 선택'), findsOneWidget);
+    expect(find.text('학습 리포트'), findsOneWidget);
+    expect(find.text('자녀 연동 후 자동으로 표시됩니다.'), findsOneWidget);
+    expect(find.text('최근 학습 활동'), findsNothing);
+    expect(find.text('추가'), findsAtLeastNWidgets(1));
   });
 
   testWidgets('parent home layout stays stable at text scale 1.4', (
@@ -78,23 +71,7 @@ void main() {
       ProviderScope(
         overrides: [
           appDatabaseProvider.overrideWithValue(database),
-          sharedReportSummariesProvider.overrideWith((ref) async {
-            return <SharedReportSummary>[
-              SharedReportSummary(
-                id: 1,
-                source: 'resolroutine_report_20260228_M3.json',
-                createdAt: DateTime.utc(2026, 2, 28, 12, 0),
-                generatedAt: DateTime.utc(2026, 2, 28, 12, 0),
-                latestDayKey: '20260228',
-                track: 'M3',
-                studentDisplayName: '아주아주긴학생이름테스트용',
-                dayCount: 7,
-                totalSolvedCount: 30,
-                totalWrongCount: 8,
-                topWrongReasonTag: 'VOCAB',
-              ),
-            ];
-          }),
+          devToolsVisibleProvider.overrideWith((ref) => false),
         ],
         child: MediaQuery(
           data: const MediaQueryData(textScaler: TextScaler.linear(1.4)),
@@ -106,6 +83,7 @@ void main() {
               onOpenVocab: () {},
               onOpenTodayVocabQuiz: () {},
               onOpenWrongNotes: () {},
+              onOpenWrongReview: () {},
               onOpenMy: () {},
             ),
           ),
@@ -114,9 +92,55 @@ void main() {
     );
 
     await tester.pumpAndSettle();
-    expect(find.text('가정 리포트'), findsOneWidget);
+    expect(find.text('자녀 선택'), findsOneWidget);
+    expect(find.text('자녀 연동 후 자동으로 표시됩니다.'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+    'shows dev reports test button when parent dev tools are visible',
+    (WidgetTester tester) async {
+      final database = AppDatabase(executor: NativeDatabase.memory());
+      addTearDown(database.close);
+
+      final settingsRepository = UserSettingsRepository(database: database);
+      await settingsRepository.updateRole('PARENT');
+      await settingsRepository.updateName('보호자');
+
+      var openDevReportsCount = 0;
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            appDatabaseProvider.overrideWithValue(database),
+            devToolsVisibleProvider.overrideWith((ref) => true),
+          ],
+          child: MaterialApp(
+            home: HomeScreen(
+              onOpenQuiz: () {},
+              onOpenWeeklyMockExam: () {},
+              onOpenMonthlyMockExam: () {},
+              onOpenVocab: () {},
+              onOpenTodayVocabQuiz: () {},
+              onOpenWrongNotes: () {},
+              onOpenWrongReview: () {},
+              onOpenMy: () {},
+              onOpenDevReports: () {
+                openDevReportsCount += 1;
+              },
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(const ValueKey<String>('parent-home-dev-reports-button')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(openDevReportsCount, 1);
+    },
+  );
 
   testWidgets('student mock cards show start, continue, and result states', (
     WidgetTester tester,
@@ -183,6 +207,7 @@ void main() {
                 onOpenVocab: () {},
                 onOpenTodayVocabQuiz: () {},
                 onOpenWrongNotes: () {},
+                onOpenWrongReview: () {},
                 onOpenMy: () {},
               ),
             ),
@@ -202,7 +227,7 @@ void main() {
     expect(
       find.descendant(
         of: find.byKey(const ValueKey<String>('home-mock-weekly-card')),
-        matching: find.textContaining('시작하기'),
+        matching: find.textContaining('듣기 10 + 독해 10'),
       ),
       findsOneWidget,
     );
@@ -340,6 +365,7 @@ void main() {
                   onOpenVocab: () {},
                   onOpenTodayVocabQuiz: () {},
                   onOpenWrongNotes: () {},
+                  onOpenWrongReview: () {},
                   onOpenMy: () {},
                 ),
               ),
@@ -371,7 +397,7 @@ void main() {
       expect(
         find.descendant(
           of: find.byKey(const ValueKey<String>('home-mock-weekly-card')),
-          matching: find.textContaining('시작하기'),
+          matching: find.textContaining('듣기 10 + 독해 10'),
         ),
         findsOneWidget,
       );

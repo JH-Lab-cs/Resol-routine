@@ -22,6 +22,7 @@ void main() {
       expect(settings.track, UserSettingsRepository.defaultTrack);
       expect(settings.notificationsEnabled, true);
       expect(settings.studyReminderEnabled, true);
+      expect(settings.devToolsEnabled, false);
     });
 
     test('persists updated settings after reopening database', () async {
@@ -45,6 +46,7 @@ void main() {
       await firstRepo.updateRole('PARENT');
       await firstRepo.updateNotificationsEnabled(false);
       await firstRepo.updateStudyReminderEnabled(false);
+      await firstRepo.updateDevToolsEnabled(true);
       await firstDb.close();
 
       final reopenedDb = AppDatabase(executor: NativeDatabase(dbFile));
@@ -59,6 +61,7 @@ void main() {
       expect(settings.role, 'PARENT');
       expect(settings.notificationsEnabled, false);
       expect(settings.studyReminderEnabled, false);
+      expect(settings.devToolsEnabled, true);
     });
 
     test('allows clearing optional birth date', () async {
@@ -94,6 +97,7 @@ void main() {
       expect(settings.track, UserSettingsRepository.defaultTrack);
       expect(settings.notificationsEnabled, true);
       expect(settings.studyReminderEnabled, true);
+      expect(settings.devToolsEnabled, false);
       expect(settings.createdAt.isAtSameMomentAs(settings.updatedAt), isTrue);
     });
 
@@ -120,8 +124,21 @@ void main() {
         expect(settings.track, UserSettingsRepository.defaultTrack);
         expect(settings.notificationsEnabled, true);
         expect(settings.studyReminderEnabled, true);
+        expect(settings.devToolsEnabled, false);
         expect(settings.createdAt.isAtSameMomentAs(settings.updatedAt), isTrue);
       },
     );
+
+    test('can toggle dev tools setting', () async {
+      final database = AppDatabase(executor: NativeDatabase.memory());
+      addTearDown(database.close);
+
+      final repository = UserSettingsRepository(database: database);
+      await repository.updateDevToolsEnabled(true);
+      expect((await repository.get()).devToolsEnabled, isTrue);
+
+      await repository.updateDevToolsEnabled(false);
+      expect((await repository.get()).devToolsEnabled, isFalse);
+    });
   });
 }

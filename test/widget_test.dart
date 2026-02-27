@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:drift/drift.dart';
@@ -16,8 +15,7 @@ import 'package:resol_routine/core/time/day_key.dart';
 import 'package:resol_routine/features/content_pack/application/content_pack_bootstrap.dart';
 import 'package:resol_routine/features/content_pack/data/content_pack_seeder.dart';
 import 'package:resol_routine/features/my/application/my_stats_providers.dart';
-import 'package:resol_routine/features/report/application/report_providers.dart';
-import 'package:resol_routine/features/report/data/shared_reports_repository.dart';
+import 'package:resol_routine/features/my/presentation/my_screen.dart';
 import 'package:resol_routine/features/settings/application/user_settings_providers.dart';
 import 'package:resol_routine/features/settings/data/user_settings_repository.dart';
 import 'package:resol_routine/features/today/application/today_quiz_providers.dart';
@@ -54,9 +52,9 @@ void main() {
       ),
     );
 
-    await _pumpUntilVisible(tester, find.text('오늘도 화이팅, 지훈! 👋'));
+    await _pumpUntilVisible(tester, find.text('반가워요, 지훈 학생! 👋'));
 
-    expect(find.text('오늘도 화이팅, 지훈! 👋'), findsOneWidget);
+    expect(find.text('반가워요, 지훈 학생! 👋'), findsOneWidget);
     expect(find.text('오늘 루틴 시작하기'), findsOneWidget);
 
     await tester.tap(find.text('오늘 루틴 시작하기'));
@@ -113,11 +111,11 @@ void main() {
     await tester.tap(find.text('시작하기'));
     await tester.pumpAndSettle();
 
-    await _pumpUntilVisible(tester, find.text('오늘도 화이팅, 민수! 👋'));
-    expect(find.text('오늘도 화이팅, 민수! 👋'), findsOneWidget);
+    await _pumpUntilVisible(tester, find.text('반가워요, 민수 학생! 👋'));
+    expect(find.text('반가워요, 민수 학생! 👋'), findsOneWidget);
   });
 
-  testWidgets('parent onboarding requires only name input', (
+  testWidgets('parent onboarding requires only name input and lands on home', (
     WidgetTester tester,
   ) async {
     final sharedDb = AppDatabase(executor: NativeDatabase.memory());
@@ -156,26 +154,23 @@ void main() {
     await tester.tap(find.text('시작하기'));
     await tester.pumpAndSettle();
 
-    await _pumpUntilVisible(tester, find.text('리포트 가져오기'));
-    expect(find.text('리포트 가져오기'), findsOneWidget);
+    await _pumpUntilVisible(tester, find.text('자녀 선택'));
+    expect(find.text('자녀 선택'), findsOneWidget);
+    expect(find.text('학습 리포트'), findsOneWidget);
+    expect(find.text('자녀 연동 후 자동으로 표시됩니다.'), findsOneWidget);
+    expect(find.text('단어장'), findsNothing);
+    expect(find.text('오답 복습'), findsNothing);
   });
 
-  testWidgets('parent home renders imported reports and opens detail', (
+  testWidgets('parent app bar bell opens notification inbox', (
     WidgetTester tester,
   ) async {
     final sharedDb = AppDatabase(executor: NativeDatabase.memory());
     final fakeSessionRepository = _FakeTodaySessionRepository(sharedDb);
     final fakeQuizRepository = _FakeTodayQuizRepository(sharedDb);
     final settingsRepository = UserSettingsRepository(database: sharedDb);
-    final sharedReportsRepository = SharedReportsRepository(database: sharedDb);
-
     await settingsRepository.updateRole('PARENT');
     await settingsRepository.updateName('보호자');
-    await sharedReportsRepository.importFromJson(
-      source: 'resolroutine_report_20260221_M3.json',
-      payloadJson: _sampleSharedReportJson(),
-    );
-
     addTearDown(sharedDb.close);
 
     await tester.pumpWidget(
@@ -192,43 +187,28 @@ void main() {
       ),
     );
 
-    await _pumpUntilVisible(tester, find.text('리포트 가져오기'));
-    await _pumpUntilVisible(tester, find.textContaining('오답 1개'));
-    expect(find.textContaining('오답 1개'), findsOneWidget);
-
-    final titleFinder = find.text('민수');
-    final fallbackTitleFinder = find.text(
-      'resolroutine_report_20260221_M3.json',
-    );
-    if (titleFinder.evaluate().isNotEmpty) {
-      await tester.tap(titleFinder);
-    } else {
-      await tester.tap(fallbackTitleFinder);
-    }
+    await _pumpUntilVisible(tester, find.text('자녀 선택'));
+    await tester.tap(find.byTooltip('알림함'));
     await tester.pumpAndSettle();
 
-    expect(find.text('리포트 상세'), findsOneWidget);
-    expect(find.textContaining('총 오답 1문항'), findsOneWidget);
+    expect(find.text('알림함 🔔'), findsOneWidget);
+    expect(find.textContaining('숙제 마감 알림'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('닫기'));
+    await tester.pumpAndSettle();
+    expect(find.text('알림함 🔔'), findsNothing);
   });
 
   testWidgets(
-    'parent detail day card is collapsed by default and expands on tap',
+    'parent my screen renders settings and supports add child dialog',
     (WidgetTester tester) async {
       final sharedDb = AppDatabase(executor: NativeDatabase.memory());
       final fakeSessionRepository = _FakeTodaySessionRepository(sharedDb);
       final fakeQuizRepository = _FakeTodayQuizRepository(sharedDb);
       final settingsRepository = UserSettingsRepository(database: sharedDb);
-      final sharedReportsRepository = SharedReportsRepository(
-        database: sharedDb,
-      );
 
       await settingsRepository.updateRole('PARENT');
       await settingsRepository.updateName('보호자');
-      await sharedReportsRepository.importFromJson(
-        source: 'resolroutine_report_20260221_M3.json',
-        payloadJson: _sampleSharedReportJson(),
-      );
-
       addTearDown(sharedDb.close);
 
       await tester.pumpWidget(
@@ -245,260 +225,35 @@ void main() {
         ),
       );
 
-      await _pumpUntilVisible(tester, find.textContaining('오답 1개'));
-      await tester.tap(find.textContaining('오답 1개'));
+      await _pumpUntilVisible(tester, find.text('자녀 선택'));
+      await tester.tap(find.text('마이'));
       await tester.pumpAndSettle();
-      await _pumpUntilVisible(tester, find.text('리포트 상세'));
+      await _pumpUntilVisible(tester, find.text('학부모 설정'));
 
-      expect(find.textContaining('ID L-001'), findsNothing);
+      expect(find.text('연결된 자녀'), findsOneWidget);
+      expect(find.text('김철수'), findsOneWidget);
+      expect(find.text('김영희'), findsOneWidget);
 
-      await _scrollUntilVisible(
-        tester,
-        find.byKey(const ValueKey('report-day-toggle-20260221-M3')),
-      );
-      await tester.tap(
-        find.byKey(const ValueKey('report-day-toggle-20260221-M3')),
-      );
+      await tester.tap(find.widgetWithText(OutlinedButton, '추가').first);
+      await tester.pumpAndSettle();
+      expect(find.text('자녀 추가하기'), findsOneWidget);
+
+      await tester.enterText(find.byType(TextField).first, '654321');
+      await tester.tap(find.widgetWithText(FilledButton, '추가'));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('ID L-001'), findsOneWidget);
+      expect(find.text('자녀를 추가했습니다.'), findsOneWidget);
+      expect(find.text('자녀 3'), findsOneWidget);
+
+      await tester.scrollUntilVisible(
+        find.text('학습 알림 설정'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('학습 알림 설정'), findsOneWidget);
     },
   );
-
-  testWidgets('parent detail shows vocab lemma and unknown id fallback', (
-    WidgetTester tester,
-  ) async {
-    final sharedDb = AppDatabase(executor: NativeDatabase.memory());
-    final fakeSessionRepository = _FakeTodaySessionRepository(sharedDb);
-    final fakeQuizRepository = _FakeTodayQuizRepository(sharedDb);
-    final settingsRepository = UserSettingsRepository(database: sharedDb);
-    final sharedReportsRepository = SharedReportsRepository(database: sharedDb);
-
-    await settingsRepository.updateRole('PARENT');
-    await settingsRepository.updateName('보호자');
-    await sharedDb
-        .into(sharedDb.vocabMaster)
-        .insert(
-          VocabMasterCompanion.insert(
-            id: 'known_vocab_id',
-            lemma: 'orchard',
-            meaning: '과수원',
-          ),
-        );
-    await sharedReportsRepository.importFromJson(
-      source: 'resolroutine_report_20260222_M3.json',
-      payloadJson: _sampleSharedReportWithVocabQuizJson(
-        knownVocabId: 'known_vocab_id',
-      ),
-    );
-
-    addTearDown(sharedDb.close);
-
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          appDatabaseProvider.overrideWithValue(sharedDb),
-          appBootstrapProvider.overrideWith((ref) async {}),
-          todaySessionRepositoryProvider.overrideWithValue(
-            fakeSessionRepository,
-          ),
-          todayQuizRepositoryProvider.overrideWithValue(fakeQuizRepository),
-        ],
-        child: const ResolRoutineApp(),
-      ),
-    );
-
-    await _pumpUntilVisible(tester, find.text('리포트 가져오기'));
-    await _pumpUntilVisible(tester, find.text('민수'));
-    await tester.tap(find.text('민수'));
-    await tester.pumpAndSettle();
-    await _pumpUntilVisible(tester, find.text('리포트 상세'));
-
-    expect(find.text('orchard'), findsNothing);
-    expect(find.text('missing_vocab_id'), findsNothing);
-
-    await _scrollUntilVisible(
-      tester,
-      find.byKey(const ValueKey('report-day-toggle-20260222-M3')),
-    );
-    await tester.tap(
-      find.byKey(const ValueKey('report-day-toggle-20260222-M3')),
-    );
-    await tester.pumpAndSettle();
-    await _pumpUntilVisible(tester, find.text('orchard'));
-
-    expect(find.text('orchard'), findsOneWidget);
-    expect(find.text('missing_vocab_id'), findsOneWidget);
-  });
-
-  testWidgets('parent detail shows bookmark lemmas and fallback ids', (
-    WidgetTester tester,
-  ) async {
-    final sharedDb = AppDatabase(executor: NativeDatabase.memory());
-    final fakeSessionRepository = _FakeTodaySessionRepository(sharedDb);
-    final fakeQuizRepository = _FakeTodayQuizRepository(sharedDb);
-    final settingsRepository = UserSettingsRepository(database: sharedDb);
-    final sharedReportsRepository = SharedReportsRepository(database: sharedDb);
-
-    await settingsRepository.updateRole('PARENT');
-    await settingsRepository.updateName('보호자');
-    await sharedDb
-        .into(sharedDb.vocabMaster)
-        .insert(
-          VocabMasterCompanion.insert(
-            id: 'known_bookmark_id',
-            lemma: 'glimmer',
-            meaning: '반짝임',
-          ),
-        );
-    await sharedReportsRepository.importFromJson(
-      source: 'resolroutine_report_20260223_M3.json',
-      payloadJson: _sampleSharedReportWithBookmarksJson(
-        knownBookmarkId: 'known_bookmark_id',
-      ),
-    );
-
-    addTearDown(sharedDb.close);
-
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          appDatabaseProvider.overrideWithValue(sharedDb),
-          appBootstrapProvider.overrideWith((ref) async {}),
-          todaySessionRepositoryProvider.overrideWithValue(
-            fakeSessionRepository,
-          ),
-          todayQuizRepositoryProvider.overrideWithValue(fakeQuizRepository),
-        ],
-        child: const ResolRoutineApp(),
-      ),
-    );
-
-    await _pumpUntilVisible(tester, find.text('리포트 가져오기'));
-    await _pumpUntilVisible(tester, find.text('민수'));
-    await tester.tap(find.text('민수'));
-    await tester.pumpAndSettle();
-    await _pumpUntilVisible(tester, find.text('리포트 상세'));
-
-    expect(find.text('glimmer'), findsNothing);
-    expect(find.text('missing_bookmark_id'), findsNothing);
-
-    await tester.tap(find.text('북마크 단어장'));
-    await tester.pumpAndSettle();
-    await _pumpUntilVisible(tester, find.text('glimmer'));
-
-    expect(find.text('glimmer'), findsOneWidget);
-    expect(find.text('missing_bookmark_id'), findsOneWidget);
-  });
-
-  testWidgets('parent detail shows deleted state after row removal', (
-    WidgetTester tester,
-  ) async {
-    final sharedDb = AppDatabase(executor: NativeDatabase.memory());
-    final fakeSessionRepository = _FakeTodaySessionRepository(sharedDb);
-    final fakeQuizRepository = _FakeTodayQuizRepository(sharedDb);
-    final settingsRepository = UserSettingsRepository(database: sharedDb);
-    final sharedReportsRepository = SharedReportsRepository(database: sharedDb);
-
-    await settingsRepository.updateRole('PARENT');
-    await settingsRepository.updateName('보호자');
-    final importedId = await sharedReportsRepository.importFromJson(
-      source: 'resolroutine_report_20260221_M3.json',
-      payloadJson: _sampleSharedReportJson(),
-    );
-
-    addTearDown(sharedDb.close);
-
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          appDatabaseProvider.overrideWithValue(sharedDb),
-          appBootstrapProvider.overrideWith((ref) async {}),
-          todaySessionRepositoryProvider.overrideWithValue(
-            fakeSessionRepository,
-          ),
-          todayQuizRepositoryProvider.overrideWithValue(fakeQuizRepository),
-        ],
-        child: const ResolRoutineApp(),
-      ),
-    );
-
-    await _pumpUntilVisible(tester, find.textContaining('오답 1개'));
-    await tester.tap(find.textContaining('오답 1개'));
-    await tester.pumpAndSettle();
-    await _pumpUntilVisible(tester, find.text('리포트 상세'));
-
-    final container = ProviderScope.containerOf(
-      tester.element(find.byType(ResolRoutineApp)),
-    );
-    await tester.runAsync(() async {
-      await sharedReportsRepository.deleteById(importedId);
-    });
-    container.invalidate(sharedReportByIdProvider(importedId));
-    container.invalidate(sharedReportSummariesProvider);
-    await tester.pumpAndSettle();
-
-    expect(find.text('삭제된 리포트입니다'), findsOneWidget);
-    expect(find.widgetWithText(FilledButton, '목록으로'), findsOneWidget);
-
-    await tester.tap(find.widgetWithText(FilledButton, '목록으로'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('가정 리포트'), findsOneWidget);
-    expect(find.text('아직 가져온 리포트가 없습니다.'), findsOneWidget);
-  });
-
-  testWidgets('parent home deletes imported report from list', (
-    WidgetTester tester,
-  ) async {
-    final sharedDb = AppDatabase(executor: NativeDatabase.memory());
-    final fakeSessionRepository = _FakeTodaySessionRepository(sharedDb);
-    final fakeQuizRepository = _FakeTodayQuizRepository(sharedDb);
-    final settingsRepository = UserSettingsRepository(database: sharedDb);
-    final sharedReportsRepository = SharedReportsRepository(database: sharedDb);
-
-    await settingsRepository.updateRole('PARENT');
-    await settingsRepository.updateName('보호자');
-    await sharedReportsRepository.importFromJson(
-      source: 'resolroutine_report_20260221_M3.json',
-      payloadJson: _sampleSharedReportJson(),
-    );
-
-    addTearDown(sharedDb.close);
-
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          appDatabaseProvider.overrideWithValue(sharedDb),
-          appBootstrapProvider.overrideWith((ref) async {}),
-          todaySessionRepositoryProvider.overrideWithValue(
-            fakeSessionRepository,
-          ),
-          todayQuizRepositoryProvider.overrideWithValue(fakeQuizRepository),
-        ],
-        child: const ResolRoutineApp(),
-      ),
-    );
-
-    await _pumpUntilVisible(tester, find.text('리포트 가져오기'));
-    await _pumpUntilVisible(tester, find.textContaining('오답 1개'));
-    expect(find.textContaining('오답 1개'), findsOneWidget);
-
-    await tester.tap(find.byIcon(Icons.more_vert_rounded).first);
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('삭제'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('리포트 삭제'), findsOneWidget);
-    await tester.tap(find.widgetWithText(FilledButton, '삭제'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('아직 가져온 리포트가 없습니다.'), findsOneWidget);
-    expect(find.textContaining('오답 1개'), findsNothing);
-
-    final rows = await (sharedDb.select(sharedDb.sharedReports)).get();
-    expect(rows, isEmpty);
-  });
 
   testWidgets(
     'changing settings does not replace app with entry loading gate',
@@ -528,7 +283,7 @@ void main() {
         ),
       );
 
-      await _pumpUntilVisible(tester, find.text('오늘도 화이팅, 지훈! 👋'));
+      await _pumpUntilVisible(tester, find.text('반가워요, 지훈 학생! 👋'));
       expect(find.byType(NavigationBar), findsOneWidget);
 
       final container = ProviderScope.containerOf(
@@ -577,7 +332,7 @@ void main() {
       ),
     );
 
-    await _pumpUntilVisible(tester, find.text('오늘도 화이팅, 지훈! 👋'));
+    await _pumpUntilVisible(tester, find.text('반가워요, 지훈 학생! 👋'));
     final container = ProviderScope.containerOf(
       tester.element(find.byType(ResolRoutineApp)),
     );
@@ -711,27 +466,36 @@ void main() {
       ),
     );
 
-    await _pumpUntilVisible(tester, find.text('오늘도 화이팅, 민수! 👋'));
+    await _pumpUntilVisible(tester, find.text('반가워요, 민수 학생! 👋'));
     await tester.tap(find.text('마이'));
     await tester.pumpAndSettle();
 
     expect(find.text('오늘 루틴 완료'), findsOneWidget);
     expect(find.text('4/6'), findsOneWidget);
-    expect(find.text('최근 7일 완료 일수'), findsOneWidget);
+    expect(find.text('연속 출석'), findsOneWidget);
     expect(find.text('2일'), findsOneWidget);
     expect(find.text('총 시도'), findsOneWidget);
     expect(find.text('3회'), findsOneWidget);
     expect(find.text('총 오답'), findsOneWidget);
     expect(find.text('2회'), findsOneWidget);
+    final myScrollable = find.descendant(
+      of: find.byType(MyScreen),
+      matching: find.byType(Scrollable),
+    );
     await tester.scrollUntilVisible(
       find.text('학습 리포트'),
       240,
-      scrollable: find.byType(Scrollable).first,
+      scrollable: myScrollable.first,
     );
+    await tester.pumpAndSettle();
+    final reportCardFinder = find.byKey(
+      const ValueKey<String>('my-storage-report'),
+    );
+    expect(reportCardFinder, findsOneWidget);
     expect(find.text('학습 리포트'), findsOneWidget);
     expect(find.text('이번주 외운 단어'), findsNothing);
 
-    await tester.tap(find.text('학습 리포트'));
+    await tester.tap(reportCardFinder);
     await tester.pumpAndSettle();
     expect(find.text('리포트'), findsOneWidget);
     await _scrollUntilVisible(tester, find.text('JSON 리포트 공유'));
@@ -739,6 +503,11 @@ void main() {
 
     await tester.pageBack();
     await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('총 오답'),
+      -240,
+      scrollable: myScrollable.first,
+    );
     expect(find.text('총 오답'), findsOneWidget);
 
     final container = ProviderScope.containerOf(
@@ -765,7 +534,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('6/6'), findsOneWidget);
-    expect(find.text('3일'), findsOneWidget);
+    expect(find.text('2일'), findsOneWidget);
     expect(find.text('4회'), findsOneWidget);
     expect(find.text('3회'), findsOneWidget);
   });
@@ -1040,100 +809,6 @@ class _EmptyTodayQuizRepository extends TodayQuizRepository {
       readingCompleted: 0,
     );
   }
-}
-
-String _sampleSharedReportJson() {
-  return jsonEncode(<String, Object?>{
-    'schemaVersion': 1,
-    'generatedAt': '2026-02-21T10:00:00.000Z',
-    'student': <String, Object?>{
-      'role': 'STUDENT',
-      'displayName': '민수',
-      'track': 'M3',
-    },
-    'days': <Object?>[
-      <String, Object?>{
-        'dayKey': '20260221',
-        'track': 'M3',
-        'solvedCount': 2,
-        'wrongCount': 1,
-        'listeningCorrect': 1,
-        'readingCorrect': 0,
-        'wrongReasonCounts': <String, Object?>{'VOCAB': 1},
-        'questions': <Object?>[
-          <String, Object?>{
-            'questionId': 'L-001',
-            'skill': 'LISTENING',
-            'typeTag': 'L1',
-            'isCorrect': true,
-          },
-          <String, Object?>{
-            'questionId': 'R-001',
-            'skill': 'READING',
-            'typeTag': 'R1',
-            'isCorrect': false,
-            'wrongReasonTag': 'VOCAB',
-          },
-        ],
-      },
-    ],
-  });
-}
-
-String _sampleSharedReportWithVocabQuizJson({required String knownVocabId}) {
-  return jsonEncode(<String, Object?>{
-    'schemaVersion': 2,
-    'generatedAt': '2026-02-22T10:00:00.000Z',
-    'student': <String, Object?>{
-      'role': 'STUDENT',
-      'displayName': '민수',
-      'track': 'M3',
-    },
-    'days': <Object?>[
-      <String, Object?>{
-        'dayKey': '20260222',
-        'track': 'M3',
-        'solvedCount': 0,
-        'wrongCount': 0,
-        'listeningCorrect': 0,
-        'readingCorrect': 0,
-        'wrongReasonCounts': <String, Object?>{},
-        'questions': <Object?>[],
-        'vocabQuiz': <String, Object?>{
-          'totalCount': 20,
-          'correctCount': 18,
-          'wrongVocabIds': <Object?>[knownVocabId, 'missing_vocab_id'],
-        },
-      },
-    ],
-  });
-}
-
-String _sampleSharedReportWithBookmarksJson({required String knownBookmarkId}) {
-  return jsonEncode(<String, Object?>{
-    'schemaVersion': 3,
-    'generatedAt': '2026-02-23T10:00:00.000Z',
-    'student': <String, Object?>{
-      'role': 'STUDENT',
-      'displayName': '민수',
-      'track': 'M3',
-    },
-    'days': <Object?>[
-      <String, Object?>{
-        'dayKey': '20260223',
-        'track': 'M3',
-        'solvedCount': 0,
-        'wrongCount': 0,
-        'listeningCorrect': 0,
-        'readingCorrect': 0,
-        'wrongReasonCounts': <String, Object?>{},
-        'questions': <Object?>[],
-      },
-    ],
-    'vocabBookmarks': <String, Object?>{
-      'bookmarkedVocabIds': <Object?>[knownBookmarkId, 'missing_bookmark_id'],
-    },
-  });
 }
 
 final List<QuizQuestionDetail> _fillerQuestions =
