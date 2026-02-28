@@ -46,3 +46,30 @@ jobs:
 
       - name: Android release build smoke
         run: flutter build apk --release
+
+  ios-build-smoke:
+    needs: flutter-gates
+    runs-on: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build generated sources
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Xcode version
+        run: xcodebuild -version
+
+      - name: Build iOS release (no codesign)
+        env:
+          COCOAPODS_DISABLE_STATS: 'true'
+        run: flutter build ios --release --no-codesign
