@@ -69,43 +69,41 @@ class _MembershipPlanScreenState extends State<MembershipPlanScreen> {
     final plan = _plans[_selectedTier]!;
     final priceText = _isYearly ? plan.yearlyPrice : plan.monthlyPrice;
     final cycleText = _isYearly ? '/ 년' : '/ 월';
+    final isFreePlan = plan.isCurrentPlan;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F5F9),
+      backgroundColor: const Color(0xFFF6F7FA),
       body: SafeArea(
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.md,
-                AppSpacing.sm,
-                AppSpacing.md,
-                0,
-              ),
+              padding: const EdgeInsets.fromLTRB(12, 6, 12, 0),
               child: Row(
                 children: [
                   IconButton(
                     onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.close_rounded, size: 34),
+                    icon: const Icon(Icons.close_rounded, size: 40),
                     style: IconButton.styleFrom(
-                      backgroundColor: const Color(0xFFE7E9F1),
                       foregroundColor: AppColors.textPrimary,
-                      minimumSize: const Size(56, 56),
+                      minimumSize: const Size(48, 48),
                     ),
                   ),
                   const Spacer(),
                   Text(
-                    '구독권 선택',
-                    style: AppTypography.title.copyWith(fontSize: 52 / 2),
+                    '요금제 선택',
+                    style: AppTypography.title.copyWith(
+                      fontSize: 48 / 2,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                   const Spacer(),
-                  const SizedBox(width: 56),
+                  const SizedBox(width: 48),
                 ],
               ),
             ),
-            const SizedBox(height: AppSpacing.md),
+            const SizedBox(height: 10),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+              padding: const EdgeInsets.symmetric(horizontal: 20),
               child: _PlanTabs(
                 selectedTier: _selectedTier,
                 onSelected: (tier) {
@@ -115,109 +113,136 @@ class _MembershipPlanScreenState extends State<MembershipPlanScreen> {
                 },
               ),
             ),
-            const SizedBox(height: AppSpacing.mdLg),
-            _BillingPeriodToggle(
-              isYearly: _isYearly,
-              onChanged: (value) {
-                setState(() {
-                  _isYearly = value;
-                });
-              },
+            const SizedBox(height: 24),
+            SizedBox(
+              height: 40,
+              child: isFreePlan
+                  ? const SizedBox.shrink()
+                  : _BillingPeriodToggle(
+                      isYearly: _isYearly,
+                      onChanged: (value) {
+                        setState(() {
+                          _isYearly = value;
+                        });
+                      },
+                    ),
             ),
-            const SizedBox(height: AppSpacing.mdLg),
+            const SizedBox(height: 10),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    const SizedBox(height: 20),
                     Text(
                       plan.title,
                       style: AppTypography.display.copyWith(
-                        fontSize: 62 / 2,
+                        fontSize: isFreePlan ? 40 : 20,
                         color: AppColors.primary,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
-                    const SizedBox(height: AppSpacing.sm),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          priceText,
-                          style: AppTypography.display.copyWith(
-                            fontSize: 100 / 2,
-                            color: AppColors.textPrimary,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        const SizedBox(width: AppSpacing.xs),
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-                          child: Text(
-                            cycleText,
-                            style: AppTypography.section.copyWith(
-                              color: const Color(0xFF9B9DA7),
+                    if (!isFreePlan) ...[
+                      const SizedBox(height: 8),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            priceText,
+                            style: AppTypography.display.copyWith(
+                              fontSize: 34,
+                              color: AppColors.textPrimary,
+                              fontWeight: FontWeight.w800,
+                              height: 1.0,
                             ),
+                          ),
+                          const SizedBox(width: 8),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Opacity(
+                                opacity: _isYearly ? 1.0 : 0.0,
+                                child: Container(
+                                  margin: const EdgeInsets.only(bottom: 4),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFFFE0B2),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    plan.yearlySaveLabel ?? '',
+                                    style: AppTypography.label.copyWith(
+                                      color: const Color(0xFFE65100),
+                                      fontSize: 11,
+                                      height: 1.0,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 4),
+                                child: Text(
+                                  cycleText,
+                                  style: AppTypography.body.copyWith(
+                                    fontSize: 16,
+                                    color: const Color(0xFF9B9DA7),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      if (_isYearly && plan.monthlyEquivalent != null) ...[
+                        const SizedBox(height: 6),
+                        Text(
+                          plan.monthlyEquivalent!,
+                          style: AppTypography.body.copyWith(
+                            color: const Color(0xFF9B9DA7),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                       ],
-                    ),
-                    if (_isYearly && plan.yearlySaveLabel != null) ...[
-                      const SizedBox(height: AppSpacing.xs),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.sm,
-                          vertical: AppSpacing.xxs,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFFE8C7),
-                          borderRadius: BorderRadius.circular(AppRadius.md),
-                        ),
-                        child: Text(
-                          plan.yearlySaveLabel!,
-                          style: AppTypography.label.copyWith(
-                            color: const Color(0xFFB85D08),
-                          ),
-                        ),
-                      ),
                     ],
-                    if (_isYearly && plan.monthlyEquivalent != null) ...[
-                      const SizedBox(height: AppSpacing.xs),
-                      Text(
-                        plan.monthlyEquivalent!,
-                        style: AppTypography.section.copyWith(
-                          color: const Color(0xFF9B9DA7),
-                        ),
-                      ),
-                    ],
-                    const SizedBox(height: AppSpacing.sm),
+                    const SizedBox(height: 12),
                     Text(
                       plan.subtitle,
-                      style: AppTypography.section.copyWith(
-                        color: AppColors.textSecondary,
+                      style: AppTypography.body.copyWith(
+                        color: const Color(0xFF73788A),
                         fontWeight: FontWeight.w500,
+                        fontSize: 15,
                       ),
                     ),
-                    const SizedBox(height: AppSpacing.mdLg),
+                    const SizedBox(height: 30),
                     const Divider(color: AppColors.divider, height: 1),
-                    const SizedBox(height: AppSpacing.mdLg),
+                    const SizedBox(height: 30),
                     for (final feature in plan.features) ...[
                       _PlanFeature(text: feature),
-                      const SizedBox(height: AppSpacing.sm),
+                      const SizedBox(height: 18),
                     ],
-                    const SizedBox(height: AppSpacing.lg),
+                    const SizedBox(height: AppSpacing.xl),
                   ],
                 ),
               ),
             ),
             Container(
-              color: const Color(0xFFF4F5F9),
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.lg,
-                AppSpacing.sm,
-                AppSpacing.lg,
-                AppSpacing.lg,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, -5),
+                  ),
+                ],
               ),
+              padding: const EdgeInsets.fromLTRB(24, 16, 24, 34),
               child: FilledButton(
                 onPressed: plan.isCurrentPlan
                     ? null
@@ -227,12 +252,16 @@ class _MembershipPlanScreenState extends State<MembershipPlanScreen> {
                         );
                       },
                 style: FilledButton.styleFrom(
-                  minimumSize: const Size(double.infinity, 64),
+                  minimumSize: const Size(double.infinity, 56),
                   textStyle: AppTypography.title.copyWith(
                     color: Colors.white,
-                    fontSize: 45 / 2,
+                    fontSize: 18,
                     fontWeight: FontWeight.w700,
                   ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  elevation: 0,
                 ),
                 child: Text(plan.ctaLabel),
               ),
@@ -252,50 +281,59 @@ class _PlanTabs extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.xs),
-      decoration: BoxDecoration(
-        color: const Color(0xFFE8EAF0),
-        borderRadius: BorderRadius.circular(AppRadius.buttonPill + 2),
-      ),
-      child: Row(
-        children: _PlanTier.values
-            .map(
-              (tier) => Expanded(
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(AppRadius.buttonPill),
-                  onTap: () => onSelected(tier),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 180),
-                    padding: const EdgeInsets.symmetric(
-                      vertical: AppSpacing.sm,
-                    ),
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: selectedTier == tier
-                          ? Colors.white
-                          : Colors.transparent,
-                      borderRadius: BorderRadius.circular(AppRadius.buttonPill),
-                      boxShadow: selectedTier == tier
-                          ? AppShadows.card
-                          : const <BoxShadow>[],
-                    ),
-                    child: Text(
-                      _tierLabel(tier),
-                      style: AppTypography.section.copyWith(
+    return SizedBox(
+      height: 48,
+      child: Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFFF1F2F4),
+          borderRadius: BorderRadius.circular(25),
+        ),
+        child: Row(
+          children: _PlanTier.values
+              .map(
+                (tier) => Expanded(
+                  child: GestureDetector(
+                    onTap: () => onSelected(tier),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      curve: Curves.easeInOut,
+                      margin: const EdgeInsets.all(4),
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
                         color: selectedTier == tier
-                            ? AppColors.textPrimary
-                            : const Color(0xFFA3A5AE),
-                        fontWeight: selectedTier == tier
-                            ? FontWeight.w700
-                            : FontWeight.w600,
+                            ? Colors.white
+                            : const Color(0xFFF1F2F4),
+                        borderRadius: BorderRadius.circular(21),
+                        boxShadow: selectedTier == tier
+                            ? [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.08),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ]
+                            : const <BoxShadow>[],
+                      ),
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          _tierLabel(tier),
+                          maxLines: 1,
+                          style: AppTypography.body.copyWith(
+                            fontSize: 13,
+                            color: selectedTier == tier
+                                ? AppColors.textPrimary
+                                : const Color(0xFF9FA3AF),
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
-            )
-            .toList(growable: false),
+              )
+              .toList(growable: false),
+        ),
       ),
     );
   }
@@ -323,48 +361,41 @@ class _BillingPeriodToggle extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Text(
-          '월간',
-          style: AppTypography.display.copyWith(
-            fontSize: 58 / 2,
-            color: isYearly ? const Color(0xFFC1C3CB) : AppColors.textPrimary,
-          ),
-        ),
-        const SizedBox(width: AppSpacing.sm),
         GestureDetector(
-          onTap: () => onChanged(!isYearly),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            width: 92,
-            height: 52,
-            padding: const EdgeInsets.all(4),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(26),
-              color: isYearly
-                  ? AppColors.primary.withValues(alpha: 0.3)
-                  : const Color(0xFFD6D8E0),
-            ),
-            child: Align(
-              alignment: isYearly
-                  ? Alignment.centerRight
-                  : Alignment.centerLeft,
-              child: Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: isYearly ? AppColors.primary : const Color(0xFF81838F),
-                ),
-              ),
+          onTap: () => onChanged(false),
+          child: Text(
+            '월간',
+            style: AppTypography.body.copyWith(
+              fontSize: 16,
+              color: !isYearly
+                  ? AppColors.textPrimary
+                  : const Color(0xFFC1C3CB),
+              fontWeight: FontWeight.w700,
             ),
           ),
         ),
-        const SizedBox(width: AppSpacing.sm),
-        Text(
-          '연간',
-          style: AppTypography.display.copyWith(
-            fontSize: 58 / 2,
-            color: isYearly ? AppColors.textPrimary : const Color(0xFFC1C3CB),
+        const SizedBox(width: 8),
+        Transform.scale(
+          scale: 0.9,
+          child: Switch(
+            value: isYearly,
+            activeThumbColor: AppColors.primary,
+            activeTrackColor: AppColors.primary.withValues(alpha: 0.2),
+            inactiveThumbColor: const Color(0xFF9EA0A8),
+            inactiveTrackColor: const Color(0xFFE4E6EB),
+            onChanged: onChanged,
+          ),
+        ),
+        const SizedBox(width: 8),
+        GestureDetector(
+          onTap: () => onChanged(true),
+          child: Text(
+            '연간',
+            style: AppTypography.body.copyWith(
+              fontSize: 16,
+              color: isYearly ? AppColors.textPrimary : const Color(0xFFC1C3CB),
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ),
       ],
@@ -383,8 +414,7 @@ class _PlanFeature extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
-          width: 40,
-          height: 40,
+          padding: const EdgeInsets.all(2),
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: AppColors.primary.withValues(alpha: 0.12),
@@ -392,20 +422,18 @@ class _PlanFeature extends StatelessWidget {
           child: const Icon(
             Icons.check_rounded,
             color: AppColors.primary,
-            size: 26,
+            size: 16,
           ),
         ),
-        const SizedBox(width: AppSpacing.sm),
+        const SizedBox(width: 12),
         Expanded(
-          child: Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: Text(
-              text,
-              style: AppTypography.display.copyWith(
-                fontSize: 49 / 2,
-                color: AppColors.textPrimary,
-                fontWeight: FontWeight.w500,
-              ),
+          child: Text(
+            text,
+            style: AppTypography.body.copyWith(
+              fontSize: 16,
+              height: 1.3,
+              color: const Color(0xFF1E2436),
+              fontWeight: FontWeight.w500,
             ),
           ),
         ),

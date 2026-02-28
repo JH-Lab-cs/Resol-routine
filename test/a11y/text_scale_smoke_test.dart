@@ -90,6 +90,7 @@ void main() {
                 onOpenVocab: () {},
                 onOpenTodayVocabQuiz: () {},
                 onOpenWrongNotes: () {},
+                onOpenWrongReview: () {},
                 onOpenMy: () {},
               ),
             ),

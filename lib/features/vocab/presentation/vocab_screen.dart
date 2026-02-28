@@ -34,7 +34,9 @@ final vocabListProvider =
     });
 
 class VocabScreen extends ConsumerStatefulWidget {
-  const VocabScreen({super.key});
+  const VocabScreen({super.key, this.showSectionHeader = true});
+
+  final bool showSectionHeader;
 
   @override
   ConsumerState<VocabScreen> createState() => _VocabScreenState();
@@ -57,202 +59,218 @@ class _VocabScreenState extends ConsumerState<VocabScreen> {
     final request = (tab: selectedTab, query: query);
     final vocabAsync = ref.watch(vocabListProvider(request));
 
-    return AppPageBody(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SectionTitle(
-            title: '단어장',
-            subtitle: selectedTab == VocabCollectionTab.today
-                ? '오늘 학습할 단어를 확인해 보세요.'
-                : '직접 저장한 단어와 북마크를 관리해 보세요.',
-            trailing: selectedTab == VocabCollectionTab.mine
-                ? Semantics(
-                    label: '단어 추가',
-                    button: true,
-                    child: IconButton(
-                      onPressed: _showAddVocabularySheet,
-                      icon: const Icon(Icons.add_rounded),
-                      tooltip: '단어 추가',
-                    ),
-                  )
-                : null,
-          ),
-          const SizedBox(height: AppSpacing.md),
-          _CollectionTabSelector(
-            selectedTab: selectedTab,
-            onChanged: (tab) {
-              ref.read(vocabCollectionTabProvider.notifier).state = tab;
-              setState(_expandedIds.clear);
-            },
-          ),
-          const SizedBox(height: AppSpacing.md),
-          TextField(
-            controller: _searchController,
-            onChanged: (value) {
-              ref.read(vocabSearchProvider.notifier).state = value;
-            },
-            decoration: InputDecoration(
-              hintText: selectedTab == VocabCollectionTab.today
-                  ? '오늘 단어 검색'
-                  : '나만의 단어 검색',
-              prefixIcon: Icon(Icons.search_rounded),
+    return Material(
+      color: AppColors.background,
+      child: AppPageBody(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (widget.showSectionHeader) ...[
+              SectionTitle(
+                title: '단어장',
+                subtitle: selectedTab == VocabCollectionTab.today
+                    ? '오늘 학습할 단어를 확인해 보세요.'
+                    : '직접 저장한 단어와 북마크를 관리해 보세요.',
+                trailing: selectedTab == VocabCollectionTab.mine
+                    ? Semantics(
+                        label: '단어 추가',
+                        button: true,
+                        child: IconButton(
+                          onPressed: _showAddVocabularySheet,
+                          icon: const Icon(Icons.add_rounded),
+                          tooltip: '단어 추가',
+                        ),
+                      )
+                    : null,
+              ),
+              const SizedBox(height: AppSpacing.md),
+            ] else if (selectedTab == VocabCollectionTab.mine) ...[
+              Align(
+                alignment: Alignment.centerRight,
+                child: Semantics(
+                  label: '단어 추가',
+                  button: true,
+                  child: IconButton(
+                    onPressed: _showAddVocabularySheet,
+                    icon: const Icon(Icons.add_rounded),
+                    tooltip: '단어 추가',
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+            ],
+            _CollectionTabSelector(
+              selectedTab: selectedTab,
+              onChanged: (tab) {
+                ref.read(vocabCollectionTabProvider.notifier).state = tab;
+                setState(_expandedIds.clear);
+              },
             ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Expanded(
-            child: vocabAsync.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (error, _) =>
-                  Center(child: Text('${AppCopyKo.loadFailed('단어')}\n$error')),
-              data: (items) {
-                if (items.isEmpty) {
-                  return Center(
-                    child: Text(
-                      selectedTab == VocabCollectionTab.today
-                          ? AppCopyKo.emptyTodayVocabulary
-                          : AppCopyKo.emptyMyVocabulary,
-                    ),
-                  );
-                }
+            const SizedBox(height: AppSpacing.md),
+            TextField(
+              controller: _searchController,
+              onChanged: (value) {
+                ref.read(vocabSearchProvider.notifier).state = value;
+              },
+              decoration: InputDecoration(
+                hintText: selectedTab == VocabCollectionTab.today
+                    ? '오늘 단어 검색'
+                    : '나만의 단어 검색',
+                prefixIcon: Icon(Icons.search_rounded),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Expanded(
+              child: vocabAsync.when(
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (error, _) => Center(
+                  child: Text('${AppCopyKo.loadFailed('단어')}\n$error'),
+                ),
+                data: (items) {
+                  if (items.isEmpty) {
+                    return Center(
+                      child: Text(
+                        selectedTab == VocabCollectionTab.today
+                            ? AppCopyKo.emptyTodayVocabulary
+                            : AppCopyKo.emptyMyVocabulary,
+                      ),
+                    );
+                  }
 
-                return ListView.separated(
-                  itemCount: items.length,
-                  separatorBuilder: (_, _) =>
-                      const SizedBox(height: AppSpacing.sm),
-                  itemBuilder: (context, index) {
-                    final item = items[index];
-                    final expanded = _expandedIds.contains(item.id);
-                    final isCustomItem = item.id.startsWith('user_');
-                    final canManageCustom =
-                        selectedTab == VocabCollectionTab.mine && isCustomItem;
+                  return ListView.separated(
+                    itemCount: items.length,
+                    separatorBuilder: (_, _) =>
+                        const SizedBox(height: AppSpacing.sm),
+                    itemBuilder: (context, index) {
+                      final item = items[index];
+                      final expanded = _expandedIds.contains(item.id);
+                      final isCustomItem = item.id.startsWith('user_');
+                      final canManageCustom =
+                          selectedTab == VocabCollectionTab.mine &&
+                          isCustomItem;
 
-                    return Material(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(AppRadius.lg),
-                      child: InkWell(
-                        onTap: () {
-                          setState(() {
-                            if (expanded) {
-                              _expandedIds.remove(item.id);
-                            } else {
-                              _expandedIds.add(item.id);
-                            }
-                          });
-                        },
+                      return Material(
+                        color: Colors.white,
                         borderRadius: BorderRadius.circular(AppRadius.lg),
-                        child: Padding(
-                          padding: const EdgeInsets.all(AppSpacing.md),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      item.lemma,
-                                      style: AppTypography.body.copyWith(
-                                        fontWeight: FontWeight.w700,
+                        child: InkWell(
+                          onTap: () {
+                            setState(() {
+                              if (expanded) {
+                                _expandedIds.remove(item.id);
+                              } else {
+                                _expandedIds.add(item.id);
+                              }
+                            });
+                          },
+                          borderRadius: BorderRadius.circular(AppRadius.lg),
+                          child: Padding(
+                            padding: const EdgeInsets.all(AppSpacing.md),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        item.lemma,
+                                        style: AppTypography.body.copyWith(
+                                          fontWeight: FontWeight.w700,
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                  Semantics(
-                                    label: item.isBookmarked ? '북마크 해제' : '북마크',
-                                    button: true,
-                                    child: IconButton(
-                                      icon: Icon(
-                                        item.isBookmarked
-                                            ? Icons.bookmark_rounded
-                                            : Icons.bookmark_border_rounded,
-                                        color: item.isBookmarked
-                                            ? AppColors.primary
-                                            : AppColors.textSecondary,
-                                      ),
-                                      tooltip: item.isBookmarked
+                                    Semantics(
+                                      label: item.isBookmarked
                                           ? '북마크 해제'
                                           : '북마크',
-                                      onPressed: () async {
-                                        await ref
-                                            .read(vocabRepositoryProvider)
-                                            .toggleBookmark(item.id);
-                                        ref.invalidate(
-                                          vocabListProvider(request),
-                                        );
-                                      },
-                                    ),
-                                  ),
-                                  if (canManageCustom)
-                                    Semantics(
-                                      label: '단어 메뉴',
                                       button: true,
-                                      child:
-                                          PopupMenuButton<_VocabItemMenuAction>(
-                                            tooltip: '단어 메뉴',
-                                            icon: const Icon(
-                                              Icons.more_vert_rounded,
-                                            ),
-                                            onSelected: (action) async {
-                                              switch (action) {
-                                                case _VocabItemMenuAction.edit:
-                                                  await _showEditVocabularySheet(
-                                                    item,
-                                                  );
-                                                  break;
-                                                case _VocabItemMenuAction
-                                                    .delete:
-                                                  await _confirmDeleteVocabulary(
-                                                    item,
-                                                  );
-                                                  break;
-                                              }
-                                            },
-                                            itemBuilder: (context) => const [
-                                              PopupMenuItem<
-                                                _VocabItemMenuAction
-                                              >(
-                                                value:
-                                                    _VocabItemMenuAction.edit,
-                                                child: Text('수정'),
-                                              ),
-                                              PopupMenuItem<
-                                                _VocabItemMenuAction
-                                              >(
-                                                value:
-                                                    _VocabItemMenuAction.delete,
-                                                child: Text('삭제'),
-                                              ),
-                                            ],
-                                          ),
+                                      child: IconButton(
+                                        icon: Icon(
+                                          item.isBookmarked
+                                              ? Icons.bookmark_rounded
+                                              : Icons.bookmark_border_rounded,
+                                          color: item.isBookmarked
+                                              ? AppColors.primary
+                                              : AppColors.textSecondary,
+                                        ),
+                                        tooltip: item.isBookmarked
+                                            ? '북마크 해제'
+                                            : '북마크',
+                                        onPressed: () async {
+                                          await ref
+                                              .read(vocabRepositoryProvider)
+                                              .toggleBookmark(item.id);
+                                          ref.invalidate(
+                                            vocabListProvider(request),
+                                          );
+                                        },
+                                      ),
                                     ),
-                                ],
-                              ),
-                              const SizedBox(height: AppSpacing.xs),
-                              Text(
-                                item.meaning,
-                                style: AppTypography.body.copyWith(
-                                  color: AppColors.textSecondary,
+                                    if (canManageCustom)
+                                      Semantics(
+                                        label: '단어 메뉴',
+                                        button: true,
+                                        child: PopupMenuButton<_VocabItemMenuAction>(
+                                          tooltip: '단어 메뉴',
+                                          icon: const Icon(
+                                            Icons.more_vert_rounded,
+                                          ),
+                                          onSelected: (action) async {
+                                            switch (action) {
+                                              case _VocabItemMenuAction.edit:
+                                                await _showEditVocabularySheet(
+                                                  item,
+                                                );
+                                                break;
+                                              case _VocabItemMenuAction.delete:
+                                                await _confirmDeleteVocabulary(
+                                                  item,
+                                                );
+                                                break;
+                                            }
+                                          },
+                                          itemBuilder: (context) => const [
+                                            PopupMenuItem<_VocabItemMenuAction>(
+                                              value: _VocabItemMenuAction.edit,
+                                              child: Text('수정'),
+                                            ),
+                                            PopupMenuItem<_VocabItemMenuAction>(
+                                              value:
+                                                  _VocabItemMenuAction.delete,
+                                              child: Text('삭제'),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                  ],
                                 ),
-                              ),
-                              if (expanded && item.example != null) ...[
                                 const SizedBox(height: AppSpacing.xs),
                                 Text(
-                                  '예문: ${item.example!}',
-                                  style: AppTypography.label.copyWith(
+                                  item.meaning,
+                                  style: AppTypography.body.copyWith(
                                     color: AppColors.textSecondary,
                                   ),
                                 ),
+                                if (expanded && item.example != null) ...[
+                                  const SizedBox(height: AppSpacing.xs),
+                                  Text(
+                                    '예문: ${item.example!}',
+                                    style: AppTypography.label.copyWith(
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                ],
                               ],
-                            ],
+                            ),
                           ),
                         ),
-                      ),
-                    );
-                  },
-                );
-              },
+                      );
+                    },
+                  );
+                },
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

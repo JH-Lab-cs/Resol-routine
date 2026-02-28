@@ -91,10 +91,27 @@ void main() {
 
         expect(stats.todayCompletedItems, 4);
         expect(stats.weeklyCompletedDays, 2);
+        expect(stats.attendanceStreakDays, 4);
         expect(stats.totalAttempts, 4);
         expect(stats.totalWrongAttempts, 2);
       },
     );
+
+    test('attendance streak is zero when today has no activity', () async {
+      await _insertSession(
+        database,
+        dayKey: 20260219,
+        track: 'M3',
+        completedItems: 6,
+      );
+
+      final stats = await repository.load(
+        track: 'M3',
+        nowLocal: DateTime(2026, 2, 20, 9, 0),
+      );
+
+      expect(stats.attendanceStreakDays, 0);
+    });
   });
 }
 

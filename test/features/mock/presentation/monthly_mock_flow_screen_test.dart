@@ -41,7 +41,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      expect(find.text('오늘도 화이팅, 테스터! 👋'), findsOneWidget);
+      expect(find.text('반가워요, 테스터 학생! 👋'), findsOneWidget);
       await tester.pumpAndSettle();
 
       await tester.scrollUntilVisible(

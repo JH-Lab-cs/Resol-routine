@@ -9,12 +9,14 @@ class MyStatsSnapshot {
   const MyStatsSnapshot({
     required this.todayCompletedItems,
     required this.weeklyCompletedDays,
+    required this.attendanceStreakDays,
     required this.totalAttempts,
     required this.totalWrongAttempts,
   });
 
   final int todayCompletedItems;
   final int weeklyCompletedDays;
+  final int attendanceStreakDays;
   final int totalAttempts;
   final int totalWrongAttempts;
 }
@@ -48,12 +50,16 @@ class MyStatsRepository {
       startDayKey: weekStartDayKey,
       endDayKey: todayDayKey,
     );
+    final attendanceStreakDays = await _loadAttendanceStreakDays(
+      todayDayKey: todayDayKey,
+    );
     final totalAttempts = await _loadTotalAttempts();
     final totalWrongAttempts = await _loadTotalWrongAttempts();
 
     return MyStatsSnapshot(
       todayCompletedItems: todayCompletedItems,
       weeklyCompletedDays: weeklyCompletedDays,
+      attendanceStreakDays: attendanceStreakDays,
       totalAttempts: totalAttempts,
       totalWrongAttempts: totalWrongAttempts,
     );
@@ -121,5 +127,71 @@ class MyStatsRepository {
         )
         .getSingle();
     return row.read<int>('total_wrong');
+  }
+
+  Future<int> _loadAttendanceStreakDays({required int todayDayKey}) async {
+    final rows = await _database
+        .customSelect(
+          'SELECT DISTINCT day_key '
+          'FROM daily_sessions '
+          'WHERE day_key <= ? AND completed_items > 0 '
+          'ORDER BY day_key DESC',
+          variables: <Variable<Object>>[Variable<int>(todayDayKey)],
+          readsFrom: {_database.dailySessions},
+        )
+        .get();
+    if (rows.isEmpty) {
+      return 0;
+    }
+
+    final firstExpectedDate = _parseDayKeyAsDate(todayDayKey);
+    if (firstExpectedDate == null) {
+      return 0;
+    }
+    var expectedDate = firstExpectedDate;
+
+    var streak = 0;
+    for (final row in rows) {
+      final dayKey = row.read<int>('day_key');
+      final day = _parseDayKeyAsDate(dayKey);
+      if (day == null) {
+        continue;
+      }
+
+      if (_isSameDate(day, expectedDate)) {
+        streak += 1;
+        expectedDate = expectedDate.subtract(const Duration(days: 1));
+        continue;
+      }
+
+      if (day.isBefore(expectedDate)) {
+        break;
+      }
+    }
+
+    return streak;
+  }
+
+  DateTime? _parseDayKeyAsDate(int dayKey) {
+    final text = dayKey.toString().padLeft(8, '0');
+    try {
+      validateDayKey(text);
+    } on FormatException {
+      return null;
+    }
+
+    final year = int.tryParse(text.substring(0, 4));
+    final month = int.tryParse(text.substring(4, 6));
+    final day = int.tryParse(text.substring(6, 8));
+    if (year == null || month == null || day == null) {
+      return null;
+    }
+    return DateTime(year, month, day);
+  }
+
+  bool _isSameDate(DateTime left, DateTime right) {
+    return left.year == right.year &&
+        left.month == right.month &&
+        left.day == right.day;
   }
 }

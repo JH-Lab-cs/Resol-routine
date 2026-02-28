@@ -11,108 +11,117 @@ import '../../mock_exam/presentation/mock_exam_result_screen.dart';
 import '../application/wrong_note_providers.dart';
 
 class WrongNotesScreen extends ConsumerWidget {
-  const WrongNotesScreen({super.key});
+  const WrongNotesScreen({super.key, this.showSectionHeader = true});
+
+  final bool showSectionHeader;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final wrongNotesAsync = ref.watch(wrongNoteListProvider);
 
-    return AppPageBody(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SectionTitle(
-            title: '오답노트',
-            subtitle: '최근 오답을 확인하고 근거 문장을 복습하세요.',
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Expanded(
-            child: wrongNotesAsync.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (error, _) => Center(
-                child: Text('${AppCopyKo.loadFailed('오답노트')}\n$error'),
+    return Material(
+      color: AppColors.background,
+      child: AppPageBody(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (showSectionHeader) ...[
+              const SectionTitle(
+                title: '오답노트',
+                subtitle: '최근 오답을 확인하고 근거 문장을 복습하세요.',
               ),
-              data: (items) {
-                if (items.isEmpty) {
-                  return const Center(child: Text(AppCopyKo.emptyWrongNotes));
-                }
+              const SizedBox(height: AppSpacing.md),
+            ],
+            Expanded(
+              child: wrongNotesAsync.when(
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (error, _) => Center(
+                  child: Text('${AppCopyKo.loadFailed('오답노트')}\n$error'),
+                ),
+                data: (items) {
+                  if (items.isEmpty) {
+                    return const Center(child: Text(AppCopyKo.emptyWrongNotes));
+                  }
 
-                return ListView.separated(
-                  itemCount: items.length,
-                  separatorBuilder: (_, _) =>
-                      const SizedBox(height: AppSpacing.sm),
-                  itemBuilder: (context, index) {
-                    final item = items[index];
-                    final isMock =
-                        item.mockSessionId != null &&
-                        item.mockType != null &&
-                        item.periodKey != null;
-                    return Card(
-                      child: ListTile(
-                        onTap: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute<void>(
-                              builder: (_) => WrongNoteDetailScreen(
-                                attemptId: item.attemptId,
-                              ),
-                            ),
-                          );
-                        },
-                        title: Text(
-                          isMock
-                              ? '${displaySkill(item.skill.dbValue)} · ${item.typeTag} · 오답'
-                              : '${item.dayKey} · ${displayTrack(item.track.dbValue)} · ${item.typeTag}',
-                        ),
-                        subtitle: Text(
-                          isMock
-                              ? AppCopyKo.wrongNoteMockMeta(
-                                  examLabel: _mockExamLabel(item.mockType!),
-                                  periodKey: item.periodKey!,
-                                  completedDate: _formatDateOnly(
-                                    item.completedAt ?? item.attemptedAt,
-                                  ),
-                                  trackLabel: displayTrack(item.track.dbValue),
-                                )
-                              : '${displaySkill(item.skill.dbValue)} · 오답',
-                        ),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (isMock)
-                              Semantics(
-                                label: AppCopyKo.wrongNoteOpenResult,
-                                button: true,
-                                child: IconButton(
-                                  key: ValueKey<String>(
-                                    'wrong-note-open-result-${item.attemptId}',
-                                  ),
-                                  tooltip: AppCopyKo.wrongNoteOpenResult,
-                                  icon: const Icon(Icons.assessment_outlined),
-                                  onPressed: () {
-                                    Navigator.of(context).push(
-                                      MaterialPageRoute<void>(
-                                        builder: (_) => MockExamResultScreen(
-                                          mockSessionId: item.mockSessionId!,
-                                          examTitle: _mockExamLabel(
-                                            item.mockType!,
-                                          ),
-                                        ),
-                                      ),
-                                    );
-                                  },
+                  return ListView.separated(
+                    itemCount: items.length,
+                    separatorBuilder: (_, _) =>
+                        const SizedBox(height: AppSpacing.sm),
+                    itemBuilder: (context, index) {
+                      final item = items[index];
+                      final isMock =
+                          item.mockSessionId != null &&
+                          item.mockType != null &&
+                          item.periodKey != null;
+                      return Card(
+                        child: ListTile(
+                          onTap: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => WrongNoteDetailScreen(
+                                  attemptId: item.attemptId,
                                 ),
                               ),
-                            const Icon(Icons.chevron_right_rounded),
-                          ],
+                            );
+                          },
+                          title: Text(
+                            isMock
+                                ? '${displaySkill(item.skill.dbValue)} · ${item.typeTag} · 오답'
+                                : '${item.dayKey} · ${displayTrack(item.track.dbValue)} · ${item.typeTag}',
+                          ),
+                          subtitle: Text(
+                            isMock
+                                ? AppCopyKo.wrongNoteMockMeta(
+                                    examLabel: _mockExamLabel(item.mockType!),
+                                    periodKey: item.periodKey!,
+                                    completedDate: _formatDateOnly(
+                                      item.completedAt ?? item.attemptedAt,
+                                    ),
+                                    trackLabel: displayTrack(
+                                      item.track.dbValue,
+                                    ),
+                                  )
+                                : '${displaySkill(item.skill.dbValue)} · 오답',
+                          ),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (isMock)
+                                Semantics(
+                                  label: AppCopyKo.wrongNoteOpenResult,
+                                  button: true,
+                                  child: IconButton(
+                                    key: ValueKey<String>(
+                                      'wrong-note-open-result-${item.attemptId}',
+                                    ),
+                                    tooltip: AppCopyKo.wrongNoteOpenResult,
+                                    icon: const Icon(Icons.assessment_outlined),
+                                    onPressed: () {
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute<void>(
+                                          builder: (_) => MockExamResultScreen(
+                                            mockSessionId: item.mockSessionId!,
+                                            examTitle: _mockExamLabel(
+                                              item.mockType!,
+                                            ),
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              const Icon(Icons.chevron_right_rounded),
+                            ],
+                          ),
                         ),
-                      ),
-                    );
-                  },
-                );
-              },
+                      );
+                    },
+                  );
+                },
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
