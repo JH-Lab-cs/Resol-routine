@@ -26,6 +26,9 @@ jobs:
       - name: Flutter version
         run: flutter --version
 
+      - name: Dart version
+        run: dart --version
+
       - name: Install dependencies
         run: flutter pub get
 
@@ -65,6 +68,9 @@ jobs:
 
       - name: Flutter version
         run: flutter --version
+
+      - name: Dart version
+        run: dart --version
 
       - name: Install dependencies
         run: flutter pub get
