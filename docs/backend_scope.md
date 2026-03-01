@@ -17,8 +17,21 @@ This document narrows backend phase-1 work into implementation slices.
 - Parent-child link by one-time invite code
 - Link/unlink APIs with audit log
 - Link constraints:
-  - parent -> many children
-  - child -> up to two parents (configurable)
+  - parent -> up to 5 children
+  - child -> up to 2 parents
+- Access/refresh session policy:
+  - access token JWT TTL: 15m
+  - refresh token opaque TTL: 30d
+  - refresh rotation + reuse detection required
+  - refresh token table fields must include:
+    - `id`, `user_id`, `device_id`, `token_hash`, `family_id`
+    - `issued_at`, `expires_at`, `rotated_at`, `revoked_at`
+    - `replaced_by_token_id`, `reuse_detected_at`, `ip`, `user_agent`
+- Invite security policy:
+  - one-time code, 10m TTL, hash-only storage
+  - verify rate limit: 5 attempts / 10 minutes per parent+IP
+  - verify rate limit: 5 attempts / 10 minutes per invite_code+IP
+  - device-based throttling when `device_id` is available
 
 ## B1.2 Sync
 
@@ -26,6 +39,14 @@ This document narrows backend phase-1 work into implementation slices.
 - Idempotent event write rules
 - Replay-safe aggregation triggers
 - Sync error contract for mobile retry
+- Event table policy:
+  - append-only `study_events`
+  - `UNIQUE(student_id, idempotency_key)`
+  - required event fields: `event_type`, `schema_version`, `device_id`, `occurred_at_client`, `received_at_server`, `idempotency_key`
+- Time policy:
+  - UTC for DB storage
+  - Asia/Seoul for `dayKey`/`weekKey`/`periodKey` boundaries
+  - KST for user-facing report timestamp display
 
 ## B1.3 Reports
 
@@ -38,6 +59,11 @@ This document narrows backend phase-1 work into implementation slices.
 - Question bank schema for LISTENING/READING
 - Track/skill/type constraints
 - Publish flags and versioning metadata
+- Object storage policy:
+  - Cloudflare R2 private buckets only
+  - signed URL access only (or server proxy)
+  - default signed URL TTL: upload 5m, download 5m (max 10m with explicit control)
+  - MIME/type allowlist validation required
 
 ## B1.5 Mock Assembly
 

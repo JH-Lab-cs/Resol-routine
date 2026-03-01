@@ -101,12 +101,16 @@ This document is the backend handoff baseline for the next chat/session.
 ## I. Parent-Child Linking Policy (Phase-1 Default)
 
 - Cardinality:
-  - One parent can link multiple children.
-  - One child can link up to two parents (configurable server constant).
+  - One parent can link up to 5 children.
+  - One child can link up to 2 parents.
 - Invite code:
   - 6-digit code.
   - One-time use.
   - Expiration: 10 minutes.
+  - Plain-text storage is forbidden. Store only a secure hash.
+  - Verification attempts are limited to 5 per 10 minutes per parent+IP.
+  - Verification attempts are also limited to 5 per 10 minutes per invite_code+IP.
+  - Device-based throttling must be enabled when `device_id` exists.
 - Linking behavior:
   - Parent code entry links immediately in phase-1.
   - Student approval step is out of phase-1 scope.
@@ -121,6 +125,16 @@ This document is the backend handoff baseline for the next chat/session.
 - Mobile uploads event-level study results, not only final report snapshots.
 - Server aggregates parent-facing reports from stored events.
 - Export/import JSON remains dev-only QA path before backend rollout.
+- `study_events` is append-only.
+- Enforce `UNIQUE(student_id, idempotency_key)` for replay-safe ingestion.
+- Report snapshots are derived aggregates, never source-of-truth records.
+- Required common event fields:
+  - `event_type`
+  - `schema_version`
+  - `device_id`
+  - `occurred_at_client`
+  - `received_at_server`
+  - `idempotency_key`
 
 ## K. Content Lifecycle
 
@@ -129,6 +143,7 @@ This document is the backend handoff baseline for the next chat/session.
 - Human review
 - Publish
 - Client consumption
+- Auto-publish is forbidden in phase-1.
 
 ## L. Mock Exam Assembly Rules
 
@@ -139,6 +154,46 @@ This document is the backend handoff baseline for the next chat/session.
   - skill counts
   - type diversity
   - deterministic period keys
+
+## M. Fixed Security/Operational Policy Values
+
+- Auth/session:
+  - Access token: JWT, 15 minutes
+  - Refresh token: opaque random token (>= 256-bit entropy), 30 days
+  - Refresh token storage: hash-only in DB
+  - Refresh token rotation: required
+  - Refresh token reuse detection: required
+  - Device-scoped revoke support: required (`device_id`, `revoked_at`, `expires_at`)
+  - Refresh token persistence model (required fields):
+    - `id`
+    - `user_id`
+    - `device_id`
+    - `token_hash`
+    - `family_id`
+    - `issued_at`
+    - `expires_at`
+    - `rotated_at`
+    - `revoked_at`
+    - `replaced_by_token_id`
+    - `reuse_detected_at`
+    - `ip`
+    - `user_agent`
+- Storage:
+  - Cloudflare R2 bucket must stay private
+  - File access must use signed URL or server proxy
+  - Default signed URL TTL:
+    - Upload: 5 minutes
+    - Download: 5 minutes (max 10 minutes only for controlled cases)
+  - MIME/type allowlist validation is required
+  - Object key paths must not use raw user input
+- Redis:
+  - Allowed uses: Celery broker/result, rate-limit, invite throttling, cache
+  - Forbidden uses: source-of-truth persistence, public exposure, unauthenticated access
+  - Network policy: private network only; TLS/auth enabled in production
+- Time policy:
+  - DB timestamps must be stored in UTC.
+  - `dayKey`/`weekKey`/`periodKey` boundary calculations must use Asia/Seoul.
+  - Parent/student report display timestamps must use KST.
 
 ## Quick Start References
 
