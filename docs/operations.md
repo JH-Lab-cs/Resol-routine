@@ -2,6 +2,11 @@
 
 This document defines non-negotiable operational rules for CI smoke builds and release flows.
 
+For backend production readiness, runtime secret handling, migration operations, backup/restore,
+and observability rollout status, see:
+
+- `docs/backend_production_readiness.md`
+
 ## 1) CI Release Smoke Artifacts Are Not Deployable
 
 - Android release smoke in CI is a compile validation step.

@@ -1,27 +1,28 @@
 # Backend Test Infra Follow-ups
 
-## Ticket: SQLITE-FK-CYCLE-TEARDOWN
+## Ticket: SQLITE-FK-CYCLE-TEARDOWN (Closed)
 
 ### Context
 
 Backend tests currently pass, but SQLite teardown emits an SAWarning about cyclic foreign key dependencies when dropping tables.
 
-### Non-blocking Status
+### Current Status
 
-- Severity: Non-blocking for feature delivery
-- Functional impact: None observed in passing test suite
-- Operational impact: Test log noise can hide real regressions
+- Resolution date: 2026-03-02 (KST)
+- Severity: Non-blocking (resolved in current baseline)
+- Functional impact: None
+- Operational impact: No teardown warning observed in current pytest run
 
 ### Scope
 
-- Keep this work out of B1.6 feature implementation.
-- Handle as a dedicated test infrastructure task.
+- Keep this as a guardrail note for future schema changes.
+- If cyclic FK warnings reappear, open a new infra ticket instead of patching feature tickets.
 
-### Required Outcome
+### Outcome
 
-- Eliminate cyclic drop warning during test teardown.
-- Keep existing behavior and constraints intact.
-- Preserve full test pass status after the fix.
+- Current backend test baseline shows no cyclic drop warning in teardown.
+- Existing behavior and constraints remain intact.
+- Full test suite still passes.
 
 ### Suggested Technical Direction
 
