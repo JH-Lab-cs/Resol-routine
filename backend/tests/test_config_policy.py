@@ -14,6 +14,7 @@ def _valid_env(overrides: dict[str, str] | None = None) -> dict[str, str]:
         "R2_BUCKET": "resol-private-bucket",
         "R2_ACCESS_KEY_ID": "secure-access-key-id",
         "R2_SECRET_ACCESS_KEY": "secure-secret-access-key",
+        "CONTENT_PIPELINE_API_KEY": "secure-content-pipeline-api-key",
     }
     if overrides:
         base.update(overrides)

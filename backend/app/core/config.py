@@ -44,6 +44,7 @@ class Settings(BaseSettings):
     r2_bucket: str
     r2_access_key_id: str
     r2_secret_access_key: str
+    content_pipeline_api_key: str = Field(min_length=24)
 
     @property
     def jwt_algorithm(self) -> str:
@@ -78,6 +79,7 @@ class Settings(BaseSettings):
         "r2_access_key_id",
         "r2_secret_access_key",
         "r2_bucket",
+        "content_pipeline_api_key",
         mode="before",
     )
     @classmethod

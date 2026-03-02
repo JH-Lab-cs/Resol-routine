@@ -16,6 +16,7 @@ from app.core.policies import (
     SYNC_EVENT_TYPE_MOCK_EXAM_ATTEMPT_SAVED,
     SYNC_EVENT_TYPE_TODAY_ATTEMPT_SAVED,
 )
+from app.db.session import schedule_student_aggregation_after_commit
 from app.models.study_event import StudyEvent
 from app.schemas.sync import (
     MockExamAttemptSavedPayload,
@@ -27,7 +28,6 @@ from app.schemas.sync import (
     SyncItemStatus,
     TodayAttemptSavedPayload,
 )
-from app.workers.tasks import trigger_student_event_aggregation
 
 logger = logging.getLogger(__name__)
 
@@ -77,13 +77,7 @@ def ingest_events_batch(
             invalid_count += 1
 
     if should_trigger:
-        try:
-            trigger_student_event_aggregation(student_id=student_id)
-        except Exception:
-            logger.exception(
-                "Failed to enqueue event aggregation trigger",
-                extra={"student_id": str(student_id)},
-            )
+        schedule_student_aggregation_after_commit(db, student_id=student_id)
 
     summary = SyncBatchSummary(
         accepted=accepted_count,

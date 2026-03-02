@@ -38,6 +38,13 @@ uv run alembic upgrade head
 uv run pytest
 ```
 
+## Migration Policy (Post B1.5)
+
+- Treat existing Alembic revisions as immutable once published.
+- Do not edit previously applied revisions in shared history.
+- Add new corrective revisions only (next sequence from current head).
+- Validate from an empty database when adding a new revision chain.
+
 ## Run API
 
 ```bash

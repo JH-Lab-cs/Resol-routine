@@ -19,6 +19,7 @@ os.environ["R2_ENDPOINT"] = "https://example.r2.cloudflarestorage.com"
 os.environ["R2_BUCKET"] = "resol-private-bucket"
 os.environ["R2_ACCESS_KEY_ID"] = "unit-test-access-key-id"
 os.environ["R2_SECRET_ACCESS_KEY"] = "unit-test-secret-access-key"
+os.environ["CONTENT_PIPELINE_API_KEY"] = "unit-test-internal-api-key-value"
 
 from app.core.config import get_settings
 
@@ -27,6 +28,10 @@ get_settings.cache_clear()
 import app.models  # noqa: F401
 from app.api.dependencies import get_db, get_rate_limiter
 from app.db.base import Base
+from app.db.session import (
+    POST_COMMIT_AGGREGATION_STUDENT_IDS_KEY,
+    run_post_commit_aggregation_tasks,
+)
 from app.main import app
 from app.services.rate_limit_service import RateLimitExceededError
 
@@ -60,8 +65,10 @@ def test_app() -> Generator[FastAPI, None, None]:
         try:
             yield db
             db.commit()
+            run_post_commit_aggregation_tasks(db)
         except Exception:
             db.rollback()
+            db.info.pop(POST_COMMIT_AGGREGATION_STUDENT_IDS_KEY, None)
             raise
         finally:
             db.close()

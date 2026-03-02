@@ -3,10 +3,17 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from uuid import UUID
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import func, select
+from sqlalchemy.orm import Session as SASession
 
-import app.services.sync_service as sync_service
+import app.workers.tasks as worker_tasks
+from app.api.dependencies import get_db
+from app.db.session import (
+    POST_COMMIT_AGGREGATION_STUDENT_IDS_KEY,
+    run_post_commit_aggregation_tasks,
+)
 from app.models.study_event import StudyEvent
 
 
@@ -478,7 +485,7 @@ def test_duplicate_only_batch_does_not_fire_trigger(client: TestClient, db_sessi
 
     called: list[UUID] = []
     monkeypatch.setattr(
-        sync_service,
+        worker_tasks,
         "trigger_student_event_aggregation",
         lambda *, student_id: called.append(student_id),
     )
@@ -493,13 +500,13 @@ def test_duplicate_only_batch_does_not_fire_trigger(client: TestClient, db_sessi
     assert called == []
 
 
-def test_new_event_batch_fires_trigger_once_per_student(client: TestClient, monkeypatch) -> None:
+def test_accepted_batch_enqueues_once_per_student(client: TestClient, monkeypatch) -> None:
     student = _register_student(client, email="sync-trigger-once@example.com")
     student_id = UUID(str(student["user"]["id"]))
 
     called: list[UUID] = []
     monkeypatch.setattr(
-        sync_service,
+        worker_tasks,
         "trigger_student_event_aggregation",
         lambda *, student_id: called.append(student_id),
     )
@@ -515,6 +522,89 @@ def test_new_event_batch_fires_trigger_once_per_student(client: TestClient, monk
 
     assert body["summary"] == {"accepted": 2, "duplicate": 0, "invalid": 0, "total": 2}
     assert called == [student_id]
+
+
+def test_enqueue_happens_after_commit_with_event_visibility(
+    client: TestClient,
+    db_session_factory,
+    monkeypatch,
+) -> None:
+    student = _register_student(client, email="sync-post-commit-visible@example.com")
+    student_id = UUID(str(student["user"]["id"]))
+    key = "k-post-commit-visible"
+
+    seen_at_enqueue: list[int] = []
+
+    def fake_trigger(*, student_id: UUID) -> None:
+        with db_session_factory() as verify_db:
+            visible_count = verify_db.execute(
+                select(func.count()).select_from(StudyEvent).where(
+                    StudyEvent.student_id == student_id,
+                    StudyEvent.idempotency_key == key,
+                )
+            ).scalar_one()
+        seen_at_enqueue.append(int(visible_count))
+
+    monkeypatch.setattr(worker_tasks, "trigger_student_event_aggregation", fake_trigger)
+
+    body = _post_sync_batch(
+        client,
+        access_token=str(student["access_token"]),
+        events=[_today_event(idempotency_key=key)],
+    )
+
+    assert body["summary"] == {"accepted": 1, "duplicate": 0, "invalid": 0, "total": 1}
+    assert seen_at_enqueue == [1]
+
+
+def test_rollback_does_not_enqueue_trigger(client: TestClient, test_app, db_session_factory, monkeypatch) -> None:
+    student = _register_student(client, email="sync-rollback-no-enqueue@example.com")
+    student_id = UUID(str(student["user"]["id"]))
+    key = "k-rollback-no-enqueue"
+
+    called: list[UUID] = []
+    monkeypatch.setattr(
+        worker_tasks,
+        "trigger_student_event_aggregation",
+        lambda *, student_id: called.append(student_id),
+    )
+
+    original_override = test_app.dependency_overrides[get_db]
+    original_commit = SASession.commit
+
+    def commit_with_failure(self: SASession) -> None:
+        if self.info.get("force_commit_failure"):
+            raise RuntimeError("forced_commit_failure")
+        original_commit(self)
+
+    monkeypatch.setattr(SASession, "commit", commit_with_failure)
+
+    def failing_override_db():
+        db = db_session_factory()
+        db.info["force_commit_failure"] = True
+        try:
+            yield db
+            db.commit()
+            run_post_commit_aggregation_tasks(db)
+        except Exception:
+            db.rollback()
+            db.info.pop(POST_COMMIT_AGGREGATION_STUDENT_IDS_KEY, None)
+            raise
+        finally:
+            db.close()
+
+    test_app.dependency_overrides[get_db] = failing_override_db
+    try:
+        with pytest.raises(RuntimeError, match="forced_commit_failure"):
+            client.post(
+                "/sync/events/batch",
+                json={"events": [_today_event(idempotency_key=key)]},
+                headers=_auth_headers(str(student["access_token"])),
+            )
+    finally:
+        test_app.dependency_overrides[get_db] = original_override
+
+    assert called == []
 
 
 def test_sync_batch_is_student_only(client: TestClient) -> None:

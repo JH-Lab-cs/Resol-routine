@@ -21,9 +21,6 @@ user_role_enum = sa.Enum("STUDENT", "PARENT", name="user_role")
 
 
 def upgrade() -> None:
-    bind = op.get_bind()
-    user_role_enum.create(bind, checkfirst=True)
-
     op.create_table(
         "users",
         sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),

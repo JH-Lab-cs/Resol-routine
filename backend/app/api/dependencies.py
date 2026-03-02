@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import hmac
 from dataclasses import dataclass
 from collections.abc import Generator
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import Depends, Header, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
@@ -96,3 +97,17 @@ def get_current_student_user(
 
 def get_rate_limiter() -> RedisRateLimiter:
     return RedisRateLimiter(settings.redis_url)
+
+
+def require_internal_api_key(
+    x_internal_api_key: Annotated[str | None, Header(alias="X-Internal-Api-Key")] = None,
+) -> None:
+    if x_internal_api_key is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="missing_internal_api_key")
+
+    candidate = x_internal_api_key.strip()
+    if not candidate:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="missing_internal_api_key")
+
+    if not hmac.compare_digest(candidate, settings.content_pipeline_api_key):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="invalid_internal_api_key")
