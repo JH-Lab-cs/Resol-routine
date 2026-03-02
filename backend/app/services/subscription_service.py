@@ -333,6 +333,92 @@ def get_subscription_me(
     )
 
 
+def upsert_parent_subscription_from_billing(
+    db: Session,
+    *,
+    parent_id: UUID,
+    plan_code: str,
+    external_billing_ref: str,
+    subscription_status: UserSubscriptionStatus,
+    starts_at: datetime,
+    ends_at: datetime,
+    grace_ends_at: datetime | None,
+    metadata_json: dict[str, object],
+) -> UserSubscription:
+    parent_user = db.get(User, parent_id)
+    if parent_user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="parent_user_not_found")
+    if parent_user.role != UserRole.PARENT:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="subscription_owner_must_be_parent")
+
+    plan = db.execute(
+        select(SubscriptionPlan).where(SubscriptionPlan.plan_code == plan_code)
+    ).scalar_one_or_none()
+    if plan is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="subscription_plan_not_found")
+    if plan.status != SubscriptionPlanStatus.ACTIVE:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="subscription_plan_not_active")
+
+    normalized_external_ref = external_billing_ref.strip()
+    if not normalized_external_ref:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="external_billing_ref_required")
+
+    existing = (
+        db.query(UserSubscription)
+        .filter(
+            UserSubscription.owner_user_id == parent_id,
+            UserSubscription.external_billing_ref == normalized_external_ref,
+        )
+        .with_for_update()
+        .one_or_none()
+    )
+
+    if existing is None:
+        existing = UserSubscription(
+            owner_user_id=parent_id,
+            subscription_plan_id=plan.id,
+            status=subscription_status,
+            starts_at=starts_at,
+            ends_at=ends_at,
+            grace_ends_at=grace_ends_at,
+            canceled_at=None,
+            external_billing_ref=normalized_external_ref,
+            metadata_json=metadata_json,
+        )
+        db.add(existing)
+        db.flush()
+
+    active_window_end = _entitlement_window_end(
+        status=subscription_status,
+        ends_at=ends_at,
+        grace_ends_at=grace_ends_at,
+    )
+    if active_window_end is not None:
+        _close_overlapping_active_windows(
+            db,
+            owner_user_id=parent_id,
+            excluded_subscription_id=existing.id,
+            incoming_starts_at=starts_at,
+            incoming_ends_at=active_window_end,
+        )
+
+    existing.subscription_plan_id = plan.id
+    existing.status = subscription_status
+    existing.starts_at = starts_at
+    existing.ends_at = ends_at
+    existing.grace_ends_at = grace_ends_at
+    existing.external_billing_ref = normalized_external_ref
+    existing.metadata_json = metadata_json
+
+    if subscription_status == UserSubscriptionStatus.CANCELED:
+        existing.canceled_at = datetime.now(UTC)
+    elif subscription_status != UserSubscriptionStatus.EXPIRED:
+        existing.canceled_at = None
+
+    db.flush()
+    return existing
+
+
 def _to_plan_response(
     *,
     plan: SubscriptionPlan,
@@ -379,6 +465,48 @@ def _to_subscription_state_change_response(subscription: UserSubscription) -> Su
         grace_ends_at=subscription.grace_ends_at,
         updated_at=subscription.updated_at,
     )
+
+
+def _close_overlapping_active_windows(
+    db: Session,
+    *,
+    owner_user_id: UUID,
+    excluded_subscription_id: UUID,
+    incoming_starts_at: datetime,
+    incoming_ends_at: datetime,
+) -> None:
+    incoming_start = _to_utc_aware(incoming_starts_at)
+    incoming_end = _to_utc_aware(incoming_ends_at)
+    rows = db.execute(
+        select(UserSubscription)
+        .where(
+            UserSubscription.owner_user_id == owner_user_id,
+            UserSubscription.id != excluded_subscription_id,
+            UserSubscription.status.in_(_ACTIVE_WINDOW_STATUSES),
+        )
+        .order_by(UserSubscription.starts_at.asc(), UserSubscription.id.asc())
+    ).scalars().all()
+
+    for item in rows:
+        current_end = _entitlement_window_end(
+            status=item.status,
+            ends_at=item.ends_at,
+            grace_ends_at=item.grace_ends_at,
+        )
+        if current_end is None:
+            continue
+        if not _windows_overlap(
+            left_start=incoming_start,
+            left_end=incoming_end,
+            right_start=_to_utc_aware(item.starts_at),
+            right_end=_to_utc_aware(current_end),
+        ):
+            continue
+
+        item.status = UserSubscriptionStatus.EXPIRED
+        item.grace_ends_at = None
+        if _to_utc_aware(item.ends_at) > incoming_start:
+            item.ends_at = incoming_start
 
 
 def _assert_no_overlapping_active_window(
