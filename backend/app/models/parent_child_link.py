@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Index, func, text
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, func, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -13,12 +13,14 @@ from app.db.base import Base
 class ParentChildLink(Base):
     __tablename__ = "parent_child_links"
     __table_args__ = (
+        CheckConstraint("parent_id <> child_id", name="parent_child_link_distinct_users"),
         Index(
             "uq_parent_child_links_active_pair",
             "parent_id",
             "child_id",
             unique=True,
             postgresql_where=text("unlinked_at IS NULL"),
+            sqlite_where=text("unlinked_at IS NULL"),
         ),
     )
 

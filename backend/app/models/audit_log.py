@@ -5,10 +5,11 @@ from datetime import datetime
 from typing import Any
 
 from sqlalchemy import DateTime, ForeignKey, Integer, String, func
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
+from app.db.types import JSON_TYPE
 
 
 class AuditLog(Base):
@@ -28,7 +29,7 @@ class AuditLog(Base):
         index=True,
     )
     action: Mapped[str] = mapped_column(String(100), nullable=False)
-    details: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
+    details: Mapped[dict[str, Any]] = mapped_column(JSON_TYPE, nullable=False, default=dict)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
