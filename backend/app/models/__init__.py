@@ -1,5 +1,7 @@
 from app.models.ai_generation_job import AIGenerationJob
 from app.models.audit_log import AuditLog
+from app.models.billing_receipt_verification import BillingReceiptVerification
+from app.models.billing_webhook_event import BillingWebhookEvent
 from app.models.content_asset import ContentAsset
 from app.models.content_enums import ContentLifecycleStatus
 from app.models.content_question import ContentQuestion
@@ -9,6 +11,9 @@ from app.models.daily_report_aggregate import DailyReportAggregate
 from app.models.enums import (
     AIGenerationJobStatus,
     AIGenerationJobType,
+    BillingProvider,
+    BillingReceiptVerificationStatus,
+    BillingWebhookStatus,
     MockExamType,
     Skill,
     SubscriptionFeatureCode,
@@ -39,6 +44,11 @@ __all__ = [
     "AIGenerationJob",
     "AIGenerationJobStatus",
     "AIGenerationJobType",
+    "BillingProvider",
+    "BillingReceiptVerification",
+    "BillingReceiptVerificationStatus",
+    "BillingWebhookEvent",
+    "BillingWebhookStatus",
     "ContentAsset",
     "ContentLifecycleStatus",
     "ContentQuestion",
