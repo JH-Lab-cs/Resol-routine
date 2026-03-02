@@ -6,6 +6,9 @@ For backend production readiness, runtime secret handling, migration operations,
 and observability rollout status, see:
 
 - `docs/backend_production_readiness.md`
+- `docs/ops/ops_1_production_readiness.md`
+- `docs/ops/secret_rotation_checklist.md`
+- `docs/ops/monitoring_alert_baseline.md`
 
 ## 1) CI Release Smoke Artifacts Are Not Deployable
 

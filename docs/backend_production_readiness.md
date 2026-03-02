@@ -2,6 +2,21 @@
 
 Last updated: 2026-03-02 (KST)
 
+## 0) Execution Assets
+
+Use the following operational assets to execute OPS-1:
+
+- Runbook: `docs/ops/ops_1_production_readiness.md`
+- Secret rotation checklist: `docs/ops/secret_rotation_checklist.md`
+- Monitoring baseline: `docs/ops/monitoring_alert_baseline.md`
+- Script guide: `backend/scripts/ops/README.md`
+- Environment check: `backend/scripts/ops/check_environment.sh`
+- R2 lifecycle backup/apply:
+  - `backend/scripts/ops/r2_lifecycle_backup.sh`
+  - `backend/scripts/ops/r2_lifecycle_apply.sh`
+- Backup/restore drill: `backend/scripts/ops/backup_restore_drill.sh`
+- Monitoring SQL pack: `backend/scripts/ops/monitoring_queries.sql`
+
 ## 1) B1 Completion Gate
 
 - B1.0: Approved

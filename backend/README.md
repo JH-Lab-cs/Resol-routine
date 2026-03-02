@@ -99,3 +99,8 @@ See `docs/backend_production_readiness.md` for:
 - backup/restore baseline
 - logging redaction policy
 - QA readiness matrix
+
+For execution-ready operational scripts and step-by-step procedures, see:
+
+- `docs/ops/ops_1_production_readiness.md`
+- `backend/scripts/ops/README.md`
