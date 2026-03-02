@@ -1,3 +1,4 @@
+from app.models.ai_generation_job import AIGenerationJob
 from app.models.audit_log import AuditLog
 from app.models.content_asset import ContentAsset
 from app.models.content_enums import ContentLifecycleStatus
@@ -6,6 +7,7 @@ from app.models.content_unit import ContentUnit
 from app.models.content_unit_revision import ContentUnitRevision
 from app.models.daily_report_aggregate import DailyReportAggregate
 from app.models.enums import MockExamType, Skill, Track, UserRole, WrongReasonTag
+from app.models.enums import AIGenerationJobStatus, AIGenerationJobType
 from app.models.invite_code import InviteCode
 from app.models.monthly_report_aggregate import MonthlyReportAggregate
 from app.models.mock_exam import MockExam
@@ -21,6 +23,9 @@ from app.models.weekly_report_aggregate import WeeklyReportAggregate
 
 __all__ = [
     "AuditLog",
+    "AIGenerationJob",
+    "AIGenerationJobStatus",
+    "AIGenerationJobType",
     "ContentAsset",
     "ContentLifecycleStatus",
     "ContentQuestion",

@@ -5,6 +5,14 @@ from app.schemas.auth import (
     RegisterRequest,
     SessionTokensResponse,
 )
+from app.schemas.ai_jobs import (
+    AIArtifactDownloadUrlResponse,
+    AIArtifactKind,
+    AIJobListQuery,
+    AIJobListResponse,
+    AIJobResponse,
+    AIMockExamJobCreateRequest,
+)
 from app.schemas.content import (
     AssetDownloadUrlResponse,
     AssetFinalizeRequest,
@@ -78,6 +86,12 @@ from app.schemas.sync import (
 from app.schemas.user import UserMeResponse
 
 __all__ = [
+    "AIArtifactDownloadUrlResponse",
+    "AIArtifactKind",
+    "AIJobListQuery",
+    "AIJobListResponse",
+    "AIJobResponse",
+    "AIMockExamJobCreateRequest",
     "AssetDownloadUrlResponse",
     "AssetFinalizeRequest",
     "AssetUploadUrlRequest",

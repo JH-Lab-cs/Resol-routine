@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 
+from app.api.ai_internal import router as ai_internal_router
 from app.api.auth import router as auth_router
 from app.api.content_internal import router as content_internal_router
 from app.api.family import router as family_router
@@ -10,6 +11,7 @@ from app.api.reports import router as reports_router
 from app.api.sync import router as sync_router
 
 api_router = APIRouter()
+api_router.include_router(ai_internal_router)
 api_router.include_router(auth_router)
 api_router.include_router(content_internal_router)
 api_router.include_router(family_router)

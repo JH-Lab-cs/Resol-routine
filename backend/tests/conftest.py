@@ -20,6 +20,10 @@ os.environ["R2_BUCKET"] = "resol-private-bucket"
 os.environ["R2_ACCESS_KEY_ID"] = "unit-test-access-key-id"
 os.environ["R2_SECRET_ACCESS_KEY"] = "unit-test-secret-access-key"
 os.environ["CONTENT_PIPELINE_API_KEY"] = "unit-test-internal-api-key-value"
+os.environ["AI_GENERATION_PROVIDER"] = "fake"
+os.environ["AI_MOCK_EXAM_MODEL"] = "unit-test-model"
+os.environ["AI_MOCK_EXAM_PROMPT_TEMPLATE_VERSION"] = "v1"
+os.environ["AI_GENERATION_API_KEY"] = "unit-test-ai-api-key"
 
 from app.core.config import get_settings
 
@@ -29,7 +33,9 @@ import app.models  # noqa: F401
 from app.api.dependencies import get_db, get_rate_limiter
 from app.db.base import Base
 from app.db.session import (
+    POST_COMMIT_AI_GENERATION_JOB_IDS_KEY,
     POST_COMMIT_AGGREGATION_STUDENT_IDS_KEY,
+    run_post_commit_ai_generation_tasks,
     run_post_commit_aggregation_tasks,
 )
 from app.main import app
@@ -66,9 +72,11 @@ def test_app() -> Generator[FastAPI, None, None]:
             yield db
             db.commit()
             run_post_commit_aggregation_tasks(db)
+            run_post_commit_ai_generation_tasks(db)
         except Exception:
             db.rollback()
             db.info.pop(POST_COMMIT_AGGREGATION_STUDENT_IDS_KEY, None)
+            db.info.pop(POST_COMMIT_AI_GENERATION_JOB_IDS_KEY, None)
             raise
         finally:
             db.close()

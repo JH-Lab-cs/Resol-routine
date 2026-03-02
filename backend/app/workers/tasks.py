@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 from app.db.session import SessionLocal
+from app.services.ai_job_service import run_mock_exam_draft_generation_job
 from app.services.report_aggregation_service import recompute_student_reports
 from app.workers.celery_app import celery_app
 
@@ -70,3 +71,60 @@ def aggregate_student_events(student_id: str) -> dict[str, str | int]:
 
 def trigger_student_event_aggregation(*, student_id: UUID) -> None:
     aggregate_student_events.delay(str(student_id))
+
+
+@celery_app.task(name="workers.generate_mock_exam_revision_draft")
+def generate_mock_exam_revision_draft(job_id: str) -> dict[str, str | int | None]:
+    executed_at = datetime.now(UTC).isoformat()
+    try:
+        parsed_job_id = UUID(job_id)
+    except ValueError as exc:
+        logger.exception(
+            "Invalid ai generation job id for worker task",
+            extra={"job_id": job_id, "executed_at_utc": executed_at},
+        )
+        raise ValueError("invalid_ai_job_id") from exc
+
+    db = SessionLocal()
+    try:
+        execution_result = run_mock_exam_draft_generation_job(db, job_id=parsed_job_id)
+        db.commit()
+    except Exception:
+        db.rollback()
+        logger.exception(
+            "Failed ai draft generation task",
+            extra={"job_id": job_id, "executed_at_utc": executed_at},
+        )
+        raise
+    finally:
+        db.close()
+
+    logger.info(
+        "AI draft generation task completed",
+        extra={
+            "job_id": job_id,
+            "executed_at_utc": executed_at,
+            "job_status": execution_result.status.value,
+            "produced_mock_exam_revision_id": (
+                str(execution_result.produced_mock_exam_revision_id)
+                if execution_result.produced_mock_exam_revision_id is not None
+                else None
+            ),
+            "error_code": execution_result.error_code,
+        },
+    )
+    return {
+        "status": execution_result.status.value,
+        "job_id": job_id,
+        "executed_at_utc": executed_at,
+        "produced_mock_exam_revision_id": (
+            str(execution_result.produced_mock_exam_revision_id)
+            if execution_result.produced_mock_exam_revision_id is not None
+            else None
+        ),
+        "error_code": execution_result.error_code,
+    }
+
+
+def trigger_ai_generation_job(*, job_id: UUID) -> None:
+    generate_mock_exam_revision_draft.delay(str(job_id))

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from uuid import UUID
 
@@ -39,6 +40,13 @@ from app.schemas.mock_exam import (
     MockExamRollbackResponse,
 )
 from app.services.audit_service import append_audit_log
+
+
+@dataclass(frozen=True, slots=True)
+class AIGeneratedRevisionSelectionItem:
+    order_index: int
+    content_question_id: UUID
+    content_unit_revision_id: UUID
 
 
 def create_mock_exam(db: Session, *, payload: MockExamCreateRequest) -> MockExamResponse:
@@ -186,6 +194,107 @@ def create_mock_exam_revision(
 
     db.flush()
     return _to_revision_response(revision=revision, items=created_items)
+
+
+def create_ai_generated_mock_exam_revision_draft(
+    db: Session,
+    *,
+    exam_id: UUID,
+    title: str,
+    instructions: str | None,
+    generator_version: str,
+    metadata_json: dict[str, object],
+    selections: list[AIGeneratedRevisionSelectionItem],
+) -> MockExamRevision:
+    exam = _get_exam_for_update(db, exam_id=exam_id)
+    if exam.lifecycle_status == ContentLifecycleStatus.ARCHIVED:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="mock_exam_archived")
+    if not selections:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="revision_items_must_not_be_empty")
+
+    ordered = sorted(selections, key=lambda item: item.order_index)
+    expected_order_indexes = list(range(1, len(ordered) + 1))
+    if [item.order_index for item in ordered] != expected_order_indexes:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="invalid_order_sequence")
+
+    question_ids = [item.content_question_id for item in ordered]
+    if len(question_ids) != len(set(question_ids)):
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="duplicate_content_question_id")
+
+    pair_map: dict[tuple[UUID, UUID], AIGeneratedRevisionSelectionItem] = {
+        (item.content_question_id, item.content_unit_revision_id): item for item in ordered
+    }
+
+    rows = db.execute(
+        select(ContentQuestion, ContentUnitRevision, ContentUnit)
+        .join(ContentUnitRevision, ContentQuestion.content_unit_revision_id == ContentUnitRevision.id)
+        .join(ContentUnit, ContentUnitRevision.content_unit_id == ContentUnit.id)
+        .where(ContentQuestion.id.in_(question_ids))
+    ).all()
+    if len(rows) != len(ordered):
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="content_question_not_found")
+
+    selection_context: list[
+        tuple[AIGeneratedRevisionSelectionItem, ContentQuestion, ContentUnitRevision, ContentUnit]
+    ] = []
+    for question, content_revision, content_unit in rows:
+        key = (question.id, content_revision.id)
+        selection = pair_map.get(key)
+        if selection is None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="content_question_revision_mismatch",
+            )
+        _ensure_reference_is_publishable(
+            exam=exam,
+            content_revision=content_revision,
+            content_unit=content_unit,
+        )
+        selection_context.append((selection, question, content_revision, content_unit))
+
+    listening_count = sum(1 for _, _, _, content_unit in selection_context if content_unit.skill == Skill.LISTENING)
+    reading_count = sum(1 for _, _, _, content_unit in selection_context if content_unit.skill == Skill.READING)
+    expected_listening, expected_reading = _expected_skill_counts(exam.exam_type)
+    if listening_count != expected_listening or reading_count != expected_reading:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="mock_exam_skill_count_mismatch")
+
+    max_revision_no = db.execute(
+        select(func.max(MockExamRevision.revision_no)).where(MockExamRevision.mock_exam_id == exam_id)
+    ).scalar_one()
+    revision_no = (int(max_revision_no) if max_revision_no is not None else 0) + 1
+
+    revision = MockExamRevision(
+        mock_exam_id=exam_id,
+        revision_no=revision_no,
+        title=title,
+        instructions=instructions,
+        generator_version=generator_version,
+        validator_version=None,
+        validated_at=None,
+        reviewer_identity=None,
+        reviewed_at=None,
+        metadata_json=metadata_json,
+        lifecycle_status=ContentLifecycleStatus.DRAFT,
+        published_at=None,
+    )
+    db.add(revision)
+    db.flush()
+
+    ordered_context = sorted(selection_context, key=lambda row: row[0].order_index)
+    for selection, question, _content_revision, content_unit in ordered_context:
+        db.add(
+            MockExamRevisionItem(
+                mock_exam_revision_id=revision.id,
+                order_index=selection.order_index,
+                content_unit_revision_id=selection.content_unit_revision_id,
+                content_question_id=selection.content_question_id,
+                question_code_snapshot=question.question_code,
+                skill_snapshot=content_unit.skill,
+            )
+        )
+
+    db.flush()
+    return revision
 
 
 def list_mock_exam_revisions(db: Session, *, exam_id: UUID) -> MockExamRevisionListResponse:

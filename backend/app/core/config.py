@@ -46,6 +46,11 @@ class Settings(BaseSettings):
     r2_secret_access_key: str
     content_pipeline_api_key: str = Field(min_length=24)
 
+    ai_generation_provider: str = "disabled"
+    ai_generation_api_key: str | None = None
+    ai_mock_exam_model: str = "not-configured"
+    ai_mock_exam_prompt_template_version: str = "v1"
+
     @property
     def jwt_algorithm(self) -> str:
         return JWT_ALGORITHM
@@ -96,6 +101,33 @@ class Settings(BaseSettings):
             raise ValueError(f"{info.field_name} must not use an insecure sample value.")
         if lowered.startswith("replace-with-") or lowered.startswith("change-"):
             raise ValueError(f"{info.field_name} must not use an insecure sample value.")
+        return normalized
+
+    @field_validator("ai_generation_provider", "ai_mock_exam_model", "ai_mock_exam_prompt_template_version", mode="before")
+    @classmethod
+    def validate_non_empty_identifier_settings(cls, value: str, info: ValidationInfo) -> str:
+        if not isinstance(value, str):
+            raise TypeError(f"{info.field_name} must be a string.")
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError(f"{info.field_name} must not be empty.")
+        return normalized
+
+    @field_validator("ai_generation_api_key", mode="before")
+    @classmethod
+    def validate_optional_ai_api_key(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        if not isinstance(value, str):
+            raise TypeError("ai_generation_api_key must be a string.")
+        normalized = value.strip()
+        if not normalized:
+            return None
+        lowered = normalized.lower()
+        if lowered in _DISALLOWED_SECRET_TOKENS:
+            raise ValueError("ai_generation_api_key must not use an insecure sample value.")
+        if lowered.startswith("replace-with-") or lowered.startswith("change-"):
+            raise ValueError("ai_generation_api_key must not use an insecure sample value.")
         return normalized
 
     @field_validator("database_url", mode="before")

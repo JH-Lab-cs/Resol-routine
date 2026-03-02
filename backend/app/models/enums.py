@@ -29,3 +29,14 @@ class WrongReasonTag(str, Enum):
     INFERENCE = "INFERENCE"
     CARELESS = "CARELESS"
     TIME = "TIME"
+
+
+class AIGenerationJobType(str, Enum):
+    MOCK_EXAM_REVISION_DRAFT_GENERATION = "MOCK_EXAM_REVISION_DRAFT_GENERATION"
+
+
+class AIGenerationJobStatus(str, Enum):
+    QUEUED = "QUEUED"
+    RUNNING = "RUNNING"
+    SUCCEEDED = "SUCCEEDED"
+    FAILED = "FAILED"
