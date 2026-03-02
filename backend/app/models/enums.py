@@ -40,3 +40,22 @@ class AIGenerationJobStatus(str, Enum):
     RUNNING = "RUNNING"
     SUCCEEDED = "SUCCEEDED"
     FAILED = "FAILED"
+
+
+class SubscriptionFeatureCode(str, Enum):
+    CHILD_REPORTS = "CHILD_REPORTS"
+    WEEKLY_MOCK_EXAMS = "WEEKLY_MOCK_EXAMS"
+    MONTHLY_MOCK_EXAMS = "MONTHLY_MOCK_EXAMS"
+
+
+class SubscriptionPlanStatus(str, Enum):
+    ACTIVE = "ACTIVE"
+    ARCHIVED = "ARCHIVED"
+
+
+class UserSubscriptionStatus(str, Enum):
+    TRIALING = "TRIALING"
+    ACTIVE = "ACTIVE"
+    GRACE = "GRACE"
+    CANCELED = "CANCELED"
+    EXPIRED = "EXPIRED"

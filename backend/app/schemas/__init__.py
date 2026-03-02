@@ -83,6 +83,21 @@ from app.schemas.sync import (
     SyncEventsBatchResponse,
     SyncItemStatus,
 )
+from app.schemas.subscriptions import (
+    SubscriptionMeParentActiveSubscription,
+    SubscriptionMeParentResponse,
+    SubscriptionMeResponse,
+    SubscriptionMeStudentParentSource,
+    SubscriptionMeStudentResponse,
+    SubscriptionPlanCreateRequest,
+    SubscriptionPlanListQuery,
+    SubscriptionPlanListResponse,
+    SubscriptionPlanResponse,
+    SubscriptionStateChangeResponse,
+    UserSubscriptionCreateRequest,
+    UserSubscriptionListResponse,
+    UserSubscriptionResponse,
+)
 from app.schemas.user import UserMeResponse
 
 __all__ = [
@@ -153,9 +168,22 @@ __all__ = [
     "SyncEventsBatchEnvelope",
     "SyncEventsBatchResponse",
     "SyncItemStatus",
+    "SubscriptionMeParentActiveSubscription",
+    "SubscriptionMeParentResponse",
+    "SubscriptionMeResponse",
+    "SubscriptionMeStudentParentSource",
+    "SubscriptionMeStudentResponse",
+    "SubscriptionPlanCreateRequest",
+    "SubscriptionPlanListQuery",
+    "SubscriptionPlanListResponse",
+    "SubscriptionPlanResponse",
+    "SubscriptionStateChangeResponse",
     "StudentCurrentMockExamResponse",
     "UnlinkRequest",
     "UnlinkResponse",
+    "UserSubscriptionCreateRequest",
+    "UserSubscriptionListResponse",
+    "UserSubscriptionResponse",
     "UserMeResponse",
     "WeeklyReportResponse",
 ]

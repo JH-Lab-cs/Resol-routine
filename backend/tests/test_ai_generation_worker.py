@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
 
 import pytest
@@ -15,8 +15,21 @@ from app.models.content_enums import ContentLifecycleStatus
 from app.models.content_question import ContentQuestion
 from app.models.content_unit import ContentUnit
 from app.models.content_unit_revision import ContentUnitRevision
-from app.models.enums import AIGenerationJobStatus, Skill, Track
+from app.models.enums import (
+    AIGenerationJobStatus,
+    Skill,
+    SubscriptionFeatureCode,
+    SubscriptionPlanStatus,
+    Track,
+    UserRole,
+    UserSubscriptionStatus,
+)
 from app.models.mock_exam_revision import MockExamRevision
+from app.models.parent_child_link import ParentChildLink
+from app.models.subscription_plan import SubscriptionPlan
+from app.models.subscription_plan_feature import SubscriptionPlanFeature
+from app.models.user import User
+from app.models.user_subscription import UserSubscription
 from app.services import ai_artifact_service
 import app.services.ai_job_service as ai_job_service
 from app.services.ai_job_service import run_mock_exam_draft_generation_job
@@ -119,6 +132,58 @@ def _register_student(
     )
     assert response.status_code == 201, response.text
     return response.json()
+
+
+def _grant_student_entitlements(
+    db_session_factory,
+    *,
+    student_id: UUID,
+    feature_codes: set[SubscriptionFeatureCode],
+) -> None:
+    seed = uuid4().hex[:8]
+    with db_session_factory() as db:
+        parent = User(
+            email=f"ai-entitled-parent-{seed}@example.com",
+            password_hash="hashed-password",
+            role=UserRole.PARENT,
+        )
+        db.add(parent)
+        db.flush()
+
+        db.add(ParentChildLink(parent_id=parent.id, child_id=student_id))
+
+        plan = SubscriptionPlan(
+            plan_code=f"ai-plan-{seed}",
+            display_name=f"AI Plan {seed}",
+            status=SubscriptionPlanStatus.ACTIVE,
+            metadata_json={"seed": seed},
+        )
+        db.add(plan)
+        db.flush()
+
+        for feature_code in feature_codes:
+            db.add(
+                SubscriptionPlanFeature(
+                    subscription_plan_id=plan.id,
+                    feature_code=feature_code,
+                )
+            )
+
+        now = datetime.now(UTC)
+        db.add(
+            UserSubscription(
+                owner_user_id=parent.id,
+                subscription_plan_id=plan.id,
+                status=UserSubscriptionStatus.ACTIVE,
+                starts_at=now - timedelta(days=1),
+                ends_at=now + timedelta(days=30),
+                grace_ends_at=None,
+                canceled_at=None,
+                external_billing_ref=None,
+                metadata_json={"seed": seed},
+            )
+        )
+        db.commit()
 
 
 def _create_mock_exam(
@@ -709,6 +774,11 @@ def test_generated_draft_not_visible_to_student_current_exam(
     _run_job_once(db_session_factory, job_id=str(job["id"]))
 
     student = _register_student(client, email="ai-draft-hidden@example.com")
+    _grant_student_entitlements(
+        db_session_factory,
+        student_id=UUID(str(student["user"]["id"])),
+        feature_codes={SubscriptionFeatureCode.WEEKLY_MOCK_EXAMS},
+    )
     response = client.get(
         "/mock-exams/weekly/current",
         params={"track": "H2"},
@@ -767,6 +837,11 @@ def test_generated_draft_publish_then_student_delivery_success(
     assert publish_response.status_code == 200, publish_response.text
 
     student = _register_student(client, email="ai-generated-published@example.com")
+    _grant_student_entitlements(
+        db_session_factory,
+        student_id=UUID(str(student["user"]["id"])),
+        feature_codes={SubscriptionFeatureCode.WEEKLY_MOCK_EXAMS},
+    )
     current_response = client.get(
         "/mock-exams/weekly/current",
         params={"track": "H2"},

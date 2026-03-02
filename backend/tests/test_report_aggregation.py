@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
-from uuid import UUID
+from datetime import UTC, datetime, timedelta
+from uuid import UUID, uuid4
 
 from fastapi.testclient import TestClient
 from sqlalchemy import select
@@ -10,9 +10,13 @@ from app.core.timekeys import day_key, to_kst, week_key
 from app.models.daily_report_aggregate import DailyReportAggregate
 from app.models.monthly_report_aggregate import MonthlyReportAggregate
 from app.models.parent_child_link import ParentChildLink
+from app.models.subscription_plan import SubscriptionPlan
+from app.models.subscription_plan_feature import SubscriptionPlanFeature
+from app.models.user_subscription import UserSubscription
 from app.models.study_event import StudyEvent
 from app.models.student_attempt_projection import StudentAttemptProjection
 from app.models.weekly_report_aggregate import WeeklyReportAggregate
+from app.models.enums import SubscriptionFeatureCode, SubscriptionPlanStatus, UserSubscriptionStatus
 from app.services.report_aggregation_service import recompute_student_reports
 import app.workers.tasks as worker_tasks
 
@@ -48,6 +52,48 @@ def _parent_headers(token: str) -> dict[str, str]:
         "x-forwarded-for": "203.0.113.12",
         "user-agent": "pytest-agent",
     }
+
+
+def _grant_parent_entitlements(
+    db_session_factory,
+    *,
+    parent_id: UUID,
+    feature_codes: set[SubscriptionFeatureCode],
+) -> None:
+    seed = uuid4().hex[:8]
+    with db_session_factory() as db:
+        plan = SubscriptionPlan(
+            plan_code=f"report-plan-{seed}",
+            display_name=f"Report Plan {seed}",
+            status=SubscriptionPlanStatus.ACTIVE,
+            metadata_json={"seed": seed},
+        )
+        db.add(plan)
+        db.flush()
+
+        for feature_code in feature_codes:
+            db.add(
+                SubscriptionPlanFeature(
+                    subscription_plan_id=plan.id,
+                    feature_code=feature_code,
+                )
+            )
+
+        now = datetime.now(UTC)
+        db.add(
+            UserSubscription(
+                owner_user_id=parent_id,
+                subscription_plan_id=plan.id,
+                status=UserSubscriptionStatus.ACTIVE,
+                starts_at=now - timedelta(days=1),
+                ends_at=now + timedelta(days=30),
+                grace_ends_at=None,
+                canceled_at=None,
+                external_billing_ref=None,
+                metadata_json={"seed": seed},
+            )
+        )
+        db.commit()
 
 
 def _insert_today_event(
@@ -527,6 +573,11 @@ def test_report_read_apis_for_student_and_parent(client: TestClient, db_session_
     with db_session_factory() as db:
         db.add(ParentChildLink(parent_id=parent_id, child_id=student_id))
         db.commit()
+    _grant_parent_entitlements(
+        db_session_factory,
+        parent_id=parent_id,
+        feature_codes={SubscriptionFeatureCode.CHILD_REPORTS},
+    )
 
     _insert_today_event(
         db_session_factory,

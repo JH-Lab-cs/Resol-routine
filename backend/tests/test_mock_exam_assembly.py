@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
 
 import pytest
@@ -12,10 +12,22 @@ from app.models.content_enums import ContentLifecycleStatus
 from app.models.content_question import ContentQuestion
 from app.models.content_unit import ContentUnit
 from app.models.content_unit_revision import ContentUnitRevision
-from app.models.enums import Skill, Track
+from app.models.enums import (
+    Skill,
+    SubscriptionFeatureCode,
+    SubscriptionPlanStatus,
+    Track,
+    UserRole,
+    UserSubscriptionStatus,
+)
 from app.models.mock_exam import MockExam
 from app.models.mock_exam_revision import MockExamRevision
 from app.models.mock_exam_session import MockExamSession
+from app.models.parent_child_link import ParentChildLink
+from app.models.subscription_plan import SubscriptionPlan
+from app.models.subscription_plan_feature import SubscriptionPlanFeature
+from app.models.user import User
+from app.models.user_subscription import UserSubscription
 from app.services import content_asset_service
 import app.services.mock_exam_delivery_service as mock_exam_delivery_service
 
@@ -56,6 +68,58 @@ def _register_user(
 
 def _student_headers(access_token: str) -> dict[str, str]:
     return {"authorization": f"Bearer {access_token}"}
+
+
+def _grant_student_entitlements(
+    db_session_factory,
+    *,
+    student_id: UUID,
+    feature_codes: set[SubscriptionFeatureCode],
+) -> None:
+    seed = uuid4().hex[:8]
+    with db_session_factory() as db:
+        parent = User(
+            email=f"entitled-parent-{seed}@example.com",
+            password_hash="hashed-password",
+            role=UserRole.PARENT,
+        )
+        db.add(parent)
+        db.flush()
+
+        db.add(ParentChildLink(parent_id=parent.id, child_id=student_id))
+
+        plan = SubscriptionPlan(
+            plan_code=f"plan-{seed}",
+            display_name=f"Plan {seed}",
+            status=SubscriptionPlanStatus.ACTIVE,
+            metadata_json={"seed": seed},
+        )
+        db.add(plan)
+        db.flush()
+
+        for feature_code in feature_codes:
+            db.add(
+                SubscriptionPlanFeature(
+                    subscription_plan_id=plan.id,
+                    feature_code=feature_code,
+                )
+            )
+
+        now = datetime.now(UTC)
+        db.add(
+            UserSubscription(
+                owner_user_id=parent.id,
+                subscription_plan_id=plan.id,
+                status=UserSubscriptionStatus.ACTIVE,
+                starts_at=now - timedelta(days=1),
+                ends_at=now + timedelta(days=30),
+                grace_ends_at=None,
+                canceled_at=None,
+                external_billing_ref=None,
+                metadata_json={"seed": seed},
+            )
+        )
+        db.commit()
 
 
 def _create_mock_exam(
@@ -682,6 +746,14 @@ def test_student_current_weekly_and_monthly_and_no_current_exam(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     student = _register_user(client, role="student", email="current-student@example.com")
+    _grant_student_entitlements(
+        db_session_factory,
+        student_id=UUID(str(student["user"]["id"])),
+        feature_codes={
+            SubscriptionFeatureCode.WEEKLY_MOCK_EXAMS,
+            SubscriptionFeatureCode.MONTHLY_MOCK_EXAMS,
+        },
+    )
     token = str(student["access_token"])
 
     monkeypatch.setattr(
@@ -770,6 +842,11 @@ def test_session_start_idempotent_and_detail_contract(
         lambda: datetime.fromisoformat("2026-03-04T00:00:00+00:00"),
     )
     student = _register_user(client, role="student", email="session-student@example.com")
+    _grant_student_entitlements(
+        db_session_factory,
+        student_id=UUID(str(student["user"]["id"])),
+        feature_codes={SubscriptionFeatureCode.WEEKLY_MOCK_EXAMS},
+    )
     token = str(student["access_token"])
     _exam, revision, _references = _create_weekly_published_exam(
         client,
@@ -827,6 +904,11 @@ def test_student_cannot_access_other_student_session(
     )
     student_one = _register_user(client, role="student", email="session-owner@example.com")
     student_two = _register_user(client, role="student", email="session-other@example.com")
+    _grant_student_entitlements(
+        db_session_factory,
+        student_id=UUID(str(student_one["user"]["id"])),
+        feature_codes={SubscriptionFeatureCode.WEEKLY_MOCK_EXAMS},
+    )
     _exam, revision, _references = _create_weekly_published_exam(
         client,
         db_session_factory,
@@ -863,6 +945,11 @@ def test_asset_download_url_is_fresh_per_session_detail_call(
         lambda: datetime.fromisoformat("2026-03-06T00:00:00+00:00"),
     )
     student = _register_user(client, role="student", email="asset-student@example.com")
+    _grant_student_entitlements(
+        db_session_factory,
+        student_id=UUID(str(student["user"]["id"])),
+        feature_codes={SubscriptionFeatureCode.WEEKLY_MOCK_EXAMS},
+    )
     token = str(student["access_token"])
     _exam, revision, _references = _create_weekly_published_exam(
         client,
@@ -904,6 +991,14 @@ def test_current_period_key_uses_kst_boundary_for_weekly_and_monthly(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     student = _register_user(client, role="student", email="kst-boundary@example.com")
+    _grant_student_entitlements(
+        db_session_factory,
+        student_id=UUID(str(student["user"]["id"])),
+        feature_codes={
+            SubscriptionFeatureCode.WEEKLY_MOCK_EXAMS,
+            SubscriptionFeatureCode.MONTHLY_MOCK_EXAMS,
+        },
+    )
     token = str(student["access_token"])
 
     _create_weekly_published_exam(
@@ -958,6 +1053,11 @@ def test_mock_session_id_is_db_integer_and_linked_to_revision(
         lambda: datetime.fromisoformat("2026-03-07T00:00:00+00:00"),
     )
     student = _register_user(client, role="student", email="session-db-id@example.com")
+    _grant_student_entitlements(
+        db_session_factory,
+        student_id=UUID(str(student["user"]["id"])),
+        feature_codes={SubscriptionFeatureCode.WEEKLY_MOCK_EXAMS},
+    )
     token = str(student["access_token"])
     _exam, revision, _references = _create_weekly_published_exam(
         client,

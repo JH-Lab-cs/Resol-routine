@@ -8,6 +8,8 @@ from app.api.health import router as health_router
 from app.api.mock_exam_internal import router as mock_exam_internal_router
 from app.api.mock_exams import router as mock_exams_router
 from app.api.reports import router as reports_router
+from app.api.subscriptions import router as subscriptions_router
+from app.api.subscriptions_internal import router as subscriptions_internal_router
 from app.api.sync import router as sync_router
 
 api_router = APIRouter()
@@ -19,4 +21,6 @@ api_router.include_router(health_router)
 api_router.include_router(mock_exam_internal_router)
 api_router.include_router(mock_exams_router)
 api_router.include_router(reports_router)
+api_router.include_router(subscriptions_router)
+api_router.include_router(subscriptions_internal_router)
 api_router.include_router(sync_router)

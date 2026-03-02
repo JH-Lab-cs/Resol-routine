@@ -86,7 +86,9 @@ def test_app() -> Generator[FastAPI, None, None]:
     app.state.testing_sessionmaker = testing_session
     yield app
     app.dependency_overrides.clear()
-    Base.metadata.drop_all(bind=engine)
+    # SQLite in-memory DB is isolated per test fixture; disposing the engine is enough.
+    # This avoids teardown-time cyclic FK drop ordering warnings in SQLite.
+    engine.dispose()
 
 
 @pytest.fixture()

@@ -6,8 +6,18 @@ from app.models.content_question import ContentQuestion
 from app.models.content_unit import ContentUnit
 from app.models.content_unit_revision import ContentUnitRevision
 from app.models.daily_report_aggregate import DailyReportAggregate
-from app.models.enums import MockExamType, Skill, Track, UserRole, WrongReasonTag
-from app.models.enums import AIGenerationJobStatus, AIGenerationJobType
+from app.models.enums import (
+    AIGenerationJobStatus,
+    AIGenerationJobType,
+    MockExamType,
+    Skill,
+    SubscriptionFeatureCode,
+    SubscriptionPlanStatus,
+    Track,
+    UserRole,
+    UserSubscriptionStatus,
+    WrongReasonTag,
+)
 from app.models.invite_code import InviteCode
 from app.models.monthly_report_aggregate import MonthlyReportAggregate
 from app.models.mock_exam import MockExam
@@ -18,7 +28,10 @@ from app.models.parent_child_link import ParentChildLink
 from app.models.refresh_token import RefreshToken
 from app.models.study_event import StudyEvent
 from app.models.student_attempt_projection import StudentAttemptProjection
+from app.models.subscription_plan import SubscriptionPlan
+from app.models.subscription_plan_feature import SubscriptionPlanFeature
 from app.models.user import User
+from app.models.user_subscription import UserSubscription
 from app.models.weekly_report_aggregate import WeeklyReportAggregate
 
 __all__ = [
@@ -44,9 +57,15 @@ __all__ = [
     "Skill",
     "StudyEvent",
     "StudentAttemptProjection",
+    "SubscriptionFeatureCode",
+    "SubscriptionPlan",
+    "SubscriptionPlanFeature",
+    "SubscriptionPlanStatus",
     "Track",
     "User",
+    "UserSubscription",
     "UserRole",
+    "UserSubscriptionStatus",
     "WeeklyReportAggregate",
     "WrongReasonTag",
 ]
