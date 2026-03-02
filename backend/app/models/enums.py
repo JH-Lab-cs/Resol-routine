@@ -40,6 +40,7 @@ class AIGenerationJobStatus(str, Enum):
     RUNNING = "RUNNING"
     SUCCEEDED = "SUCCEEDED"
     FAILED = "FAILED"
+    DEAD_LETTER = "DEAD_LETTER"
 
 
 class SubscriptionFeatureCode(str, Enum):
@@ -59,3 +60,20 @@ class UserSubscriptionStatus(str, Enum):
     GRACE = "GRACE"
     CANCELED = "CANCELED"
     EXPIRED = "EXPIRED"
+
+
+class BillingProvider(str, Enum):
+    STRIPE = "STRIPE"
+    APP_STORE = "APP_STORE"
+
+
+class BillingWebhookStatus(str, Enum):
+    PROCESSED = "PROCESSED"
+    IGNORED = "IGNORED"
+    FAILED = "FAILED"
+
+
+class BillingReceiptVerificationStatus(str, Enum):
+    VERIFIED = "VERIFIED"
+    REJECTED = "REJECTED"
+    ERROR = "ERROR"
