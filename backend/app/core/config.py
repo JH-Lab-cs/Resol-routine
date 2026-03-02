@@ -6,7 +6,10 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.core.policies import (
     ACCESS_TOKEN_TTL_MINUTES,
+    AI_ARTIFACT_RETENTION_DAYS_DEFAULT,
+    AI_ARTIFACT_RETENTION_DAYS_MAX,
     APP_TIMEZONE,
+    BILLING_WEBHOOK_SIGNATURE_TOLERANCE_SECONDS,
     DB_TIMEZONE,
     JWT_ALGORITHM,
     R2_DOWNLOAD_SIGNED_URL_TTL_SECONDS,
@@ -50,6 +53,14 @@ class Settings(BaseSettings):
     ai_generation_api_key: str | None = None
     ai_mock_exam_model: str = "not-configured"
     ai_mock_exam_prompt_template_version: str = "v1"
+    ai_openai_base_url: str = "https://api.openai.com"
+    ai_anthropic_base_url: str = "https://api.anthropic.com"
+    ai_artifact_retention_days: int = AI_ARTIFACT_RETENTION_DAYS_DEFAULT
+
+    stripe_webhook_secret: str | None = None
+    app_store_shared_secret: str | None = None
+    app_store_verify_url: str = "https://buy.itunes.apple.com/verifyReceipt"
+    app_store_sandbox_verify_url: str = "https://sandbox.itunes.apple.com/verifyReceipt"
 
     @property
     def jwt_algorithm(self) -> str:
@@ -78,6 +89,10 @@ class Settings(BaseSettings):
     @property
     def db_timezone(self) -> str:
         return DB_TIMEZONE
+
+    @property
+    def billing_webhook_signature_tolerance_seconds(self) -> int:
+        return BILLING_WEBHOOK_SIGNATURE_TOLERANCE_SECONDS
 
     @field_validator(
         "jwt_secret",
@@ -116,19 +131,62 @@ class Settings(BaseSettings):
     @field_validator("ai_generation_api_key", mode="before")
     @classmethod
     def validate_optional_ai_api_key(cls, value: str | None) -> str | None:
+        return cls._normalize_optional_secret(
+            value=value,
+            field_name="ai_generation_api_key",
+            allow_none=True,
+        )
+
+    @field_validator("stripe_webhook_secret", "app_store_shared_secret", mode="before")
+    @classmethod
+    def validate_optional_billing_secret(cls, value: str | None, info: ValidationInfo) -> str | None:
+        return cls._normalize_optional_secret(
+            value=value,
+            field_name=info.field_name,
+            allow_none=True,
+        )
+
+    @classmethod
+    def _normalize_optional_secret(
+        cls,
+        *,
+        value: str | None,
+        field_name: str,
+        allow_none: bool,
+    ) -> str | None:
         if value is None:
-            return None
+            return None if allow_none else ""
         if not isinstance(value, str):
-            raise TypeError("ai_generation_api_key must be a string.")
+            raise TypeError(f"{field_name} must be a string.")
         normalized = value.strip()
         if not normalized:
             return None
         lowered = normalized.lower()
         if lowered in _DISALLOWED_SECRET_TOKENS:
-            raise ValueError("ai_generation_api_key must not use an insecure sample value.")
+            raise ValueError(f"{field_name} must not use an insecure sample value.")
         if lowered.startswith("replace-with-") or lowered.startswith("change-"):
-            raise ValueError("ai_generation_api_key must not use an insecure sample value.")
+            raise ValueError(f"{field_name} must not use an insecure sample value.")
         return normalized
+
+    @field_validator("ai_openai_base_url", "ai_anthropic_base_url", "app_store_verify_url", "app_store_sandbox_verify_url", mode="before")
+    @classmethod
+    def validate_https_base_urls(cls, value: str, info: ValidationInfo) -> str:
+        if not isinstance(value, str):
+            raise TypeError(f"{info.field_name} must be a string.")
+        normalized = value.strip()
+        parsed = urlparse(normalized)
+        if parsed.scheme != "https":
+            raise ValueError(f"{info.field_name} must use https scheme.")
+        if not parsed.netloc:
+            raise ValueError(f"{info.field_name} must include host.")
+        return normalized
+
+    @field_validator("ai_artifact_retention_days")
+    @classmethod
+    def validate_ai_artifact_retention_days(cls, value: int) -> int:
+        if value <= 0 or value > AI_ARTIFACT_RETENTION_DAYS_MAX:
+            raise ValueError("ai_artifact_retention_days out of allowed range.")
+        return value
 
     @field_validator("database_url", mode="before")
     @classmethod

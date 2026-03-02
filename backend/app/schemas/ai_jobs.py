@@ -10,6 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.core.input_validation import INVALID_HIDDEN_UNICODE_DETAIL, validate_user_input_text
 from app.core.policies import (
+    AI_ARTIFACT_RETENTION_DAYS_MAX,
     AI_ARTIFACT_OBJECT_KEY_MAX_LENGTH,
     AI_JOB_LIST_DEFAULT_PAGE_SIZE,
     AI_JOB_LIST_MAX_PAGE_SIZE,
@@ -121,6 +122,9 @@ class AIJobResponse(BaseModel):
     attempt_count: int = Field(serialization_alias="attemptCount")
     last_error_code: str | None = Field(serialization_alias="lastErrorCode")
     last_error_message: str | None = Field(serialization_alias="lastErrorMessage")
+    last_error_transient: bool | None = Field(serialization_alias="lastErrorTransient")
+    next_retry_at: datetime | None = Field(serialization_alias="nextRetryAt")
+    dead_lettered_at: datetime | None = Field(serialization_alias="deadLetteredAt")
     queued_at: datetime = Field(serialization_alias="queuedAt")
     started_at: datetime | None = Field(serialization_alias="startedAt")
     completed_at: datetime | None = Field(serialization_alias="completedAt")
@@ -189,3 +193,25 @@ class AIArtifactDownloadUrlResponse(BaseModel):
             field_name="object_key",
             max_length=AI_ARTIFACT_OBJECT_KEY_MAX_LENGTH,
         )
+
+
+class AIArtifactPurgeRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+    retention_days: int | None = Field(default=None, alias="retentionDays")
+
+    @field_validator("retention_days")
+    @classmethod
+    def validate_retention_days(cls, value: int | None) -> int | None:
+        if value is None:
+            return None
+        if value <= 0 or value > AI_ARTIFACT_RETENTION_DAYS_MAX:
+            raise ValueError("invalid_retention_days")
+        return value
+
+
+class AIArtifactPurgeResponse(BaseModel):
+    retention_days: int = Field(serialization_alias="retentionDays")
+    cutoff_before: datetime = Field(serialization_alias="cutoffBefore")
+    purged_job_count: int = Field(serialization_alias="purgedJobCount")
+    purged_object_count: int = Field(serialization_alias="purgedObjectCount")

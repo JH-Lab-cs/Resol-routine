@@ -1,17 +1,21 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 import logging
 from typing import Any
 from uuid import UUID
 
 from fastapi import HTTPException, status
 from pydantic import ValidationError
-from sqlalchemy import func, select, update
+from sqlalchemy import and_, func, or_, select, update
 from sqlalchemy.orm import Session
 
 from app.core.policies import (
+    AI_ARTIFACT_RETENTION_DAYS_MAX,
+    AI_JOB_MAX_ATTEMPTS,
+    AI_JOB_RETRY_BACKOFF_BASE_SECONDS,
+    AI_JOB_RETRY_BACKOFF_MAX_SECONDS,
     AI_MOCK_EXAM_CANDIDATE_LIMIT_DEFAULT,
     MOCK_EXAM_MONTHLY_LISTENING_COUNT,
     MOCK_EXAM_MONTHLY_READING_COUNT,
@@ -34,6 +38,8 @@ from app.models.mock_exam import MockExam
 from app.schemas.ai_jobs import (
     AIArtifactDownloadUrlResponse,
     AIArtifactKind,
+    AIArtifactPurgeRequest,
+    AIArtifactPurgeResponse,
     AIJobListQuery,
     AIJobListResponse,
     AIJobResponse,
@@ -45,6 +51,7 @@ from app.services.ai_artifact_service import (
     get_ai_artifact_store,
     issue_artifact_download_url,
 )
+from app.services.audit_service import append_audit_log
 from app.services.ai_provider import (
     AIProviderError,
     CandidateQuestion,
@@ -67,6 +74,7 @@ class AIJobExecutionResult:
     status: AIGenerationJobStatus
     produced_mock_exam_revision_id: UUID | None
     error_code: str | None
+    retry_after_seconds: int | None
 
 
 def create_mock_exam_draft_generation_job(
@@ -153,8 +161,11 @@ def retry_ai_job(db: Session, *, job_id: UUID) -> AIJobResponse:
     job.queued_at = datetime.now(UTC)
     job.started_at = None
     job.completed_at = None
+    job.next_retry_at = None
+    job.dead_lettered_at = None
     job.last_error_code = None
     job.last_error_message = None
+    job.last_error_transient = None
     db.flush()
 
     schedule_ai_generation_job_after_commit(db, job_id=job.id)
@@ -173,6 +184,17 @@ def issue_ai_job_artifact_download_url(
 
     object_key = _resolve_artifact_object_key(job=job, artifact_kind=artifact_kind)
     result = issue_artifact_download_url(object_key=object_key)
+    append_audit_log(
+        db,
+        action="ai_job_artifact_download_url_issued",
+        actor_user_id=None,
+        target_user_id=None,
+        details={
+            "job_id": str(job.id),
+            "artifact_kind": artifact_kind,
+            "object_key": object_key,
+        },
+    )
 
     return AIArtifactDownloadUrlResponse(
         job_id=job.id,
@@ -184,25 +206,111 @@ def issue_ai_job_artifact_download_url(
     )
 
 
+def purge_ai_job_artifacts(
+    db: Session,
+    *,
+    payload: AIArtifactPurgeRequest | None = None,
+) -> AIArtifactPurgeResponse:
+    requested_days = (
+        payload.retention_days
+        if payload is not None and payload.retention_days is not None
+        else None
+    )
+    retention_days = requested_days
+    if retention_days is None:
+        from app.core.config import settings
+
+        retention_days = settings.ai_artifact_retention_days
+    if retention_days <= 0 or retention_days > AI_ARTIFACT_RETENTION_DAYS_MAX:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="invalid_retention_days")
+
+    cutoff = datetime.now(UTC) - timedelta(days=retention_days)
+    rows = db.execute(
+        select(AIGenerationJob)
+        .where(
+            AIGenerationJob.completed_at.is_not(None),
+            AIGenerationJob.completed_at < cutoff,
+            or_(
+                AIGenerationJob.input_artifact_object_key.is_not(None),
+                AIGenerationJob.output_artifact_object_key.is_not(None),
+                AIGenerationJob.candidate_snapshot_object_key.is_not(None),
+            ),
+        )
+        .order_by(AIGenerationJob.completed_at.asc(), AIGenerationJob.id.asc())
+    ).scalars().all()
+
+    store = get_ai_artifact_store()
+    purged_jobs = 0
+    purged_objects = 0
+
+    for job in rows:
+        keys = [
+            job.input_artifact_object_key,
+            job.output_artifact_object_key,
+            job.candidate_snapshot_object_key,
+        ]
+        valid_keys = [key for key in keys if key is not None]
+        if not valid_keys:
+            continue
+
+        for key in valid_keys:
+            store.delete_object(object_key=key)
+            purged_objects += 1
+
+        job.input_artifact_object_key = None
+        job.output_artifact_object_key = None
+        job.candidate_snapshot_object_key = None
+        purged_jobs += 1
+
+        append_audit_log(
+            db,
+            action="ai_job_artifacts_purged",
+            actor_user_id=None,
+            target_user_id=None,
+            details={
+                "job_id": str(job.id),
+                "retention_days": retention_days,
+                "purged_object_count": len(valid_keys),
+            },
+        )
+
+    db.flush()
+    return AIArtifactPurgeResponse(
+        retention_days=retention_days,
+        cutoff_before=cutoff,
+        purged_job_count=purged_jobs,
+        purged_object_count=purged_objects,
+    )
+
+
 def run_mock_exam_draft_generation_job(
     db: Session,
     *,
     job_id: UUID,
 ) -> AIJobExecutionResult:
     now = datetime.now(UTC)
+    retry_ready_condition = or_(
+        AIGenerationJob.status == AIGenerationJobStatus.QUEUED,
+        and_(
+            AIGenerationJob.status == AIGenerationJobStatus.FAILED,
+            or_(AIGenerationJob.next_retry_at.is_(None), AIGenerationJob.next_retry_at <= now),
+        ),
+    )
     claimed_rows = db.execute(
         update(AIGenerationJob)
         .where(
             AIGenerationJob.id == job_id,
-            AIGenerationJob.status.in_((AIGenerationJobStatus.QUEUED, AIGenerationJobStatus.FAILED)),
+            retry_ready_condition,
         )
         .values(
             status=AIGenerationJobStatus.RUNNING,
             started_at=now,
             completed_at=None,
             attempt_count=AIGenerationJob.attempt_count + 1,
+            next_retry_at=None,
             last_error_code=None,
             last_error_message=None,
+            last_error_transient=None,
         )
     ).rowcount
 
@@ -216,6 +324,7 @@ def run_mock_exam_draft_generation_job(
             status=existing.status,
             produced_mock_exam_revision_id=existing.produced_mock_exam_revision_id,
             error_code=existing.last_error_code,
+            retry_after_seconds=None,
         )
 
     job = _get_job_for_update(db, job_id=job_id)
@@ -223,35 +332,53 @@ def run_mock_exam_draft_generation_job(
     if job.produced_mock_exam_revision_id is not None:
         job.status = AIGenerationJobStatus.SUCCEEDED
         job.completed_at = datetime.now(UTC)
+        job.next_retry_at = None
+        job.dead_lettered_at = None
         job.last_error_code = None
         job.last_error_message = None
+        job.last_error_transient = None
         db.flush()
         return AIJobExecutionResult(
             job_id=job.id,
             status=job.status,
             produced_mock_exam_revision_id=job.produced_mock_exam_revision_id,
             error_code=None,
+            retry_after_seconds=None,
         )
 
     exam = db.get(MockExam, job.target_mock_exam_id)
     if exam is None:
-        _mark_job_failed(job, code="mock_exam_not_found", message="Target mock exam does not exist.")
+        retry_after_seconds = _mark_job_failure(
+            db,
+            job,
+            code="mock_exam_not_found",
+            message="Target mock exam does not exist.",
+            transient=False,
+        )
         db.flush()
         return AIJobExecutionResult(
             job_id=job.id,
             status=job.status,
             produced_mock_exam_revision_id=None,
             error_code=job.last_error_code,
+            retry_after_seconds=retry_after_seconds,
         )
 
     if exam.lifecycle_status == ContentLifecycleStatus.ARCHIVED:
-        _mark_job_failed(job, code="mock_exam_archived", message="Target mock exam is archived.")
+        retry_after_seconds = _mark_job_failure(
+            db,
+            job,
+            code="mock_exam_archived",
+            message="Target mock exam is archived.",
+            transient=False,
+        )
         db.flush()
         return AIJobExecutionResult(
             job_id=job.id,
             status=job.status,
             produced_mock_exam_revision_id=None,
             error_code=job.last_error_code,
+            retry_after_seconds=retry_after_seconds,
         )
 
     artifact_store = get_ai_artifact_store()
@@ -312,8 +439,11 @@ def run_mock_exam_draft_generation_job(
         job.produced_mock_exam_revision_id = revision.id
         job.status = AIGenerationJobStatus.SUCCEEDED
         job.completed_at = datetime.now(UTC)
+        job.next_retry_at = None
+        job.dead_lettered_at = None
         job.last_error_code = None
         job.last_error_message = None
+        job.last_error_transient = None
         db.flush()
 
         logger.info(
@@ -331,14 +461,33 @@ def run_mock_exam_draft_generation_job(
             status=job.status,
             produced_mock_exam_revision_id=revision.id,
             error_code=None,
+            retry_after_seconds=None,
         )
     except AIProviderError as exc:
-        _mark_job_failed(job, code=exc.code, message=exc.message)
+        retry_after_seconds = _mark_job_failure(
+            db,
+            job,
+            code=exc.code,
+            message=exc.message,
+            transient=exc.transient,
+        )
     except ArtifactStoreError as exc:
-        _mark_job_failed(job, code=exc.code, message=exc.message)
+        retry_after_seconds = _mark_job_failure(
+            db,
+            job,
+            code=exc.code,
+            message=exc.message,
+            transient=False,
+        )
     except HTTPException as exc:
         detail_code = exc.detail if isinstance(exc.detail, str) else "ai_generation_validation_failed"
-        _mark_job_failed(job, code=detail_code, message=f"Generation failed: {detail_code}")
+        retry_after_seconds = _mark_job_failure(
+            db,
+            job,
+            code=detail_code,
+            message=f"Generation failed: {detail_code}",
+            transient=False,
+        )
     except Exception as exc:  # pragma: no cover - defensive fallback
         logger.exception(
             "Unexpected AI draft generation worker failure",
@@ -347,7 +496,13 @@ def run_mock_exam_draft_generation_job(
                 "mock_exam_id": str(job.target_mock_exam_id),
             },
         )
-        _mark_job_failed(job, code="ai_generation_unexpected_error", message=str(exc))
+        retry_after_seconds = _mark_job_failure(
+            db,
+            job,
+            code="ai_generation_unexpected_error",
+            message=str(exc),
+            transient=True,
+        )
 
     db.flush()
 
@@ -366,6 +521,7 @@ def run_mock_exam_draft_generation_job(
         status=job.status,
         produced_mock_exam_revision_id=job.produced_mock_exam_revision_id,
         error_code=job.last_error_code,
+        retry_after_seconds=retry_after_seconds,
     )
 
 
@@ -652,11 +808,52 @@ def _extract_validation_detail_code(error: ValidationError) -> str:
     return "invalid_generated_output"
 
 
-def _mark_job_failed(job: AIGenerationJob, *, code: str, message: str) -> None:
-    job.status = AIGenerationJobStatus.FAILED
-    job.completed_at = datetime.now(UTC)
+def _mark_job_failure(
+    db: Session,
+    job: AIGenerationJob,
+    *,
+    code: str,
+    message: str,
+    transient: bool,
+) -> int | None:
+    now = datetime.now(UTC)
+    retry_after_seconds: int | None = None
+    should_dead_letter = transient and job.attempt_count >= AI_JOB_MAX_ATTEMPTS
+
+    if should_dead_letter:
+        job.status = AIGenerationJobStatus.DEAD_LETTER
+        job.dead_lettered_at = now
+        job.next_retry_at = None
+        append_audit_log(
+            db,
+            action="ai_job_dead_lettered",
+            actor_user_id=None,
+            target_user_id=None,
+            details={
+                "job_id": str(job.id),
+                "error_code": code,
+                "attempt_count": job.attempt_count,
+                "transient": transient,
+            },
+        )
+    elif transient:
+        retry_after_seconds = min(
+            AI_JOB_RETRY_BACKOFF_MAX_SECONDS,
+            AI_JOB_RETRY_BACKOFF_BASE_SECONDS * (2 ** max(job.attempt_count - 1, 0)),
+        )
+        job.status = AIGenerationJobStatus.FAILED
+        job.next_retry_at = now + timedelta(seconds=retry_after_seconds)
+        job.dead_lettered_at = None
+    else:
+        job.status = AIGenerationJobStatus.FAILED
+        job.next_retry_at = None
+        job.dead_lettered_at = None
+
+    job.completed_at = now
     job.last_error_code = code[:64]
     job.last_error_message = message[:2000]
+    job.last_error_transient = transient
+    return retry_after_seconds
 
 
 def _expected_skill_counts(exam_type: MockExamType) -> tuple[int, int]:
@@ -698,6 +895,9 @@ def _to_job_response(job: AIGenerationJob) -> AIJobResponse:
         attempt_count=job.attempt_count,
         last_error_code=job.last_error_code,
         last_error_message=job.last_error_message,
+        last_error_transient=job.last_error_transient,
+        next_retry_at=job.next_retry_at,
+        dead_lettered_at=job.dead_lettered_at,
         queued_at=job.queued_at,
         started_at=job.started_at,
         completed_at=job.completed_at,

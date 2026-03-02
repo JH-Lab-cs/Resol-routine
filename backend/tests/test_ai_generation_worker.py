@@ -8,9 +8,10 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import func, select
 
-from app.core.policies import R2_DOWNLOAD_SIGNED_URL_TTL_SECONDS
+from app.core.policies import AI_JOB_MAX_ATTEMPTS, R2_DOWNLOAD_SIGNED_URL_TTL_SECONDS
 from app.core.timekeys import period_key
 from app.models.ai_generation_job import AIGenerationJob
+from app.models.audit_log import AuditLog
 from app.models.content_enums import ContentLifecycleStatus
 from app.models.content_question import ContentQuestion
 from app.models.content_unit import ContentUnit
@@ -90,6 +91,14 @@ class FakeAIArtifactStore:
                 message="Artifact object does not exist.",
             )
         return f"https://fake-ai-r2.local/download/{object_key}?ttl={expires_in_seconds}"
+
+    def delete_object(self, *, object_key: str) -> None:
+        if object_key not in self._objects:
+            raise ai_artifact_service.ArtifactStoreError(
+                code="artifact_object_not_found",
+                message="Artifact object does not exist.",
+            )
+        del self._objects[object_key]
 
 
 @pytest.fixture()
@@ -935,3 +944,106 @@ def test_hidden_unicode_request_id_rejected(
     assert response.status_code == 422
     error_messages = [error["msg"] for error in response.json()["detail"]]
     assert any("invalid_hidden_unicode" in message for message in error_messages)
+
+
+def test_transient_failures_transition_to_dead_letter(
+    client: TestClient,
+    db_session_factory,
+    fake_ai_artifact_store: FakeAIArtifactStore,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _ = fake_ai_artifact_store
+    _seed_published_questions(
+        db_session_factory,
+        track=Track.H2,
+        listening_count=10,
+        reading_count=10,
+    )
+    exam = _create_mock_exam(
+        client,
+        exam_type="WEEKLY",
+        track="H2",
+        period_key_value="2026W21",
+        external_id="ai-weekly-h2-2026w21",
+    )
+    job = _create_ai_job(client, mock_exam_id=str(exam["id"]), request_id="req-ai-job-dead-letter")
+
+    class AlwaysTransientFailureProvider:
+        def generate_structured_output(self, *, context) -> ProviderGenerationResult:  # noqa: ARG002
+            raise AIProviderError(
+                code="provider_timeout",
+                message="Transient timeout",
+                transient=True,
+            )
+
+    monkeypatch.setattr(ai_job_service, "build_mock_exam_generation_provider", lambda: AlwaysTransientFailureProvider())
+
+    for _ in range(AI_JOB_MAX_ATTEMPTS):
+        _run_job_once(db_session_factory, job_id=str(job["id"]))
+        with db_session_factory() as db:
+            stored = db.get(AIGenerationJob, UUID(str(job["id"])))
+            assert stored is not None
+            if stored.status == AIGenerationJobStatus.DEAD_LETTER:
+                break
+            assert stored.status == AIGenerationJobStatus.FAILED
+            assert stored.next_retry_at is not None
+            stored.next_retry_at = datetime.now(UTC) - timedelta(seconds=1)
+            db.commit()
+
+    with db_session_factory() as db:
+        stored = db.get(AIGenerationJob, UUID(str(job["id"])))
+        assert stored is not None
+        assert stored.status == AIGenerationJobStatus.DEAD_LETTER
+        assert stored.dead_lettered_at is not None
+        assert stored.next_retry_at is None
+        assert stored.last_error_transient is True
+        assert stored.attempt_count == AI_JOB_MAX_ATTEMPTS
+
+
+def test_ai_artifact_purge_removes_old_objects_and_audits(
+    client: TestClient,
+    db_session_factory,
+    fake_ai_artifact_store: FakeAIArtifactStore,
+) -> None:
+    _seed_published_questions(
+        db_session_factory,
+        track=Track.H2,
+        listening_count=10,
+        reading_count=10,
+    )
+    exam = _create_mock_exam(
+        client,
+        exam_type="WEEKLY",
+        track="H2",
+        period_key_value="2026W22",
+        external_id="ai-weekly-h2-2026w22",
+    )
+    job = _create_ai_job(client, mock_exam_id=str(exam["id"]), request_id="req-ai-job-purge")
+    _run_job_once(db_session_factory, job_id=str(job["id"]))
+
+    with db_session_factory() as db:
+        stored = db.get(AIGenerationJob, UUID(str(job["id"])))
+        assert stored is not None
+        stored.completed_at = datetime.now(UTC) - timedelta(days=45)
+        db.commit()
+
+    response = client.post(
+        "/internal/ai/jobs/artifacts/purge",
+        json={"retentionDays": 30},
+        headers=_internal_headers(),
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["purgedJobCount"] == 1
+    assert body["purgedObjectCount"] >= 3
+
+    with db_session_factory() as db:
+        stored = db.get(AIGenerationJob, UUID(str(job["id"])))
+        assert stored is not None
+        assert stored.input_artifact_object_key is None
+        assert stored.output_artifact_object_key is None
+        assert stored.candidate_snapshot_object_key is None
+        audit_rows = db.execute(
+            select(AuditLog).where(AuditLog.action == "ai_job_artifacts_purged")
+        ).scalars().all()
+        assert audit_rows

@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 from app.db.session import SessionLocal
+from app.models.enums import AIGenerationJobStatus
 from app.services.ai_job_service import run_mock_exam_draft_generation_job
 from app.services.report_aggregation_service import recompute_student_reports
 from app.workers.celery_app import celery_app
@@ -99,6 +100,12 @@ def generate_mock_exam_revision_draft(job_id: str) -> dict[str, str | int | None
     finally:
         db.close()
 
+    if execution_result.status == AIGenerationJobStatus.FAILED and execution_result.retry_after_seconds is not None:
+        generate_mock_exam_revision_draft.apply_async(
+            args=[job_id],
+            countdown=execution_result.retry_after_seconds,
+        )
+
     logger.info(
         "AI draft generation task completed",
         extra={
@@ -111,6 +118,7 @@ def generate_mock_exam_revision_draft(job_id: str) -> dict[str, str | int | None
                 else None
             ),
             "error_code": execution_result.error_code,
+            "retry_after_seconds": execution_result.retry_after_seconds,
         },
     )
     return {
@@ -123,6 +131,7 @@ def generate_mock_exam_revision_draft(job_id: str) -> dict[str, str | int | None
             else None
         ),
         "error_code": execution_result.error_code,
+        "retry_after_seconds": execution_result.retry_after_seconds,
     }
 
 

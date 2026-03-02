@@ -10,6 +10,8 @@ from sqlalchemy.orm import Session
 from app.api.dependencies import get_db, require_internal_api_key
 from app.schemas.ai_jobs import (
     AIArtifactDownloadUrlResponse,
+    AIArtifactPurgeRequest,
+    AIArtifactPurgeResponse,
     AIJobListQuery,
     AIJobListResponse,
     AIJobResponse,
@@ -20,6 +22,7 @@ from app.services.ai_job_service import (
     get_ai_job,
     issue_ai_job_artifact_download_url,
     list_ai_jobs,
+    purge_ai_job_artifacts,
     retry_ai_job,
 )
 
@@ -111,3 +114,14 @@ def get_ai_job_artifact_download_url_endpoint(
         job_id=job_id,
         artifact_kind=artifact_kind,
     )
+
+
+@router.post(
+    "/artifacts/purge",
+    response_model=AIArtifactPurgeResponse,
+)
+def purge_ai_job_artifacts_endpoint(
+    payload: AIArtifactPurgeRequest,
+    db: Annotated[Session, Depends(get_db)],
+) -> AIArtifactPurgeResponse:
+    return purge_ai_job_artifacts(db, payload=payload)

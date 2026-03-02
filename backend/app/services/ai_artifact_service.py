@@ -103,6 +103,13 @@ class AIGenerationArtifactStore:
             ExpiresIn=expires_in_seconds,
         )
 
+    def delete_object(self, *, object_key: str) -> None:
+        _ensure_safe_object_key(object_key)
+        try:
+            self._client.delete_object(Bucket=self._bucket, Key=object_key)
+        except ClientError as exc:
+            raise ArtifactStoreError(code="artifact_object_delete_failed", message="Failed to delete artifact object.") from exc
+
 
 @lru_cache(maxsize=1)
 def get_ai_artifact_store() -> AIGenerationArtifactStore:
