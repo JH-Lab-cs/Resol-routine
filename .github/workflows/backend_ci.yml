@@ -1,0 +1,180 @@
+name: Backend CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: backend-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  classify-backend-changes:
+    name: classify-backend-changes
+    runs-on: ubuntu-latest
+    outputs:
+      runtime_affecting: ${{ steps.classify.outputs.runtime_affecting }}
+      changed_python_count: ${{ steps.classify.outputs.changed_python_count }}
+      changed_python_files: ${{ steps.classify.outputs.changed_python_files }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Classify backend change scope
+        id: classify
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            BASE_SHA="${{ github.event.pull_request.base.sha }}"
+            HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+          else
+            BASE_SHA="${{ github.event.before }}"
+            HEAD_SHA="${{ github.sha }}"
+          fi
+
+          if [[ -z "${BASE_SHA}" || "${BASE_SHA}" == "0000000000000000000000000000000000000000" ]]; then
+            BASE_SHA="$(git rev-list --max-parents=0 HEAD | tail -n 1)"
+          fi
+
+          git diff --name-only --diff-filter=ACMR "${BASE_SHA}" "${HEAD_SHA}" > /tmp/changed_files.txt
+
+          RUNTIME_AFFECTING="false"
+          while IFS= read -r changed_file; do
+            case "${changed_file}" in
+              backend/app/*|backend/tests/*|backend/alembic/*|backend/scripts/*|backend/shared/contracts/*|backend/pyproject.toml|backend/alembic.ini|backend/uv.lock|backend/docker-compose.yml|.github/workflows/backend_ci.yml)
+                RUNTIME_AFFECTING="true"
+                break
+                ;;
+            esac
+          done < /tmp/changed_files.txt
+
+          python3 backend/scripts/list_changed_python_files.py --base "${BASE_SHA}" --head "${HEAD_SHA}" > /tmp/changed_backend_python.txt
+          CHANGED_PY_COUNT="$(grep -cve '^[[:space:]]*$' /tmp/changed_backend_python.txt || true)"
+
+          echo "runtime_affecting=${RUNTIME_AFFECTING}" >> "${GITHUB_OUTPUT}"
+          echo "changed_python_count=${CHANGED_PY_COUNT}" >> "${GITHUB_OUTPUT}"
+          {
+            echo "changed_python_files<<EOF"
+            cat /tmp/changed_backend_python.txt
+            echo "EOF"
+          } >> "${GITHUB_OUTPUT}"
+
+          echo "Runtime-affecting backend change: ${RUNTIME_AFFECTING}"
+          echo "Changed backend Python files count: ${CHANGED_PY_COUNT}"
+
+  backend-heavy-gates:
+    name: backend-heavy-gates
+    needs:
+      - classify-backend-changes
+    if: needs.classify-backend-changes.outputs.runtime_affecting == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@127.0.0.1:5432/resol_backend_ci
+      REDIS_URL: redis://127.0.0.1:6379/0
+      JWT_SECRET: ci-jwt-secret-value-1234567890
+      R2_ENDPOINT: https://example.r2.cloudflarestorage.com
+      R2_BUCKET: resol-private-ci-bucket
+      R2_ACCESS_KEY_ID: ci-r2-access-key-id
+      R2_SECRET_ACCESS_KEY: ci-r2-secret-access-key
+      CONTENT_PIPELINE_API_KEY: ci-content-internal-key-2026-ok
+      AI_GENERATION_PROVIDER: fake
+      AI_GENERATION_API_KEY: ci-ai-provider-key
+      AI_MOCK_EXAM_MODEL: fake-model
+      AI_MOCK_EXAM_PROMPT_TEMPLATE_VERSION: ci-v1
+      AI_CONTENT_MODEL: fake-content-model
+      AI_CONTENT_PROMPT_TEMPLATE_VERSION: ci-content-v1
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Wait for postgres
+        run: |
+          for i in {1..30}; do
+            if pg_isready -h 127.0.0.1 -p 5432 -U postgres -d postgres; then
+              exit 0
+            fi
+            sleep 1
+          done
+          exit 1
+
+      - name: Prepare backend database
+        run: |
+          if ! psql postgresql://postgres:postgres@127.0.0.1:5432/postgres -tAc "SELECT 1 FROM pg_database WHERE datname='resol_backend_ci'" | grep -q 1; then
+            psql postgresql://postgres:postgres@127.0.0.1:5432/postgres -c "CREATE DATABASE resol_backend_ci;"
+          fi
+
+      - name: Sync backend dependencies
+        run: bash backend/scripts/backend_ci.sh sync
+
+      - name: Strict lint/type gate (changed backend Python files)
+        env:
+          CHANGED_PYTHON_FILES: ${{ needs.classify-backend-changes.outputs.changed_python_files }}
+        run: bash backend/scripts/backend_ci.sh quality-strict
+
+      - name: Full backend test gates
+        run: bash backend/scripts/backend_ci.sh test
+
+      - name: Alembic upgrade head
+        run: bash backend/scripts/backend_ci.sh alembic
+
+  backend-gates:
+    name: backend-gates
+    needs:
+      - classify-backend-changes
+      - backend-heavy-gates
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Docs-only or non-runtime backend change success
+        if: needs.classify-backend-changes.outputs.runtime_affecting != 'true'
+        run: |
+          echo "No backend runtime-affecting changes detected."
+          echo "Required check completed successfully without heavy backend gates."
+
+      - name: Fail when heavy backend gates failed
+        if: needs.classify-backend-changes.outputs.runtime_affecting == 'true' && needs.backend-heavy-gates.result != 'success'
+        run: |
+          echo "backend-heavy-gates result: ${{ needs.backend-heavy-gates.result }}"
+          exit 1
+
+      - name: Heavy backend gates passed
+        if: needs.classify-backend-changes.outputs.runtime_affecting == 'true' && needs.backend-heavy-gates.result == 'success'
+        run: |
+          echo "backend-heavy-gates passed."
+          echo "Required check completed successfully."
