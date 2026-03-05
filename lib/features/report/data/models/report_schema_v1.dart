@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import '../../../../core/database/db_text_limits.dart';
+import '../../../../core/domain/content_type_tag_taxonomy.dart';
 import '../../../../core/domain/domain_enums.dart';
 import '../../../../core/security/hidden_unicode.dart';
 import '../../../../core/time/day_key.dart';
@@ -1230,23 +1231,17 @@ class ReportQuestionResult {
       _readRequiredString(json, 'skill', path: '$path.skill', maxLength: 16),
     );
 
-    final typeTag = _readRequiredString(
+    final rawTypeTag = _readRequiredString(
       json,
       'typeTag',
       path: '$path.typeTag',
       maxLength: DbTextLimits.typeTagMax,
     );
-    validateNoHiddenUnicode(typeTag, path: '$path.typeTag');
-    if (skill == Skill.listening && !typeTag.startsWith('L')) {
-      throw FormatException(
-        'Expected "$path.typeTag" to start with "L" for LISTENING.',
-      );
-    }
-    if (skill == Skill.reading && !typeTag.startsWith('R')) {
-      throw FormatException(
-        'Expected "$path.typeTag" to start with "R" for READING.',
-      );
-    }
+    validateNoHiddenUnicode(rawTypeTag, path: '$path.typeTag');
+    final typeTag = normalizeTypeTagForStorage(
+      skill: skill,
+      rawTypeTag: rawTypeTag,
+    );
 
     final isCorrect = _readRequiredBool(
       json,

@@ -60,6 +60,7 @@ void main() {
         (row) => row.id == 'question_listening_001',
       );
       expect(listening.skill, 'LISTENING');
+      expect(listening.typeTag, 'L_GIST');
       expect(listening.optionsJson, isA<OptionMap>());
       expect(listening.optionsJson.byKey('B'), 'Strawberries');
       expect(listening.answerKey, 'B');
@@ -68,6 +69,7 @@ void main() {
         (row) => row.id == 'question_reading_001',
       );
       expect(reading.skill, 'READING');
+      expect(reading.typeTag, 'R_MAIN_IDEA');
       expect(
         reading.optionsJson.byKey('A'),
         'Gloves and a reusable water bottle',
@@ -88,6 +90,59 @@ void main() {
       expect(listeningExplanation.whyWrongKoJson.byKey('A'), isNotEmpty);
       expect(listeningExplanation.evidenceSentenceIdsJson, contains('ls_002'));
     });
+
+    test(
+      'normalizes legacy numeric type tags to canonical tags during seed ingest',
+      () async {
+        final decoded = _decodePack(starterPackJson);
+        final questions = List<Object?>.from(
+          decoded['questions']! as List<Object?>,
+        );
+
+        final listeningQuestion = Map<String, Object?>.from(
+          questions[0]! as Map<String, Object?>,
+        );
+        listeningQuestion['typeTag'] = 'L1';
+        questions[0] = listeningQuestion;
+
+        final readingIndex = questions.indexWhere((question) {
+          final casted = Map<String, Object?>.from(
+            question! as Map<String, Object?>,
+          );
+          return casted['skill'] == 'READING';
+        });
+        expect(readingIndex, isNonNegative);
+
+        final readingQuestion = Map<String, Object?>.from(
+          questions[readingIndex]! as Map<String, Object?>,
+        );
+        readingQuestion['typeTag'] = 'R2';
+        questions[readingIndex] = readingQuestion;
+
+        decoded['questions'] = questions;
+
+        final seeder = ContentPackSeeder(
+          database: database,
+          source: MemoryContentPackSource(jsonEncode(decoded)),
+        );
+
+        await seeder.seedOnFirstLaunch();
+
+        final listeningRow =
+            await (database.select(database.questions)..where(
+                  (tbl) => tbl.id.equals(listeningQuestion['id']! as String),
+                ))
+                .getSingle();
+        final readingRow =
+            await (database.select(database.questions)..where(
+                  (tbl) => tbl.id.equals(readingQuestion['id']! as String),
+                ))
+                .getSingle();
+
+        expect(listeningRow.typeTag, 'L_GIST');
+        expect(readingRow.typeTag, 'R_DETAIL');
+      },
+    );
 
     test('does not duplicate records when called more than once', () async {
       final seeder = ContentPackSeeder(

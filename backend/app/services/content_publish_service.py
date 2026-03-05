@@ -25,6 +25,12 @@ from app.schemas.content import (
 from app.services.audit_service import append_audit_log
 from app.services.content_ingest_service import _to_revision_response
 
+# Lifecycle contract:
+# - Status enum remains minimal (DRAFT / PUBLISHED / ARCHIVED).
+# - Validation and review are trace fields (validator_version/validated_at,
+#   reviewer_identity/reviewed_at), not enum states.
+# - Publish is allowed only when the traceability gate is satisfied.
+
 
 def validate_content_unit_revision(
     db: Session,

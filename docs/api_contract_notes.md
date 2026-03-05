@@ -9,6 +9,39 @@ This note captures frontend-backend contracts that must remain stable while form
 - MockExamType: `WEEKLY`, `MONTHLY`
 - WrongReasonTag: `VOCAB`, `EVIDENCE`, `INFERENCE`, `CARELESS`, `TIME`
 
+## Content TypeTag Taxonomy Contract
+
+- Single source of truth file:
+  - `backend/shared/contracts/content_type_tags.json`
+- Canonical type tags are semantic tags:
+  - Listening:
+    - `L_GIST`, `L_DETAIL`, `L_INTENT`, `L_RESPONSE`, `L_SITUATION`, `L_LONG_TALK`
+  - Reading:
+    - `R_MAIN_IDEA`, `R_DETAIL`, `R_INFERENCE`, `R_BLANK`, `R_ORDER`, `R_INSERTION`, `R_SUMMARY`, `R_VOCAB`
+- Legacy numeric tags remain import-compatible only during migration:
+  - `L1 -> L_GIST`
+  - `L2 -> L_DETAIL`
+  - `L3 -> L_INTENT`
+  - `R1 -> R_MAIN_IDEA`
+  - `R2 -> R_DETAIL`
+  - `R3 -> R_INFERENCE`
+- New backend-generated content and normalized frontend storage must use canonical semantic tags.
+- New write paths must reject legacy numeric tags.
+
+## Content Lifecycle Contract
+
+- Lifecycle status enum is fixed and minimal:
+  - `DRAFT`
+  - `PUBLISHED`
+  - `ARCHIVED`
+- Validation/review progression is represented by trace fields, not extra enum states:
+  - `validator_version`
+  - `validated_at`
+  - `reviewer_identity`
+  - `reviewed_at`
+- Publish is allowed only when trace-field gates are satisfied.
+- `VALIDATED`, `IN_REVIEW`, `APPROVED` are process labels only, not lifecycle enum values.
+
 ## Composition Contracts
 
 - Daily: 6 fixed items (`LISTENING` x3 + `READING` x3)

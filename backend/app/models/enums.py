@@ -18,6 +18,27 @@ class Skill(str, Enum):
     READING = "READING"
 
 
+class ContentTypeTag(str, Enum):
+    L_GIST = "L_GIST"
+    L_DETAIL = "L_DETAIL"
+    L_INTENT = "L_INTENT"
+    L_RESPONSE = "L_RESPONSE"
+    L_SITUATION = "L_SITUATION"
+    L_LONG_TALK = "L_LONG_TALK"
+    R_MAIN_IDEA = "R_MAIN_IDEA"
+    R_DETAIL = "R_DETAIL"
+    R_INFERENCE = "R_INFERENCE"
+    R_BLANK = "R_BLANK"
+    R_ORDER = "R_ORDER"
+    R_INSERTION = "R_INSERTION"
+    R_SUMMARY = "R_SUMMARY"
+    R_VOCAB = "R_VOCAB"
+
+
+class ContentSourcePolicy(str, Enum):
+    AI_ORIGINAL = "AI_ORIGINAL"
+
+
 class MockExamType(str, Enum):
     WEEKLY = "WEEKLY"
     MONTHLY = "MONTHLY"
@@ -41,6 +62,12 @@ class AIGenerationJobStatus(str, Enum):
     SUCCEEDED = "SUCCEEDED"
     FAILED = "FAILED"
     DEAD_LETTER = "DEAD_LETTER"
+
+
+class AIContentGenerationCandidateStatus(str, Enum):
+    VALID = "VALID"
+    INVALID = "INVALID"
+    MATERIALIZED = "MATERIALIZED"
 
 
 class SubscriptionFeatureCode(str, Enum):

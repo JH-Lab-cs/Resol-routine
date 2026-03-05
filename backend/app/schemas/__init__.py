@@ -15,6 +15,15 @@ from app.schemas.ai_jobs import (
     AIJobResponse,
     AIMockExamJobCreateRequest,
 )
+from app.schemas.ai_content_generation import (
+    AIContentGenerationCandidateListResponse,
+    AIContentGenerationCandidateResponse,
+    AIContentGenerationFailureCode,
+    AIContentGenerationJobCreateRequest,
+    AIContentGenerationJobResponse,
+    AIContentMaterializeDraftResponse,
+    AIContentTargetMatrixRow,
+)
 from app.schemas.content import (
     AssetDownloadUrlResponse,
     AssetFinalizeRequest,
@@ -108,6 +117,13 @@ from app.schemas.subscriptions import (
 from app.schemas.user import UserMeResponse
 
 __all__ = [
+    "AIContentGenerationCandidateListResponse",
+    "AIContentGenerationCandidateResponse",
+    "AIContentGenerationFailureCode",
+    "AIContentGenerationJobCreateRequest",
+    "AIContentGenerationJobResponse",
+    "AIContentMaterializeDraftResponse",
+    "AIContentTargetMatrixRow",
     "AIArtifactDownloadUrlResponse",
     "AIArtifactKind",
     "AIArtifactPurgeRequest",

@@ -36,7 +36,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase({QueryExecutor? executor}) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 11;
+  int get schemaVersion => 12;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -75,6 +75,9 @@ class AppDatabase extends _$AppDatabase {
       }
       if (from < 11) {
         await _migrateToV11(m);
+      }
+      if (from < 12) {
+        await _migrateToV12(m);
       }
       await _createIndexes();
       await _ensureUserSettingsRow();
@@ -238,6 +241,64 @@ class AppDatabase extends _$AppDatabase {
       return;
     }
     await m.addColumn(userSettings, userSettings.devToolsEnabled);
+  }
+
+  Future<void> _migrateToV12(Migrator _) async {
+    await customStatement('PRAGMA foreign_keys = OFF');
+    try {
+      await transaction(() async {
+        // Canonicalize legacy numeric type tags before rebuilding constraints.
+        await customStatement(
+          "UPDATE questions "
+          "SET type_tag = CASE type_tag "
+          "WHEN 'L1' THEN 'L_GIST' "
+          "WHEN 'L2' THEN 'L_DETAIL' "
+          "WHEN 'L3' THEN 'L_INTENT' "
+          "WHEN 'R1' THEN 'R_MAIN_IDEA' "
+          "WHEN 'R2' THEN 'R_DETAIL' "
+          "WHEN 'R3' THEN 'R_INFERENCE' "
+          'ELSE type_tag END',
+        );
+
+        await customStatement(
+          'CREATE TABLE questions_v12 ('
+          'id TEXT NOT NULL PRIMARY KEY, '
+          "skill TEXT NOT NULL CHECK (skill IN ('LISTENING', 'READING')), "
+          'type_tag TEXT NOT NULL, '
+          "track TEXT NOT NULL CHECK (track IN ('M3', 'H1', 'H2', 'H3')), "
+          'difficulty INTEGER NOT NULL CHECK (difficulty BETWEEN 1 AND 5), '
+          'passage_id TEXT REFERENCES passages(id) ON DELETE CASCADE, '
+          'script_id TEXT REFERENCES scripts(id) ON DELETE CASCADE, '
+          'prompt TEXT NOT NULL, '
+          'options_json TEXT NOT NULL, '
+          "answer_key TEXT NOT NULL CHECK (answer_key IN ('A', 'B', 'C', 'D', 'E')), "
+          'order_index INTEGER NOT NULL CHECK (order_index >= 0), '
+          "CHECK ((skill = 'LISTENING' AND script_id IS NOT NULL AND passage_id IS NULL) OR "
+          "(skill = 'READING' AND passage_id IS NOT NULL AND script_id IS NULL)), "
+          "CHECK ((skill != 'LISTENING') OR ("
+          "type_tag IN ('L_GIST','L_DETAIL','L_INTENT','L_RESPONSE','L_SITUATION','L_LONG_TALK') "
+          "OR type_tag GLOB 'L[0-9]*')), "
+          "CHECK ((skill != 'READING') OR ("
+          "type_tag IN ('R_MAIN_IDEA','R_DETAIL','R_INFERENCE','R_BLANK','R_ORDER','R_INSERTION','R_SUMMARY','R_VOCAB') "
+          "OR type_tag GLOB 'R[0-9]*'))"
+          ')',
+        );
+
+        await customStatement(
+          'INSERT INTO questions_v12 ('
+          'id, skill, type_tag, track, difficulty, passage_id, script_id, prompt, options_json, answer_key, order_index'
+          ') '
+          'SELECT '
+          'id, skill, type_tag, track, difficulty, passage_id, script_id, prompt, options_json, answer_key, order_index '
+          'FROM questions',
+        );
+
+        await customStatement('DROP TABLE questions');
+        await customStatement('ALTER TABLE questions_v12 RENAME TO questions');
+      });
+    } finally {
+      await customStatement('PRAGMA foreign_keys = ON');
+    }
   }
 
   Future<void> _createIndexes() async {

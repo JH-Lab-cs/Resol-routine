@@ -9,6 +9,7 @@ from app.core.policies import (
     R2_DOWNLOAD_SIGNED_URL_TTL_SECONDS,
     R2_UPLOAD_SIGNED_URL_TTL_SECONDS,
 )
+from app.models.content_enums import ContentLifecycleStatus
 from app.services import content_asset_service
 
 INTERNAL_API_KEY = "unit-test-internal-api-key-value"
@@ -191,6 +192,14 @@ def test_internal_api_key_missing_and_invalid_rejected(client: TestClient) -> No
     assert invalid.json()["detail"] == "invalid_internal_api_key"
 
 
+def test_content_lifecycle_enum_remains_minimal_and_has_no_transitional_states() -> None:
+    actual = {status.value for status in ContentLifecycleStatus}
+    assert actual == {"DRAFT", "PUBLISHED", "ARCHIVED"}
+    assert "VALIDATED" not in actual
+    assert "IN_REVIEW" not in actual
+    assert "APPROVED" not in actual
+
+
 def test_signed_upload_url_issued_with_fixed_ttl(
     client: TestClient,
     fake_r2_signer: FakeR2Signer,
@@ -356,6 +365,68 @@ def test_validate_and_review_endpoint_success(client: TestClient) -> None:
     assert validated["validated_at"] is not None
     assert reviewed["reviewer_identity"] == "reviewer-alex"
     assert reviewed["reviewed_at"] is not None
+
+
+def test_revision_can_publish_flag_follows_trace_gate(client: TestClient) -> None:
+    unit = _create_unit(client, external_id="can-publish-unit-001", skill="READING", track="H1")
+    revision = _create_revision(
+        client,
+        unit_id=str(unit["id"]),
+        revision_code="can-publish-r1",
+        question_items=[
+            _question_item(
+                question_code="Q001",
+                order_index=1,
+                stem="Trace gate stem",
+            )
+        ],
+    )
+    revision_id = str(revision["id"])
+
+    revisions_before = client.get(
+        f"/internal/content/units/{unit['id']}/revisions",
+        headers=_internal_headers(),
+    )
+    assert revisions_before.status_code == 200, revisions_before.text
+    before_item = next(
+        item for item in revisions_before.json()["items"] if item["id"] == revision_id
+    )
+    assert before_item["lifecycle_status"] == "DRAFT"
+    assert before_item["can_publish"] is False
+
+    _validate_revision(client, unit_id=str(unit["id"]), revision_id=revision_id)
+    revisions_after_validate = client.get(
+        f"/internal/content/units/{unit['id']}/revisions",
+        headers=_internal_headers(),
+    )
+    assert revisions_after_validate.status_code == 200, revisions_after_validate.text
+    validated_item = next(
+        item for item in revisions_after_validate.json()["items"] if item["id"] == revision_id
+    )
+    assert validated_item["can_publish"] is False
+
+    _review_revision(client, unit_id=str(unit["id"]), revision_id=revision_id)
+    revisions_after_review = client.get(
+        f"/internal/content/units/{unit['id']}/revisions",
+        headers=_internal_headers(),
+    )
+    assert revisions_after_review.status_code == 200, revisions_after_review.text
+    reviewed_item = next(
+        item for item in revisions_after_review.json()["items"] if item["id"] == revision_id
+    )
+    assert reviewed_item["can_publish"] is True
+
+    _publish_revision(client, unit_id=str(unit["id"]), revision_id=revision_id)
+    revisions_after_publish = client.get(
+        f"/internal/content/units/{unit['id']}/revisions",
+        headers=_internal_headers(),
+    )
+    assert revisions_after_publish.status_code == 200, revisions_after_publish.text
+    published_item = next(
+        item for item in revisions_after_publish.json()["items"] if item["id"] == revision_id
+    )
+    assert published_item["lifecycle_status"] == "PUBLISHED"
+    assert published_item["can_publish"] is False
 
 
 def test_publish_rejects_without_validate_or_review(client: TestClient) -> None:

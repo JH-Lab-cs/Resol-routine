@@ -8,7 +8,7 @@ import 'package:path/path.dart' as p;
 import 'package:resol_routine/core/database/app_database.dart';
 
 void main() {
-  test('migrates v1 schema to v11 while preserving rows', () async {
+  test('migrates v1 schema to v12 while preserving rows', () async {
     final tempDir = await Directory.systemTemp.createTemp('resol_migration_');
     final dbFile = File(p.join(tempDir.path, 'migration_v1.sqlite'));
 
@@ -29,7 +29,7 @@ void main() {
     final userVersionRow = await database
         .customSelect('PRAGMA user_version', readsFrom: {})
         .getSingle();
-    expect(userVersionRow.read<int>('user_version'), 11);
+    expect(userVersionRow.read<int>('user_version'), 12);
 
     final attemptsRow = await database
         .customSelect('SELECT COUNT(*) AS count FROM attempts', readsFrom: {})
@@ -57,6 +57,11 @@ void main() {
       database.dailySessions,
     )..where((tbl) => tbl.dayKey.equals(20260105))).getSingle();
     expect(migratedSession.track, 'M3');
+
+    final migratedQuestion = await (database.select(
+      database.questions,
+    )..where((tbl) => tbl.id.equals('question_v1'))).getSingle();
+    expect(migratedQuestion.typeTag, 'L_GIST');
 
     await database
         .into(database.dailySessions)

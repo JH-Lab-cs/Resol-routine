@@ -380,6 +380,8 @@ class ContentQuestionResponse(BaseModel):
 
 
 class ContentUnitRevisionResponse(BaseModel):
+    # Lifecycle is intentionally minimal: DRAFT / PUBLISHED / ARCHIVED.
+    # Validation and review are modeled as trace fields, not enum states.
     id: UUID
     content_unit_id: UUID
     revision_no: int
@@ -396,6 +398,7 @@ class ContentUnitRevisionResponse(BaseModel):
     asset_id: UUID | None
     metadata_json: dict[str, object]
     lifecycle_status: ContentLifecycleStatus
+    can_publish: bool
     published_at: datetime | None
     created_at: datetime
     updated_at: datetime

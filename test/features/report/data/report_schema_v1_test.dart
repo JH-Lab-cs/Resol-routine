@@ -53,6 +53,8 @@ void main() {
       expect(schema.days, hasLength(1));
       expect(schema.days.first.solvedCount, 2);
       expect(schema.days.first.wrongReasonCounts[WrongReasonTag.vocab], 1);
+      expect(schema.days.first.questions.first.typeTag, 'L_DETAIL');
+      expect(schema.days.first.questions.last.typeTag, 'R_MAIN_IDEA');
     });
 
     test('accepts valid v2 payload with vocabQuiz summary', () {

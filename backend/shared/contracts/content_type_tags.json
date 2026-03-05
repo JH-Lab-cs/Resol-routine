@@ -1,0 +1,89 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "skill": "LISTENING",
+      "canonicalTypeTag": "L_GIST",
+      "legacyAliases": ["L1"],
+      "description": "Identify the main point or gist of a listening context."
+    },
+    {
+      "skill": "LISTENING",
+      "canonicalTypeTag": "L_DETAIL",
+      "legacyAliases": ["L2"],
+      "description": "Locate explicit detail in spoken content."
+    },
+    {
+      "skill": "LISTENING",
+      "canonicalTypeTag": "L_INTENT",
+      "legacyAliases": ["L3"],
+      "description": "Infer the speaker's purpose or communicative intent."
+    },
+    {
+      "skill": "LISTENING",
+      "canonicalTypeTag": "L_RESPONSE",
+      "legacyAliases": [],
+      "description": "Select the most appropriate spoken response."
+    },
+    {
+      "skill": "LISTENING",
+      "canonicalTypeTag": "L_SITUATION",
+      "legacyAliases": [],
+      "description": "Understand context, relationship, or situation from dialogue."
+    },
+    {
+      "skill": "LISTENING",
+      "canonicalTypeTag": "L_LONG_TALK",
+      "legacyAliases": [],
+      "description": "Comprehend extended listening passages."
+    },
+    {
+      "skill": "READING",
+      "canonicalTypeTag": "R_MAIN_IDEA",
+      "legacyAliases": ["R1"],
+      "description": "Identify the main idea of a passage."
+    },
+    {
+      "skill": "READING",
+      "canonicalTypeTag": "R_DETAIL",
+      "legacyAliases": ["R2"],
+      "description": "Locate explicit detail in written text."
+    },
+    {
+      "skill": "READING",
+      "canonicalTypeTag": "R_INFERENCE",
+      "legacyAliases": ["R3"],
+      "description": "Infer implicit meaning from evidence."
+    },
+    {
+      "skill": "READING",
+      "canonicalTypeTag": "R_BLANK",
+      "legacyAliases": [],
+      "description": "Fill blank items using context and grammar clues."
+    },
+    {
+      "skill": "READING",
+      "canonicalTypeTag": "R_ORDER",
+      "legacyAliases": [],
+      "description": "Determine sentence or paragraph order."
+    },
+    {
+      "skill": "READING",
+      "canonicalTypeTag": "R_INSERTION",
+      "legacyAliases": [],
+      "description": "Choose the correct insertion point for a sentence."
+    },
+    {
+      "skill": "READING",
+      "canonicalTypeTag": "R_SUMMARY",
+      "legacyAliases": [],
+      "description": "Complete or evaluate summary-level understanding."
+    },
+    {
+      "skill": "READING",
+      "canonicalTypeTag": "R_VOCAB",
+      "legacyAliases": [],
+      "description": "Resolve vocabulary meaning from context."
+    }
+  ]
+}

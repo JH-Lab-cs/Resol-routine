@@ -231,6 +231,13 @@ def _to_revision_response(
     revision: ContentUnitRevision,
     questions: list[ContentQuestion],
 ) -> ContentUnitRevisionResponse:
+    can_publish = (
+        revision.lifecycle_status == ContentLifecycleStatus.DRAFT
+        and revision.validated_at is not None
+        and revision.validator_version is not None
+        and revision.reviewed_at is not None
+        and revision.reviewer_identity is not None
+    )
     return ContentUnitRevisionResponse(
         id=revision.id,
         content_unit_id=revision.content_unit_id,
@@ -248,6 +255,7 @@ def _to_revision_response(
         asset_id=revision.asset_id,
         metadata_json=revision.metadata_json,
         lifecycle_status=revision.lifecycle_status,
+        can_publish=can_publish,
         published_at=revision.published_at,
         created_at=revision.created_at,
         updated_at=revision.updated_at,

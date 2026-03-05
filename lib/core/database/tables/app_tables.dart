@@ -100,8 +100,8 @@ class Questions extends Table {
         "(skill = 'LISTENING' AND script_id IS NOT NULL AND passage_id IS NULL) OR "
         "(skill = 'READING' AND passage_id IS NOT NULL AND script_id IS NULL)"
         ")",
-    "CHECK ((skill != 'LISTENING') OR (type_tag GLOB 'L[0-9]*'))",
-    "CHECK ((skill != 'READING') OR (type_tag GLOB 'R[0-9]*'))",
+    "CHECK ((skill != 'LISTENING') OR (type_tag IN ('L_GIST','L_DETAIL','L_INTENT','L_RESPONSE','L_SITUATION','L_LONG_TALK') OR type_tag GLOB 'L[0-9]*'))",
+    "CHECK ((skill != 'READING') OR (type_tag IN ('R_MAIN_IDEA','R_DETAIL','R_INFERENCE','R_BLANK','R_ORDER','R_INSERTION','R_SUMMARY','R_VOCAB') OR type_tag GLOB 'R[0-9]*'))",
   ];
 
   @override

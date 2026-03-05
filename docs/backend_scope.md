@@ -59,6 +59,10 @@ This document narrows backend phase-1 work into implementation slices.
 - Question bank schema for LISTENING/READING
 - Track/skill/type constraints
 - Publish flags and versioning metadata
+- Lifecycle contract:
+  - enum stays minimal: `DRAFT`, `PUBLISHED`, `ARCHIVED`
+  - validation/review are trace-field gates (`validator_version`, `validated_at`, `reviewer_identity`, `reviewed_at`)
+  - `VALIDATED` / `IN_REVIEW` / `APPROVED` are not DB enum states
 - Object storage policy:
   - Cloudflare R2 private buckets only
   - signed URL access only (or server proxy)

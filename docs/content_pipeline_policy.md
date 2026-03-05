@@ -12,6 +12,13 @@ This policy defines minimum safety and quality gates for generated learning cont
 
 Auto-publish without human review is out of scope for backend phase-1.
 
+Implementation note:
+- Lifecycle status enum stays minimal (`DRAFT`, `PUBLISHED`, `ARCHIVED`).
+- Validation/review progress is tracked with trace fields (`validator_version`, `validated_at`, `reviewer_identity`, `reviewed_at`).
+- Publish is allowed only when trace-field gates are satisfied.
+- Terms like `VALIDATED`, `IN_REVIEW`, and `APPROVED` are operational checkpoints only.
+  They are not persisted lifecycle enum states.
+
 ## 2) Validation Gates
 
 - Track/skill invariants must pass

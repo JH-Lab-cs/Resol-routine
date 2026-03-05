@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import '../../../../core/database/converters/json_models.dart';
 import '../../../../core/database/db_text_limits.dart';
+import '../../../../core/domain/content_type_tag_taxonomy.dart';
+import '../../../../core/domain/domain_enums.dart';
 
 const Set<String> _allowedSkills = <String>{'LISTENING', 'READING'};
 const Set<String> _allowedTracks = <String>{'M3', 'H1', 'H2', 'H3'};
@@ -502,18 +504,16 @@ class SeedQuestion {
       parentPath: path,
     );
 
-    final typeTag = _readString(
+    final rawTypeTag = _readString(
       json,
       'typeTag',
       parentPath: path,
       maxLength: DbTextLimits.typeTagMax,
     );
-    if (skill == 'LISTENING' && !RegExp(r'^L\d+$').hasMatch(typeTag)) {
-      throw FormatException('"$path.typeTag" must match L<digit...>.');
-    }
-    if (skill == 'READING' && !RegExp(r'^R\d+$').hasMatch(typeTag)) {
-      throw FormatException('"$path.typeTag" must match R<digit...>.');
-    }
+    final typeTag = normalizeTypeTagForStorage(
+      skill: skillFromDb(skill),
+      rawTypeTag: rawTypeTag,
+    );
 
     final options = _readOptionMap(
       json,

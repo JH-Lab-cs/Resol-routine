@@ -53,6 +53,8 @@ class Settings(BaseSettings):
     ai_generation_api_key: str | None = None
     ai_mock_exam_model: str = "not-configured"
     ai_mock_exam_prompt_template_version: str = "v1"
+    ai_content_model: str = "not-configured"
+    ai_content_prompt_template_version: str = "v1"
     ai_openai_base_url: str = "https://api.openai.com"
     ai_anthropic_base_url: str = "https://api.anthropic.com"
     ai_artifact_retention_days: int = AI_ARTIFACT_RETENTION_DAYS_DEFAULT
@@ -118,7 +120,14 @@ class Settings(BaseSettings):
             raise ValueError(f"{info.field_name} must not use an insecure sample value.")
         return normalized
 
-    @field_validator("ai_generation_provider", "ai_mock_exam_model", "ai_mock_exam_prompt_template_version", mode="before")
+    @field_validator(
+        "ai_generation_provider",
+        "ai_mock_exam_model",
+        "ai_mock_exam_prompt_template_version",
+        "ai_content_model",
+        "ai_content_prompt_template_version",
+        mode="before",
+    )
     @classmethod
     def validate_non_empty_identifier_settings(cls, value: str, info: ValidationInfo) -> str:
         if not isinstance(value, str):

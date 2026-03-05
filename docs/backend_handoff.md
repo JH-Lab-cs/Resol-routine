@@ -53,6 +53,16 @@ This document is the backend handoff baseline for the next chat/session.
   - Skill: `LISTENING`, `READING`
   - Mock exam type: `WEEKLY`, `MONTHLY`
   - Wrong reason tag: `VOCAB`, `EVIDENCE`, `INFERENCE`, `CARELESS`, `TIME`
+- Content typeTag taxonomy (canonical, frozen):
+  - Source of truth: `backend/shared/contracts/content_type_tags.json`
+  - Listening:
+    - `L_GIST`, `L_DETAIL`, `L_INTENT`, `L_RESPONSE`, `L_SITUATION`, `L_LONG_TALK`
+  - Reading:
+    - `R_MAIN_IDEA`, `R_DETAIL`, `R_INFERENCE`, `R_BLANK`, `R_ORDER`, `R_INSERTION`, `R_SUMMARY`, `R_VOCAB`
+  - Legacy numeric aliases are compatibility-only (import/migration):
+    - `L1 -> L_GIST`, `L2 -> L_DETAIL`, `L3 -> L_INTENT`
+    - `R1 -> R_MAIN_IDEA`, `R2 -> R_DETAIL`, `R3 -> R_INFERENCE`
+  - New write paths must reject legacy numeric tags and store canonical semantic tags only.
 - Report schema:
   - Versioned, strict-guarded
   - Current frontend export target: `schemaVersion = 5`
@@ -143,6 +153,19 @@ This document is the backend handoff baseline for the next chat/session.
 - Human review
 - Publish
 - Client consumption
+- Lifecycle enum is intentionally minimal:
+  - `DRAFT`
+  - `PUBLISHED`
+  - `ARCHIVED`
+- Validation/review are trace fields, not additional lifecycle enum states:
+  - `validator_version`
+  - `validated_at`
+  - `reviewer_identity`
+  - `reviewed_at`
+- Publish gate:
+  - Publish is allowed only when validation/review trace fields are present and required content checks pass.
+- Terms like `VALIDATED`, `IN_REVIEW`, and `APPROVED` are operational checkpoints only.
+  They must not be treated as DB lifecycle enum values.
 - Auto-publish is forbidden in phase-1.
 
 ## L. Mock Exam Assembly Rules

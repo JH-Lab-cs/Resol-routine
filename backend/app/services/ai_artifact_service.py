@@ -18,6 +18,8 @@ from app.core.policies import AI_ARTIFACT_OBJECT_KEY_MAX_LENGTH, R2_DOWNLOAD_SIG
 
 _SAFE_OBJECT_KEY_PATTERN = re.compile(r"^[a-z0-9][a-z0-9/._-]*$")
 _OBJECT_KEY_PREFIX = "ai-artifacts/"
+_AI_CONTENT_OBJECT_KEY_PREFIX = "ai-content/"
+_ALLOWED_OBJECT_KEY_PREFIXES = (_OBJECT_KEY_PREFIX, _AI_CONTENT_OBJECT_KEY_PREFIX)
 
 
 @dataclass(frozen=True, slots=True)
@@ -58,6 +60,14 @@ class AIGenerationArtifactStore:
 
     def put_text(self, *, kind: str, job_id: UUID, body: str, content_type: str = "text/plain") -> str:
         object_key = _build_object_key(kind=kind, job_id=job_id)
+        return self.put_text_with_object_key(
+            object_key=object_key,
+            body=body,
+            content_type=content_type,
+        )
+
+    def put_text_with_object_key(self, *, object_key: str, body: str, content_type: str = "text/plain") -> str:
+        _ensure_safe_object_key(object_key)
         self._client.put_object(
             Bucket=self._bucket,
             Key=object_key,
@@ -65,6 +75,14 @@ class AIGenerationArtifactStore:
             ContentType=content_type,
         )
         return object_key
+
+    def put_json_with_object_key(self, *, object_key: str, payload: dict[str, object]) -> str:
+        body = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
+        return self.put_text_with_object_key(
+            object_key=object_key,
+            body=body,
+            content_type="application/json",
+        )
 
     def get_text(self, *, object_key: str) -> str:
         _ensure_safe_object_key(object_key)
@@ -150,7 +168,7 @@ def _normalize_kind(kind: str) -> str:
 
 
 def _ensure_safe_object_key(value: str) -> None:
-    if not value.startswith(_OBJECT_KEY_PREFIX):
+    if not any(value.startswith(prefix) for prefix in _ALLOWED_OBJECT_KEY_PREFIXES):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid_artifact_object_key")
     if len(value) > AI_ARTIFACT_OBJECT_KEY_MAX_LENGTH:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="artifact_object_key_too_long")

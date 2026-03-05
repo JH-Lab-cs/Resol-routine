@@ -174,7 +174,9 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey<String>('filter-typeTag')));
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey<String>('typeTag-option-L1')));
+      await tester.tap(
+        find.byKey(const ValueKey<String>('typeTag-option-L_GIST')),
+      );
       await tester.pumpAndSettle();
 
       await _scrollUntilVisible(

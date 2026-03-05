@@ -1,3 +1,5 @@
+from app.models.ai_content_generation_candidate import AIContentGenerationCandidate
+from app.models.ai_content_generation_job import AIContentGenerationJob
 from app.models.ai_generation_job import AIGenerationJob
 from app.models.audit_log import AuditLog
 from app.models.billing_receipt_verification import BillingReceiptVerification
@@ -9,11 +11,14 @@ from app.models.content_unit import ContentUnit
 from app.models.content_unit_revision import ContentUnitRevision
 from app.models.daily_report_aggregate import DailyReportAggregate
 from app.models.enums import (
+    AIContentGenerationCandidateStatus,
     AIGenerationJobStatus,
     AIGenerationJobType,
     BillingProvider,
     BillingReceiptVerificationStatus,
     BillingWebhookStatus,
+    ContentSourcePolicy,
+    ContentTypeTag,
     MockExamType,
     Skill,
     SubscriptionFeatureCode,
@@ -40,6 +45,9 @@ from app.models.user_subscription import UserSubscription
 from app.models.weekly_report_aggregate import WeeklyReportAggregate
 
 __all__ = [
+    "AIContentGenerationCandidate",
+    "AIContentGenerationCandidateStatus",
+    "AIContentGenerationJob",
     "AuditLog",
     "AIGenerationJob",
     "AIGenerationJobStatus",
@@ -52,6 +60,8 @@ __all__ = [
     "ContentAsset",
     "ContentLifecycleStatus",
     "ContentQuestion",
+    "ContentSourcePolicy",
+    "ContentTypeTag",
     "ContentUnit",
     "ContentUnitRevision",
     "DailyReportAggregate",

@@ -33,8 +33,10 @@ import app.models  # noqa: F401
 from app.api.dependencies import get_db, get_rate_limiter
 from app.db.base import Base
 from app.db.session import (
+    POST_COMMIT_AI_CONTENT_GENERATION_JOB_IDS_KEY,
     POST_COMMIT_AI_GENERATION_JOB_IDS_KEY,
     POST_COMMIT_AGGREGATION_STUDENT_IDS_KEY,
+    run_post_commit_ai_content_generation_tasks,
     run_post_commit_ai_generation_tasks,
     run_post_commit_aggregation_tasks,
 )
@@ -73,10 +75,12 @@ def test_app() -> Generator[FastAPI, None, None]:
             db.commit()
             run_post_commit_aggregation_tasks(db)
             run_post_commit_ai_generation_tasks(db)
+            run_post_commit_ai_content_generation_tasks(db)
         except Exception:
             db.rollback()
             db.info.pop(POST_COMMIT_AGGREGATION_STUDENT_IDS_KEY, None)
             db.info.pop(POST_COMMIT_AI_GENERATION_JOB_IDS_KEY, None)
+            db.info.pop(POST_COMMIT_AI_CONTENT_GENERATION_JOB_IDS_KEY, None)
             raise
         finally:
             db.close()
