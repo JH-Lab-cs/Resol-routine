@@ -114,7 +114,7 @@ jobs:
     env:
       DATABASE_URL: postgresql+psycopg://postgres:postgres@127.0.0.1:5432/resol_backend_ci
       REDIS_URL: redis://127.0.0.1:6379/0
-      JWT_SECRET: ci-jwt-secret-value-1234567890
+      JWT_SECRET: ci-jwt-secret-value-1234567890-abcdef
       R2_ENDPOINT: https://example.r2.cloudflarestorage.com
       R2_BUCKET: resol-private-ci-bucket
       R2_ACCESS_KEY_ID: ci-r2-access-key-id
