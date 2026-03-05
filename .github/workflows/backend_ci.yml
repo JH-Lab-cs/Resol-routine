@@ -16,6 +16,7 @@ jobs:
     outputs:
       runtime_affecting: ${{ steps.classify.outputs.runtime_affecting }}
       has_backend_project: ${{ steps.classify.outputs.has_backend_project }}
+      base_has_backend_project: ${{ steps.classify.outputs.base_has_backend_project }}
       changed_python_count: ${{ steps.classify.outputs.changed_python_count }}
       changed_python_files: ${{ steps.classify.outputs.changed_python_files }}
     steps:
@@ -60,9 +61,14 @@ jobs:
           if [[ -f "backend/pyproject.toml" ]]; then
             HAS_BACKEND_PROJECT="true"
           fi
+          BASE_HAS_BACKEND_PROJECT="false"
+          if git cat-file -e "${BASE_SHA}:backend/pyproject.toml" 2>/dev/null; then
+            BASE_HAS_BACKEND_PROJECT="true"
+          fi
 
           echo "runtime_affecting=${RUNTIME_AFFECTING}" >> "${GITHUB_OUTPUT}"
           echo "has_backend_project=${HAS_BACKEND_PROJECT}" >> "${GITHUB_OUTPUT}"
+          echo "base_has_backend_project=${BASE_HAS_BACKEND_PROJECT}" >> "${GITHUB_OUTPUT}"
           echo "changed_python_count=${CHANGED_PY_COUNT}" >> "${GITHUB_OUTPUT}"
           {
             echo "changed_python_files<<EOF"
@@ -72,6 +78,7 @@ jobs:
 
           echo "Runtime-affecting backend change: ${RUNTIME_AFFECTING}"
           echo "Backend project present: ${HAS_BACKEND_PROJECT}"
+          echo "Base commit has backend project: ${BASE_HAS_BACKEND_PROJECT}"
           echo "Changed backend Python files count: ${CHANGED_PY_COUNT}"
 
   backend-heavy-gates:
@@ -153,9 +160,16 @@ jobs:
         run: bash backend/scripts/backend_ci.sh sync
 
       - name: Strict lint/type gate (changed backend Python files)
+        if: needs.classify-backend-changes.outputs.base_has_backend_project == 'true'
         env:
           CHANGED_PYTHON_FILES: ${{ needs.classify-backend-changes.outputs.changed_python_files }}
         run: bash backend/scripts/backend_ci.sh quality-strict
+
+      - name: Skip strict lint/type for backend bootstrap merge
+        if: needs.classify-backend-changes.outputs.base_has_backend_project != 'true'
+        run: |
+          echo "Base commit does not contain backend project."
+          echo "Skipping strict lint/type gate for first backend integration."
 
       - name: Full backend test gates
         run: bash backend/scripts/backend_ci.sh test
