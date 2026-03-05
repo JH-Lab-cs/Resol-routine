@@ -58,7 +58,7 @@ def resolve_parent_entitlements(
     parent_id: UUID,
     at: datetime | None = None,
 ) -> ParentEntitlementSummary:
-    as_of = at or datetime.now(UTC)
+    as_of = at or _now_utc()
 
     rows = db.execute(
         select(UserSubscription, SubscriptionPlan)
@@ -96,7 +96,7 @@ def resolve_student_entitlements(
     student_id: UUID,
     at: datetime | None = None,
 ) -> StudentEntitlementSummary:
-    as_of = at or datetime.now(UTC)
+    as_of = at or _now_utc()
 
     parent_ids = db.execute(
         select(ParentChildLink.parent_id)
@@ -252,3 +252,7 @@ def _to_utc_aware(value: datetime) -> datetime:
     if value.tzinfo is None:
         return value.replace(tzinfo=UTC)
     return value.astimezone(UTC)
+
+
+def _now_utc() -> datetime:
+    return datetime.now(UTC)

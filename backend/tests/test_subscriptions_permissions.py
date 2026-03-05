@@ -12,6 +12,7 @@ from app.models.enums import MockExamType, SubscriptionFeatureCode, Track
 from app.models.mock_exam import MockExam
 from app.models.mock_exam_revision import MockExamRevision
 from app.models.parent_child_link import ParentChildLink
+import app.services.entitlement_service as entitlement_service
 import app.services.mock_exam_delivery_service as mock_exam_delivery_service
 
 INTERNAL_API_KEY = "unit-test-internal-api-key-value"
@@ -44,6 +45,7 @@ def _internal_headers(api_key: str = INTERNAL_API_KEY) -> dict[str, str]:
 def _set_fixed_mock_exam_now(monkeypatch, *, iso_timestamp: str) -> datetime:
     fixed_now = datetime.fromisoformat(iso_timestamp)
     monkeypatch.setattr(mock_exam_delivery_service, "_now_utc", lambda: fixed_now)
+    monkeypatch.setattr(entitlement_service, "_now_utc", lambda: fixed_now)
     return fixed_now
 
 
@@ -77,7 +79,7 @@ def _create_parent_subscription(
     ends_at: datetime | None = None,
     grace_ends_at: datetime | None = None,
 ) -> dict[str, object]:
-    now = datetime.now(UTC)
+    now = entitlement_service._now_utc()
     window_start = starts_at or (now - timedelta(days=1))
     window_end = ends_at or (now + timedelta(days=30))
 
