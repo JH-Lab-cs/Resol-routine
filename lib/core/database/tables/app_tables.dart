@@ -3,6 +3,9 @@ import 'package:drift/drift.dart';
 import '../converters/json_converters.dart';
 import '../db_text_limits.dart';
 
+const String emptySha256Hex =
+    '0000000000000000000000000000000000000000000000000000000000000000';
+
 class ContentPacks extends Table {
   @override
   String get tableName => 'content_packs';
@@ -137,11 +140,178 @@ class DailySessions extends Table {
 
   IntColumn get id => integer().autoIncrement()();
   IntColumn get dayKey => integer().customConstraint(
-    'NOT NULL UNIQUE CHECK (day_key BETWEEN 19000101 AND 29991231)',
+    'NOT NULL CHECK (day_key BETWEEN 19000101 AND 29991231)',
   )();
+  TextColumn get track => text()
+      .withLength(min: 2, max: 2)
+      .customConstraint(
+        "NOT NULL DEFAULT 'M3' CHECK (track IN ('M3', 'H1', 'H2', 'H3'))",
+      )();
   IntColumn get plannedItems => integer().withDefault(const Constant(0))();
   IntColumn get completedItems => integer().withDefault(const Constant(0))();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  List<Set<Column<Object>>> get uniqueKeys => [
+    {dayKey, track},
+  ];
+}
+
+class DailySessionItems extends Table {
+  @override
+  String get tableName => 'daily_session_items';
+
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get sessionId =>
+      integer().references(DailySessions, #id, onDelete: KeyAction.cascade)();
+  IntColumn get orderIndex => integer().customConstraint(
+    'NOT NULL CHECK (order_index BETWEEN 0 AND 5)',
+  )();
+  TextColumn get questionId =>
+      text().references(Questions, #id, onDelete: KeyAction.cascade)();
+
+  @override
+  List<Set<Column<Object>>> get uniqueKeys => [
+    {sessionId, orderIndex},
+    {sessionId, questionId},
+  ];
+}
+
+class UserSettings extends Table {
+  @override
+  String get tableName => 'user_settings';
+
+  IntColumn get id => integer()();
+  TextColumn get role => text().customConstraint(
+    "NOT NULL DEFAULT 'STUDENT' CHECK (role IN ('STUDENT', 'PARENT'))",
+  )();
+  TextColumn get displayName => text()
+      .withLength(min: 0, max: DbTextLimits.displayNameMax)
+      .customConstraint("NOT NULL DEFAULT ''")();
+  TextColumn get birthDate => text()
+      .withLength(min: 0, max: 10)
+      .customConstraint(
+        "NOT NULL DEFAULT '' CHECK (birth_date = '' OR birth_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]')",
+      )();
+  TextColumn get track => text().customConstraint(
+    "NOT NULL DEFAULT 'M3' CHECK (track IN ('M3', 'H1', 'H2', 'H3'))",
+  )();
+  BoolColumn get notificationsEnabled =>
+      boolean().withDefault(const Constant(true))();
+  BoolColumn get studyReminderEnabled =>
+      boolean().withDefault(const Constant(true))();
+  BoolColumn get devToolsEnabled =>
+      boolean().withDefault(const Constant(false))();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+
+  @override
+  List<String> get customConstraints => const <String>['CHECK (id = 1)'];
+}
+
+class SharedReports extends Table {
+  @override
+  String get tableName => 'shared_reports';
+
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get source =>
+      text().withLength(min: 1, max: DbTextLimits.reportSourceMax)();
+  TextColumn get payloadJson =>
+      text().withLength(min: 2, max: DbTextLimits.reportPayloadMax)();
+  TextColumn get payloadSha256 => text()
+      .withLength(min: 64, max: 64)
+      .withDefault(const Constant(emptySha256Hex))();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+}
+
+class VocabQuizResults extends Table {
+  @override
+  String get tableName => 'vocab_quiz_results';
+
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get dayKey => integer().customConstraint(
+    'NOT NULL CHECK (day_key BETWEEN 19000101 AND 29991231)',
+  )();
+  TextColumn get track => text()
+      .withLength(min: 2, max: 2)
+      .customConstraint("NOT NULL CHECK (track IN ('M3', 'H1', 'H2', 'H3'))")();
+  IntColumn get totalCount => integer().customConstraint(
+    'NOT NULL CHECK (total_count BETWEEN 0 AND 20)',
+  )();
+  IntColumn get correctCount => integer().customConstraint(
+    'NOT NULL CHECK (correct_count BETWEEN 0 AND 20)',
+  )();
+  TextColumn get wrongVocabIdsJson =>
+      text().withLength(min: 2, max: DbTextLimits.vocabWrongVocabIdsJsonMax)();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  List<Set<Column<Object>>> get uniqueKeys => [
+    {dayKey, track},
+  ];
+
+  @override
+  List<String> get customConstraints => const <String>[
+    'CHECK (correct_count <= total_count)',
+  ];
+}
+
+class MockExamSessions extends Table {
+  @override
+  String get tableName => 'mock_exam_sessions';
+
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get examType => text().customConstraint(
+    "NOT NULL CHECK (exam_type IN ('WEEKLY', 'MONTHLY'))",
+  )();
+  TextColumn get periodKey => text().withLength(min: 6, max: 8)();
+  TextColumn get track => text()
+      .withLength(min: 2, max: 2)
+      .customConstraint("NOT NULL CHECK (track IN ('M3', 'H1', 'H2', 'H3'))")();
+  IntColumn get plannedItems =>
+      integer().customConstraint('NOT NULL CHECK (planned_items >= 0)')();
+  IntColumn get completedItems => integer().customConstraint(
+    'NOT NULL DEFAULT 0 CHECK (completed_items >= 0)',
+  )();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get completedAt => dateTime().nullable()();
+
+  @override
+  List<Set<Column<Object>>> get uniqueKeys => [
+    {examType, periodKey, track},
+  ];
+
+  @override
+  List<String> get customConstraints => const <String>[
+    'CHECK (completed_items <= planned_items)',
+  ];
+}
+
+class MockExamSessionItems extends Table {
+  @override
+  String get tableName => 'mock_exam_session_items';
+
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get sessionId => integer().references(
+    MockExamSessions,
+    #id,
+    onDelete: KeyAction.cascade,
+  )();
+  IntColumn get orderIndex =>
+      integer().customConstraint('NOT NULL CHECK (order_index >= 0)')();
+  TextColumn get questionId =>
+      text().references(Questions, #id, onDelete: KeyAction.cascade)();
+
+  @override
+  List<Set<Column<Object>>> get uniqueKeys => [
+    {sessionId, orderIndex},
+    {sessionId, questionId},
+  ];
 }
 
 class Attempts extends Table {
@@ -156,11 +326,21 @@ class Attempts extends Table {
     #id,
     onDelete: KeyAction.setNull,
   )();
+  IntColumn get mockSessionId => integer().nullable().references(
+    MockExamSessions,
+    #id,
+    onDelete: KeyAction.setNull,
+  )();
   TextColumn get userAnswerJson => text()();
   BoolColumn get isCorrect => boolean()();
   IntColumn get responseTimeMs => integer().nullable()();
   DateTimeColumn get attemptedAt =>
       dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  List<String> get customConstraints => const <String>[
+    'CHECK (NOT (session_id IS NOT NULL AND mock_session_id IS NOT NULL))',
+  ];
 }
 
 class VocabMaster extends Table {
@@ -175,6 +355,7 @@ class VocabMaster extends Table {
       text().withLength(min: 1, max: DbTextLimits.meaningMax)();
   TextColumn get example => text().nullable()();
   TextColumn get ipa => text().nullable()();
+  DateTimeColumn get deletedAt => dateTime().nullable()();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 
   @override

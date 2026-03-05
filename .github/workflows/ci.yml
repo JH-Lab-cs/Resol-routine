@@ -1,0 +1,87 @@
+name: Flutter CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  flutter-gates:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.38.3"
+          cache: true
+
+      - name: Flutter version
+        run: flutter --version
+
+      - name: Dart version
+        run: dart --version
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build generated sources
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Check hidden unicode characters
+        run: python3 tool/security/check_bidi.py
+
+      - name: Check formatting
+        run: dart format --set-exit-if-changed .
+
+      - name: Dart analyze
+        run: dart analyze
+
+      - name: Flutter test
+        run: flutter test
+
+      - name: Android debug build smoke
+        run: flutter build apk --debug
+
+      - name: Android release build smoke
+        run: flutter build apk --release
+
+  ios-build-smoke:
+    needs: flutter-gates
+    runs-on: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.38.3"
+          cache: true
+
+      - name: Flutter version
+        run: flutter --version
+
+      - name: Dart version
+        run: dart --version
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build generated sources
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Xcode version
+        run: xcodebuild -version
+
+      - name: Build iOS release (no codesign)
+        env:
+          COCOAPODS_DISABLE_STATS: 'true'
+        run: flutter build ios --release --no-codesign

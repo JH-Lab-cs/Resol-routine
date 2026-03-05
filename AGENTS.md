@@ -9,6 +9,11 @@
 - Work in small, reviewable commits.
 - Prefer feature-first structure; keep layers clean (UI / state / repository / db).
 
+## Language policy
+- App UI strings (buttons, menus, labels, guidance copy) must be written in Korean.
+- Question content (prompts, passages/scripts, answer options) must be written in English.
+- Explanation fields `whyCorrectKo` and `whyWrongKo` must be written in Korean.
+
 ## Non-negotiable checks (before pushing)
 Run and paste the full outputs in the task log:
 1) `python3 tool/security/check_bidi.py`

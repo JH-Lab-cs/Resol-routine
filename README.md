@@ -26,3 +26,16 @@ git config core.hooksPath .githooks
 - `docs/spec.md` is the single source of truth for product rules.
 - Every ticket must start by reading `docs/spec.md`.
 - Required checks: `python3 tool/security/check_bidi.py`, `dart analyze`, `flutter test`.
+
+## Operations Policy
+
+- CI release smoke artifacts are for compile validation only and must never be distributed.
+- Production store releases must use dedicated signing pipelines:
+  - Android: keystore / Play signing required.
+  - iOS: certificate / provisioning / App Store Connect signing required.
+- CI smoke and release pipelines must remain separated.
+- Parent report auto-sync remains disabled until backend linking is available.
+  - End-user path: hidden.
+  - File-based import/export: dev-only QA path.
+
+See `/Users/ijihun/Resol routine/docs/operations.md` for the full policy.

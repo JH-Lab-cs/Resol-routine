@@ -16,6 +16,7 @@ jobs:
     outputs:
       runtime_affecting: ${{ steps.classify.outputs.runtime_affecting }}
       has_backend_project: ${{ steps.classify.outputs.has_backend_project }}
+      base_has_backend_project: ${{ steps.classify.outputs.base_has_backend_project }}
       changed_python_count: ${{ steps.classify.outputs.changed_python_count }}
       changed_python_files: ${{ steps.classify.outputs.changed_python_files }}
     steps:
@@ -42,11 +43,6 @@ jobs:
             BASE_SHA="$(git rev-list --max-parents=0 HEAD | tail -n 1)"
           fi
 
-          HAS_BACKEND_PROJECT="false"
-          if [[ -f "backend/pyproject.toml" ]]; then
-            HAS_BACKEND_PROJECT="true"
-          fi
-
           git diff --name-only --diff-filter=ACMR "${BASE_SHA}" "${HEAD_SHA}" > /tmp/changed_files.txt
 
           RUNTIME_AFFECTING="false"
@@ -61,9 +57,18 @@ jobs:
 
           python3 backend/scripts/list_changed_python_files.py --base "${BASE_SHA}" --head "${HEAD_SHA}" > /tmp/changed_backend_python.txt
           CHANGED_PY_COUNT="$(grep -cve '^[[:space:]]*$' /tmp/changed_backend_python.txt || true)"
+          HAS_BACKEND_PROJECT="false"
+          if [[ -f "backend/pyproject.toml" ]]; then
+            HAS_BACKEND_PROJECT="true"
+          fi
+          BASE_HAS_BACKEND_PROJECT="false"
+          if git cat-file -e "${BASE_SHA}:backend/pyproject.toml" 2>/dev/null; then
+            BASE_HAS_BACKEND_PROJECT="true"
+          fi
 
           echo "runtime_affecting=${RUNTIME_AFFECTING}" >> "${GITHUB_OUTPUT}"
           echo "has_backend_project=${HAS_BACKEND_PROJECT}" >> "${GITHUB_OUTPUT}"
+          echo "base_has_backend_project=${BASE_HAS_BACKEND_PROJECT}" >> "${GITHUB_OUTPUT}"
           echo "changed_python_count=${CHANGED_PY_COUNT}" >> "${GITHUB_OUTPUT}"
           {
             echo "changed_python_files<<EOF"
@@ -73,6 +78,7 @@ jobs:
 
           echo "Runtime-affecting backend change: ${RUNTIME_AFFECTING}"
           echo "Backend project present: ${HAS_BACKEND_PROJECT}"
+          echo "Base commit has backend project: ${BASE_HAS_BACKEND_PROJECT}"
           echo "Changed backend Python files count: ${CHANGED_PY_COUNT}"
 
   backend-heavy-gates:
@@ -108,7 +114,7 @@ jobs:
     env:
       DATABASE_URL: postgresql+psycopg://postgres:postgres@127.0.0.1:5432/resol_backend_ci
       REDIS_URL: redis://127.0.0.1:6379/0
-      JWT_SECRET: ci-jwt-secret-value-1234567890
+      JWT_SECRET: ci-jwt-secret-value-1234567890-abcdef
       R2_ENDPOINT: https://example.r2.cloudflarestorage.com
       R2_BUCKET: resol-private-ci-bucket
       R2_ACCESS_KEY_ID: ci-r2-access-key-id
@@ -154,9 +160,16 @@ jobs:
         run: bash backend/scripts/backend_ci.sh sync
 
       - name: Strict lint/type gate (changed backend Python files)
+        if: needs.classify-backend-changes.outputs.base_has_backend_project == 'true'
         env:
           CHANGED_PYTHON_FILES: ${{ needs.classify-backend-changes.outputs.changed_python_files }}
         run: bash backend/scripts/backend_ci.sh quality-strict
+
+      - name: Skip strict lint/type for backend bootstrap merge
+        if: needs.classify-backend-changes.outputs.base_has_backend_project != 'true'
+        run: |
+          echo "Base commit does not contain backend project."
+          echo "Skipping strict lint/type gate for first backend integration."
 
       - name: Full backend test gates
         run: bash backend/scripts/backend_ci.sh test
@@ -178,10 +191,10 @@ jobs:
           echo "No backend runtime-affecting changes detected."
           echo "Required check completed successfully without heavy backend gates."
 
-      - name: Backend project is not present in this branch
+      - name: Backend project not present success
         if: needs.classify-backend-changes.outputs.runtime_affecting == 'true' && needs.classify-backend-changes.outputs.has_backend_project != 'true'
         run: |
-          echo "backend/pyproject.toml is not present in this branch."
+          echo "Backend runtime-affecting changes detected, but backend/pyproject.toml is not present."
           echo "Skipping heavy backend gates and completing required check successfully."
 
       - name: Fail when heavy backend gates failed

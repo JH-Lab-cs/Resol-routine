@@ -12,4 +12,10 @@ class DbTextLimits {
 
   static const int lemmaMax = 120;
   static const int meaningMax = 400;
+  static const int displayNameMax = 40;
+  static const int vocabWrongVocabIdsJsonMax = 4000;
+  static const int reportSourceMax = 120;
+  static const int reportPayloadMax = 2000000;
+  static const int reportImportMaxBytes = 10 * 1024 * 1024;
+  static const int reportImportRawMaxChars = reportPayloadMax * 3;
 }

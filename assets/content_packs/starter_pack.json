@@ -1,11 +1,11 @@
 {
   "pack": {
     "id": "starter_pack_exam_ready_en_001",
-    "version": 1,
+    "version": 2,
     "locale": "en-US",
     "title": "Starter Pack: Exam Basics",
-    "description": "A baseline pack with one listening and one reading question.",
-    "checksum": "sha256:starter-pack-exam-ready-v1"
+    "description": "A baseline pack with track-complete listening and reading questions.",
+    "checksum": "sha256:starter-pack-exam-ready-v2"
   },
   "scripts": [
     {
@@ -68,6 +68,677 @@
           "N": "en-US-Standard-A"
         }
       }
+    },
+    {
+      "id": "script_listening_m3_002",
+      "order": 1,
+      "sentences": [
+        {
+          "id": "m3l2_s1",
+          "text": "I need my tablet for the science video tomorrow."
+        },
+        {
+          "id": "m3l2_s2",
+          "text": "Charge it tonight so it does not shut down in class."
+        },
+        {
+          "id": "m3l2_s3",
+          "text": "Thanks, I will pack the charger now."
+        }
+      ],
+      "turns": [
+        {
+          "speaker": "S1",
+          "sentenceIds": [
+            "m3l2_s1"
+          ]
+        },
+        {
+          "speaker": "S2",
+          "sentenceIds": [
+            "m3l2_s2"
+          ]
+        },
+        {
+          "speaker": "S1",
+          "sentenceIds": [
+            "m3l2_s3"
+          ]
+        }
+      ],
+      "ttsPlan": {
+        "repeatPolicy": {
+          "mode": "per_turn",
+          "repeatCount": 1
+        },
+        "pauseRangeMs": {
+          "min": 350,
+          "max": 650
+        },
+        "rateRange": {
+          "min": 0.95,
+          "max": 1.03
+        },
+        "pitchRange": {
+          "min": 0.0,
+          "max": 1.2
+        },
+        "voiceRoles": {
+          "S1": "en-US-Standard-C",
+          "S2": "en-US-Standard-E",
+          "N": "en-US-Standard-A"
+        }
+      }
+    },
+    {
+      "id": "script_listening_m3_003",
+      "order": 2,
+      "sentences": [
+        {
+          "id": "m3l3_s1",
+          "text": "The bus to the museum leaves at 8:10."
+        },
+        {
+          "id": "m3l3_s2",
+          "text": "Then we should meet by the school gate at 8:00."
+        },
+        {
+          "id": "m3l3_s3",
+          "text": "I will set an alarm for 7:30."
+        }
+      ],
+      "turns": [
+        {
+          "speaker": "S1",
+          "sentenceIds": [
+            "m3l3_s1"
+          ]
+        },
+        {
+          "speaker": "S2",
+          "sentenceIds": [
+            "m3l3_s2"
+          ]
+        },
+        {
+          "speaker": "S1",
+          "sentenceIds": [
+            "m3l3_s3"
+          ]
+        }
+      ],
+      "ttsPlan": {
+        "repeatPolicy": {
+          "mode": "per_turn",
+          "repeatCount": 1
+        },
+        "pauseRangeMs": {
+          "min": 350,
+          "max": 650
+        },
+        "rateRange": {
+          "min": 0.95,
+          "max": 1.03
+        },
+        "pitchRange": {
+          "min": 0.0,
+          "max": 1.2
+        },
+        "voiceRoles": {
+          "S1": "en-US-Standard-C",
+          "S2": "en-US-Standard-E",
+          "N": "en-US-Standard-A"
+        }
+      }
+    },
+    {
+      "id": "script_listening_h1_001",
+      "order": 3,
+      "sentences": [
+        {
+          "id": "h1l1_s1",
+          "text": "The debate team meets after lunch on Wednesday."
+        },
+        {
+          "id": "h1l1_s2",
+          "text": "New members must sign up by Tuesday evening."
+        },
+        {
+          "id": "h1l1_s3",
+          "text": "I will submit my form today."
+        }
+      ],
+      "turns": [
+        {
+          "speaker": "S1",
+          "sentenceIds": [
+            "h1l1_s1"
+          ]
+        },
+        {
+          "speaker": "S2",
+          "sentenceIds": [
+            "h1l1_s2"
+          ]
+        },
+        {
+          "speaker": "S1",
+          "sentenceIds": [
+            "h1l1_s3"
+          ]
+        }
+      ],
+      "ttsPlan": {
+        "repeatPolicy": {
+          "mode": "per_turn",
+          "repeatCount": 1
+        },
+        "pauseRangeMs": {
+          "min": 350,
+          "max": 650
+        },
+        "rateRange": {
+          "min": 0.95,
+          "max": 1.03
+        },
+        "pitchRange": {
+          "min": 0.0,
+          "max": 1.2
+        },
+        "voiceRoles": {
+          "S1": "en-US-Standard-C",
+          "S2": "en-US-Standard-E",
+          "N": "en-US-Standard-A"
+        }
+      }
+    },
+    {
+      "id": "script_listening_h1_002",
+      "order": 4,
+      "sentences": [
+        {
+          "id": "h1l2_s1",
+          "text": "I am choosing a topic for my history presentation."
+        },
+        {
+          "id": "h1l2_s2",
+          "text": "Pick one event and explain two causes."
+        },
+        {
+          "id": "h1l2_s3",
+          "text": "I will focus on the moon landing."
+        }
+      ],
+      "turns": [
+        {
+          "speaker": "S1",
+          "sentenceIds": [
+            "h1l2_s1"
+          ]
+        },
+        {
+          "speaker": "S2",
+          "sentenceIds": [
+            "h1l2_s2"
+          ]
+        },
+        {
+          "speaker": "S1",
+          "sentenceIds": [
+            "h1l2_s3"
+          ]
+        }
+      ],
+      "ttsPlan": {
+        "repeatPolicy": {
+          "mode": "per_turn",
+          "repeatCount": 1
+        },
+        "pauseRangeMs": {
+          "min": 350,
+          "max": 650
+        },
+        "rateRange": {
+          "min": 0.95,
+          "max": 1.03
+        },
+        "pitchRange": {
+          "min": 0.0,
+          "max": 1.2
+        },
+        "voiceRoles": {
+          "S1": "en-US-Standard-C",
+          "S2": "en-US-Standard-E",
+          "N": "en-US-Standard-A"
+        }
+      }
+    },
+    {
+      "id": "script_listening_h1_003",
+      "order": 5,
+      "sentences": [
+        {
+          "id": "h1l3_s1",
+          "text": "The school play rehearsal starts at 6 p.m."
+        },
+        {
+          "id": "h1l3_s2",
+          "text": "Costume fitting happens right after rehearsal."
+        },
+        {
+          "id": "h1l3_s3",
+          "text": "Then I should bring my size notes."
+        }
+      ],
+      "turns": [
+        {
+          "speaker": "S1",
+          "sentenceIds": [
+            "h1l3_s1"
+          ]
+        },
+        {
+          "speaker": "S2",
+          "sentenceIds": [
+            "h1l3_s2"
+          ]
+        },
+        {
+          "speaker": "S1",
+          "sentenceIds": [
+            "h1l3_s3"
+          ]
+        }
+      ],
+      "ttsPlan": {
+        "repeatPolicy": {
+          "mode": "per_turn",
+          "repeatCount": 1
+        },
+        "pauseRangeMs": {
+          "min": 350,
+          "max": 650
+        },
+        "rateRange": {
+          "min": 0.95,
+          "max": 1.03
+        },
+        "pitchRange": {
+          "min": 0.0,
+          "max": 1.2
+        },
+        "voiceRoles": {
+          "S1": "en-US-Standard-C",
+          "S2": "en-US-Standard-E",
+          "N": "en-US-Standard-A"
+        }
+      }
+    },
+    {
+      "id": "script_listening_h2_001",
+      "order": 6,
+      "sentences": [
+        {
+          "id": "h2l1_s1",
+          "text": "Our chemistry lab report is due next Monday."
+        },
+        {
+          "id": "h2l1_s2",
+          "text": "Include the error analysis in the final section."
+        },
+        {
+          "id": "h2l1_s3",
+          "text": "I will revise that part tonight."
+        }
+      ],
+      "turns": [
+        {
+          "speaker": "S1",
+          "sentenceIds": [
+            "h2l1_s1"
+          ]
+        },
+        {
+          "speaker": "S2",
+          "sentenceIds": [
+            "h2l1_s2"
+          ]
+        },
+        {
+          "speaker": "S1",
+          "sentenceIds": [
+            "h2l1_s3"
+          ]
+        }
+      ],
+      "ttsPlan": {
+        "repeatPolicy": {
+          "mode": "per_turn",
+          "repeatCount": 1
+        },
+        "pauseRangeMs": {
+          "min": 350,
+          "max": 650
+        },
+        "rateRange": {
+          "min": 0.95,
+          "max": 1.03
+        },
+        "pitchRange": {
+          "min": 0.0,
+          "max": 1.2
+        },
+        "voiceRoles": {
+          "S1": "en-US-Standard-C",
+          "S2": "en-US-Standard-E",
+          "N": "en-US-Standard-A"
+        }
+      }
+    },
+    {
+      "id": "script_listening_h2_002",
+      "order": 7,
+      "sentences": [
+        {
+          "id": "h2l2_s1",
+          "text": "The volunteer center can place us in weekend programs."
+        },
+        {
+          "id": "h2l2_s2",
+          "text": "They need our application forms by Thursday noon."
+        },
+        {
+          "id": "h2l2_s3",
+          "text": "Let's submit everything tomorrow morning."
+        }
+      ],
+      "turns": [
+        {
+          "speaker": "S1",
+          "sentenceIds": [
+            "h2l2_s1"
+          ]
+        },
+        {
+          "speaker": "S2",
+          "sentenceIds": [
+            "h2l2_s2"
+          ]
+        },
+        {
+          "speaker": "S1",
+          "sentenceIds": [
+            "h2l2_s3"
+          ]
+        }
+      ],
+      "ttsPlan": {
+        "repeatPolicy": {
+          "mode": "per_turn",
+          "repeatCount": 1
+        },
+        "pauseRangeMs": {
+          "min": 350,
+          "max": 650
+        },
+        "rateRange": {
+          "min": 0.95,
+          "max": 1.03
+        },
+        "pitchRange": {
+          "min": 0.0,
+          "max": 1.2
+        },
+        "voiceRoles": {
+          "S1": "en-US-Standard-C",
+          "S2": "en-US-Standard-E",
+          "N": "en-US-Standard-A"
+        }
+      }
+    },
+    {
+      "id": "script_listening_h2_003",
+      "order": 8,
+      "sentences": [
+        {
+          "id": "h2l3_s1",
+          "text": "I compared two internship offers this morning."
+        },
+        {
+          "id": "h2l3_s2",
+          "text": "Choose the one that provides structured mentoring."
+        },
+        {
+          "id": "h2l3_s3",
+          "text": "That should help me build core skills faster."
+        }
+      ],
+      "turns": [
+        {
+          "speaker": "S1",
+          "sentenceIds": [
+            "h2l3_s1"
+          ]
+        },
+        {
+          "speaker": "S2",
+          "sentenceIds": [
+            "h2l3_s2"
+          ]
+        },
+        {
+          "speaker": "S1",
+          "sentenceIds": [
+            "h2l3_s3"
+          ]
+        }
+      ],
+      "ttsPlan": {
+        "repeatPolicy": {
+          "mode": "per_turn",
+          "repeatCount": 1
+        },
+        "pauseRangeMs": {
+          "min": 350,
+          "max": 650
+        },
+        "rateRange": {
+          "min": 0.95,
+          "max": 1.03
+        },
+        "pitchRange": {
+          "min": 0.0,
+          "max": 1.2
+        },
+        "voiceRoles": {
+          "S1": "en-US-Standard-C",
+          "S2": "en-US-Standard-E",
+          "N": "en-US-Standard-A"
+        }
+      }
+    },
+    {
+      "id": "script_listening_h3_001",
+      "order": 9,
+      "sentences": [
+        {
+          "id": "h3l1_s1",
+          "text": "Our economics seminar requires a policy brief next week."
+        },
+        {
+          "id": "h3l1_s2",
+          "text": "Base your claim on at least two current data sources."
+        },
+        {
+          "id": "h3l1_s3",
+          "text": "I will compare labor and inflation reports."
+        }
+      ],
+      "turns": [
+        {
+          "speaker": "S1",
+          "sentenceIds": [
+            "h3l1_s1"
+          ]
+        },
+        {
+          "speaker": "S2",
+          "sentenceIds": [
+            "h3l1_s2"
+          ]
+        },
+        {
+          "speaker": "S1",
+          "sentenceIds": [
+            "h3l1_s3"
+          ]
+        }
+      ],
+      "ttsPlan": {
+        "repeatPolicy": {
+          "mode": "per_turn",
+          "repeatCount": 1
+        },
+        "pauseRangeMs": {
+          "min": 350,
+          "max": 650
+        },
+        "rateRange": {
+          "min": 0.95,
+          "max": 1.03
+        },
+        "pitchRange": {
+          "min": 0.0,
+          "max": 1.2
+        },
+        "voiceRoles": {
+          "S1": "en-US-Standard-C",
+          "S2": "en-US-Standard-E",
+          "N": "en-US-Standard-A"
+        }
+      }
+    },
+    {
+      "id": "script_listening_h3_002",
+      "order": 10,
+      "sentences": [
+        {
+          "id": "h3l2_s1",
+          "text": "The admissions officer reviewed my personal statement."
+        },
+        {
+          "id": "h3l2_s2",
+          "text": "She said the conclusion should connect goals to concrete actions."
+        },
+        {
+          "id": "h3l2_s3",
+          "text": "I will rewrite the final paragraph tonight."
+        }
+      ],
+      "turns": [
+        {
+          "speaker": "S1",
+          "sentenceIds": [
+            "h3l2_s1"
+          ]
+        },
+        {
+          "speaker": "S2",
+          "sentenceIds": [
+            "h3l2_s2"
+          ]
+        },
+        {
+          "speaker": "S1",
+          "sentenceIds": [
+            "h3l2_s3"
+          ]
+        }
+      ],
+      "ttsPlan": {
+        "repeatPolicy": {
+          "mode": "per_turn",
+          "repeatCount": 1
+        },
+        "pauseRangeMs": {
+          "min": 350,
+          "max": 650
+        },
+        "rateRange": {
+          "min": 0.95,
+          "max": 1.03
+        },
+        "pitchRange": {
+          "min": 0.0,
+          "max": 1.2
+        },
+        "voiceRoles": {
+          "S1": "en-US-Standard-C",
+          "S2": "en-US-Standard-E",
+          "N": "en-US-Standard-A"
+        }
+      }
+    },
+    {
+      "id": "script_listening_h3_003",
+      "order": 11,
+      "sentences": [
+        {
+          "id": "h3l3_s1",
+          "text": "Our capstone team must present a risk management plan."
+        },
+        {
+          "id": "h3l3_s2",
+          "text": "Prioritize risks by impact and likelihood, not by guesswork."
+        },
+        {
+          "id": "h3l3_s3",
+          "text": "Let's build a scoring table before drafting slides."
+        }
+      ],
+      "turns": [
+        {
+          "speaker": "S1",
+          "sentenceIds": [
+            "h3l3_s1"
+          ]
+        },
+        {
+          "speaker": "S2",
+          "sentenceIds": [
+            "h3l3_s2"
+          ]
+        },
+        {
+          "speaker": "S1",
+          "sentenceIds": [
+            "h3l3_s3"
+          ]
+        }
+      ],
+      "ttsPlan": {
+        "repeatPolicy": {
+          "mode": "per_turn",
+          "repeatCount": 1
+        },
+        "pauseRangeMs": {
+          "min": 350,
+          "max": 650
+        },
+        "rateRange": {
+          "min": 0.95,
+          "max": 1.03
+        },
+        "pitchRange": {
+          "min": 0.0,
+          "max": 1.2
+        },
+        "voiceRoles": {
+          "S1": "en-US-Standard-C",
+          "S2": "en-US-Standard-E",
+          "N": "en-US-Standard-A"
+        }
+      }
     }
   ],
   "passages": [
@@ -87,6 +758,215 @@
         {
           "id": "rs_003",
           "text": "New members can register at the front desk before noon."
+        }
+      ]
+    },
+    {
+      "id": "passage_reading_m3_001",
+      "title": "Class Pet Care Schedule",
+      "order": 1,
+      "sentences": [
+        {
+          "id": "m3r1_s1",
+          "text": "Our class pet turtle eats twice a day."
+        },
+        {
+          "id": "m3r1_s2",
+          "text": "Please feed it at 9 a.m. and 4 p.m."
+        },
+        {
+          "id": "m3r1_s3",
+          "text": "Write your name on the care chart after feeding."
+        }
+      ]
+    },
+    {
+      "id": "passage_reading_m3_002",
+      "title": "Library Card Desk",
+      "order": 2,
+      "sentences": [
+        {
+          "id": "m3r2_s1",
+          "text": "The library card is free for all students."
+        },
+        {
+          "id": "m3r2_s2",
+          "text": "Bring your school ID to the front desk."
+        },
+        {
+          "id": "m3r2_s3",
+          "text": "Cards are ready in about ten minutes."
+        }
+      ]
+    },
+    {
+      "id": "passage_reading_m3_003",
+      "title": "Team Practice Update",
+      "order": 3,
+      "sentences": [
+        {
+          "id": "m3r3_s1",
+          "text": "Rain is expected this afternoon."
+        },
+        {
+          "id": "m3r3_s2",
+          "text": "Practice will move to the indoor gym at 5 p.m."
+        },
+        {
+          "id": "m3r3_s3",
+          "text": "Players should arrive ten minutes early."
+        }
+      ]
+    },
+    {
+      "id": "passage_reading_h1_002",
+      "title": "Coding Club First Meeting",
+      "order": 4,
+      "sentences": [
+        {
+          "id": "h1r2_s1",
+          "text": "Students joining the coding club should install a text editor."
+        },
+        {
+          "id": "h1r2_s2",
+          "text": "The first project meeting is in Room 204 on Friday."
+        },
+        {
+          "id": "h1r2_s3",
+          "text": "Bring a laptop with at least fifty percent battery."
+        }
+      ]
+    },
+    {
+      "id": "passage_reading_h1_003",
+      "title": "Museum Visitor Guide",
+      "order": 5,
+      "sentences": [
+        {
+          "id": "h1r3_s1",
+          "text": "The city art museum offers free entry on the first Sunday each month."
+        },
+        {
+          "id": "h1r3_s2",
+          "text": "Guided tours begin at 11 a.m. and 2 p.m."
+        },
+        {
+          "id": "h1r3_s3",
+          "text": "Photography is allowed without flash."
+        }
+      ]
+    },
+    {
+      "id": "passage_reading_h2_001",
+      "title": "Exam Week Sleep Study",
+      "order": 6,
+      "sentences": [
+        {
+          "id": "h2r1_s1",
+          "text": "A recent survey showed that students sleep less during exam weeks."
+        },
+        {
+          "id": "h2r1_s2",
+          "text": "Researchers recommend a fixed bedtime to improve focus."
+        },
+        {
+          "id": "h2r1_s3",
+          "text": "Short naps can help, but long naps may reduce nighttime sleep."
+        }
+      ]
+    },
+    {
+      "id": "passage_reading_h2_002",
+      "title": "Digital Textbook Pilot",
+      "order": 7,
+      "sentences": [
+        {
+          "id": "h2r2_s1",
+          "text": "The school will pilot digital textbooks in two math classes."
+        },
+        {
+          "id": "h2r2_s2",
+          "text": "Teachers can track homework completion through the platform."
+        },
+        {
+          "id": "h2r2_s3",
+          "text": "Printed copies remain available upon request."
+        }
+      ]
+    },
+    {
+      "id": "passage_reading_h2_003",
+      "title": "Bike Lane Proposal",
+      "order": 8,
+      "sentences": [
+        {
+          "id": "h2r3_s1",
+          "text": "City planners propose adding more bike lanes near subway stations."
+        },
+        {
+          "id": "h2r3_s2",
+          "text": "They expect this to shorten commute times for short trips."
+        },
+        {
+          "id": "h2r3_s3",
+          "text": "Public feedback will be collected until March 30."
+        }
+      ]
+    },
+    {
+      "id": "passage_reading_h3_001",
+      "title": "Bias in Training Data",
+      "order": 9,
+      "sentences": [
+        {
+          "id": "h3r1_s1",
+          "text": "A university study found that algorithmic bias often comes from skewed training data."
+        },
+        {
+          "id": "h3r1_s2",
+          "text": "The authors recommend auditing datasets before deployment."
+        },
+        {
+          "id": "h3r1_s3",
+          "text": "They also suggest publishing model limitations for users."
+        }
+      ]
+    },
+    {
+      "id": "passage_reading_h3_002",
+      "title": "Rate Hike Brief",
+      "order": 10,
+      "sentences": [
+        {
+          "id": "h3r2_s1",
+          "text": "The central bank raised interest rates by 0.25 percentage points."
+        },
+        {
+          "id": "h3r2_s2",
+          "text": "Analysts expect borrowing costs for households to increase gradually."
+        },
+        {
+          "id": "h3r2_s3",
+          "text": "Export firms may benefit if the currency weakens."
+        }
+      ]
+    },
+    {
+      "id": "passage_reading_h3_003",
+      "title": "Urban Heat and Equity",
+      "order": 11,
+      "sentences": [
+        {
+          "id": "h3r3_s1",
+          "text": "An editorial argues that urban heat islands worsen public health inequities."
+        },
+        {
+          "id": "h3r3_s2",
+          "text": "It calls for tree-canopy targets in low-income neighborhoods."
+        },
+        {
+          "id": "h3r3_s3",
+          "text": "The piece notes that cooling centers are only a short-term measure."
         }
       ]
     }
@@ -133,6 +1013,326 @@
       }
     },
     {
+      "id": "question_listening_m3_002",
+      "skill": "LISTENING",
+      "typeTag": "L2",
+      "track": "M3",
+      "difficulty": 1,
+      "passageId": null,
+      "scriptId": "script_listening_m3_002",
+      "prompt": "Why does S2 suggest charging the tablet tonight?",
+      "options": {
+        "A": "To install games",
+        "B": "To prevent it from shutting down in class",
+        "C": "To clean the screen",
+        "D": "To lend it to a friend",
+        "E": "To watch TV before bed"
+      },
+      "answerKey": "B",
+      "order": 1,
+      "explanation": {
+        "id": "explanation_listening_m3_002",
+        "evidenceSentenceIds": [
+          "m3l2_s2"
+        ],
+        "whyCorrectKo": "S2가 수업 중 꺼지지 않게 오늘 밤 충전하라고 말한다.",
+        "whyWrongKo": {
+          "A": "게임 설치에 대한 내용은 없다.",
+          "B": "정답이다. 수업 중 전원이 꺼지는 것을 막기 위해서다.",
+          "C": "화면 청소 언급은 없다.",
+          "D": "친구에게 빌려준다는 내용은 없다.",
+          "E": "취침 전 TV 시청은 관련이 없다."
+        },
+        "vocabNotes": {
+          "shut down": "전원이 꺼지다"
+        },
+        "structureNotesKo": "이유를 묻는 문제로 조언 문장을 직접 확인한다.",
+        "glossKo": {
+          "tablet": "태블릿"
+        }
+      }
+    },
+    {
+      "id": "question_listening_m3_003",
+      "skill": "LISTENING",
+      "typeTag": "L3",
+      "track": "M3",
+      "difficulty": 2,
+      "passageId": null,
+      "scriptId": "script_listening_m3_003",
+      "prompt": "Where should they meet?",
+      "options": {
+        "A": "At the museum entrance",
+        "B": "At the school gate",
+        "C": "At the city library",
+        "D": "At the subway station",
+        "E": "At the sports field"
+      },
+      "answerKey": "B",
+      "order": 2,
+      "explanation": {
+        "id": "explanation_listening_m3_003",
+        "evidenceSentenceIds": [
+          "m3l3_s2"
+        ],
+        "whyCorrectKo": "S2가 학교 정문에서 만나자고 말한다.",
+        "whyWrongKo": {
+          "A": "박물관 입구에서 만나자는 말은 없다.",
+          "B": "정답이다. 학교 정문에서 만나기로 한다.",
+          "C": "도서관 언급은 없다.",
+          "D": "지하철역 언급은 없다.",
+          "E": "운동장 언급은 없다."
+        },
+        "vocabNotes": {
+          "gate": "정문"
+        },
+        "structureNotesKo": "장소 정보는 제안 문장에 직접 제시된다.",
+        "glossKo": {
+          "museum": "박물관"
+        }
+      }
+    },
+    {
+      "id": "question_reading_m3_001",
+      "skill": "READING",
+      "typeTag": "R1",
+      "track": "M3",
+      "difficulty": 1,
+      "passageId": "passage_reading_m3_001",
+      "scriptId": null,
+      "prompt": "When should students feed the turtle?",
+      "options": {
+        "A": "At 9 a.m. and 4 p.m.",
+        "B": "At 7 a.m. and noon",
+        "C": "Only after school",
+        "D": "Every hour",
+        "E": "Before 6 a.m."
+      },
+      "answerKey": "A",
+      "order": 3,
+      "explanation": {
+        "id": "explanation_reading_m3_001",
+        "evidenceSentenceIds": [
+          "m3r1_s2"
+        ],
+        "whyCorrectKo": "둘째 문장에서 9시와 4시를 명시한다.",
+        "whyWrongKo": {
+          "A": "정답이다. 두 시간대가 정확히 제시된다.",
+          "B": "7시와 정오는 지문에 없다.",
+          "C": "방과 후에만 먹이라는 내용은 없다.",
+          "D": "매시간 급여 지시는 없다.",
+          "E": "새벽 6시 이전 언급은 없다."
+        },
+        "vocabNotes": {
+          "feed": "먹이를 주다"
+        },
+        "structureNotesKo": "세부 시간 정보는 해당 문장을 직접 대조해 찾는다.",
+        "glossKo": {
+          "care chart": "관리표"
+        }
+      }
+    },
+    {
+      "id": "question_reading_m3_002",
+      "skill": "READING",
+      "typeTag": "R2",
+      "track": "M3",
+      "difficulty": 2,
+      "passageId": "passage_reading_m3_002",
+      "scriptId": null,
+      "prompt": "What do students need to bring to get a library card?",
+      "options": {
+        "A": "A school ID",
+        "B": "A passport",
+        "C": "A notebook",
+        "D": "A parent letter",
+        "E": "A payment receipt"
+      },
+      "answerKey": "A",
+      "order": 4,
+      "explanation": {
+        "id": "explanation_reading_m3_002",
+        "evidenceSentenceIds": [
+          "m3r2_s2"
+        ],
+        "whyCorrectKo": "둘째 문장에서 학교 ID를 가져오라고 안내한다.",
+        "whyWrongKo": {
+          "A": "정답이다. 학교 ID가 필요하다.",
+          "B": "여권은 요구되지 않는다.",
+          "C": "노트는 필요 조건이 아니다.",
+          "D": "보호자 편지 언급은 없다.",
+          "E": "영수증 제출은 없다."
+        },
+        "vocabNotes": {
+          "front desk": "안내 데스크"
+        },
+        "structureNotesKo": "준비물 문제이므로 지시 문장을 그대로 찾는다.",
+        "glossKo": {
+          "library card": "도서관 카드"
+        }
+      }
+    },
+    {
+      "id": "question_reading_m3_003",
+      "skill": "READING",
+      "typeTag": "R3",
+      "track": "M3",
+      "difficulty": 2,
+      "passageId": "passage_reading_m3_003",
+      "scriptId": null,
+      "prompt": "Where will practice take place?",
+      "options": {
+        "A": "At the outdoor field",
+        "B": "At the indoor gym",
+        "C": "At the city hall",
+        "D": "At the library",
+        "E": "At the swimming pool"
+      },
+      "answerKey": "B",
+      "order": 5,
+      "explanation": {
+        "id": "explanation_reading_m3_003",
+        "evidenceSentenceIds": [
+          "m3r3_s2"
+        ],
+        "whyCorrectKo": "둘째 문장에서 실내 체육관으로 이동한다고 밝힌다.",
+        "whyWrongKo": {
+          "A": "야외 운동장은 비 예보로 제외된다.",
+          "B": "정답이다. 실내 체육관으로 장소가 바뀐다.",
+          "C": "시청은 관련 없다.",
+          "D": "도서관은 연습 장소가 아니다.",
+          "E": "수영장 언급은 없다."
+        },
+        "vocabNotes": {
+          "indoor": "실내의"
+        },
+        "structureNotesKo": "상황 변화(비 예보)에 따른 장소 변경을 확인한다.",
+        "glossKo": {
+          "arrive": "도착하다"
+        }
+      }
+    },
+    {
+      "id": "question_listening_h1_001",
+      "skill": "LISTENING",
+      "typeTag": "L1",
+      "track": "H1",
+      "difficulty": 2,
+      "passageId": null,
+      "scriptId": "script_listening_h1_001",
+      "prompt": "By when must new members sign up?",
+      "options": {
+        "A": "By Monday morning",
+        "B": "By Tuesday evening",
+        "C": "By Wednesday lunch",
+        "D": "By Thursday afternoon",
+        "E": "By Friday night"
+      },
+      "answerKey": "B",
+      "order": 6,
+      "explanation": {
+        "id": "explanation_listening_h1_001",
+        "evidenceSentenceIds": [
+          "h1l1_s2"
+        ],
+        "whyCorrectKo": "둘째 문장에서 화요일 저녁까지 신청하라고 말한다.",
+        "whyWrongKo": {
+          "A": "월요일 아침이 아니라 화요일 저녁이다.",
+          "B": "정답이다. 마감은 화요일 저녁이다.",
+          "C": "수요일 점심은 모임 시간 관련 정보다.",
+          "D": "목요일 오후는 언급되지 않는다.",
+          "E": "금요일 밤은 지문에 없다."
+        },
+        "vocabNotes": {
+          "sign up": "신청하다"
+        },
+        "structureNotesKo": "마감 시점은 must 문장을 근거로 판단한다.",
+        "glossKo": {
+          "debate team": "토론 동아리"
+        }
+      }
+    },
+    {
+      "id": "question_listening_h1_002",
+      "skill": "LISTENING",
+      "typeTag": "L2",
+      "track": "H1",
+      "difficulty": 3,
+      "passageId": null,
+      "scriptId": "script_listening_h1_002",
+      "prompt": "What should the history presentation include?",
+      "options": {
+        "A": "Three events and one cause",
+        "B": "One event and two causes",
+        "C": "Only pictures",
+        "D": "A movie review",
+        "E": "A science experiment"
+      },
+      "answerKey": "B",
+      "order": 7,
+      "explanation": {
+        "id": "explanation_listening_h1_002",
+        "evidenceSentenceIds": [
+          "h1l2_s2"
+        ],
+        "whyCorrectKo": "둘째 문장에서 한 사건과 두 가지 원인을 설명하라고 한다.",
+        "whyWrongKo": {
+          "A": "사건 3개가 아니라 사건 1개다.",
+          "B": "정답이다. 사건 1개와 원인 2개를 요구한다.",
+          "C": "그림만 제시하라는 지시는 없다.",
+          "D": "영화 리뷰 과제가 아니다.",
+          "E": "과학 실험과 무관하다."
+        },
+        "vocabNotes": {
+          "cause": "원인"
+        },
+        "structureNotesKo": "과제 요구사항은 명령형 문장에서 직접 확인한다.",
+        "glossKo": {
+          "presentation": "발표"
+        }
+      }
+    },
+    {
+      "id": "question_listening_h1_003",
+      "skill": "LISTENING",
+      "typeTag": "L3",
+      "track": "H1",
+      "difficulty": 3,
+      "passageId": null,
+      "scriptId": "script_listening_h1_003",
+      "prompt": "What happens right after rehearsal?",
+      "options": {
+        "A": "A snack break",
+        "B": "A costume fitting",
+        "C": "A math quiz",
+        "D": "A bus ride home",
+        "E": "A parent meeting"
+      },
+      "answerKey": "B",
+      "order": 8,
+      "explanation": {
+        "id": "explanation_listening_h1_003",
+        "evidenceSentenceIds": [
+          "h1l3_s2"
+        ],
+        "whyCorrectKo": "둘째 문장에서 리허설 직후 의상 피팅이 있다고 한다.",
+        "whyWrongKo": {
+          "A": "간식 시간 언급은 없다.",
+          "B": "정답이다. 바로 의상 피팅이 진행된다.",
+          "C": "수학 퀴즈 내용은 없다.",
+          "D": "귀가 버스는 언급되지 않는다.",
+          "E": "학부모 회의 언급은 없다."
+        },
+        "vocabNotes": {
+          "rehearsal": "리허설"
+        },
+        "structureNotesKo": "시간 순서(right after)를 단서로 사건 순서를 파악한다.",
+        "glossKo": {
+          "costume": "의상"
+        }
+      }
+    },
+    {
       "id": "question_reading_001",
       "skill": "READING",
       "typeTag": "R1",
@@ -149,7 +1349,7 @@
         "E": "A metal ladder"
       },
       "answerKey": "A",
-      "order": 1,
+      "order": 9,
       "explanation": {
         "id": "explanation_reading_001",
         "evidenceSentenceIds": [
@@ -169,6 +1369,566 @@
         "structureNotesKo": "세부 정보 문제이므로 특정 문장(rs_002)을 직접 대조한다.",
         "glossKo": {
           "volunteers": "자원봉사자"
+        }
+      }
+    },
+    {
+      "id": "question_reading_h1_002",
+      "skill": "READING",
+      "typeTag": "R2",
+      "track": "H1",
+      "difficulty": 3,
+      "passageId": "passage_reading_h1_002",
+      "scriptId": null,
+      "prompt": "Where is the coding club's first project meeting?",
+      "options": {
+        "A": "Room 101",
+        "B": "Room 204",
+        "C": "The library hall",
+        "D": "The gym",
+        "E": "Online only"
+      },
+      "answerKey": "B",
+      "order": 10,
+      "explanation": {
+        "id": "explanation_reading_h1_002",
+        "evidenceSentenceIds": [
+          "h1r2_s2"
+        ],
+        "whyCorrectKo": "둘째 문장에서 금요일 Room 204라고 명시한다.",
+        "whyWrongKo": {
+          "A": "Room 101은 지문에 없다.",
+          "B": "정답이다. 첫 프로젝트 모임은 Room 204이다.",
+          "C": "도서관 홀은 언급되지 않는다.",
+          "D": "체육관 모임이 아니다.",
+          "E": "온라인 전용이라는 정보는 없다."
+        },
+        "vocabNotes": {
+          "project meeting": "프로젝트 모임"
+        },
+        "structureNotesKo": "장소 정보는 시간과 함께 제시된 문장을 확인한다.",
+        "glossKo": {
+          "text editor": "텍스트 에디터"
+        }
+      }
+    },
+    {
+      "id": "question_reading_h1_003",
+      "skill": "READING",
+      "typeTag": "R3",
+      "track": "H1",
+      "difficulty": 3,
+      "passageId": "passage_reading_h1_003",
+      "scriptId": null,
+      "prompt": "When is museum entry free?",
+      "options": {
+        "A": "Every Saturday",
+        "B": "On weekdays after 6 p.m.",
+        "C": "On the first Sunday each month",
+        "D": "Only in January",
+        "E": "Every morning at 9 a.m."
+      },
+      "answerKey": "C",
+      "order": 11,
+      "explanation": {
+        "id": "explanation_reading_h1_003",
+        "evidenceSentenceIds": [
+          "h1r3_s1"
+        ],
+        "whyCorrectKo": "첫 문장에서 매달 첫째 일요일 무료 입장을 안내한다.",
+        "whyWrongKo": {
+          "A": "매주 토요일이 아니다.",
+          "B": "평일 저녁 무료라는 정보는 없다.",
+          "C": "정답이다. 매달 첫째 일요일에 무료다.",
+          "D": "1월 한정이 아니다.",
+          "E": "매일 오전 9시 무료라는 내용은 없다."
+        },
+        "vocabNotes": {
+          "entry": "입장"
+        },
+        "structureNotesKo": "빈도/시기 표현을 정확히 읽어 정답을 찾는다.",
+        "glossKo": {
+          "guided tour": "가이드 투어"
+        }
+      }
+    },
+    {
+      "id": "question_listening_h2_001",
+      "skill": "LISTENING",
+      "typeTag": "L1",
+      "track": "H2",
+      "difficulty": 3,
+      "passageId": null,
+      "scriptId": "script_listening_h2_001",
+      "prompt": "What must be included in the final section of the lab report?",
+      "options": {
+        "A": "A cover drawing",
+        "B": "An error analysis",
+        "C": "A class photo",
+        "D": "A quiz score",
+        "E": "A recommendation letter"
+      },
+      "answerKey": "B",
+      "order": 12,
+      "explanation": {
+        "id": "explanation_listening_h2_001",
+        "evidenceSentenceIds": [
+          "h2l1_s2"
+        ],
+        "whyCorrectKo": "둘째 문장에서 마지막 섹션에 오차 분석을 넣으라고 한다.",
+        "whyWrongKo": {
+          "A": "표지 그림 요구는 없다.",
+          "B": "정답이다. 오차 분석이 필수다.",
+          "C": "사진 첨부 지시는 없다.",
+          "D": "퀴즈 점수는 보고서 구성 요소가 아니다.",
+          "E": "추천서는 필요하지 않다."
+        },
+        "vocabNotes": {
+          "error analysis": "오차 분석"
+        },
+        "structureNotesKo": "필수 항목(include) 표현을 근거로 판단한다.",
+        "glossKo": {
+          "final section": "마지막 섹션"
+        }
+      }
+    },
+    {
+      "id": "question_listening_h2_002",
+      "skill": "LISTENING",
+      "typeTag": "L2",
+      "track": "H2",
+      "difficulty": 4,
+      "passageId": null,
+      "scriptId": "script_listening_h2_002",
+      "prompt": "When does the volunteer center need the application forms?",
+      "options": {
+        "A": "By Wednesday morning",
+        "B": "By Thursday noon",
+        "C": "By Friday night",
+        "D": "By Saturday noon",
+        "E": "By Monday afternoon"
+      },
+      "answerKey": "B",
+      "order": 13,
+      "explanation": {
+        "id": "explanation_listening_h2_002",
+        "evidenceSentenceIds": [
+          "h2l2_s2"
+        ],
+        "whyCorrectKo": "둘째 문장에서 목요일 정오까지라고 명시한다.",
+        "whyWrongKo": {
+          "A": "수요일 아침이 아니다.",
+          "B": "정답이다. 제출 마감은 목요일 정오다.",
+          "C": "금요일 밤이 아니다.",
+          "D": "토요일 정오는 지문에 없다.",
+          "E": "월요일 오후도 아니다."
+        },
+        "vocabNotes": {
+          "application form": "신청서"
+        },
+        "structureNotesKo": "마감 시간 정보는 need 문장에서 직접 확인한다.",
+        "glossKo": {
+          "volunteer center": "봉사센터"
+        }
+      }
+    },
+    {
+      "id": "question_listening_h2_003",
+      "skill": "LISTENING",
+      "typeTag": "L3",
+      "track": "H2",
+      "difficulty": 4,
+      "passageId": null,
+      "scriptId": "script_listening_h2_003",
+      "prompt": "What criterion does S2 emphasize when choosing an internship?",
+      "options": {
+        "A": "The highest salary",
+        "B": "The shortest commute",
+        "C": "Structured mentoring",
+        "D": "A large office",
+        "E": "Free meals"
+      },
+      "answerKey": "C",
+      "order": 14,
+      "explanation": {
+        "id": "explanation_listening_h2_003",
+        "evidenceSentenceIds": [
+          "h2l3_s2"
+        ],
+        "whyCorrectKo": "둘째 문장에서 체계적인 멘토링이 있는 곳을 고르라고 한다.",
+        "whyWrongKo": {
+          "A": "급여 기준 언급은 없다.",
+          "B": "통근 시간은 언급되지 않는다.",
+          "C": "정답이다. 핵심 기준은 체계적 멘토링이다.",
+          "D": "사무실 규모 정보는 없다.",
+          "E": "식사 제공 여부는 기준이 아니다."
+        },
+        "vocabNotes": {
+          "structured": "체계적인"
+        },
+        "structureNotesKo": "선택 기준을 제시하는 명령문을 중심으로 판단한다.",
+        "glossKo": {
+          "internship": "인턴십"
+        }
+      }
+    },
+    {
+      "id": "question_reading_h2_001",
+      "skill": "READING",
+      "typeTag": "R1",
+      "track": "H2",
+      "difficulty": 3,
+      "passageId": "passage_reading_h2_001",
+      "scriptId": null,
+      "prompt": "What do researchers recommend to improve focus during exam weeks?",
+      "options": {
+        "A": "Skipping breakfast",
+        "B": "A fixed bedtime",
+        "C": "Drinking more soda",
+        "D": "Studying all night",
+        "E": "Avoiding naps completely"
+      },
+      "answerKey": "B",
+      "order": 15,
+      "explanation": {
+        "id": "explanation_reading_h2_001",
+        "evidenceSentenceIds": [
+          "h2r1_s2"
+        ],
+        "whyCorrectKo": "둘째 문장에서 집중력 향상을 위해 일정한 취침 시간을 권한다.",
+        "whyWrongKo": {
+          "A": "아침 결식 권고는 없다.",
+          "B": "정답이다. 고정 취침 시간이 권장된다.",
+          "C": "탄산음료 섭취 증가는 제안되지 않는다.",
+          "D": "밤샘 공부는 오히려 역효과일 수 있다.",
+          "E": "낮잠을 완전히 피하라는 내용은 없다."
+        },
+        "vocabNotes": {
+          "fixed": "고정된"
+        },
+        "structureNotesKo": "권고(recommend) 표현을 찾아 정답을 고른다.",
+        "glossKo": {
+          "focus": "집중력"
+        }
+      }
+    },
+    {
+      "id": "question_reading_h2_002",
+      "skill": "READING",
+      "typeTag": "R2",
+      "track": "H2",
+      "difficulty": 4,
+      "passageId": "passage_reading_h2_002",
+      "scriptId": null,
+      "prompt": "What can teachers track through the digital textbook platform?",
+      "options": {
+        "A": "Student lunch choices",
+        "B": "Homework completion",
+        "C": "Bus arrival times",
+        "D": "Library fines",
+        "E": "Uniform sizes"
+      },
+      "answerKey": "B",
+      "order": 16,
+      "explanation": {
+        "id": "explanation_reading_h2_002",
+        "evidenceSentenceIds": [
+          "h2r2_s2"
+        ],
+        "whyCorrectKo": "둘째 문장에서 교사가 숙제 완료 여부를 추적할 수 있다고 한다.",
+        "whyWrongKo": {
+          "A": "급식 선택 정보는 다루지 않는다.",
+          "B": "정답이다. 숙제 완료를 추적할 수 있다.",
+          "C": "버스 도착 시간과 무관하다.",
+          "D": "도서 연체료 기능은 언급되지 않는다.",
+          "E": "교복 사이즈와 관련 없다."
+        },
+        "vocabNotes": {
+          "platform": "플랫폼"
+        },
+        "structureNotesKo": "기능 설명 문장을 확인해 대상 정보를 찾는다.",
+        "glossKo": {
+          "completion": "완료"
+        }
+      }
+    },
+    {
+      "id": "question_reading_h2_003",
+      "skill": "READING",
+      "typeTag": "R3",
+      "track": "H2",
+      "difficulty": 4,
+      "passageId": "passage_reading_h2_003",
+      "scriptId": null,
+      "prompt": "Why do city planners want more bike lanes near subway stations?",
+      "options": {
+        "A": "To increase parking fees",
+        "B": "To shorten commute times for short trips",
+        "C": "To reduce subway schedules",
+        "D": "To close bus routes",
+        "E": "To ban private cars"
+      },
+      "answerKey": "B",
+      "order": 17,
+      "explanation": {
+        "id": "explanation_reading_h2_003",
+        "evidenceSentenceIds": [
+          "h2r3_s2"
+        ],
+        "whyCorrectKo": "둘째 문장에서 짧은 이동의 통근 시간을 줄이기 위함이라고 밝힌다.",
+        "whyWrongKo": {
+          "A": "주차요금 인상 목적은 없다.",
+          "B": "정답이다. 짧은 이동의 통근 시간 단축이 목적이다.",
+          "C": "지하철 운행 축소와는 무관하다.",
+          "D": "버스 노선 폐지 목적이 아니다.",
+          "E": "자가용 금지 정책을 말하지 않는다."
+        },
+        "vocabNotes": {
+          "commute": "통근/통학 이동"
+        },
+        "structureNotesKo": "목적을 나타내는 expect 문장에 집중한다.",
+        "glossKo": {
+          "proposal": "제안"
+        }
+      }
+    },
+    {
+      "id": "question_listening_h3_001",
+      "skill": "LISTENING",
+      "typeTag": "L1",
+      "track": "H3",
+      "difficulty": 4,
+      "passageId": null,
+      "scriptId": "script_listening_h3_001",
+      "prompt": "What evidence is required for the policy brief?",
+      "options": {
+        "A": "A personal diary",
+        "B": "At least two current data sources",
+        "C": "One old newspaper article",
+        "D": "A social media poll only",
+        "E": "A teacher interview transcript"
+      },
+      "answerKey": "B",
+      "order": 18,
+      "explanation": {
+        "id": "explanation_listening_h3_001",
+        "evidenceSentenceIds": [
+          "h3l1_s2"
+        ],
+        "whyCorrectKo": "둘째 문장에서 최소 두 개의 최신 데이터 출처를 근거로 삼으라고 한다.",
+        "whyWrongKo": {
+          "A": "개인 일기는 근거 요건이 아니다.",
+          "B": "정답이다. 최신 데이터 출처 두 개 이상이 필요하다.",
+          "C": "오래된 기사 하나로는 부족하다.",
+          "D": "SNS 설문만으로 충분하다는 말은 없다.",
+          "E": "교사 인터뷰 필수라는 내용은 없다."
+        },
+        "vocabNotes": {
+          "policy brief": "정책 보고서"
+        },
+        "structureNotesKo": "근거 요건은 base your claim 문장에서 직접 확인한다.",
+        "glossKo": {
+          "data source": "데이터 출처"
+        }
+      }
+    },
+    {
+      "id": "question_listening_h3_002",
+      "skill": "LISTENING",
+      "typeTag": "L2",
+      "track": "H3",
+      "difficulty": 5,
+      "passageId": null,
+      "scriptId": "script_listening_h3_002",
+      "prompt": "How should the personal statement conclusion be improved?",
+      "options": {
+        "A": "Add more quotations",
+        "B": "Connect goals to concrete actions",
+        "C": "Use fewer paragraphs",
+        "D": "Remove career goals",
+        "E": "Focus only on childhood stories"
+      },
+      "answerKey": "B",
+      "order": 19,
+      "explanation": {
+        "id": "explanation_listening_h3_002",
+        "evidenceSentenceIds": [
+          "h3l2_s2"
+        ],
+        "whyCorrectKo": "둘째 문장에서 결론이 목표와 구체적 행동을 연결해야 한다고 조언한다.",
+        "whyWrongKo": {
+          "A": "인용문 추가 조언은 없다.",
+          "B": "정답이다. 목표를 구체적 행동과 연결해야 한다.",
+          "C": "문단 수 축소는 핵심 조언이 아니다.",
+          "D": "목표를 삭제하라는 말은 없다.",
+          "E": "유년기 이야기만 쓰라는 내용은 없다."
+        },
+        "vocabNotes": {
+          "concrete": "구체적인"
+        },
+        "structureNotesKo": "개선 방향은 조언 문장의 핵심 동사를 중심으로 파악한다.",
+        "glossKo": {
+          "personal statement": "자기소개서"
+        }
+      }
+    },
+    {
+      "id": "question_listening_h3_003",
+      "skill": "LISTENING",
+      "typeTag": "L3",
+      "track": "H3",
+      "difficulty": 5,
+      "passageId": null,
+      "scriptId": "script_listening_h3_003",
+      "prompt": "How should the capstone team prioritize risks?",
+      "options": {
+        "A": "By alphabetical order",
+        "B": "By impact and likelihood",
+        "C": "By team preference only",
+        "D": "By presentation slide color",
+        "E": "By last year's ranking"
+      },
+      "answerKey": "B",
+      "order": 20,
+      "explanation": {
+        "id": "explanation_listening_h3_003",
+        "evidenceSentenceIds": [
+          "h3l3_s2"
+        ],
+        "whyCorrectKo": "둘째 문장에서 영향도와 발생 가능성으로 우선순위를 정하라고 한다.",
+        "whyWrongKo": {
+          "A": "알파벳 순서는 기준이 아니다.",
+          "B": "정답이다. 영향도와 가능성 기준을 사용한다.",
+          "C": "팀 선호만으로 정하라고 하지 않는다.",
+          "D": "슬라이드 색상은 관련이 없다.",
+          "E": "작년 순위를 따르라는 내용은 없다."
+        },
+        "vocabNotes": {
+          "likelihood": "발생 가능성"
+        },
+        "structureNotesKo": "우선순위 기준을 제시하는 대비 표현(not by ...)까지 함께 확인한다.",
+        "glossKo": {
+          "capstone": "졸업 프로젝트"
+        }
+      }
+    },
+    {
+      "id": "question_reading_h3_001",
+      "skill": "READING",
+      "typeTag": "R1",
+      "track": "H3",
+      "difficulty": 4,
+      "passageId": "passage_reading_h3_001",
+      "scriptId": null,
+      "prompt": "What is the recommended first step before model deployment?",
+      "options": {
+        "A": "Increase advertising",
+        "B": "Audit datasets",
+        "C": "Hire more designers",
+        "D": "Remove user feedback",
+        "E": "Launch immediately"
+      },
+      "answerKey": "B",
+      "order": 21,
+      "explanation": {
+        "id": "explanation_reading_h3_001",
+        "evidenceSentenceIds": [
+          "h3r1_s2"
+        ],
+        "whyCorrectKo": "둘째 문장에서 배포 전 데이터셋 감사를 권고한다.",
+        "whyWrongKo": {
+          "A": "광고 증대와 관련 없다.",
+          "B": "정답이다. 배포 전 데이터셋 감사가 권장된다.",
+          "C": "디자이너 채용은 지문 요점이 아니다.",
+          "D": "피드백 제거를 권하지 않는다.",
+          "E": "즉시 출시를 권고하지 않는다."
+        },
+        "vocabNotes": {
+          "audit": "감사/점검하다"
+        },
+        "structureNotesKo": "권고(recommend) 동사 뒤 내용을 핵심 근거로 사용한다.",
+        "glossKo": {
+          "deployment": "배포"
+        }
+      }
+    },
+    {
+      "id": "question_reading_h3_002",
+      "skill": "READING",
+      "typeTag": "R2",
+      "track": "H3",
+      "difficulty": 5,
+      "passageId": "passage_reading_h3_002",
+      "scriptId": null,
+      "prompt": "What do analysts expect after the rate hike?",
+      "options": {
+        "A": "Borrowing costs will rise gradually",
+        "B": "Household debt will disappear",
+        "C": "Exports will stop immediately",
+        "D": "Interest rates will drop the next day",
+        "E": "No financial impact at all"
+      },
+      "answerKey": "A",
+      "order": 22,
+      "explanation": {
+        "id": "explanation_reading_h3_002",
+        "evidenceSentenceIds": [
+          "h3r2_s2"
+        ],
+        "whyCorrectKo": "둘째 문장에서 가계 차입 비용이 점진적으로 오를 것으로 본다.",
+        "whyWrongKo": {
+          "A": "정답이다. 차입 비용 상승을 예상한다.",
+          "B": "부채가 사라진다는 내용은 없다.",
+          "C": "수출 중단을 말하지 않는다.",
+          "D": "다음 날 금리 하락과 반대 내용이다.",
+          "E": "영향이 없다고 하지 않는다."
+        },
+        "vocabNotes": {
+          "borrowing cost": "차입 비용"
+        },
+        "structureNotesKo": "예상(expect) 대상이 무엇인지 문장 성분을 정확히 해석한다.",
+        "glossKo": {
+          "rate hike": "금리 인상"
+        }
+      }
+    },
+    {
+      "id": "question_reading_h3_003",
+      "skill": "READING",
+      "typeTag": "R3",
+      "track": "H3",
+      "difficulty": 5,
+      "passageId": "passage_reading_h3_003",
+      "scriptId": null,
+      "prompt": "What long-term action does the editorial call for?",
+      "options": {
+        "A": "More temporary cooling centers",
+        "B": "Tree-canopy targets in low-income neighborhoods",
+        "C": "Shorter summer school days",
+        "D": "Higher subway fares",
+        "E": "Fewer public parks"
+      },
+      "answerKey": "B",
+      "order": 23,
+      "explanation": {
+        "id": "explanation_reading_h3_003",
+        "evidenceSentenceIds": [
+          "h3r3_s2"
+        ],
+        "whyCorrectKo": "둘째 문장에서 저소득 지역의 수목 피복 목표 설정을 요구한다.",
+        "whyWrongKo": {
+          "A": "냉방센터는 단기 대책으로 언급된다.",
+          "B": "정답이다. 장기 대책으로 수목 피복 목표를 제시한다.",
+          "C": "수업 시간 단축은 논점이 아니다.",
+          "D": "지하철 요금 인상과 무관하다.",
+          "E": "공원 축소를 제안하지 않는다."
+        },
+        "vocabNotes": {
+          "canopy": "수목 피복"
+        },
+        "structureNotesKo": "장기 대책과 단기 대책을 대비해 핵심 제안을 식별한다.",
+        "glossKo": {
+          "inequity": "불평등"
         }
       }
     }

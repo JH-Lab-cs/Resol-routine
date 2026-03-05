@@ -1,0 +1,951 @@
+import 'dart:async';
+import 'dart:convert';
+
+import 'package:drift/drift.dart' show QueryRow, Variable;
+import 'package:package_info_plus/package_info_plus.dart';
+
+import '../../../core/database/app_database.dart';
+import '../../../core/database/db_text_limits.dart';
+import '../../../core/domain/domain_enums.dart';
+import '../../../core/time/day_key.dart';
+import '../../today/data/attempt_payload.dart';
+import 'models/report_schema_v1.dart';
+
+typedef AppVersionLoader = Future<String?> Function();
+
+class ReportExportPayload {
+  const ReportExportPayload({
+    required this.fileName,
+    required this.jsonPayload,
+    required this.report,
+  });
+
+  final String fileName;
+  final String jsonPayload;
+  final ReportSchema report;
+}
+
+class ReportExportRepository {
+  ReportExportRepository({
+    required AppDatabase database,
+    AppVersionLoader? appVersionLoader,
+  }) : _database = database,
+       _appVersionLoader = appVersionLoader ?? _defaultAppVersionLoader;
+
+  static const Set<String> _supportedTracks = <String>{'M3', 'H1', 'H2', 'H3'};
+  static const int _maxPayloadLength = DbTextLimits.reportPayloadMax;
+  static const int _maxBookmarkedVocabIds = reportMaxBookmarkedVocabIds;
+  static const int _maxCustomLemmaEntries = reportMaxCustomVocabLemmaEntries;
+  static const int _maxWeeklyMockExamSummaries =
+      reportMaxWeeklyMockExamSummaries;
+  static const int _maxMonthlyMockExamSummaries =
+      reportMaxMonthlyMockExamSummaries;
+  static const int _sqliteInChunkSize = 900;
+
+  final AppDatabase _database;
+  final AppVersionLoader _appVersionLoader;
+
+  Future<ReportSchema> buildCumulativeReport({
+    required String track,
+    DateTime? nowLocal,
+  }) async {
+    _validateTrack(track);
+
+    final resolvedNow = nowLocal ?? DateTime.now();
+    final student = await _loadStudent();
+    final days = await _loadDays(track: track);
+    final vocabBookmarks = await _loadVocabBookmarks();
+    final customVocab = await _loadCustomVocab(
+      days: days,
+      vocabBookmarks: vocabBookmarks,
+    );
+    final mockExams = await _loadMockExams(track: track);
+
+    return ReportSchema.v5(
+      generatedAt: resolvedNow.toUtc(),
+      appVersion: await _appVersionLoader(),
+      student: student,
+      days: days,
+      vocabBookmarks: vocabBookmarks,
+      customVocab: customVocab,
+      mockExams: mockExams,
+    );
+  }
+
+  Future<ReportDay?> buildTodayReport({
+    required String track,
+    DateTime? nowLocal,
+  }) async {
+    final resolvedNow = nowLocal ?? DateTime.now();
+    final todayKey = formatDayKey(resolvedNow);
+    final report = await buildCumulativeReport(
+      track: track,
+      nowLocal: nowLocal,
+    );
+
+    for (final day in report.days) {
+      if (day.dayKey == todayKey) {
+        return day;
+      }
+    }
+    return null;
+  }
+
+  Future<ReportExportPayload> buildExportPayload({
+    required String track,
+    DateTime? nowLocal,
+  }) async {
+    final resolvedNow = nowLocal ?? DateTime.now();
+    final dayKey = formatDayKey(resolvedNow);
+    final cumulativeReport = await buildCumulativeReport(
+      track: track,
+      nowLocal: nowLocal,
+    );
+    final prepared = _prepareExportReport(cumulativeReport);
+
+    return ReportExportPayload(
+      fileName: buildFileName(dayKey: dayKey, track: track),
+      jsonPayload: prepared.canonicalPayload,
+      report: prepared.report,
+    );
+  }
+
+  _PreparedExport _prepareExportReport(ReportSchema cumulativeReport) {
+    final fullPayload = cumulativeReport.encodeCompact();
+    if (fullPayload.length <= _maxPayloadLength) {
+      return _PreparedExport(
+        report: cumulativeReport,
+        canonicalPayload: fullPayload,
+      );
+    }
+
+    ReportSchema candidateReport = cumulativeReport;
+    if (cumulativeReport.days.isNotEmpty) {
+      final trimResult = _findMaxFittingRecentDays(cumulativeReport);
+      if (trimResult.keptDays > 0) {
+        final trimmedReport = _copyWithRecentDays(
+          cumulativeReport,
+          trimResult.keptDays,
+        );
+        if (trimResult.payload.length <= _maxPayloadLength) {
+          return _PreparedExport(
+            report: trimmedReport,
+            canonicalPayload: trimResult.payload,
+          );
+        }
+        candidateReport = trimmedReport;
+      } else {
+        candidateReport = _copyWithRecentDays(cumulativeReport, 1);
+      }
+    }
+
+    final customTrimmed = _trimCustomVocabToFit(candidateReport);
+    final customCandidate = customTrimmed?.report ?? candidateReport;
+    final customPayload = customTrimmed?.canonicalPayload;
+    if (customPayload != null && customPayload.length <= _maxPayloadLength) {
+      return customTrimmed!;
+    }
+
+    final mockTrimmed = _trimMockExamsToFit(customCandidate);
+    if (mockTrimmed != null) {
+      return mockTrimmed;
+    }
+
+    throw FormatException(
+      'Export report payload exceeds $_maxPayloadLength characters '
+      'even after trimming days, custom vocab, and mock summaries.',
+    );
+  }
+
+  _TrimResult _findMaxFittingRecentDays(ReportSchema report) {
+    var left = 1;
+    var right = report.days.length;
+    var best = _TrimResult(keptDays: 0, payload: '');
+
+    while (left <= right) {
+      final mid = (left + right) >> 1;
+      final candidate = _copyWithRecentDays(report, mid);
+      final payload = candidate.encodeCompact();
+
+      if (payload.length <= _maxPayloadLength) {
+        best = _TrimResult(keptDays: mid, payload: payload);
+        left = mid + 1;
+      } else {
+        right = mid - 1;
+      }
+    }
+
+    return best;
+  }
+
+  ReportSchema _copyWithRecentDays(ReportSchema original, int keepDays) {
+    final boundedKeepDays = keepDays.clamp(0, original.days.length);
+    final trimmedDays = original.days
+        .take(boundedKeepDays)
+        .toList(growable: false);
+
+    if (original.schemaVersion == reportSchemaV1) {
+      return ReportSchema.v1(
+        generatedAt: original.generatedAt,
+        appVersion: original.appVersion,
+        student: original.student,
+        days: trimmedDays,
+      );
+    }
+
+    if (original.schemaVersion == reportSchemaV2) {
+      return ReportSchema.v2(
+        generatedAt: original.generatedAt,
+        appVersion: original.appVersion,
+        student: original.student,
+        days: trimmedDays,
+      );
+    }
+
+    if (original.schemaVersion == reportSchemaV3) {
+      return ReportSchema.v3(
+        generatedAt: original.generatedAt,
+        appVersion: original.appVersion,
+        student: original.student,
+        days: trimmedDays,
+        vocabBookmarks:
+            original.vocabBookmarks ??
+            const ReportVocabBookmarks(bookmarkedVocabIds: <String>[]),
+      );
+    }
+
+    if (original.schemaVersion == reportSchemaV4) {
+      return ReportSchema.v4(
+        generatedAt: original.generatedAt,
+        appVersion: original.appVersion,
+        student: original.student,
+        days: trimmedDays,
+        vocabBookmarks:
+            original.vocabBookmarks ??
+            const ReportVocabBookmarks(bookmarkedVocabIds: <String>[]),
+        customVocab: _filterCustomVocabForTrimmedDays(
+          customVocab: original.customVocab,
+          days: trimmedDays,
+          vocabBookmarks:
+              original.vocabBookmarks ??
+              const ReportVocabBookmarks(bookmarkedVocabIds: <String>[]),
+        ),
+      );
+    }
+
+    return ReportSchema.v5(
+      generatedAt: original.generatedAt,
+      appVersion: original.appVersion,
+      student: original.student,
+      days: trimmedDays,
+      vocabBookmarks:
+          original.vocabBookmarks ??
+          const ReportVocabBookmarks(bookmarkedVocabIds: <String>[]),
+      customVocab: _filterCustomVocabForTrimmedDays(
+        customVocab: original.customVocab,
+        days: trimmedDays,
+        vocabBookmarks:
+            original.vocabBookmarks ??
+            const ReportVocabBookmarks(bookmarkedVocabIds: <String>[]),
+      ),
+      mockExams:
+          original.mockExams ??
+          const ReportMockExams(
+            weekly: <ReportMockExamSummary>[],
+            monthly: <ReportMockExamSummary>[],
+          ),
+    );
+  }
+
+  _PreparedExport? _trimCustomVocabToFit(ReportSchema report) {
+    final payload = report.encodeCompact();
+    if (payload.length <= _maxPayloadLength) {
+      return _PreparedExport(report: report, canonicalPayload: payload);
+    }
+    if (!_supportsCustomVocab(report) || report.customVocab == null) {
+      return null;
+    }
+
+    final entries = report.customVocab!.lemmasById.entries.toList(
+      growable: false,
+    );
+    if (entries.isEmpty) {
+      return null;
+    }
+
+    var left = 0;
+    var right = entries.length;
+    _CustomTrimResult? best;
+
+    while (left <= right) {
+      final mid = (left + right) >> 1;
+      final candidateReport = _copyWithCustomVocabEntries(report, mid);
+      final candidatePayload = candidateReport.encodeCompact();
+      if (candidatePayload.length <= _maxPayloadLength) {
+        best = _CustomTrimResult(
+          payload: candidatePayload,
+          report: candidateReport,
+        );
+        left = mid + 1;
+      } else {
+        right = mid - 1;
+      }
+    }
+
+    if (best == null) {
+      return null;
+    }
+    return _PreparedExport(report: best.report, canonicalPayload: best.payload);
+  }
+
+  ReportSchema _copyWithCustomVocabEntries(ReportSchema report, int keepCount) {
+    if (!_supportsCustomVocab(report) || report.customVocab == null) {
+      return report;
+    }
+
+    final entries = report.customVocab!.lemmasById.entries.toList(
+      growable: false,
+    );
+    final boundedKeepCount = keepCount.clamp(0, entries.length);
+    final trimmedMap = <String, String>{
+      for (final entry in entries.take(boundedKeepCount))
+        entry.key: entry.value,
+    };
+
+    if (report.schemaVersion == reportSchemaV4) {
+      return ReportSchema.v4(
+        generatedAt: report.generatedAt,
+        appVersion: report.appVersion,
+        student: report.student,
+        days: report.days,
+        vocabBookmarks:
+            report.vocabBookmarks ??
+            const ReportVocabBookmarks(bookmarkedVocabIds: <String>[]),
+        customVocab: ReportCustomVocab(lemmasById: trimmedMap),
+      );
+    }
+
+    return ReportSchema.v5(
+      generatedAt: report.generatedAt,
+      appVersion: report.appVersion,
+      student: report.student,
+      days: report.days,
+      vocabBookmarks:
+          report.vocabBookmarks ??
+          const ReportVocabBookmarks(bookmarkedVocabIds: <String>[]),
+      customVocab: ReportCustomVocab(lemmasById: trimmedMap),
+      mockExams:
+          report.mockExams ??
+          const ReportMockExams(
+            weekly: <ReportMockExamSummary>[],
+            monthly: <ReportMockExamSummary>[],
+          ),
+    );
+  }
+
+  _PreparedExport? _trimMockExamsToFit(ReportSchema report) {
+    final payload = report.encodeCompact();
+    if (payload.length <= _maxPayloadLength) {
+      return _PreparedExport(report: report, canonicalPayload: payload);
+    }
+    if (report.schemaVersion != reportSchemaV5 || report.mockExams == null) {
+      return null;
+    }
+
+    final weekly = report.mockExams!.weekly.toList(growable: true);
+    final monthly = report.mockExams!.monthly.toList(growable: true);
+    var workingReport = report;
+    var workingPayload = payload;
+
+    while (workingPayload.length > _maxPayloadLength && weekly.isNotEmpty) {
+      weekly.removeLast();
+      workingReport = _copyWithMockExamSummaries(
+        report: report,
+        weekly: weekly,
+        monthly: monthly,
+      );
+      workingPayload = workingReport.encodeCompact();
+    }
+    while (workingPayload.length > _maxPayloadLength && monthly.isNotEmpty) {
+      monthly.removeLast();
+      workingReport = _copyWithMockExamSummaries(
+        report: report,
+        weekly: weekly,
+        monthly: monthly,
+      );
+      workingPayload = workingReport.encodeCompact();
+    }
+
+    if (workingPayload.length > _maxPayloadLength) {
+      return null;
+    }
+    return _PreparedExport(
+      report: workingReport,
+      canonicalPayload: workingPayload,
+    );
+  }
+
+  ReportSchema _copyWithMockExamSummaries({
+    required ReportSchema report,
+    required List<ReportMockExamSummary> weekly,
+    required List<ReportMockExamSummary> monthly,
+  }) {
+    if (report.schemaVersion != reportSchemaV5) {
+      return report;
+    }
+
+    return ReportSchema.v5(
+      generatedAt: report.generatedAt,
+      appVersion: report.appVersion,
+      student: report.student,
+      days: report.days,
+      vocabBookmarks:
+          report.vocabBookmarks ??
+          const ReportVocabBookmarks(bookmarkedVocabIds: <String>[]),
+      customVocab:
+          report.customVocab ??
+          const ReportCustomVocab(lemmasById: <String, String>{}),
+      mockExams: ReportMockExams(
+        weekly: List<ReportMockExamSummary>.unmodifiable(weekly),
+        monthly: List<ReportMockExamSummary>.unmodifiable(monthly),
+      ),
+    );
+  }
+
+  bool _supportsCustomVocab(ReportSchema report) {
+    return report.schemaVersion == reportSchemaV4 ||
+        report.schemaVersion == reportSchemaV5;
+  }
+
+  ReportCustomVocab _filterCustomVocabForTrimmedDays({
+    required ReportCustomVocab? customVocab,
+    required List<ReportDay> days,
+    required ReportVocabBookmarks vocabBookmarks,
+  }) {
+    if (customVocab == null || customVocab.lemmasById.isEmpty) {
+      return const ReportCustomVocab(lemmasById: <String, String>{});
+    }
+
+    final prioritizedIds = _prioritizeCustomVocabIds(
+      days: days,
+      bookmarkedVocabIds: vocabBookmarks.bookmarkedVocabIds,
+    );
+    final filtered = <String, String>{};
+    for (final id in prioritizedIds) {
+      final lemma = customVocab.lemmasById[id];
+      if (lemma == null) {
+        continue;
+      }
+      filtered[id] = lemma;
+      if (filtered.length >= _maxCustomLemmaEntries) {
+        break;
+      }
+    }
+
+    return ReportCustomVocab(lemmasById: filtered);
+  }
+
+  String buildFileName({required String dayKey, required String track}) {
+    validateDayKey(dayKey);
+    _validateTrack(track);
+    return 'resolroutine_report_${dayKey}_$track.json';
+  }
+
+  Future<ReportStudent> _loadStudent() async {
+    final row = await (_database.select(
+      _database.userSettings,
+    )..where((tbl) => tbl.id.equals(1))).getSingleOrNull();
+
+    if (row == null) {
+      return const ReportStudent();
+    }
+
+    final normalizedDisplayName = row.displayName.trim();
+    return ReportStudent(
+      role: _supportedRoleOrNull(row.role),
+      displayName: normalizedDisplayName.isEmpty ? null : normalizedDisplayName,
+      track: _trackOrNull(row.track),
+    );
+  }
+
+  Future<List<ReportDay>> _loadDays({required String track}) async {
+    final rows = await _database
+        .customSelect(
+          'SELECT '
+          'ds.id AS session_id, '
+          'ds.day_key AS day_key, '
+          'ds.track AS track, '
+          'dsi.order_index AS order_index, '
+          'dsi.question_id AS question_id, '
+          'q.skill AS skill, '
+          'q.type_tag AS type_tag, '
+          'a.is_correct AS is_correct, '
+          'a.user_answer_json AS user_answer_json '
+          'FROM daily_sessions ds '
+          'INNER JOIN daily_session_items dsi ON dsi.session_id = ds.id '
+          'INNER JOIN questions q ON q.id = dsi.question_id '
+          'LEFT JOIN attempts a '
+          '  ON a.session_id = ds.id '
+          ' AND a.question_id = dsi.question_id '
+          'WHERE ds.track = ? '
+          'ORDER BY ds.day_key DESC, ds.id DESC, dsi.order_index ASC',
+          variables: <Variable<Object>>[Variable<String>(track)],
+          readsFrom: {
+            _database.dailySessions,
+            _database.dailySessionItems,
+            _database.questions,
+            _database.attempts,
+          },
+        )
+        .get();
+
+    final dayBuilders = <String, _DayBuilder>{};
+    for (final row in rows) {
+      final dayKey = _formatDayKey(row.read<int>('day_key'));
+      final rowTrack = _trackOrNull(row.read<String>('track'));
+      if (rowTrack == null) {
+        throw FormatException(
+          'Unsupported track on daily_sessions row: ${row.read<String>('track')}',
+        );
+      }
+      final dayBuilder = dayBuilders.putIfAbsent(
+        _dayBuilderKey(dayKey: dayKey, track: rowTrack),
+        () => _DayBuilder(dayKey: dayKey, track: rowTrack),
+      );
+
+      final isCorrect = _sqliteBoolOrNull(row.read<int?>('is_correct'));
+      if (isCorrect == null) {
+        continue;
+      }
+
+      final skill = skillFromDb(row.read<String>('skill'));
+      final question = ReportQuestionResult(
+        questionId: row.read<String>('question_id'),
+        skill: skill,
+        typeTag: row.read<String>('type_tag'),
+        isCorrect: isCorrect,
+        wrongReasonTag: isCorrect
+            ? null
+            : _decodeWrongReasonTagOrNull(
+                row.read<String?>('user_answer_json'),
+              ),
+      );
+      dayBuilder.addSolvedQuestion(question);
+    }
+
+    final vocabQuizByDayKey = await _loadVocabQuizByDayKey(track: track);
+    final parsedTrack = trackFromDb(track);
+    for (final dayKey in vocabQuizByDayKey.keys) {
+      dayBuilders.putIfAbsent(
+        _dayBuilderKey(dayKey: dayKey, track: parsedTrack),
+        () => _DayBuilder(dayKey: dayKey, track: parsedTrack),
+      );
+    }
+
+    final builtDays = dayBuilders.values
+        .map(
+          (builder) =>
+              builder.build(vocabQuiz: vocabQuizByDayKey[builder.dayKey]),
+        )
+        .toList(growable: false);
+    builtDays.sort((left, right) => right.dayKey.compareTo(left.dayKey));
+
+    for (var i = 0; i < builtDays.length; i++) {
+      // Re-validate serialized output so exported files always satisfy schema guards.
+      ReportDay.fromJson(
+        builtDays[i].toJson(),
+        path: 'days[$i]',
+        schemaVersion: reportCurrentSchemaVersion,
+      );
+    }
+
+    return builtDays;
+  }
+
+  Future<ReportVocabBookmarks> _loadVocabBookmarks() async {
+    final rows = await _database
+        .customSelect(
+          'SELECT vu.vocab_id AS vocab_id '
+          'FROM vocab_user vu '
+          'INNER JOIN vocab_master vm ON vm.id = vu.vocab_id '
+          'WHERE vu.is_bookmarked = 1 '
+          'ORDER BY vu.vocab_id ASC '
+          'LIMIT ?',
+          variables: <Variable<Object>>[Variable<int>(_maxBookmarkedVocabIds)],
+          readsFrom: {_database.vocabUser, _database.vocabMaster},
+        )
+        .get();
+
+    final bookmarkedVocabIds = <String>[];
+    for (final row in rows) {
+      bookmarkedVocabIds.add(row.read<String>('vocab_id'));
+    }
+
+    return ReportVocabBookmarks.fromJson(<String, Object?>{
+      'bookmarkedVocabIds': bookmarkedVocabIds,
+    }, path: 'vocabBookmarks');
+  }
+
+  Future<ReportCustomVocab> _loadCustomVocab({
+    required List<ReportDay> days,
+    required ReportVocabBookmarks vocabBookmarks,
+  }) async {
+    final prioritizedIds = _prioritizeCustomVocabIds(
+      days: days,
+      bookmarkedVocabIds: vocabBookmarks.bookmarkedVocabIds,
+    );
+    if (prioritizedIds.isEmpty) {
+      return const ReportCustomVocab(lemmasById: <String, String>{});
+    }
+
+    final boundedIds = prioritizedIds
+        .take(_maxCustomLemmaEntries)
+        .toList(growable: false);
+    final lemmaById = <String, String>{};
+    for (final chunk in _chunkIds(boundedIds)) {
+      final placeholders = List<String>.filled(chunk.length, '?').join(', ');
+      final rows = await _database
+          .customSelect(
+            'SELECT id, lemma '
+            'FROM vocab_master '
+            'WHERE id IN ($placeholders)',
+            variables: <Variable<Object>>[
+              for (final id in chunk) Variable<String>(id),
+            ],
+            readsFrom: {_database.vocabMaster},
+          )
+          .get();
+      for (final row in rows) {
+        lemmaById[row.read<String>('id')] = row.read<String>('lemma');
+      }
+    }
+    final orderedLemmasById = <String, String>{};
+    for (final id in boundedIds) {
+      final lemma = lemmaById[id];
+      if (lemma == null) {
+        continue;
+      }
+      orderedLemmasById[id] = lemma;
+    }
+
+    return ReportCustomVocab.fromJson(<String, Object?>{
+      'lemmasById': orderedLemmasById,
+    }, path: 'customVocab');
+  }
+
+  Future<ReportMockExams> _loadMockExams({required String track}) async {
+    final rows = await _database
+        .customSelect(
+          'SELECT '
+          'mes.exam_type AS exam_type, '
+          'mes.period_key AS period_key, '
+          'mes.track AS track, '
+          'mes.completed_at AS completed_at, '
+          'SUM(CASE WHEN q.skill = \'LISTENING\' AND a.is_correct = 1 THEN 1 ELSE 0 END) AS listening_correct, '
+          'SUM(CASE WHEN q.skill = \'READING\' AND a.is_correct = 1 THEN 1 ELSE 0 END) AS reading_correct '
+          'FROM mock_exam_sessions mes '
+          'LEFT JOIN mock_exam_session_items msi ON msi.session_id = mes.id '
+          'LEFT JOIN questions q ON q.id = msi.question_id '
+          'LEFT JOIN attempts a '
+          '  ON a.mock_session_id = mes.id '
+          ' AND a.question_id = msi.question_id '
+          'WHERE mes.track = ? AND mes.completed_at IS NOT NULL '
+          'GROUP BY mes.id, mes.exam_type, mes.period_key, mes.track, mes.completed_at '
+          'ORDER BY mes.exam_type ASC, mes.period_key DESC, mes.completed_at DESC',
+          variables: <Variable<Object>>[Variable<String>(track)],
+          readsFrom: {
+            _database.mockExamSessions,
+            _database.mockExamSessionItems,
+            _database.questions,
+            _database.attempts,
+          },
+        )
+        .get();
+
+    final weekly = <ReportMockExamSummary>[];
+    final monthly = <ReportMockExamSummary>[];
+    for (final row in rows) {
+      final examType = mockExamTypeFromDb(row.read<String>('exam_type'));
+      final summary = _buildMockExamSummary(row: row, examType: examType);
+      if (examType == MockExamType.weekly) {
+        if (weekly.length < _maxWeeklyMockExamSummaries) {
+          weekly.add(summary);
+        }
+      } else {
+        if (monthly.length < _maxMonthlyMockExamSummaries) {
+          monthly.add(summary);
+        }
+      }
+    }
+
+    return ReportMockExams.fromJson(<String, Object?>{
+      'weekly': weekly.map((entry) => entry.toJson()).toList(growable: false),
+      'monthly': monthly.map((entry) => entry.toJson()).toList(growable: false),
+    }, path: 'mockExams');
+  }
+
+  ReportMockExamSummary _buildMockExamSummary({
+    required QueryRow row,
+    required MockExamType examType,
+  }) {
+    final totalCount = switch (examType) {
+      MockExamType.weekly => 20,
+      MockExamType.monthly => 45,
+    };
+    final listeningCorrect = row.read<int?>('listening_correct') ?? 0;
+    final readingCorrect = row.read<int?>('reading_correct') ?? 0;
+    final correctCount = listeningCorrect + readingCorrect;
+    final completedAtRaw = row.read<DateTime?>('completed_at');
+    if (completedAtRaw == null) {
+      throw const FormatException('mock exam completedAt is required.');
+    }
+
+    return ReportMockExamSummary.fromJson(
+      <String, Object?>{
+        'periodKey': row.read<String>('period_key'),
+        'track': row.read<String>('track'),
+        'totalCount': totalCount,
+        'listeningCorrect': listeningCorrect,
+        'readingCorrect': readingCorrect,
+        'correctCount': correctCount,
+        'wrongCount': totalCount - correctCount,
+        'completedAt': completedAtRaw.toUtc().toIso8601String(),
+      },
+      examType: examType,
+      path: 'mockExams.${examType.dbValue}',
+    );
+  }
+
+  List<String> _prioritizeCustomVocabIds({
+    required List<ReportDay> days,
+    required List<String> bookmarkedVocabIds,
+  }) {
+    final ordered = <String>[];
+    final seen = <String>{};
+
+    void add(String id) {
+      if (!id.startsWith('user_')) {
+        return;
+      }
+      if (!seen.add(id)) {
+        return;
+      }
+      ordered.add(id);
+    }
+
+    for (final id in bookmarkedVocabIds) {
+      add(id);
+    }
+    for (final day in days) {
+      final vocabQuiz = day.vocabQuiz;
+      if (vocabQuiz == null) {
+        continue;
+      }
+      for (final id in vocabQuiz.wrongVocabIds) {
+        add(id);
+      }
+    }
+
+    return ordered;
+  }
+
+  Iterable<List<String>> _chunkIds(List<String> ids) sync* {
+    for (var index = 0; index < ids.length; index += _sqliteInChunkSize) {
+      final end = index + _sqliteInChunkSize > ids.length
+          ? ids.length
+          : index + _sqliteInChunkSize;
+      yield ids.sublist(index, end);
+    }
+  }
+
+  String _dayBuilderKey({required String dayKey, required Track track}) {
+    return '$dayKey|${track.dbValue}';
+  }
+
+  Future<Map<String, ReportVocabQuizSummary>> _loadVocabQuizByDayKey({
+    required String track,
+  }) async {
+    final rows = await _database
+        .customSelect(
+          'SELECT day_key, total_count, correct_count, wrong_vocab_ids_json '
+          'FROM vocab_quiz_results '
+          'WHERE track = ?',
+          variables: <Variable<Object>>[Variable<String>(track)],
+          readsFrom: {_database.vocabQuizResults},
+        )
+        .get();
+
+    final byDayKey = <String, ReportVocabQuizSummary>{};
+    for (final row in rows) {
+      final dayKey = _formatDayKey(row.read<int>('day_key'));
+      final wrongVocabIds = _decodeWrongVocabIds(
+        row.read<String>('wrong_vocab_ids_json'),
+        path: 'vocabQuizResults[$dayKey].wrongVocabIdsJson',
+      );
+      byDayKey[dayKey] = ReportVocabQuizSummary.fromJson(<String, Object?>{
+        'totalCount': row.read<int>('total_count'),
+        'correctCount': row.read<int>('correct_count'),
+        'wrongVocabIds': wrongVocabIds,
+      }, path: 'vocabQuizResults[$dayKey]');
+    }
+    return byDayKey;
+  }
+
+  String _formatDayKey(int dayKey) {
+    final text = dayKey.toString().padLeft(8, '0');
+    validateDayKey(text);
+    return text;
+  }
+
+  WrongReasonTag? _decodeWrongReasonTagOrNull(String? payloadJson) {
+    if (payloadJson == null || payloadJson.isEmpty) {
+      return null;
+    }
+
+    try {
+      return AttemptPayload.decode(payloadJson).wrongReasonTag;
+    } on FormatException {
+      return null;
+    }
+  }
+
+  List<Object?> _decodeWrongVocabIds(
+    String payloadJson, {
+    required String path,
+  }) {
+    final decoded = jsonDecode(payloadJson);
+    if (decoded is! List<Object?>) {
+      throw FormatException('Expected "$path" to be a JSON array.');
+    }
+    return decoded;
+  }
+
+  String? _supportedRoleOrNull(String rawRole) {
+    if (rawRole == 'STUDENT' || rawRole == 'PARENT') {
+      return rawRole;
+    }
+    return null;
+  }
+
+  Track? _trackOrNull(String rawTrack) {
+    try {
+      return trackFromDb(rawTrack);
+    } on FormatException {
+      return null;
+    }
+  }
+
+  bool? _sqliteBoolOrNull(int? rawValue) {
+    if (rawValue == null) {
+      return null;
+    }
+    if (rawValue == 1) {
+      return true;
+    }
+    if (rawValue == 0) {
+      return false;
+    }
+    return null;
+  }
+
+  void _validateTrack(String track) {
+    if (_supportedTracks.contains(track)) {
+      return;
+    }
+    throw FormatException('Unsupported track: "$track"');
+  }
+}
+
+class _PreparedExport {
+  const _PreparedExport({required this.report, required this.canonicalPayload});
+
+  final ReportSchema report;
+  final String canonicalPayload;
+}
+
+class _TrimResult {
+  const _TrimResult({required this.keptDays, required this.payload});
+
+  final int keptDays;
+  final String payload;
+}
+
+class _CustomTrimResult {
+  const _CustomTrimResult({required this.payload, required this.report});
+
+  final String payload;
+  final ReportSchema report;
+}
+
+class _DayBuilder {
+  _DayBuilder({required this.dayKey, required this.track});
+
+  final String dayKey;
+  final Track track;
+
+  final List<ReportQuestionResult> _questions = <ReportQuestionResult>[];
+  final Map<WrongReasonTag, int> _wrongReasonCounts = <WrongReasonTag, int>{};
+
+  int _listeningCorrect = 0;
+  int _readingCorrect = 0;
+
+  void addSolvedQuestion(ReportQuestionResult question) {
+    if (_questions.length >= reportMaxQuestionsPerDay) {
+      throw StateError(
+        'A daily report must not exceed $reportMaxQuestionsPerDay solved questions.',
+      );
+    }
+
+    _questions.add(question);
+
+    if (question.isCorrect) {
+      if (question.skill == Skill.listening) {
+        _listeningCorrect += 1;
+      } else {
+        _readingCorrect += 1;
+      }
+      return;
+    }
+
+    final wrongReasonTag = question.wrongReasonTag;
+    if (wrongReasonTag == null) {
+      return;
+    }
+
+    _wrongReasonCounts.update(
+      wrongReasonTag,
+      (value) => value + 1,
+      ifAbsent: () => 1,
+    );
+  }
+
+  ReportDay build({ReportVocabQuizSummary? vocabQuiz}) {
+    final solvedCount = _questions.length;
+    final wrongCount = solvedCount - _listeningCorrect - _readingCorrect;
+
+    return ReportDay(
+      dayKey: dayKey,
+      track: track,
+      solvedCount: solvedCount,
+      wrongCount: wrongCount,
+      listeningCorrect: _listeningCorrect,
+      readingCorrect: _readingCorrect,
+      wrongReasonCounts: Map<WrongReasonTag, int>.unmodifiable(
+        _wrongReasonCounts,
+      ),
+      questions: List<ReportQuestionResult>.unmodifiable(_questions),
+      vocabQuiz: vocabQuiz,
+    );
+  }
+}
+
+Future<String?> _defaultAppVersionLoader() async {
+  try {
+    final packageInfo = await PackageInfo.fromPlatform().timeout(
+      const Duration(milliseconds: 800),
+    );
+    return '${packageInfo.version}+${packageInfo.buildNumber}';
+  } catch (_) {
+    return null;
+  }
+}
