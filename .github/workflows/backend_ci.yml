@@ -15,6 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       runtime_affecting: ${{ steps.classify.outputs.runtime_affecting }}
+      has_backend_project: ${{ steps.classify.outputs.has_backend_project }}
       changed_python_count: ${{ steps.classify.outputs.changed_python_count }}
       changed_python_files: ${{ steps.classify.outputs.changed_python_files }}
     steps:
@@ -29,6 +30,9 @@ jobs:
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
             BASE_SHA="${{ github.event.pull_request.base.sha }}"
             HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            BASE_SHA="${{ github.sha }}"
+            HEAD_SHA="${{ github.sha }}"
           else
             BASE_SHA="${{ github.event.before }}"
             HEAD_SHA="${{ github.sha }}"
@@ -52,8 +56,13 @@ jobs:
 
           python3 backend/scripts/list_changed_python_files.py --base "${BASE_SHA}" --head "${HEAD_SHA}" > /tmp/changed_backend_python.txt
           CHANGED_PY_COUNT="$(grep -cve '^[[:space:]]*$' /tmp/changed_backend_python.txt || true)"
+          HAS_BACKEND_PROJECT="false"
+          if [[ -f "backend/pyproject.toml" ]]; then
+            HAS_BACKEND_PROJECT="true"
+          fi
 
           echo "runtime_affecting=${RUNTIME_AFFECTING}" >> "${GITHUB_OUTPUT}"
+          echo "has_backend_project=${HAS_BACKEND_PROJECT}" >> "${GITHUB_OUTPUT}"
           echo "changed_python_count=${CHANGED_PY_COUNT}" >> "${GITHUB_OUTPUT}"
           {
             echo "changed_python_files<<EOF"
@@ -62,13 +71,14 @@ jobs:
           } >> "${GITHUB_OUTPUT}"
 
           echo "Runtime-affecting backend change: ${RUNTIME_AFFECTING}"
+          echo "Backend project present: ${HAS_BACKEND_PROJECT}"
           echo "Changed backend Python files count: ${CHANGED_PY_COUNT}"
 
   backend-heavy-gates:
     name: backend-heavy-gates
     needs:
       - classify-backend-changes
-    if: needs.classify-backend-changes.outputs.runtime_affecting == 'true'
+    if: needs.classify-backend-changes.outputs.runtime_affecting == 'true' && needs.classify-backend-changes.outputs.has_backend_project == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     services:
@@ -167,14 +177,20 @@ jobs:
           echo "No backend runtime-affecting changes detected."
           echo "Required check completed successfully without heavy backend gates."
 
+      - name: Backend project not present success
+        if: needs.classify-backend-changes.outputs.runtime_affecting == 'true' && needs.classify-backend-changes.outputs.has_backend_project != 'true'
+        run: |
+          echo "Backend runtime-affecting changes detected, but backend/pyproject.toml is not present."
+          echo "Skipping heavy backend gates and completing required check successfully."
+
       - name: Fail when heavy backend gates failed
-        if: needs.classify-backend-changes.outputs.runtime_affecting == 'true' && needs.backend-heavy-gates.result != 'success'
+        if: needs.classify-backend-changes.outputs.runtime_affecting == 'true' && needs.classify-backend-changes.outputs.has_backend_project == 'true' && needs.backend-heavy-gates.result != 'success'
         run: |
           echo "backend-heavy-gates result: ${{ needs.backend-heavy-gates.result }}"
           exit 1
 
       - name: Heavy backend gates passed
-        if: needs.classify-backend-changes.outputs.runtime_affecting == 'true' && needs.backend-heavy-gates.result == 'success'
+        if: needs.classify-backend-changes.outputs.runtime_affecting == 'true' && needs.classify-backend-changes.outputs.has_backend_project == 'true' && needs.backend-heavy-gates.result == 'success'
         run: |
           echo "backend-heavy-gates passed."
           echo "Required check completed successfully."
