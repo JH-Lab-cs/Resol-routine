@@ -38,9 +38,16 @@ Required runtime variables:
 - `R2_SECRET_ACCESS_KEY`
 - `CONTENT_PIPELINE_API_KEY`
 - `AI_GENERATION_PROVIDER`
-- `AI_GENERATION_API_KEY` (required for external providers)
-- `AI_MOCK_EXAM_MODEL`
-- `AI_MOCK_EXAM_PROMPT_TEMPLATE_VERSION`
+- `AI_GENERATION_API_KEY` (required only when using external providers)
+
+AI model configuration variables:
+
+- Mock exam draft generation:
+  - `AI_MOCK_EXAM_MODEL`
+  - `AI_MOCK_EXAM_PROMPT_TEMPLATE_VERSION`
+- Content generation:
+  - `AI_CONTENT_MODEL`
+  - `AI_CONTENT_PROMPT_TEMPLATE_VERSION`
 
 ## Reproducible Verification Order
 
@@ -61,6 +68,52 @@ CONTENT_PIPELINE_API_KEY='replace-with-real-internal-key' \
 uv run alembic upgrade head
 uv run pytest
 ```
+
+## Backend CI / Local Command Parity
+
+Use the same script locally and in GitHub Actions:
+
+```bash
+cd backend
+bash scripts/backend_ci.sh sync
+bash scripts/backend_ci.sh quality-strict
+bash scripts/backend_ci.sh test
+bash scripts/backend_ci.sh alembic
+```
+
+One-shot command (requires DB/runtime env for alembic):
+
+```bash
+cd backend
+bash scripts/backend_ci.sh full
+```
+
+`quality-strict` behavior:
+
+- strict lint/type for changed backend Python files only
+- file source order:
+  - positional file args
+  - `CHANGED_PYTHON_FILES` env (newline-separated)
+  - `BASE_SHA` + `HEAD_SHA` env
+  - default git diff (`HEAD~1..HEAD`)
+- skips when no changed backend Python files are detected
+
+`test` includes:
+
+- `python3 -m compileall app tests alembic`
+- `uv run pytest -q`
+- `uv run python -c "from app.main import app; assert app.title"`
+
+Quality debt baseline policy is documented in:
+
+- `backend/docs/quality_debt_baseline.md`
+
+## Branch Protection Required Check
+
+- `Backend CI / backend-gates`
+- This workflow is required-check safe:
+  - docs-only backend changes still run the workflow and finish with success.
+  - heavy gates (sync/quality/test/alembic) run only for runtime-affecting backend changes.
 
 ## Migration Policy (Post B1.5)
 
