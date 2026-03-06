@@ -124,6 +124,29 @@ run_test() {
 run_alembic() {
   require_env_for_alembic
   uv run alembic upgrade head
+  assert_mock_exam_single_draft_index
+}
+
+assert_mock_exam_single_draft_index() {
+  if ! command -v psql >/dev/null 2>&1; then
+    echo "psql is not available; skipping PostgreSQL schema contract check."
+    return 0
+  fi
+
+  local postgres_url="${DATABASE_URL/postgresql+psycopg/postgresql}"
+  local index_count
+  index_count="$(
+    psql "${postgres_url}" -tAc \
+      "SELECT COUNT(*) FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'mock_exam_revisions' AND indexname = 'uq_mock_exam_revisions_single_draft_per_exam';"
+  )"
+  index_count="$(echo "${index_count}" | tr -d '[:space:]')"
+
+  if [[ "${index_count}" != "1" ]]; then
+    echo "Missing required index uq_mock_exam_revisions_single_draft_per_exam." >&2
+    exit 1
+  fi
+
+  echo "Verified index uq_mock_exam_revisions_single_draft_per_exam."
 }
 
 command="${1:-full}"

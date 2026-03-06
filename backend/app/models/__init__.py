@@ -29,15 +29,16 @@ from app.models.enums import (
     WrongReasonTag,
 )
 from app.models.invite_code import InviteCode
-from app.models.monthly_report_aggregate import MonthlyReportAggregate
+from app.models.mock_assembly_job import MockAssemblyJob
 from app.models.mock_exam import MockExam
 from app.models.mock_exam_revision import MockExamRevision
 from app.models.mock_exam_revision_item import MockExamRevisionItem
 from app.models.mock_exam_session import MockExamSession
+from app.models.monthly_report_aggregate import MonthlyReportAggregate
 from app.models.parent_child_link import ParentChildLink
 from app.models.refresh_token import RefreshToken
-from app.models.study_event import StudyEvent
 from app.models.student_attempt_projection import StudentAttemptProjection
+from app.models.study_event import StudyEvent
 from app.models.subscription_plan import SubscriptionPlan
 from app.models.subscription_plan_feature import SubscriptionPlanFeature
 from app.models.user import User
@@ -48,10 +49,10 @@ __all__ = [
     "AIContentGenerationCandidate",
     "AIContentGenerationCandidateStatus",
     "AIContentGenerationJob",
-    "AuditLog",
     "AIGenerationJob",
     "AIGenerationJobStatus",
     "AIGenerationJobType",
+    "AuditLog",
     "BillingProvider",
     "BillingReceiptVerification",
     "BillingReceiptVerificationStatus",
@@ -66,25 +67,26 @@ __all__ = [
     "ContentUnitRevision",
     "DailyReportAggregate",
     "InviteCode",
-    "MonthlyReportAggregate",
+    "MockAssemblyJob",
     "MockExam",
     "MockExamRevision",
     "MockExamRevisionItem",
     "MockExamSession",
     "MockExamType",
+    "MonthlyReportAggregate",
     "ParentChildLink",
     "RefreshToken",
     "Skill",
-    "StudyEvent",
     "StudentAttemptProjection",
+    "StudyEvent",
     "SubscriptionFeatureCode",
     "SubscriptionPlan",
     "SubscriptionPlanFeature",
     "SubscriptionPlanStatus",
     "Track",
     "User",
-    "UserSubscription",
     "UserRole",
+    "UserSubscription",
     "UserSubscriptionStatus",
     "WeeklyReportAggregate",
     "WrongReasonTag",
