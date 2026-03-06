@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from datetime import UTC, datetime
 from uuid import UUID
 
@@ -19,6 +20,7 @@ from app.models.mock_exam_revision import MockExamRevision
 from app.models.mock_exam_revision_item import MockExamRevisionItem
 
 INTERNAL_API_KEY = "unit-test-internal-api-key-value"
+ARCHIVED_AT_UTC_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
 
 
 def _internal_headers(api_key: str = INTERNAL_API_KEY) -> dict[str, str]:
@@ -523,6 +525,17 @@ def test_assembly_existing_draft_requires_force_rebuild(
         first_revision = db.get(MockExamRevision, first_revision_id)
         assert first_revision is not None
         assert first_revision.lifecycle_status == ContentLifecycleStatus.ARCHIVED
+        first_revision_metadata = first_revision.metadata_json
+        assert first_revision_metadata["archivedReason"] == "FORCE_REBUILD"
+        assert first_revision_metadata["archivedBy"] == "mock_assembly_service"
+        assert first_revision_metadata["archivedFromJobId"] == str(third["jobId"])
+        assert first_revision_metadata["archivedFromRevisionId"] == str(third_revision_id)
+        assert ARCHIVED_AT_UTC_PATTERN.match(str(first_revision_metadata["archivedAtUtc"]))
+        archived_snapshot = first_revision_metadata["archivedSnapshot"]
+        assert archived_snapshot["examType"] == "WEEKLY"
+        assert archived_snapshot["track"] == "H2"
+        assert archived_snapshot["periodKey"] == "2026W14"
+        assert isinstance(archived_snapshot["seed"], str)
 
         logs = db.execute(
             select(AuditLog).where(AuditLog.action == "mock_exam_assembly_draft_created")
@@ -538,6 +551,80 @@ def test_assembly_existing_draft_requires_force_rebuild(
         assert rebuild_details["force_rebuild"] is True
         assert rebuild_details["rebuild_reason"] == "force_rebuild"
         assert rebuild_details["archived_old_revision_ids"] == [str(first_revision_id)]
+
+
+def test_force_rebuild_with_duplicate_drafts_uses_dedup_archive_reason(
+    client: TestClient,
+    db_session_factory,
+) -> None:
+    _seed_weekly_assembly_pool(
+        db_session_factory,
+        track=Track.H2,
+        label_prefix="force-rebuild-dedup",
+    )
+
+    with db_session_factory() as db:
+        exam = MockExam(
+            exam_type=MockExamType.WEEKLY,
+            track=Track.H2,
+            period_key="2026W20",
+            external_id=None,
+            slug=None,
+            lifecycle_status=ContentLifecycleStatus.DRAFT,
+            published_revision_id=None,
+        )
+        db.add(exam)
+        db.flush()
+
+        duplicate_revision_ids: list[UUID] = []
+        for revision_no in (1, 2):
+            revision = MockExamRevision(
+                mock_exam_id=exam.id,
+                revision_no=revision_no,
+                title=f"Legacy draft {revision_no}",
+                instructions="Legacy instructions",
+                generator_version="legacy-generator",
+                validator_version=None,
+                validated_at=None,
+                reviewer_identity=None,
+                reviewed_at=None,
+                metadata_json={"legacy": f"draft-{revision_no}"},
+                lifecycle_status=ContentLifecycleStatus.DRAFT,
+                published_at=None,
+            )
+            db.add(revision)
+            db.flush()
+            duplicate_revision_ids.append(revision.id)
+
+        db.commit()
+
+    rebuilt_job = _create_mock_assembly_job(
+        client,
+        exam_type="WEEKLY",
+        track="H2",
+        period_key="2026W20",
+        dry_run=False,
+        force_rebuild=True,
+    )
+    assert rebuilt_job["status"] == "SUCCEEDED"
+
+    new_revision_id = UUID(str(rebuilt_job["mockExamRevisionId"]))
+    with db_session_factory() as db:
+        duplicate_revisions = db.execute(
+            select(MockExamRevision).where(
+                MockExamRevision.id.in_(duplicate_revision_ids)
+            )
+        ).scalars().all()
+
+        assert len(duplicate_revisions) == 2
+        for duplicate_revision in duplicate_revisions:
+            assert duplicate_revision.lifecycle_status == ContentLifecycleStatus.ARCHIVED
+            duplicate_metadata = duplicate_revision.metadata_json
+            assert duplicate_metadata["archivedReason"] == "DEDUP_SINGLE_DRAFT_MIGRATION"
+            assert duplicate_metadata["archivedBy"] == "mock_assembly_service"
+            assert duplicate_metadata["archivedFromJobId"] == str(rebuilt_job["jobId"])
+            assert duplicate_metadata["archivedFromRevisionId"] == str(new_revision_id)
+            assert ARCHIVED_AT_UTC_PATTERN.match(str(duplicate_metadata["archivedAtUtc"]))
 
 
 def test_assembly_mock_exam_creation_race_recovers_after_integrity_error(

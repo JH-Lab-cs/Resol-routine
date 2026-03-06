@@ -3,10 +3,11 @@ from __future__ import annotations
 import hashlib
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from uuid import UUID
+from typing import cast
+from uuid import UUID, uuid4
 
 from fastapi import HTTPException, status
-from sqlalchemy import func, select, update
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -40,6 +41,10 @@ from app.schemas.mock_assembly import (
     default_difficulty_profile_for_track,
 )
 from app.services.audit_service import append_audit_log
+
+ARCHIVED_BY_MOCK_ASSEMBLY_SERVICE = "mock_assembly_service"
+ARCHIVED_REASON_FORCE_REBUILD = "FORCE_REBUILD"
+ARCHIVED_REASON_DEDUP_SINGLE_DRAFT_MIGRATION = "DEDUP_SINGLE_DRAFT_MIGRATION"
 
 
 @dataclass(frozen=True, slots=True)
@@ -135,12 +140,13 @@ def create_mock_assembly_job(
             )
         warnings_json = [str(item) for item in warnings_value]
 
-        constraint_summary_value = summary_json.get("constraintSummary")
-        if not isinstance(constraint_summary_value, dict):
+        constraint_summary_raw = summary_json.get("constraintSummary")
+        if not isinstance(constraint_summary_raw, dict):
             raise AssemblyError(
                 code=MockAssemblyFailureCode.ASSEMBLY_TRACE_PERSIST_FAILED,
                 message="assembly_summary_missing_constraint_summary",
             )
+        constraint_summary_value = cast(dict[str, object], constraint_summary_raw)
 
         trace_json = _build_trace_json(
             job_id=job.id,
@@ -177,6 +183,7 @@ def create_mock_assembly_job(
                         payload=payload,
                         selection=selections,
                         trace_json=trace_json,
+                        assembly_job_id=job.id,
                     )
             except AssemblyError:
                 raise
@@ -718,6 +725,7 @@ def _persist_mock_exam_revision_draft(
     payload: MockAssemblyJobCreateRequest,
     selection: AssemblySelection,
     trace_json: dict[str, object],
+    assembly_job_id: UUID | None,
 ) -> tuple[UUID, UUID]:
     exam = _select_mock_exam_for_update(db, payload=payload)
 
@@ -755,29 +763,57 @@ def _persist_mock_exam_revision_draft(
             message="Mock exam is archived and cannot accept a new draft revision.",
         )
 
-    existing_draft_revision_ids = db.execute(
-        select(MockExamRevision.id)
+    existing_draft_revisions = db.execute(
+        select(MockExamRevision)
         .where(
             MockExamRevision.mock_exam_id == exam.id,
             MockExamRevision.lifecycle_status == ContentLifecycleStatus.DRAFT,
         )
+        .with_for_update()
         .order_by(MockExamRevision.revision_no.desc(), MockExamRevision.id.desc())
     ).scalars().all()
+    existing_draft_revision_ids = [revision.id for revision in existing_draft_revisions]
 
     if existing_draft_revision_ids and not payload.force_rebuild:
         raise AssemblyError(
             code=MockAssemblyFailureCode.ASSEMBLY_ALREADY_EXISTS,
             message="A draft revision already exists for this exam target.",
         )
+
+    next_revision_id = uuid4()
+    archive_reason: str | None = None
     if existing_draft_revision_ids and payload.force_rebuild:
-        db.execute(
-            update(MockExamRevision)
-            .where(
-                MockExamRevision.mock_exam_id == exam.id,
-                MockExamRevision.lifecycle_status == ContentLifecycleStatus.DRAFT,
-            )
-            .values(lifecycle_status=ContentLifecycleStatus.ARCHIVED)
+        archive_reason = (
+            ARCHIVED_REASON_DEDUP_SINGLE_DRAFT_MIGRATION
+            if len(existing_draft_revision_ids) > 1
+            else ARCHIVED_REASON_FORCE_REBUILD
         )
+        archive_snapshot = {
+            "examType": payload.exam_type.value,
+            "track": payload.track.value,
+            "periodKey": payload.period_key,
+            "seed": str(
+                trace_json.get(
+                    "seed",
+                    _default_seed(
+                        exam_type=payload.exam_type,
+                        track=payload.track,
+                        period_key=payload.period_key,
+                    ),
+                )
+            ),
+        }
+        archived_at_utc = _utc_iso8601_utc(datetime.now(UTC))
+        for existing_revision in existing_draft_revisions:
+            existing_revision.lifecycle_status = ContentLifecycleStatus.ARCHIVED
+            existing_revision.metadata_json = _merge_archive_audit_metadata(
+                metadata_json=existing_revision.metadata_json,
+                archived_at_utc=archived_at_utc,
+                archived_reason=archive_reason,
+                archived_from_job_id=assembly_job_id,
+                archived_from_revision_id=next_revision_id,
+                archived_snapshot=archive_snapshot,
+            )
 
     max_revision_no = db.execute(
         select(func.max(MockExamRevision.revision_no)).where(
@@ -787,6 +823,7 @@ def _persist_mock_exam_revision_draft(
     next_revision_no = (int(max_revision_no) if max_revision_no is not None else 0) + 1
 
     revision = MockExamRevision(
+        id=next_revision_id,
         mock_exam_id=exam.id,
         revision_no=next_revision_no,
         title=f"{payload.exam_type.value.title()} Mock {payload.track.value} {payload.period_key}",
@@ -802,6 +839,7 @@ def _persist_mock_exam_revision_draft(
             "mockAssemblyRebuild": {
                 "forceRebuild": payload.force_rebuild,
                 "rebuildReason": "force_rebuild" if payload.force_rebuild else "initial_build",
+                "archiveReasonApplied": archive_reason,
                 "archivedOldRevisionIds": [
                     str(revision_id) for revision_id in existing_draft_revision_ids
                 ],
@@ -847,6 +885,34 @@ def _persist_mock_exam_revision_draft(
     )
 
     return exam.id, revision.id
+
+
+def _utc_iso8601_utc(value: datetime) -> str:
+    return value.astimezone(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def _merge_archive_audit_metadata(
+    *,
+    metadata_json: object,
+    archived_at_utc: str,
+    archived_reason: str,
+    archived_from_job_id: UUID | None,
+    archived_from_revision_id: UUID | None,
+    archived_snapshot: dict[str, str] | None,
+) -> dict[str, object]:
+    merged: dict[str, object] = (
+        dict(metadata_json) if isinstance(metadata_json, dict) else {}
+    )
+    merged["archivedAtUtc"] = archived_at_utc
+    merged["archivedBy"] = ARCHIVED_BY_MOCK_ASSEMBLY_SERVICE
+    merged["archivedReason"] = archived_reason
+    if archived_from_job_id is not None:
+        merged["archivedFromJobId"] = str(archived_from_job_id)
+    if archived_from_revision_id is not None:
+        merged["archivedFromRevisionId"] = str(archived_from_revision_id)
+    if archived_snapshot:
+        merged["archivedSnapshot"] = archived_snapshot
+    return merged
 
 
 def _finalize_job_failure(

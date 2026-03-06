@@ -104,7 +104,11 @@ run_quality_strict() {
 
   echo "Strict mypy targets (${#mypy_targets[@]} modules):"
   printf ' - %s\n' "${mypy_targets[@]}"
-  uv run mypy "${mypy_targets[@]}"
+  mypy_args=()
+  for target in "${mypy_targets[@]}"; do
+    mypy_args+=("-m" "${target}")
+  done
+  uv run mypy "${mypy_args[@]}"
 }
 
 run_test() {

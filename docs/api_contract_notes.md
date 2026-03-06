@@ -41,6 +41,8 @@ This note captures frontend-backend contracts that must remain stable while form
   - `reviewed_at`
 - Publish is allowed only when trace-field gates are satisfied.
 - `VALIDATED`, `IN_REVIEW`, `APPROVED` are process labels only, not lifecycle enum values.
+- Mock exam revision archive audit fields are stored in `metadata_json` (no dedicated archive columns).
+- DB lifecycle state judgment must rely on `lifecycle_status` only.
 
 ## Composition Contracts
 

@@ -166,6 +166,8 @@ This document is the backend handoff baseline for the next chat/session.
   - Publish is allowed only when validation/review trace fields are present and required content checks pass.
 - Terms like `VALIDATED`, `IN_REVIEW`, and `APPROVED` are operational checkpoints only.
   They must not be treated as DB lifecycle enum values.
+- Mock exam revision archive audit fields are stored in `metadata_json` (no dedicated archive columns).
+- For DB state checks, `lifecycle_status` is the single source of truth.
 - Auto-publish is forbidden in phase-1.
 
 ## L. Mock Exam Assembly Rules
