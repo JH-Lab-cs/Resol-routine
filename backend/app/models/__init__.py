@@ -41,6 +41,8 @@ from app.models.student_attempt_projection import StudentAttemptProjection
 from app.models.study_event import StudyEvent
 from app.models.subscription_plan import SubscriptionPlan
 from app.models.subscription_plan_feature import SubscriptionPlanFeature
+from app.models.tts_enums import TTSGenerationJobStatus
+from app.models.tts_generation_job import TTSGenerationJob
 from app.models.user import User
 from app.models.user_subscription import UserSubscription
 from app.models.weekly_report_aggregate import WeeklyReportAggregate
@@ -83,6 +85,8 @@ __all__ = [
     "SubscriptionPlan",
     "SubscriptionPlanFeature",
     "SubscriptionPlanStatus",
+    "TTSGenerationJob",
+    "TTSGenerationJobStatus",
     "Track",
     "User",
     "UserRole",

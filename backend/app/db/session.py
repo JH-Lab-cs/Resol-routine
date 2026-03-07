@@ -1,5 +1,5 @@
-from collections.abc import Generator
 import logging
+from collections.abc import Generator
 from typing import Any
 from uuid import UUID
 
@@ -26,6 +26,7 @@ SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False, expi
 POST_COMMIT_AGGREGATION_STUDENT_IDS_KEY = "post_commit_aggregation_student_ids"
 POST_COMMIT_AI_GENERATION_JOB_IDS_KEY = "post_commit_ai_generation_job_ids"
 POST_COMMIT_AI_CONTENT_GENERATION_JOB_IDS_KEY = "post_commit_ai_content_generation_job_ids"
+POST_COMMIT_TTS_GENERATION_JOB_IDS_KEY = "post_commit_tts_generation_job_ids"
 logger = logging.getLogger(__name__)
 
 
@@ -50,6 +51,14 @@ def schedule_ai_content_generation_job_after_commit(db: Session, *, job_id: UUID
     if pending_job_ids is None:
         pending_job_ids = set()
         db.info[POST_COMMIT_AI_CONTENT_GENERATION_JOB_IDS_KEY] = pending_job_ids
+    pending_job_ids.add(job_id)
+
+
+def schedule_tts_generation_job_after_commit(db: Session, *, job_id: UUID) -> None:
+    pending_job_ids = db.info.get(POST_COMMIT_TTS_GENERATION_JOB_IDS_KEY)
+    if pending_job_ids is None:
+        pending_job_ids = set()
+        db.info[POST_COMMIT_TTS_GENERATION_JOB_IDS_KEY] = pending_job_ids
     pending_job_ids.add(job_id)
 
 
@@ -104,6 +113,23 @@ def run_post_commit_ai_content_generation_tasks(db: Session) -> None:
             )
 
 
+def run_post_commit_tts_generation_tasks(db: Session) -> None:
+    pending_job_ids = db.info.pop(POST_COMMIT_TTS_GENERATION_JOB_IDS_KEY, None)
+    if not pending_job_ids:
+        return
+
+    from app.workers.tts_tasks import trigger_tts_generation_job
+
+    for job_id in sorted(pending_job_ids, key=lambda value: str(value)):
+        try:
+            trigger_tts_generation_job(job_id=job_id)
+        except Exception:
+            logger.exception(
+                "Failed to enqueue post-commit tts generation trigger",
+                extra={"job_id": str(job_id)},
+            )
+
+
 def get_db_session() -> Generator[Session, None, None]:
     db = SessionLocal()
     try:
@@ -112,11 +138,13 @@ def get_db_session() -> Generator[Session, None, None]:
         run_post_commit_aggregation_tasks(db)
         run_post_commit_ai_generation_tasks(db)
         run_post_commit_ai_content_generation_tasks(db)
+        run_post_commit_tts_generation_tasks(db)
     except Exception:
         db.rollback()
         db.info.pop(POST_COMMIT_AGGREGATION_STUDENT_IDS_KEY, None)
         db.info.pop(POST_COMMIT_AI_GENERATION_JOB_IDS_KEY, None)
         db.info.pop(POST_COMMIT_AI_CONTENT_GENERATION_JOB_IDS_KEY, None)
+        db.info.pop(POST_COMMIT_TTS_GENERATION_JOB_IDS_KEY, None)
         raise
     finally:
         db.close()
