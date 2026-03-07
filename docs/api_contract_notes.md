@@ -70,6 +70,12 @@ This note captures frontend-backend contracts that must remain stable while form
   - vocab meaning/example text
 - Hidden/bidi/zero-width unicode validation must be enforced on user-controlled fields
 
+## TTS Contract
+
+- TTS generation is limited to `LISTENING` + `DRAFT` content revisions.
+- `POST /internal/ai/tts/jobs` is create-only; if an identical successful request fingerprint already exists and `forceRegen=false`, the request is rejected instead of creating a duplicate asset.
+- `POST /internal/ai/tts/revisions/{revision_id}/ensure-audio` remains the idempotent no-op path when audio is already linked.
+
 ## Sync Contract Direction
 
 - Backend ingest unit is event-level results, not only final report snapshots

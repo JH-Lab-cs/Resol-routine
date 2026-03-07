@@ -14,6 +14,7 @@ from botocore.exceptions import ClientError
 from fastapi import HTTPException, status
 from sqlalchemy import or_, select, update
 from sqlalchemy.engine import CursorResult
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -64,20 +65,28 @@ def create_tts_generation_job(
         revision_id=payload.revision_id,
     )
 
-    active_job = db.execute(
-        select(TTSGenerationJob)
-        .where(
-            TTSGenerationJob.revision_id == revision.id,
-            TTSGenerationJob.status.in_(
-                [TTSGenerationJobStatus.PENDING, TTSGenerationJobStatus.RUNNING]
-            ),
+    input_text_sha256 = hashlib.sha256(sanitized_text.encode("utf-8")).hexdigest()
+
+    reusable_job = _get_reusable_successful_job(
+        db,
+        revision_id=revision.id,
+        provider=payload.provider.strip().lower(),
+        model_name=payload.model.strip(),
+        voice=payload.voice.strip(),
+        speed=payload.speed,
+        input_text_sha256=input_text_sha256,
+    )
+    if reusable_job is not None and not payload.force_regen:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="tts_job_already_succeeded",
         )
-        .order_by(TTSGenerationJob.created_at.desc(), TTSGenerationJob.id.desc())
-    ).scalar_one_or_none()
+
+    active_job = _get_active_job(db, revision_id=revision.id)
     if active_job is not None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="tts_job_already_in_progress",
+            detail="TTS_JOB_ALREADY_IN_PROGRESS",
         )
 
     if revision.asset_id is not None and not payload.force_regen:
@@ -86,7 +95,6 @@ def create_tts_generation_job(
             detail="tts_asset_already_exists_use_force_regen",
         )
 
-    input_text_sha256 = hashlib.sha256(sanitized_text.encode("utf-8")).hexdigest()
     job = TTSGenerationJob(
         revision_id=revision.id,
         track=unit.track,
@@ -112,8 +120,18 @@ def create_tts_generation_job(
         started_at=None,
         finished_at=None,
     )
-    db.add(job)
-    db.flush()
+    try:
+        with db.begin_nested():
+            db.add(job)
+            db.flush()
+    except IntegrityError as exc:
+        raced_active_job = _get_active_job(db, revision_id=revision.id)
+        if raced_active_job is not None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="TTS_JOB_ALREADY_IN_PROGRESS",
+            ) from exc
+        raise
 
     schedule_tts_generation_job_after_commit(db, job_id=job.id)
     return _to_job_response(job)
@@ -201,6 +219,7 @@ def retry_tts_generation_job(db: Session, *, job_id: UUID) -> TTSGenerationJobRe
 
 
 def run_tts_generation_job(db: Session, *, job_id: UUID) -> TTSJobExecutionResult:
+    uploaded_output_object_key: str | None = None
     execution_result = cast(
         CursorResult[Any],
         db.execute(
@@ -309,6 +328,7 @@ def run_tts_generation_job(db: Session, *, job_id: UUID) -> TTSJobExecutionResul
             body=provider_result.audio_bytes,
             mime_type=provider_result.mime_type,
         )
+        uploaded_output_object_key = output_object_key
 
         try:
             with db.begin_nested():
@@ -356,18 +376,14 @@ def run_tts_generation_job(db: Session, *, job_id: UUID) -> TTSJobExecutionResul
         job.finished_at = datetime.now(UTC)
         db.flush()
 
-        append_audit_log(
-            db,
+        _append_audit_log_best_effort(
+            db=db,
             action="tts_generation_job_succeeded",
-            actor_user_id=None,
-            target_user_id=None,
             details={
                 "job_id": str(job.id),
                 "revision_id": str(job.revision_id),
                 "output_asset_id": (
-                    str(job.output_asset_id)
-                    if job.output_asset_id is not None
-                    else None
+                    str(job.output_asset_id) if job.output_asset_id is not None else None
                 ),
             },
         )
@@ -397,12 +413,13 @@ def run_tts_generation_job(db: Session, *, job_id: UUID) -> TTSJobExecutionResul
         )
         _mark_job_failed(job, code="DRAFT_PERSIST_FAILED", message=str(exc))
 
+    if uploaded_output_object_key is not None:
+        _delete_audio_object_best_effort(object_key=uploaded_output_object_key)
+
     db.flush()
-    append_audit_log(
-        db,
+    _append_audit_log_best_effort(
+        db=db,
         action="tts_generation_job_failed",
-        actor_user_id=None,
-        target_user_id=None,
         details={
             "job_id": str(job.id),
             "revision_id": str(job.revision_id),
@@ -422,6 +439,67 @@ def _mark_job_failed(job: TTSGenerationJob, *, code: str, message: str) -> None:
     job.error_code = code[:64]
     job.error_message = message[:TTS_ERROR_MESSAGE_MAX_LENGTH]
     job.finished_at = datetime.now(UTC)
+
+
+def _append_audit_log_best_effort(
+    *,
+    db: Session,
+    action: str,
+    details: dict[str, object],
+) -> None:
+    try:
+        append_audit_log(
+            db,
+            action=action,
+            actor_user_id=None,
+            target_user_id=None,
+            details=details,
+        )
+    except Exception:
+        logger.warning(
+            "TTS audit log write failed",
+            extra={"action": action, "details": details},
+            exc_info=True,
+        )
+
+
+def _get_active_job(db: Session, *, revision_id: UUID) -> TTSGenerationJob | None:
+    return db.execute(
+        select(TTSGenerationJob)
+        .where(
+            TTSGenerationJob.revision_id == revision_id,
+            TTSGenerationJob.status.in_(
+                [TTSGenerationJobStatus.PENDING, TTSGenerationJobStatus.RUNNING]
+            ),
+        )
+        .order_by(TTSGenerationJob.created_at.desc(), TTSGenerationJob.id.desc())
+    ).scalar_one_or_none()
+
+
+def _get_reusable_successful_job(
+    db: Session,
+    *,
+    revision_id: UUID,
+    provider: str,
+    model_name: str,
+    voice: str,
+    speed: float,
+    input_text_sha256: str,
+) -> TTSGenerationJob | None:
+    return db.execute(
+        select(TTSGenerationJob)
+        .where(
+            TTSGenerationJob.revision_id == revision_id,
+            TTSGenerationJob.provider == provider,
+            TTSGenerationJob.model_name == model_name,
+            TTSGenerationJob.voice == voice,
+            TTSGenerationJob.speed == speed,
+            TTSGenerationJob.input_text_sha256 == input_text_sha256,
+            TTSGenerationJob.status == TTSGenerationJobStatus.SUCCEEDED,
+            TTSGenerationJob.output_asset_id.is_not(None),
+        )
+        .order_by(TTSGenerationJob.created_at.desc(), TTSGenerationJob.id.desc())
+    ).scalar_one_or_none()
 
 
 def _get_job_for_update(db: Session, *, job_id: UUID) -> TTSGenerationJob:
@@ -509,8 +587,8 @@ def _build_tts_output_object_key(*, revision_id: UUID, job_id: UUID, output_sha2
     return f"content-assets/tts/{date_part}/{revision_id}/{job_id}-{output_sha256[:16]}.mp3"
 
 
-def _upload_audio_object_to_r2(*, object_key: str, body: bytes, mime_type: str) -> str | None:
-    client = boto3.client(
+def _build_r2_client() -> Any:
+    return boto3.client(
         "s3",
         endpoint_url=settings.r2_endpoint,
         aws_access_key_id=settings.r2_access_key_id,
@@ -518,6 +596,10 @@ def _upload_audio_object_to_r2(*, object_key: str, body: bytes, mime_type: str) 
         region_name="auto",
         config=Config(signature_version="s3v4"),
     )
+
+
+def _upload_audio_object_to_r2(*, object_key: str, body: bytes, mime_type: str) -> str | None:
+    client = _build_r2_client()
     response = client.put_object(
         Bucket=settings.r2_bucket,
         Key=object_key,
@@ -528,6 +610,22 @@ def _upload_audio_object_to_r2(*, object_key: str, body: bytes, mime_type: str) 
     if not isinstance(etag, str):
         return None
     return etag.strip().strip('"')
+
+
+def _delete_audio_object_from_r2(*, object_key: str) -> None:
+    client = _build_r2_client()
+    client.delete_object(Bucket=settings.r2_bucket, Key=object_key)
+
+
+def _delete_audio_object_best_effort(*, object_key: str) -> None:
+    try:
+        _delete_audio_object_from_r2(object_key=object_key)
+    except Exception:
+        logger.warning(
+            "Failed to clean up uploaded TTS audio object after DB failure",
+            extra={"object_key": object_key},
+            exc_info=True,
+        )
 
 
 def _merge_tts_metadata(

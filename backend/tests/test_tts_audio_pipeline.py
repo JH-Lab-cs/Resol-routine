@@ -4,17 +4,21 @@ import json
 from uuid import UUID
 
 import pytest
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
 import app.services.tts_generation_service as tts_generation_service
 from app.core.config import settings
 from app.models.content_asset import ContentAsset
 from app.models.content_unit_revision import ContentUnitRevision
+from app.models.enums import Track
 from app.models.tts_enums import TTSGenerationJobStatus
 from app.models.tts_generation_job import TTSGenerationJob
+from app.schemas.ai_tts import TTSGenerationJobCreateRequest
 from app.services import ai_artifact_service
-from app.services.tts_generation_service import run_tts_generation_job
+from app.services.tts_generation_service import create_tts_generation_job, run_tts_generation_job
 
 INTERNAL_API_KEY = "unit-test-internal-api-key-value"
 
@@ -145,6 +149,27 @@ def _create_tts_job(
     return response.json()
 
 
+def _build_tts_job_request(
+    *,
+    revision_id: str,
+    provider: str = "fake",
+    model: str = "fake-tts-model",
+    voice: str = "alloy",
+    speed: float = 1.0,
+    force_regen: bool = False,
+) -> TTSGenerationJobCreateRequest:
+    return TTSGenerationJobCreateRequest.model_validate(
+        {
+            "revisionId": revision_id,
+            "provider": provider,
+            "model": model,
+            "voice": voice,
+            "speed": speed,
+            "forceRegen": force_regen,
+        }
+    )
+
+
 def test_tts_internal_api_key_missing_or_invalid_rejected(client: TestClient) -> None:
     payload = {
         "revisionId": "f67ed7ee-2bd7-4459-a012-e302f13f79aa",
@@ -212,6 +237,47 @@ def test_tts_job_success_sets_revision_asset(
 
     assert created_job["artifactRequestKey"] is None
     assert any(key.endswith("/request.json") for key in fake_ai_artifact_store._objects)
+
+
+def test_tts_success_audit_failure_does_not_flip_job_status(
+    client: TestClient,
+    db_session_factory,
+    fake_ai_artifact_store: FakeAIArtifactStore,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _ = fake_ai_artifact_store
+    unit = _create_listening_unit(client, external_id="tts-audit-failure-unit")
+    revision = _create_revision(
+        client,
+        unit_id=str(unit["id"]),
+        revision_code="tts-audit-failure-r1",
+        transcript_text="A: Audit logging should not change success semantics.",
+    )
+    created_job = _create_tts_job(client, revision_id=str(revision["id"]))
+    job_id = UUID(str(created_job["jobId"]))
+
+    def failing_append_audit_log(*args: object, **kwargs: object) -> None:
+        raise RuntimeError("audit_write_failed")
+
+    monkeypatch.setattr(
+        tts_generation_service,
+        "append_audit_log",
+        failing_append_audit_log,
+    )
+
+    with db_session_factory() as db:
+        execution = run_tts_generation_job(db, job_id=job_id)
+        db.commit()
+        assert execution.status == TTSGenerationJobStatus.SUCCEEDED
+
+    with db_session_factory() as db:
+        persisted_job = db.get(TTSGenerationJob, job_id)
+        persisted_revision = db.get(ContentUnitRevision, UUID(str(revision["id"])))
+        assert persisted_job is not None
+        assert persisted_job.status == TTSGenerationJobStatus.SUCCEEDED
+        assert persisted_job.output_asset_id is not None
+        assert persisted_revision is not None
+        assert persisted_revision.asset_id == persisted_job.output_asset_id
 
 
 def test_tts_job_rejects_hidden_unicode_in_transcript(
@@ -300,7 +366,85 @@ def test_tts_duplicate_running_job_is_rejected(client: TestClient) -> None:
         headers=_internal_headers(),
     )
     assert duplicate.status_code == 409
-    assert duplicate.json()["detail"] == "tts_job_already_in_progress"
+    assert duplicate.json()["detail"] == "TTS_JOB_ALREADY_IN_PROGRESS"
+
+
+def test_tts_active_job_race_normalizes_integrity_error_to_409(
+    client: TestClient,
+    db_session_factory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    unit = _create_listening_unit(client, external_id="tts-race-unit")
+    revision = _create_revision(
+        client,
+        unit_id=str(unit["id"]),
+        revision_code="tts-race-r1",
+        transcript_text="A: Race handling should normalize integrity errors.",
+    )
+    request_payload = _build_tts_job_request(revision_id=str(revision["id"]))
+
+    with db_session_factory() as db:
+        original_flush = db.flush
+        race_inserted = {"done": False}
+
+        def flush_with_race(*args: object, **kwargs: object) -> None:
+            pending_job = next(
+                (
+                    obj
+                    for obj in db.new
+                    if isinstance(obj, TTSGenerationJob)
+                ),
+                None,
+            )
+            if pending_job is not None and not race_inserted["done"]:
+                race_inserted["done"] = True
+                with db_session_factory() as other_db:
+                    other_db.add(
+                        TTSGenerationJob(
+                            revision_id=pending_job.revision_id,
+                            track=Track.H1,
+                            provider=pending_job.provider,
+                            model_name=pending_job.model_name,
+                            voice=pending_job.voice,
+                            speed=pending_job.speed,
+                            force_regen=False,
+                            input_text_sha256=pending_job.input_text_sha256,
+                            input_text_len=pending_job.input_text_len,
+                            status=TTSGenerationJobStatus.PENDING,
+                            attempts=0,
+                            error_code=None,
+                            error_message=None,
+                            artifact_request_key=None,
+                            artifact_response_key=None,
+                            artifact_candidate_key=None,
+                            artifact_validation_key=None,
+                            output_asset_id=None,
+                            output_object_key=None,
+                            output_bytes=None,
+                            output_sha256=None,
+                            started_at=None,
+                            finished_at=None,
+                        )
+                    )
+                    other_db.commit()
+                raise IntegrityError("insert", params={}, orig=RuntimeError("duplicate_active_job"))
+            original_flush(*args, **kwargs)
+
+        monkeypatch.setattr(db, "flush", flush_with_race)
+
+        with pytest.raises(HTTPException) as exc_info:
+            create_tts_generation_job(db, payload=request_payload)
+
+        assert exc_info.value.status_code == 409
+        assert exc_info.value.detail == "TTS_JOB_ALREADY_IN_PROGRESS"
+
+    with db_session_factory() as db:
+        active_jobs = db.execute(
+            select(TTSGenerationJob).where(
+                TTSGenerationJob.revision_id == UUID(str(revision["id"]))
+            )
+        ).scalars().all()
+        assert len(active_jobs) == 1
 
 
 def test_tts_ensure_audio_returns_existing_asset_noop(
@@ -340,6 +484,62 @@ def test_tts_ensure_audio_returns_existing_asset_noop(
     assert payload["job"] is None
 
 
+def test_tts_persist_failure_cleans_up_uploaded_audio_object(
+    client: TestClient,
+    db_session_factory,
+    fake_ai_artifact_store: FakeAIArtifactStore,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _ = fake_ai_artifact_store
+    unit = _create_listening_unit(client, external_id="tts-cleanup-unit")
+    revision = _create_revision(
+        client,
+        unit_id=str(unit["id"]),
+        revision_code="tts-cleanup-r1",
+        transcript_text="A: Persist failure should clean up the uploaded audio object.",
+    )
+    created_job = _create_tts_job(client, revision_id=str(revision["id"]))
+    job_id = UUID(str(created_job["jobId"]))
+    deleted_object_keys: list[str] = []
+
+    def failing_merge_tts_metadata(**kwargs: object) -> dict[str, object]:
+        raise RuntimeError("forced_persist_failure")
+
+    def record_delete(*, object_key: str) -> None:
+        deleted_object_keys.append(object_key)
+
+    monkeypatch.setattr(
+        tts_generation_service,
+        "_merge_tts_metadata",
+        failing_merge_tts_metadata,
+    )
+    monkeypatch.setattr(
+        tts_generation_service,
+        "_delete_audio_object_from_r2",
+        record_delete,
+    )
+
+    with db_session_factory() as db:
+        execution = run_tts_generation_job(db, job_id=job_id)
+        db.commit()
+        assert execution.status == TTSGenerationJobStatus.FAILED
+        assert execution.error_code == "DRAFT_PERSIST_FAILED"
+
+    assert len(deleted_object_keys) == 1
+    assert deleted_object_keys[0].startswith("content-assets/tts/")
+
+    with db_session_factory() as db:
+        persisted_job = db.get(TTSGenerationJob, job_id)
+        persisted_revision = db.get(ContentUnitRevision, UUID(str(revision["id"])))
+        all_assets = db.execute(select(ContentAsset)).scalars().all()
+        assert persisted_job is not None
+        assert persisted_job.status == TTSGenerationJobStatus.FAILED
+        assert persisted_job.output_asset_id is None
+        assert persisted_revision is not None
+        assert persisted_revision.asset_id is None
+        assert all_assets == []
+
+
 def test_tts_retry_endpoint_resets_failed_job(
     client: TestClient,
     db_session_factory,
@@ -371,6 +571,53 @@ def test_tts_retry_endpoint_resets_failed_job(
     assert body["status"] == "PENDING"
     assert body["errorCode"] is None
     assert body["errorMessage"] is None
+
+
+def test_tts_duplicate_success_request_is_idempotent_without_force_regen(
+    client: TestClient,
+    db_session_factory,
+    fake_ai_artifact_store: FakeAIArtifactStore,
+) -> None:
+    _ = fake_ai_artifact_store
+    unit = _create_listening_unit(client, external_id="tts-idempotent-unit")
+    revision = _create_revision(
+        client,
+        unit_id=str(unit["id"]),
+        revision_code="tts-idempotent-r1",
+        transcript_text="A: Duplicate successful requests should not create a new asset.",
+    )
+    created_job = _create_tts_job(client, revision_id=str(revision["id"]))
+    job_id = UUID(str(created_job["jobId"]))
+
+    with db_session_factory() as db:
+        execution = run_tts_generation_job(db, job_id=job_id)
+        db.commit()
+        assert execution.status == TTSGenerationJobStatus.SUCCEEDED
+
+    duplicate = client.post(
+        "/internal/ai/tts/jobs",
+        json={
+            "revisionId": revision["id"],
+            "provider": "fake",
+            "model": "fake-tts-model",
+            "voice": "alloy",
+            "speed": 1.0,
+            "forceRegen": False,
+        },
+        headers=_internal_headers(),
+    )
+    assert duplicate.status_code == 409
+    assert duplicate.json()["detail"] == "tts_job_already_succeeded"
+
+    with db_session_factory() as db:
+        jobs = db.execute(
+            select(TTSGenerationJob).where(
+                TTSGenerationJob.revision_id == UUID(str(revision["id"]))
+            )
+        ).scalars().all()
+        assets = db.execute(select(ContentAsset)).scalars().all()
+        assert len(jobs) == 1
+        assert len(assets) == 1
 
 
 def test_tts_job_persists_expected_status_sequence(

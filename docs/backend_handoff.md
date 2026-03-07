@@ -211,6 +211,7 @@ This document is the backend handoff baseline for the next chat/session.
     - Download: 5 minutes (max 10 minutes only for controlled cases)
   - MIME/type allowlist validation is required
   - Object key paths must not use raw user input
+  - TTS asset generation is fingerprint-idempotent; identical successful requests must not create a second asset unless `forceRegen=true`
 - Redis:
   - Allowed uses: Celery broker/result, rate-limit, invite throttling, cache
   - Forbidden uses: source-of-truth persistence, public exposure, unauthenticated access
