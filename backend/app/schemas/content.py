@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from datetime import datetime
 import unicodedata
+from datetime import datetime
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -9,8 +9,8 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from app.core.input_validation import INVALID_HIDDEN_UNICODE_DETAIL, validate_user_input_text
 from app.core.policies import (
     CONTENT_IDENTIFIER_MAX_LENGTH,
-    CONTENT_LIST_MAX_PAGE_SIZE,
     CONTENT_LIST_DEFAULT_PAGE_SIZE,
+    CONTENT_LIST_MAX_PAGE_SIZE,
     CONTENT_OBJECT_KEY_MAX_LENGTH,
     CONTENT_QUESTION_CODE_MAX_LENGTH,
     CONTENT_REVISION_CODE_MAX_LENGTH,
@@ -18,7 +18,7 @@ from app.core.policies import (
     CONTENT_TITLE_MAX_LENGTH,
 )
 from app.models.content_enums import ContentLifecycleStatus
-from app.models.enums import Skill, Track
+from app.models.enums import ContentTypeTag, Skill, Track
 
 
 def _validate_identifier(value: str, *, field_name: str, max_length: int) -> str:
@@ -171,6 +171,14 @@ class ContentAssetResponse(BaseModel):
     bucket: str
     created_at: datetime
     updated_at: datetime
+
+
+class ContentAssetReferenceResponse(BaseModel):
+    id: UUID
+    object_key: str
+    mime_type: str
+    size_bytes: int
+    bucket: str
 
 
 class AssetDownloadUrlResponse(BaseModel):
@@ -405,6 +413,39 @@ class ContentUnitRevisionResponse(BaseModel):
     questions: list[ContentQuestionResponse]
 
 
+class ContentRevisionSummaryResponse(BaseModel):
+    id: UUID
+    unit_id: UUID
+    unit_external_id: str
+    skill: Skill
+    track: Track
+    type_tag: ContentTypeTag | None
+    difficulty: int | None
+    revision_no: int
+    revision_code: str
+    generator_version: str
+    validator_version: str | None
+    validated_at: datetime | None
+    reviewer_identity: str | None
+    reviewed_at: datetime | None
+    lifecycle_status: ContentLifecycleStatus
+    can_publish: bool
+    published_at: datetime | None
+    asset_id: UUID | None
+    created_at: datetime
+    updated_at: datetime
+
+
+class ContentRevisionDetailResponse(ContentRevisionSummaryResponse):
+    title: str | None
+    body_text: str | None
+    transcript_text: str | None
+    explanation_text: str | None
+    metadata_json: dict[str, object]
+    asset: ContentAssetReferenceResponse | None
+    questions: list[ContentQuestionResponse]
+
+
 class ContentUnitPublishRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -441,6 +482,12 @@ class ContentRevisionReviewRequest(BaseModel):
         )
 
 
+class ContentRevisionArchiveRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    reason: str
+
+
 class ContentUnitPublishResponse(BaseModel):
     unit_id: UUID
     published_revision_id: UUID
@@ -457,6 +504,15 @@ class ContentUnitArchiveResponse(BaseModel):
     unit_id: UUID
     lifecycle_status: ContentLifecycleStatus
     archived_at: datetime
+
+
+class ContentRevisionArchiveResponse(BaseModel):
+    revision_id: UUID
+    unit_id: UUID
+    lifecycle_status: ContentLifecycleStatus
+    unit_lifecycle_status: ContentLifecycleStatus
+    archived_at: datetime
+    metadata_json: dict[str, object]
 
 
 class ContentUnitRollbackRequest(BaseModel):
@@ -598,3 +654,38 @@ class ContentQuestionListQuery(BaseModel):
 class ContentUnitRevisionListResponse(BaseModel):
     unit_id: UUID
     items: list[ContentUnitRevisionResponse]
+
+
+class ContentRevisionListQuery(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    status: ContentLifecycleStatus = ContentLifecycleStatus.DRAFT
+    track: Track | None = None
+    skill: Skill | None = None
+    type_tag: ContentTypeTag | None = None
+    page: int = 1
+    page_size: int = CONTENT_LIST_DEFAULT_PAGE_SIZE
+    created_after: datetime | None = None
+    created_before: datetime | None = None
+
+    @field_validator("page")
+    @classmethod
+    def validate_page(cls, value: int) -> int:
+        if value <= 0:
+            raise ValueError("invalid_page")
+        return value
+
+    @field_validator("page_size")
+    @classmethod
+    def validate_page_size(cls, value: int) -> int:
+        if value <= 0 or value > CONTENT_LIST_MAX_PAGE_SIZE:
+            raise ValueError("invalid_page_size")
+        return value
+
+
+class ContentRevisionListResponse(BaseModel):
+    items: list[ContentRevisionSummaryResponse]
+    page: int
+    page_size: int
+    total: int
+    has_next: bool

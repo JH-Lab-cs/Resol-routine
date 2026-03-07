@@ -8,16 +8,22 @@ from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_db, require_internal_api_key
+from app.models.content_enums import ContentLifecycleStatus
 from app.schemas.content import (
     AssetDownloadUrlResponse,
     AssetFinalizeRequest,
     AssetUploadUrlRequest,
     AssetUploadUrlResponse,
     ContentAssetResponse,
-    ContentRevisionReviewRequest,
-    ContentRevisionValidateRequest,
     ContentQuestionListQuery,
     ContentQuestionListResponse,
+    ContentRevisionArchiveRequest,
+    ContentRevisionArchiveResponse,
+    ContentRevisionDetailResponse,
+    ContentRevisionListQuery,
+    ContentRevisionListResponse,
+    ContentRevisionReviewRequest,
+    ContentRevisionValidateRequest,
     ContentUnitArchiveResponse,
     ContentUnitCreateRequest,
     ContentUnitListQuery,
@@ -38,6 +44,7 @@ from app.services.content_asset_service import (
 )
 from app.services.content_ingest_service import create_content_unit, create_content_unit_revision
 from app.services.content_publish_service import (
+    archive_content_revision,
     archive_content_unit,
     publish_content_unit_revision,
     review_content_unit_revision,
@@ -45,8 +52,10 @@ from app.services.content_publish_service import (
     validate_content_unit_revision,
 )
 from app.services.content_query_service import (
+    get_content_revision,
     get_content_unit,
     list_content_questions,
+    list_content_revisions,
     list_content_unit_revisions,
     list_content_units,
 )
@@ -118,6 +127,34 @@ def _build_question_list_query(
         ) from exc
 
 
+def _build_revision_list_query(
+    status_value: str = Query(default=ContentLifecycleStatus.DRAFT.value, alias="status"),
+    track: str | None = Query(default=None, alias="track"),
+    skill: str | None = Query(default=None, alias="skill"),
+    type_tag: str | None = Query(default=None, alias="typeTag"),
+    page: int = Query(default=1, ge=1, alias="page"),
+    page_size: int = Query(default=20, ge=1, le=100, alias="pageSize"),
+    created_after: str | None = Query(default=None, alias="createdAfter"),
+    created_before: str | None = Query(default=None, alias="createdBefore"),
+) -> ContentRevisionListQuery:
+    try:
+        return ContentRevisionListQuery(
+            status=status_value,
+            track=track,
+            skill=skill,
+            type_tag=type_tag,
+            page=page,
+            page_size=page_size,
+            created_after=created_after,
+            created_before=created_before,
+        )
+    except ValidationError:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="INVALID_FILTER_VALUE",
+        ) from None
+
+
 def _validation_error_detail(exc: ValidationError) -> list[dict[str, object]]:
     return exc.errors(
         include_context=False,
@@ -146,6 +183,44 @@ def finalize_content_asset(
     db: Annotated[Session, Depends(get_db)],
 ) -> ContentAssetResponse:
     return finalize_asset(db, payload=payload)
+
+
+@router.get(
+    "/revisions",
+    response_model=ContentRevisionListResponse,
+)
+def get_revisions(
+    query: Annotated[ContentRevisionListQuery, Depends(_build_revision_list_query)],
+    db: Annotated[Session, Depends(get_db)],
+) -> ContentRevisionListResponse:
+    return list_content_revisions(db, query=query)
+
+
+@router.get(
+    "/revisions/{revision_id}",
+    response_model=ContentRevisionDetailResponse,
+)
+def get_revision(
+    revision_id: UUID,
+    db: Annotated[Session, Depends(get_db)],
+) -> ContentRevisionDetailResponse:
+    return get_content_revision(db, revision_id=revision_id)
+
+
+@router.post(
+    "/revisions/{revision_id}/archive",
+    response_model=ContentRevisionArchiveResponse,
+)
+def archive_revision(
+    revision_id: UUID,
+    payload: ContentRevisionArchiveRequest,
+    db: Annotated[Session, Depends(get_db)],
+) -> ContentRevisionArchiveResponse:
+    return archive_content_revision(
+        db,
+        revision_id=revision_id,
+        reason=payload.reason,
+    )
 
 
 @router.get(

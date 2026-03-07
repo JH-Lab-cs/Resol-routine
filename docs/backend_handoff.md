@@ -167,6 +167,9 @@ This document is the backend handoff baseline for the next chat/session.
 - Terms like `VALIDATED`, `IN_REVIEW`, and `APPROVED` are operational checkpoints only.
   They must not be treated as DB lifecycle enum values.
 - Mock exam revision archive audit fields are stored in `metadata_json` (no dedicated archive columns).
+- Content revision archive audit fields are stored in `metadata_json.archiveAudit` (no dedicated archive columns).
+- Reviewer/ops tooling uses direct revision lookup via `GET /internal/content/revisions/{revision_id}`.
+- Reviewer draft listing supports track/skill/typeTag filters plus pagination.
 - For DB state checks, `lifecycle_status` is the single source of truth.
 - Auto-publish is forbidden in phase-1.
 

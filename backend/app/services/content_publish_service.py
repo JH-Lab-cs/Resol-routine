@@ -4,15 +4,18 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 from fastapi import HTTPException, status
-from sqlalchemy import update
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
+from app.core.input_validation import validate_user_input_text
+from app.core.policies import CONTENT_IDENTIFIER_MAX_LENGTH
 from app.models.content_enums import ContentLifecycleStatus
 from app.models.content_question import ContentQuestion
 from app.models.content_unit import ContentUnit
 from app.models.content_unit_revision import ContentUnitRevision
 from app.models.enums import Skill
 from app.schemas.content import (
+    ContentRevisionArchiveResponse,
     ContentRevisionReviewRequest,
     ContentRevisionValidateRequest,
     ContentUnitArchiveResponse,
@@ -49,9 +52,13 @@ def validate_content_unit_revision(
         revision_id=revision_id,
     )
     if revision.lifecycle_status == ContentLifecycleStatus.ARCHIVED:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="content_revision_archived")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="content_revision_archived"
+        )
     if revision.lifecycle_status == ContentLifecycleStatus.PUBLISHED:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="published_revision_immutable")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="published_revision_immutable"
+        )
 
     revision.validator_version = payload.validator_version
     revision.validated_at = datetime.now(UTC)
@@ -78,9 +85,13 @@ def review_content_unit_revision(
         revision_id=revision_id,
     )
     if revision.lifecycle_status == ContentLifecycleStatus.ARCHIVED:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="content_revision_archived")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="content_revision_archived"
+        )
     if revision.lifecycle_status == ContentLifecycleStatus.PUBLISHED:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="published_revision_immutable")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="published_revision_immutable"
+        )
     if revision.validated_at is None or revision.validator_version is None:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="revision_not_validated")
 
@@ -113,7 +124,9 @@ def publish_content_unit_revision(
         revision_id=payload.revision_id,
     )
     if revision.lifecycle_status == ContentLifecycleStatus.ARCHIVED:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="content_revision_archived")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="content_revision_archived"
+        )
 
     previous_published_revision_id = unit.published_revision_id
     published_at = _publish_revision(
@@ -131,7 +144,9 @@ def publish_content_unit_revision(
             "unit_id": str(unit.id),
             "revision_id": str(revision.id),
             "previous_published_revision_id": (
-                str(previous_published_revision_id) if previous_published_revision_id is not None else None
+                str(previous_published_revision_id)
+                if previous_published_revision_id is not None
+                else None
             ),
             "published_at": published_at.isoformat(),
         },
@@ -150,7 +165,9 @@ def rollback_content_unit_revision(
     if unit.lifecycle_status == ContentLifecycleStatus.ARCHIVED:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="content_unit_archived")
     if unit.published_revision_id is None:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="no_active_published_revision")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="no_active_published_revision"
+        )
     if unit.published_revision_id == payload.target_revision_id:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -215,6 +232,70 @@ def archive_content_unit(db: Session, *, unit_id: UUID) -> ContentUnitArchiveRes
         unit_id=unit.id,
         lifecycle_status=unit.lifecycle_status,
         archived_at=archived_at,
+    )
+
+
+def archive_content_revision(
+    db: Session,
+    *,
+    revision_id: UUID,
+    reason: str,
+    archived_by: str = "reviewer_ops_cli",
+) -> ContentRevisionArchiveResponse:
+    revision = (
+        db.query(ContentUnitRevision)
+        .filter(ContentUnitRevision.id == revision_id)
+        .with_for_update()
+        .one_or_none()
+    )
+    if revision is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="REVISION_NOT_FOUND")
+    if revision.lifecycle_status == ContentLifecycleStatus.ARCHIVED:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="REVISION_ALREADY_ARCHIVED"
+        )
+
+    unit = _get_unit_for_update(db, unit_id=revision.content_unit_id)
+    archived_reason = _validate_archive_reason(reason)
+    archived_by_identity = _validate_archive_actor_identity(archived_by)
+    archived_at = datetime.now(UTC)
+
+    revision.lifecycle_status = ContentLifecycleStatus.ARCHIVED
+    revision.metadata_json = _merge_archive_audit_metadata(
+        metadata_json=revision.metadata_json,
+        archived_at=archived_at,
+        archived_by=archived_by_identity,
+        archived_reason=archived_reason,
+    )
+
+    if unit.published_revision_id == revision.id:
+        unit.published_revision_id = None
+
+    remaining_non_archived_count = db.execute(
+        select(func.count())
+        .select_from(ContentUnitRevision)
+        .where(
+            ContentUnitRevision.content_unit_id == unit.id,
+            ContentUnitRevision.id != revision.id,
+            ContentUnitRevision.lifecycle_status != ContentLifecycleStatus.ARCHIVED,
+        )
+    ).scalar_one()
+    if unit.published_revision_id is not None:
+        unit.lifecycle_status = ContentLifecycleStatus.PUBLISHED
+    elif int(remaining_non_archived_count) > 0:
+        unit.lifecycle_status = ContentLifecycleStatus.DRAFT
+    else:
+        unit.lifecycle_status = ContentLifecycleStatus.ARCHIVED
+
+    db.flush()
+
+    return ContentRevisionArchiveResponse(
+        revision_id=revision.id,
+        unit_id=unit.id,
+        lifecycle_status=revision.lifecycle_status,
+        unit_lifecycle_status=unit.lifecycle_status,
+        archived_at=archived_at,
+        metadata_json=revision.metadata_json,
     )
 
 
@@ -293,12 +374,7 @@ def _load_revision_questions(db: Session, *, revision_id: UUID) -> list[ContentQ
 
 
 def _get_unit_for_update(db: Session, *, unit_id: UUID) -> ContentUnit:
-    unit = (
-        db.query(ContentUnit)
-        .filter(ContentUnit.id == unit_id)
-        .with_for_update()
-        .one_or_none()
-    )
+    unit = db.query(ContentUnit).filter(ContentUnit.id == unit_id).with_for_update().one_or_none()
     if unit is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="content_unit_not_found")
     return unit
@@ -320,8 +396,52 @@ def _get_revision_for_update(
         .one_or_none()
     )
     if revision is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="content_revision_not_found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="content_revision_not_found"
+        )
     return revision
+
+
+def _validate_archive_reason(value: str) -> str:
+    try:
+        normalized = validate_user_input_text(value, field_name="reason")
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="ARCHIVE_REASON_INVALID",
+        ) from exc
+
+    if len(normalized) > 200:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="ARCHIVE_REASON_INVALID",
+        )
+    return normalized
+
+
+def _validate_archive_actor_identity(value: str) -> str:
+    normalized = value.strip()
+    if not normalized:
+        return "reviewer_ops_cli"
+    if len(normalized) > CONTENT_IDENTIFIER_MAX_LENGTH:
+        return normalized[:CONTENT_IDENTIFIER_MAX_LENGTH]
+    return normalized
+
+
+def _merge_archive_audit_metadata(
+    *,
+    metadata_json: dict[str, object] | None,
+    archived_at: datetime,
+    archived_by: str,
+    archived_reason: str,
+) -> dict[str, object]:
+    merged = dict(metadata_json) if isinstance(metadata_json, dict) else {}
+    merged["archiveAudit"] = {
+        "archivedAtUtc": archived_at.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "archivedBy": archived_by,
+        "archivedReason": archived_reason,
+    }
+    return merged
 
 
 def _validate_revision_for_publish(
@@ -331,7 +451,9 @@ def _validate_revision_for_publish(
     questions: list[ContentQuestion],
 ) -> None:
     if not questions:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="publish_requires_questions")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="publish_requires_questions"
+        )
 
     if unit.skill == Skill.LISTENING and not revision.transcript_text:
         raise HTTPException(

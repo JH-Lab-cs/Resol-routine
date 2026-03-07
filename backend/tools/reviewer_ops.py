@@ -11,6 +11,24 @@ from urllib import parse as urllib_parse
 from urllib import request as urllib_request
 
 
+class CliRequestError(RuntimeError):
+    def __init__(
+        self,
+        *,
+        path: str,
+        status_code: int,
+        detail: Any,
+        error_code: str,
+        body: Any,
+    ) -> None:
+        self.path = path
+        self.status_code = status_code
+        self.detail = detail
+        self.error_code = error_code
+        self.body = body
+        super().__init__(f"HTTP {status_code} {path}: {detail}")
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Reviewer and operations CLI for content lifecycle and mock assembly.",
@@ -22,7 +40,8 @@ def _build_parser() -> argparse.ArgumentParser:
     list_drafts = subparsers.add_parser("list-drafts", help="List content draft revisions.")
     list_drafts.add_argument("--track", required=False)
     list_drafts.add_argument("--skill", required=False)
-    list_drafts.add_argument("--typeTag", required=False)
+    list_drafts.add_argument("--type-tag", "--typeTag", dest="type_tag", required=False)
+    list_drafts.add_argument("--page", type=int, default=1)
     list_drafts.add_argument("--page-size", type=int, default=20)
     list_drafts.set_defaults(handler=_cmd_list_drafts)
 
@@ -130,43 +149,33 @@ def _request(
             return json.loads(body.decode("utf-8"))
     except urllib_error.HTTPError as exc:
         body = exc.read().decode("utf-8", errors="replace")
-        raise RuntimeError(f"HTTP {exc.code} {path}: {body}") from exc
+        parsed_body: Any
+        try:
+            parsed_body = json.loads(body)
+        except json.JSONDecodeError:
+            parsed_body = {"detail": body, "errorCode": "http_error"}
+        detail = parsed_body.get("detail", body) if isinstance(parsed_body, dict) else body
+        error_code = (
+            str(parsed_body.get("errorCode", "http_error"))
+            if isinstance(parsed_body, dict)
+            else "http_error"
+        )
+        raise CliRequestError(
+            path=path,
+            status_code=exc.code,
+            detail=detail,
+            error_code=error_code,
+            body=parsed_body,
+        ) from exc
     except urllib_error.URLError as exc:
         raise RuntimeError(f"Failed to reach backend API: {exc.reason}") from exc
 
 
-def _resolve_unit_for_revision(revision_id: str) -> str:
-    questions = _request(
+def _get_revision(revision_id: str) -> dict[str, Any]:
+    return _request(
         method="GET",
-        path="/internal/content/questions",
-        query={"revision_id": revision_id, "page": 1, "page_size": 1},
+        path=f"/internal/content/revisions/{revision_id}",
     )
-    items = questions.get("items", [])
-    if items:
-        return str(items[0]["unit_id"])
-
-    # Fallback for edge cases where revision has no question rows in query response.
-    page = 1
-    while True:
-        units = _request(
-            method="GET",
-            path="/internal/content/units",
-            query={"page": page, "page_size": 100},
-        )
-        unit_items = units.get("items", [])
-        if not unit_items:
-            break
-        for unit in unit_items:
-            revisions = _request(
-                method="GET",
-                path=f"/internal/content/units/{unit['id']}/revisions",
-            )
-            for revision in revisions.get("items", []):
-                if str(revision["id"]) == revision_id:
-                    return str(unit["id"])
-        page += 1
-
-    raise RuntimeError(f"Unable to resolve unit for revision {revision_id}.")
 
 
 def _emit(*, args: argparse.Namespace, payload: Any) -> int:
@@ -178,107 +187,62 @@ def _emit(*, args: argparse.Namespace, payload: Any) -> int:
 
 
 def _cmd_list_drafts(args: argparse.Namespace) -> int:
-    page = 1
-    results: list[dict[str, Any]] = []
-    while True:
-        units = _request(
-            method="GET",
-            path="/internal/content/units",
-            query={
-                "page": page,
-                "page_size": args.page_size,
-                "track": args.track,
-                "skill": args.skill,
-            },
-        )
-        unit_items = units.get("items", [])
-        if not unit_items:
-            break
-        for unit in unit_items:
-            revisions = _request(
-                method="GET",
-                path=f"/internal/content/units/{unit['id']}/revisions",
-            )
-            for revision in revisions.get("items", []):
-                if revision.get("lifecycle_status") != "DRAFT":
-                    continue
-                if args.typeTag is not None:
-                    question_type_tags = [
-                        str(question.get("metadata_json", {}).get("typeTag", "")).upper()
-                        for question in revision.get("questions", [])
-                    ]
-                    if args.typeTag.upper() not in question_type_tags:
-                        continue
-                results.append(
-                    {
-                        "unitId": unit["id"],
-                        "unitExternalId": unit["external_id"],
-                        "skill": unit["skill"],
-                        "track": unit["track"],
-                        "revisionId": revision["id"],
-                        "revisionNo": revision["revision_no"],
-                        "canPublish": revision["can_publish"],
-                        "generatorVersion": revision["generator_version"],
-                    }
-                )
-        page += 1
-    return _emit(args=args, payload={"items": results, "count": len(results)})
+    response = _request(
+        method="GET",
+        path="/internal/content/revisions",
+        query={
+            "status": "DRAFT",
+            "track": args.track,
+            "skill": args.skill,
+            "typeTag": args.type_tag,
+            "page": args.page,
+            "pageSize": args.page_size,
+        },
+    )
+    return _emit(args=args, payload=response)
 
 
 def _cmd_show_revision(args: argparse.Namespace) -> int:
-    unit_id = _resolve_unit_for_revision(args.revision_id)
-    revisions = _request(
-        method="GET",
-        path=f"/internal/content/units/{unit_id}/revisions",
-    )
-    for revision in revisions.get("items", []):
-        if str(revision["id"]) == args.revision_id:
-            return _emit(args=args, payload=revision)
-    raise RuntimeError(f"Revision {args.revision_id} not found.")
+    return _emit(args=args, payload=_get_revision(args.revision_id))
 
 
 def _cmd_validate(args: argparse.Namespace) -> int:
-    unit_id = _resolve_unit_for_revision(args.revision_id)
+    revision = _get_revision(args.revision_id)
     response = _request(
         method="POST",
-        path=f"/internal/content/units/{unit_id}/revisions/{args.revision_id}/validate",
+        path=f"/internal/content/units/{revision['unit_id']}/revisions/{args.revision_id}/validate",
         payload={"validator_version": args.validator},
     )
     return _emit(args=args, payload=response)
 
 
 def _cmd_review(args: argparse.Namespace) -> int:
-    unit_id = _resolve_unit_for_revision(args.revision_id)
+    revision = _get_revision(args.revision_id)
     response = _request(
         method="POST",
-        path=f"/internal/content/units/{unit_id}/revisions/{args.revision_id}/review",
+        path=f"/internal/content/units/{revision['unit_id']}/revisions/{args.revision_id}/review",
         payload={"reviewer_identity": args.reviewer},
     )
     return _emit(args=args, payload=response)
 
 
 def _cmd_publish(args: argparse.Namespace) -> int:
-    unit_id = _resolve_unit_for_revision(args.revision_id)
+    revision = _get_revision(args.revision_id)
     response = _request(
         method="POST",
-        path=f"/internal/content/units/{unit_id}/publish",
+        path=f"/internal/content/units/{revision['unit_id']}/publish",
         payload={"revision_id": args.revision_id},
     )
     return _emit(args=args, payload=response)
 
 
 def _cmd_archive(args: argparse.Namespace) -> int:
-    unit_id = _resolve_unit_for_revision(args.revision_id)
     response = _request(
         method="POST",
-        path=f"/internal/content/units/{unit_id}/archive",
+        path=f"/internal/content/revisions/{args.revision_id}/archive",
+        payload={"reason": args.reason},
     )
-    payload = {
-        "archived": response,
-        "reason": args.reason,
-        "note": "The API archives the owning content unit.",
-    }
-    return _emit(args=args, payload=payload)
+    return _emit(args=args, payload=response)
 
 
 def _cmd_tts_generate(args: argparse.Namespace) -> int:
@@ -319,10 +283,24 @@ def main() -> int:
     handler = args.handler
     try:
         return int(handler(args))
+    except CliRequestError as exc:
+        error_payload = {
+            "error": {
+                "statusCode": exc.status_code,
+                "code": exc.error_code,
+                "detail": exc.detail,
+                "path": exc.path,
+            }
+        }
+        if getattr(args, "json", False):
+            print(json.dumps(error_payload, ensure_ascii=False, indent=2))
+        else:
+            print(str(exc), file=sys.stderr)
+        return 1
     except RuntimeError as exc:
         error_payload = {"error": str(exc)}
         if getattr(args, "json", False):
-            print(json.dumps(error_payload, ensure_ascii=False, indent=2), file=sys.stderr)
+            print(json.dumps(error_payload, ensure_ascii=False, indent=2))
         else:
             print(str(exc), file=sys.stderr)
         return 1
