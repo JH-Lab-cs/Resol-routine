@@ -20,13 +20,19 @@ class FakeR2Signer:
         self.bucket = "resol-private-bucket"
         self._objects: dict[str, content_asset_service.R2ObjectMetadata] = {}
 
-    def generate_upload_url(self, *, object_key: str, mime_type: str, expires_in_seconds: int) -> str:
-        return f"https://fake-r2.local/upload/{object_key}?ttl={expires_in_seconds}&mime={mime_type}"
+    def generate_upload_url(
+        self, *, object_key: str, mime_type: str, expires_in_seconds: int
+    ) -> str:
+        return (
+            f"https://fake-r2.local/upload/{object_key}?ttl={expires_in_seconds}&mime={mime_type}"
+        )
 
     def generate_download_url(self, *, object_key: str, expires_in_seconds: int) -> str:
         return f"https://fake-r2.local/download/{object_key}?ttl={expires_in_seconds}"
 
-    def get_object_metadata(self, *, object_key: str) -> content_asset_service.R2ObjectMetadata | None:
+    def get_object_metadata(
+        self, *, object_key: str
+    ) -> content_asset_service.R2ObjectMetadata | None:
         return self._objects.get(object_key)
 
     def register_object(
@@ -90,6 +96,7 @@ def _create_revision(
     body_text: str | None = "Reading body text",
     transcript_text: str | None = "Listening transcript text",
     explanation_text: str | None = "English explanation text",
+    metadata_json: dict[str, object] | None = None,
 ) -> dict[str, object]:
     payload: dict[str, object] = {
         "revision_code": revision_code,
@@ -98,7 +105,7 @@ def _create_revision(
         "body_text": body_text,
         "transcript_text": transcript_text,
         "explanation_text": explanation_text,
-        "metadata_json": {"source": "pytest"},
+        "metadata_json": metadata_json if metadata_json is not None else {"source": "pytest"},
         "questions": list(question_items),
     }
     response = client.post(
@@ -159,6 +166,7 @@ def _question_item(
     stem: str,
     correct_answer: str = "A",
     explanation: str | None = "Correct answer explanation",
+    metadata_json: dict[str, object] | None = None,
 ) -> dict[str, object]:
     return {
         "question_code": question_code,
@@ -171,7 +179,7 @@ def _question_item(
         "choice_e": "Option E",
         "correct_answer": correct_answer,
         "explanation": explanation,
-        "metadata_json": {"difficulty": "medium"},
+        "metadata_json": metadata_json if metadata_json is not None else {"difficulty": "medium"},
     }
 
 
@@ -564,7 +572,9 @@ def test_active_published_revision_republish_rejected(client: TestClient) -> Non
     assert response.json()["detail"] == "published_revision_already_active"
 
 
-def test_rejected_immutable_operations_do_not_change_traceability_fields(client: TestClient) -> None:
+def test_rejected_immutable_operations_do_not_change_traceability_fields(
+    client: TestClient,
+) -> None:
     unit = _create_unit(client, external_id="immut-unchanged-unit", skill="READING", track="M3")
     revision = _create_revision(
         client,
@@ -592,7 +602,9 @@ def test_rejected_immutable_operations_do_not_change_traceability_fields(client:
         headers=_internal_headers(),
     )
     assert before_response.status_code == 200, before_response.text
-    before_item = next(item for item in before_response.json()["items"] if item["id"] == revision["id"])
+    before_item = next(
+        item for item in before_response.json()["items"] if item["id"] == revision["id"]
+    )
 
     reject_validate = client.post(
         f"/internal/content/units/{unit['id']}/revisions/{revision['id']}/validate",
@@ -618,7 +630,9 @@ def test_rejected_immutable_operations_do_not_change_traceability_fields(client:
         headers=_internal_headers(),
     )
     assert after_response.status_code == 200, after_response.text
-    after_item = next(item for item in after_response.json()["items"] if item["id"] == revision["id"])
+    after_item = next(
+        item for item in after_response.json()["items"] if item["id"] == revision["id"]
+    )
 
     assert after_item["validator_version"] == before_item["validator_version"]
     assert after_item["validated_at"] == before_item["validated_at"]
@@ -637,8 +651,12 @@ def test_rollback_success_updates_active_published_revision_and_query(client: Te
         revision_code="rollback-r1",
         question_items=[_question_item(question_code="Q001", order_index=1, stem="Old stem")],
     )
-    _validate_revision(client, unit_id=unit_id, revision_id=str(rev1["id"]), validator_version="validator-r1")
-    _review_revision(client, unit_id=unit_id, revision_id=str(rev1["id"]), reviewer_identity="reviewer-r1")
+    _validate_revision(
+        client, unit_id=unit_id, revision_id=str(rev1["id"]), validator_version="validator-r1"
+    )
+    _review_revision(
+        client, unit_id=unit_id, revision_id=str(rev1["id"]), reviewer_identity="reviewer-r1"
+    )
     _publish_revision(client, unit_id=unit_id, revision_id=str(rev1["id"]))
 
     rev2 = _create_revision(
@@ -647,8 +665,12 @@ def test_rollback_success_updates_active_published_revision_and_query(client: Te
         revision_code="rollback-r2",
         question_items=[_question_item(question_code="Q001", order_index=1, stem="New stem")],
     )
-    _validate_revision(client, unit_id=unit_id, revision_id=str(rev2["id"]), validator_version="validator-r2")
-    _review_revision(client, unit_id=unit_id, revision_id=str(rev2["id"]), reviewer_identity="reviewer-r2")
+    _validate_revision(
+        client, unit_id=unit_id, revision_id=str(rev2["id"]), validator_version="validator-r2"
+    )
+    _review_revision(
+        client, unit_id=unit_id, revision_id=str(rev2["id"]), reviewer_identity="reviewer-r2"
+    )
     _publish_revision(client, unit_id=unit_id, revision_id=str(rev2["id"]))
 
     rollback_response = client.post(
@@ -748,7 +770,9 @@ def test_hidden_unicode_identifier_rejected_and_text_rules_enforced(client: Test
 
 
 def test_publish_requires_revision_text_by_skill(client: TestClient) -> None:
-    listening_unit = _create_unit(client, external_id="listening-rule-001", skill="LISTENING", track="H1")
+    listening_unit = _create_unit(
+        client, external_id="listening-rule-001", skill="LISTENING", track="H1"
+    )
     listening_revision = _create_revision(
         client,
         unit_id=str(listening_unit["id"]),
@@ -803,3 +827,273 @@ def test_publish_requires_revision_text_by_skill(client: TestClient) -> None:
     )
     assert reading_publish.status_code == 400
     assert reading_publish.json()["detail"] == "reading_revision_requires_body_text"
+
+
+def test_revision_direct_lookup_success_and_not_found(client: TestClient) -> None:
+    unit = _create_unit(client, external_id="revision-lookup-unit-001", skill="READING", track="H2")
+    revision = _create_revision(
+        client,
+        unit_id=str(unit["id"]),
+        revision_code="revision-lookup-r1",
+        metadata_json={
+            "source": "pytest",
+            "typeTag": "R_MAIN_IDEA",
+            "difficulty": 3,
+        },
+        question_items=[
+            _question_item(
+                question_code="Q001",
+                order_index=1,
+                stem="Lookup stem",
+                metadata_json={"typeTag": "R_MAIN_IDEA", "difficulty": 3},
+            )
+        ],
+    )
+    _validate_revision(
+        client,
+        unit_id=str(unit["id"]),
+        revision_id=str(revision["id"]),
+        validator_version="validator-lookup-v1",
+    )
+    _review_revision(
+        client,
+        unit_id=str(unit["id"]),
+        revision_id=str(revision["id"]),
+        reviewer_identity="reviewer-lookup-v1",
+    )
+
+    response = client.get(
+        f"/internal/content/revisions/{revision['id']}",
+        headers=_internal_headers(),
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["id"] == revision["id"]
+    assert body["unit_id"] == unit["id"]
+    assert body["unit_external_id"] == "revision-lookup-unit-001"
+    assert body["track"] == "H2"
+    assert body["skill"] == "READING"
+    assert body["type_tag"] == "R_MAIN_IDEA"
+    assert body["difficulty"] == 3
+    assert body["can_publish"] is True
+    assert body["validator_version"] == "validator-lookup-v1"
+    assert body["reviewer_identity"] == "reviewer-lookup-v1"
+    assert body["questions"][0]["stem"] == "Lookup stem"
+
+    missing = client.get(
+        "/internal/content/revisions/00000000-0000-0000-0000-000000000000",
+        headers=_internal_headers(),
+    )
+    assert missing.status_code == 404
+    assert missing.json()["detail"] == "REVISION_NOT_FOUND"
+    assert missing.json()["errorCode"] == "REVISION_NOT_FOUND"
+
+
+def test_archive_revision_with_reason_persists_archive_audit_metadata(client: TestClient) -> None:
+    unit = _create_unit(
+        client, external_id="archive-revision-unit-001", skill="READING", track="M3"
+    )
+    revision = _create_revision(
+        client,
+        unit_id=str(unit["id"]),
+        revision_code="archive-revision-r1",
+        question_items=[_question_item(question_code="Q001", order_index=1, stem="Archive stem")],
+    )
+
+    response = client.post(
+        f"/internal/content/revisions/{revision['id']}/archive",
+        json={"reason": "Superseded by a better draft."},
+        headers=_internal_headers(),
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["revision_id"] == revision["id"]
+    assert body["unit_id"] == unit["id"]
+    assert body["lifecycle_status"] == "ARCHIVED"
+    assert body["unit_lifecycle_status"] == "ARCHIVED"
+    assert body["metadata_json"]["archiveAudit"]["archivedBy"] == "reviewer_ops_cli"
+    assert (
+        body["metadata_json"]["archiveAudit"]["archivedReason"] == "Superseded by a better draft."
+    )
+    assert body["metadata_json"]["archiveAudit"]["archivedAtUtc"].endswith("Z")
+
+    lookup = client.get(
+        f"/internal/content/revisions/{revision['id']}",
+        headers=_internal_headers(),
+    )
+    assert lookup.status_code == 200, lookup.text
+    assert (
+        lookup.json()["metadata_json"]["archiveAudit"]["archivedReason"]
+        == "Superseded by a better draft."
+    )
+
+
+@pytest.mark.parametrize("reason", ["   ", "bad\u200b-reason"])
+def test_archive_revision_reason_invalid_rejected(client: TestClient, reason: str) -> None:
+    unit = _create_unit(client, external_id="archive-reason-unit-001", skill="READING", track="M3")
+    revision = _create_revision(
+        client,
+        unit_id=str(unit["id"]),
+        revision_code="archive-reason-r1",
+        question_items=[
+            _question_item(question_code="Q001", order_index=1, stem="Archive reason stem")
+        ],
+    )
+
+    response = client.post(
+        f"/internal/content/revisions/{revision['id']}/archive",
+        json={"reason": reason},
+        headers=_internal_headers(),
+    )
+    assert response.status_code == 422
+    assert response.json()["detail"] == "ARCHIVE_REASON_INVALID"
+    assert response.json()["errorCode"] == "ARCHIVE_REASON_INVALID"
+
+
+def test_archive_revision_already_archived_rejected(client: TestClient) -> None:
+    unit = _create_unit(client, external_id="archive-repeat-unit-001", skill="READING", track="M3")
+    revision = _create_revision(
+        client,
+        unit_id=str(unit["id"]),
+        revision_code="archive-repeat-r1",
+        question_items=[
+            _question_item(question_code="Q001", order_index=1, stem="Repeat archive stem")
+        ],
+    )
+
+    first = client.post(
+        f"/internal/content/revisions/{revision['id']}/archive",
+        json={"reason": "First archive pass."},
+        headers=_internal_headers(),
+    )
+    assert first.status_code == 200, first.text
+
+    second = client.post(
+        f"/internal/content/revisions/{revision['id']}/archive",
+        json={"reason": "Second archive pass."},
+        headers=_internal_headers(),
+    )
+    assert second.status_code == 409
+    assert second.json()["detail"] == "REVISION_ALREADY_ARCHIVED"
+    assert second.json()["errorCode"] == "REVISION_ALREADY_ARCHIVED"
+
+
+def test_revision_list_filters_pagination_and_invalid_filter_value(client: TestClient) -> None:
+    first_unit = _create_unit(
+        client, external_id="revision-list-unit-001", skill="READING", track="H1"
+    )
+    first_revision = _create_revision(
+        client,
+        unit_id=str(first_unit["id"]),
+        revision_code="revision-list-r1",
+        metadata_json={"source": "pytest", "typeTag": "R_MAIN_IDEA", "difficulty": 3},
+        question_items=[
+            _question_item(
+                question_code="Q001",
+                order_index=1,
+                stem="Revision list stem 1",
+                metadata_json={"typeTag": "R_MAIN_IDEA", "difficulty": 3},
+            )
+        ],
+    )
+
+    second_unit = _create_unit(
+        client, external_id="revision-list-unit-002", skill="READING", track="H1"
+    )
+    second_revision = _create_revision(
+        client,
+        unit_id=str(second_unit["id"]),
+        revision_code="revision-list-r2",
+        metadata_json={"source": "pytest", "typeTag": "R_DETAIL", "difficulty": 2},
+        question_items=[
+            _question_item(
+                question_code="Q002",
+                order_index=1,
+                stem="Revision list stem 2",
+                metadata_json={"typeTag": "R_DETAIL", "difficulty": 2},
+            )
+        ],
+    )
+
+    third_unit = _create_unit(
+        client, external_id="revision-list-unit-003", skill="LISTENING", track="H2"
+    )
+    _create_revision(
+        client,
+        unit_id=str(third_unit["id"]),
+        revision_code="revision-list-r3",
+        metadata_json={"source": "pytest", "typeTag": "L_DETAIL", "difficulty": 2},
+        question_items=[
+            _question_item(
+                question_code="Q003",
+                order_index=1,
+                stem="Revision list stem 3",
+                metadata_json={"typeTag": "L_DETAIL", "difficulty": 2},
+            )
+        ],
+    )
+
+    filtered = client.get(
+        "/internal/content/revisions",
+        params={
+            "status": "DRAFT",
+            "track": "H1",
+            "skill": "READING",
+            "typeTag": "R_DETAIL",
+            "page": 1,
+            "pageSize": 10,
+        },
+        headers=_internal_headers(),
+    )
+    assert filtered.status_code == 200, filtered.text
+    filtered_body = filtered.json()
+    assert filtered_body["total"] == 1
+    assert filtered_body["has_next"] is False
+    assert filtered_body["items"][0]["id"] == second_revision["id"]
+    assert filtered_body["items"][0]["type_tag"] == "R_DETAIL"
+
+    first_page = client.get(
+        "/internal/content/revisions",
+        params={"status": "DRAFT", "page": 1, "pageSize": 2},
+        headers=_internal_headers(),
+    )
+    second_page = client.get(
+        "/internal/content/revisions",
+        params={"status": "DRAFT", "page": 2, "pageSize": 2},
+        headers=_internal_headers(),
+    )
+    assert first_page.status_code == 200, first_page.text
+    assert second_page.status_code == 200, second_page.text
+    first_body = first_page.json()
+    second_body = second_page.json()
+    assert first_body["total"] == 3
+    assert first_body["page"] == 1
+    assert first_body["page_size"] == 2
+    assert first_body["has_next"] is True
+    assert len(first_body["items"]) == 2
+    assert second_body["page"] == 2
+    assert second_body["has_next"] is False
+    assert len(second_body["items"]) == 1
+
+    repeated = client.get(
+        "/internal/content/revisions",
+        params={"status": "DRAFT", "page": 1, "pageSize": 2},
+        headers=_internal_headers(),
+    )
+    assert repeated.status_code == 200, repeated.text
+    assert [item["id"] for item in repeated.json()["items"]] == [
+        item["id"] for item in first_body["items"]
+    ]
+
+    invalid = client.get(
+        "/internal/content/revisions",
+        params={"status": "DRAFT", "typeTag": "NOT_A_REAL_TAG"},
+        headers=_internal_headers(),
+    )
+    assert invalid.status_code == 422
+    assert invalid.json()["detail"] == "INVALID_FILTER_VALUE"
+    assert invalid.json()["errorCode"] == "INVALID_FILTER_VALUE"
+
+    assert {first_revision["id"], second_revision["id"]}.issubset(
+        {item["id"] for item in first_body["items"]} | {item["id"] for item in second_body["items"]}
+    )
