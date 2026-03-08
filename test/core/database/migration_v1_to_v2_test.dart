@@ -162,6 +162,40 @@ void main() {
       isTrue,
     );
   });
+
+  test(
+    'migrates v11 questions table with numeric-only type tag checks to v12',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'resol_migration_v11_',
+      );
+      final dbFile = File(p.join(tempDir.path, 'migration_v11.sqlite'));
+
+      addTearDown(() async {
+        if (await dbFile.exists()) {
+          await dbFile.delete();
+        }
+        if (await tempDir.exists()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+
+      await _createV11DatabaseWithNumericTypeTagConstraint(dbFile);
+
+      final database = AppDatabase(executor: NativeDatabase(dbFile));
+      addTearDown(database.close);
+
+      final userVersionRow = await database
+          .customSelect('PRAGMA user_version', readsFrom: {})
+          .getSingle();
+      expect(userVersionRow.read<int>('user_version'), 12);
+
+      final migratedQuestion = await (database.select(
+        database.questions,
+      )..where((tbl) => tbl.id.equals('question_v11'))).getSingle();
+      expect(migratedQuestion.typeTag, 'L_GIST');
+    },
+  );
 }
 
 Future<void> _createV1Database(File file) async {
@@ -349,6 +383,70 @@ Future<void> _createV1Database(File file) async {
     await executor.runCustom('PRAGMA user_version = 1');
   } finally {
     await executor.close();
+  }
+}
+
+Future<void> _createV11DatabaseWithNumericTypeTagConstraint(File file) async {
+  final database = AppDatabase(executor: NativeDatabase(file));
+  try {
+    await database.customSelect('SELECT 1', readsFrom: {}).getSingle();
+
+    final now = DateTime.utc(2026, 3, 8).millisecondsSinceEpoch;
+    await database.customStatement(
+      "INSERT INTO content_packs (id, version, locale, title, description, checksum, created_at, updated_at) "
+      "VALUES ('pack_v11', 1, 'en-US', 'V11 Pack', NULL, 'sha256:v11', $now, $now)",
+    );
+    await database.customStatement(
+      "INSERT INTO scripts (id, pack_id, sentences_json, turns_json, tts_plan_json, order_index, created_at) "
+      "VALUES ('script_v11', 'pack_v11', '[{\"id\":\"s1\",\"text\":\"Hello\"}]', '[{\"speaker\":\"S1\",\"sentenceIds\":[\"s1\"]}]', '{\"repeatPolicy\":{\"mode\":\"per_turn\",\"repeatCount\":1},\"pauseRangeMs\":{\"min\":350,\"max\":650},\"rateRange\":{\"min\":0.95,\"max\":1.03},\"pitchRange\":{\"min\":0.0,\"max\":1.2},\"voiceRoles\":{\"S1\":\"en-US-Standard-C\",\"S2\":\"en-US-Standard-E\",\"N\":\"en-US-Standard-A\"}}', 0, $now)",
+    );
+    await database.customStatement(
+      "INSERT INTO questions (id, skill, type_tag, track, difficulty, passage_id, script_id, prompt, options_json, answer_key, order_index) "
+      "VALUES ('question_v11', 'LISTENING', 'L1', 'M3', 2, NULL, 'script_v11', 'Question?', '{\"A\":\"A\",\"B\":\"B\",\"C\":\"C\",\"D\":\"D\",\"E\":\"E\"}', 'B', 0)",
+    );
+
+    await database.customStatement('PRAGMA foreign_keys = OFF');
+    try {
+      await database.transaction(() async {
+        await database.customStatement(
+          'CREATE TABLE questions_v11 ('
+          'id TEXT NOT NULL PRIMARY KEY, '
+          "skill TEXT NOT NULL CHECK (skill IN ('LISTENING', 'READING')), "
+          'type_tag TEXT NOT NULL, '
+          "track TEXT NOT NULL CHECK (track IN ('M3', 'H1', 'H2', 'H3')), "
+          'difficulty INTEGER NOT NULL CHECK (difficulty BETWEEN 1 AND 5), '
+          'passage_id TEXT REFERENCES passages(id) ON DELETE CASCADE, '
+          'script_id TEXT REFERENCES scripts(id) ON DELETE CASCADE, '
+          'prompt TEXT NOT NULL, '
+          'options_json TEXT NOT NULL, '
+          "answer_key TEXT NOT NULL CHECK (answer_key IN ('A', 'B', 'C', 'D', 'E')), "
+          'order_index INTEGER NOT NULL CHECK (order_index >= 0), '
+          "CHECK ((skill = 'LISTENING' AND script_id IS NOT NULL AND passage_id IS NULL) OR "
+          "(skill = 'READING' AND passage_id IS NOT NULL AND script_id IS NULL)), "
+          "CHECK ((skill != 'LISTENING') OR (type_tag GLOB 'L[0-9]*')), "
+          "CHECK ((skill != 'READING') OR (type_tag GLOB 'R[0-9]*'))"
+          ')',
+        );
+        await database.customStatement(
+          'INSERT INTO questions_v11 ('
+          'id, skill, type_tag, track, difficulty, passage_id, script_id, prompt, options_json, answer_key, order_index'
+          ') '
+          'SELECT '
+          'id, skill, type_tag, track, difficulty, passage_id, script_id, prompt, options_json, answer_key, order_index '
+          'FROM questions',
+        );
+        await database.customStatement('DROP TABLE questions');
+        await database.customStatement(
+          'ALTER TABLE questions_v11 RENAME TO questions',
+        );
+      });
+    } finally {
+      await database.customStatement('PRAGMA foreign_keys = ON');
+    }
+
+    await database.customStatement('PRAGMA user_version = 11');
+  } finally {
+    await database.close();
   }
 }
 
