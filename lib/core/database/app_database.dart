@@ -247,19 +247,6 @@ class AppDatabase extends _$AppDatabase {
     await customStatement('PRAGMA foreign_keys = OFF');
     try {
       await transaction(() async {
-        // Canonicalize legacy numeric type tags before rebuilding constraints.
-        await customStatement(
-          "UPDATE questions "
-          "SET type_tag = CASE type_tag "
-          "WHEN 'L1' THEN 'L_GIST' "
-          "WHEN 'L2' THEN 'L_DETAIL' "
-          "WHEN 'L3' THEN 'L_INTENT' "
-          "WHEN 'R1' THEN 'R_MAIN_IDEA' "
-          "WHEN 'R2' THEN 'R_DETAIL' "
-          "WHEN 'R3' THEN 'R_INFERENCE' "
-          'ELSE type_tag END',
-        );
-
         await customStatement(
           'CREATE TABLE questions_v12 ('
           'id TEXT NOT NULL PRIMARY KEY, '
@@ -289,7 +276,15 @@ class AppDatabase extends _$AppDatabase {
           'id, skill, type_tag, track, difficulty, passage_id, script_id, prompt, options_json, answer_key, order_index'
           ') '
           'SELECT '
-          'id, skill, type_tag, track, difficulty, passage_id, script_id, prompt, options_json, answer_key, order_index '
+          "id, skill, CASE type_tag "
+          "WHEN 'L1' THEN 'L_GIST' "
+          "WHEN 'L2' THEN 'L_DETAIL' "
+          "WHEN 'L3' THEN 'L_INTENT' "
+          "WHEN 'R1' THEN 'R_MAIN_IDEA' "
+          "WHEN 'R2' THEN 'R_DETAIL' "
+          "WHEN 'R3' THEN 'R_INFERENCE' "
+          'ELSE type_tag END, '
+          'track, difficulty, passage_id, script_id, prompt, options_json, answer_key, order_index '
           'FROM questions',
         );
 
