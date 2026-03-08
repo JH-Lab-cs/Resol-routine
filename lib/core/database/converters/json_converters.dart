@@ -128,3 +128,27 @@ class StringListConverter extends TypeConverter<List<String>, String> {
     return jsonEncode(value);
   }
 }
+
+class DailySessionMetadataConverter
+    extends TypeConverter<DailySessionMetadata, String> {
+  const DailySessionMetadataConverter();
+
+  @override
+  DailySessionMetadata fromSql(String fromDb) {
+    final decoded = decodeJsonString(fromDb, path: 'dailySessionMetadataJson');
+    if (decoded is! JsonMap) {
+      throw const FormatException(
+        'Daily session metadata column must decode to a JSON object.',
+      );
+    }
+    return DailySessionMetadata.fromJson(
+      decoded,
+      path: 'dailySessionMetadataJson',
+    );
+  }
+
+  @override
+  String toSql(DailySessionMetadata value) {
+    return jsonEncode(value.toJson());
+  }
+}

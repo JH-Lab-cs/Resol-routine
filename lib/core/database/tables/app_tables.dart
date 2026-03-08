@@ -147,6 +147,9 @@ class DailySessions extends Table {
       .customConstraint(
         "NOT NULL DEFAULT 'M3' CHECK (track IN ('M3', 'H1', 'H2', 'H3'))",
       )();
+  TextColumn get metadataJson => text()
+      .withDefault(const Constant('{}'))
+      .map(const DailySessionMetadataConverter())();
   IntColumn get plannedItems => integer().withDefault(const Constant(0))();
   IntColumn get completedItems => integer().withDefault(const Constant(0))();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();

@@ -2742,6 +2742,19 @@ class $DailySessionsTable extends DailySessions
         'NOT NULL DEFAULT \'M3\' CHECK (track IN (\'M3\', \'H1\', \'H2\', \'H3\'))',
     defaultValue: const CustomExpression('\'M3\''),
   );
+  @override
+  late final GeneratedColumnWithTypeConverter<DailySessionMetadata, String>
+  metadataJson =
+      GeneratedColumn<String>(
+        'metadata_json',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: const Constant('{}'),
+      ).withConverter<DailySessionMetadata>(
+        $DailySessionsTable.$convertermetadataJson,
+      );
   static const VerificationMeta _plannedItemsMeta = const VerificationMeta(
     'plannedItems',
   );
@@ -2783,6 +2796,7 @@ class $DailySessionsTable extends DailySessions
     id,
     dayKey,
     track,
+    metadataJson,
     plannedItems,
     completedItems,
     createdAt,
@@ -2865,6 +2879,12 @@ class $DailySessionsTable extends DailySessions
         DriftSqlType.string,
         data['${effectivePrefix}track'],
       )!,
+      metadataJson: $DailySessionsTable.$convertermetadataJson.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}metadata_json'],
+        )!,
+      ),
       plannedItems: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}planned_items'],
@@ -2884,12 +2904,16 @@ class $DailySessionsTable extends DailySessions
   $DailySessionsTable createAlias(String alias) {
     return $DailySessionsTable(attachedDatabase, alias);
   }
+
+  static TypeConverter<DailySessionMetadata, String> $convertermetadataJson =
+      const DailySessionMetadataConverter();
 }
 
 class DailySession extends DataClass implements Insertable<DailySession> {
   final int id;
   final int dayKey;
   final String track;
+  final DailySessionMetadata metadataJson;
   final int plannedItems;
   final int completedItems;
   final DateTime createdAt;
@@ -2897,6 +2921,7 @@ class DailySession extends DataClass implements Insertable<DailySession> {
     required this.id,
     required this.dayKey,
     required this.track,
+    required this.metadataJson,
     required this.plannedItems,
     required this.completedItems,
     required this.createdAt,
@@ -2907,6 +2932,11 @@ class DailySession extends DataClass implements Insertable<DailySession> {
     map['id'] = Variable<int>(id);
     map['day_key'] = Variable<int>(dayKey);
     map['track'] = Variable<String>(track);
+    {
+      map['metadata_json'] = Variable<String>(
+        $DailySessionsTable.$convertermetadataJson.toSql(metadataJson),
+      );
+    }
     map['planned_items'] = Variable<int>(plannedItems);
     map['completed_items'] = Variable<int>(completedItems);
     map['created_at'] = Variable<DateTime>(createdAt);
@@ -2918,6 +2948,7 @@ class DailySession extends DataClass implements Insertable<DailySession> {
       id: Value(id),
       dayKey: Value(dayKey),
       track: Value(track),
+      metadataJson: Value(metadataJson),
       plannedItems: Value(plannedItems),
       completedItems: Value(completedItems),
       createdAt: Value(createdAt),
@@ -2933,6 +2964,9 @@ class DailySession extends DataClass implements Insertable<DailySession> {
       id: serializer.fromJson<int>(json['id']),
       dayKey: serializer.fromJson<int>(json['dayKey']),
       track: serializer.fromJson<String>(json['track']),
+      metadataJson: serializer.fromJson<DailySessionMetadata>(
+        json['metadataJson'],
+      ),
       plannedItems: serializer.fromJson<int>(json['plannedItems']),
       completedItems: serializer.fromJson<int>(json['completedItems']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
@@ -2945,6 +2979,7 @@ class DailySession extends DataClass implements Insertable<DailySession> {
       'id': serializer.toJson<int>(id),
       'dayKey': serializer.toJson<int>(dayKey),
       'track': serializer.toJson<String>(track),
+      'metadataJson': serializer.toJson<DailySessionMetadata>(metadataJson),
       'plannedItems': serializer.toJson<int>(plannedItems),
       'completedItems': serializer.toJson<int>(completedItems),
       'createdAt': serializer.toJson<DateTime>(createdAt),
@@ -2955,6 +2990,7 @@ class DailySession extends DataClass implements Insertable<DailySession> {
     int? id,
     int? dayKey,
     String? track,
+    DailySessionMetadata? metadataJson,
     int? plannedItems,
     int? completedItems,
     DateTime? createdAt,
@@ -2962,6 +2998,7 @@ class DailySession extends DataClass implements Insertable<DailySession> {
     id: id ?? this.id,
     dayKey: dayKey ?? this.dayKey,
     track: track ?? this.track,
+    metadataJson: metadataJson ?? this.metadataJson,
     plannedItems: plannedItems ?? this.plannedItems,
     completedItems: completedItems ?? this.completedItems,
     createdAt: createdAt ?? this.createdAt,
@@ -2971,6 +3008,9 @@ class DailySession extends DataClass implements Insertable<DailySession> {
       id: data.id.present ? data.id.value : this.id,
       dayKey: data.dayKey.present ? data.dayKey.value : this.dayKey,
       track: data.track.present ? data.track.value : this.track,
+      metadataJson: data.metadataJson.present
+          ? data.metadataJson.value
+          : this.metadataJson,
       plannedItems: data.plannedItems.present
           ? data.plannedItems.value
           : this.plannedItems,
@@ -2987,6 +3027,7 @@ class DailySession extends DataClass implements Insertable<DailySession> {
           ..write('id: $id, ')
           ..write('dayKey: $dayKey, ')
           ..write('track: $track, ')
+          ..write('metadataJson: $metadataJson, ')
           ..write('plannedItems: $plannedItems, ')
           ..write('completedItems: $completedItems, ')
           ..write('createdAt: $createdAt')
@@ -2995,8 +3036,15 @@ class DailySession extends DataClass implements Insertable<DailySession> {
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, dayKey, track, plannedItems, completedItems, createdAt);
+  int get hashCode => Object.hash(
+    id,
+    dayKey,
+    track,
+    metadataJson,
+    plannedItems,
+    completedItems,
+    createdAt,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -3004,6 +3052,7 @@ class DailySession extends DataClass implements Insertable<DailySession> {
           other.id == this.id &&
           other.dayKey == this.dayKey &&
           other.track == this.track &&
+          other.metadataJson == this.metadataJson &&
           other.plannedItems == this.plannedItems &&
           other.completedItems == this.completedItems &&
           other.createdAt == this.createdAt);
@@ -3013,6 +3062,7 @@ class DailySessionsCompanion extends UpdateCompanion<DailySession> {
   final Value<int> id;
   final Value<int> dayKey;
   final Value<String> track;
+  final Value<DailySessionMetadata> metadataJson;
   final Value<int> plannedItems;
   final Value<int> completedItems;
   final Value<DateTime> createdAt;
@@ -3020,6 +3070,7 @@ class DailySessionsCompanion extends UpdateCompanion<DailySession> {
     this.id = const Value.absent(),
     this.dayKey = const Value.absent(),
     this.track = const Value.absent(),
+    this.metadataJson = const Value.absent(),
     this.plannedItems = const Value.absent(),
     this.completedItems = const Value.absent(),
     this.createdAt = const Value.absent(),
@@ -3028,6 +3079,7 @@ class DailySessionsCompanion extends UpdateCompanion<DailySession> {
     this.id = const Value.absent(),
     required int dayKey,
     this.track = const Value.absent(),
+    this.metadataJson = const Value.absent(),
     this.plannedItems = const Value.absent(),
     this.completedItems = const Value.absent(),
     this.createdAt = const Value.absent(),
@@ -3036,6 +3088,7 @@ class DailySessionsCompanion extends UpdateCompanion<DailySession> {
     Expression<int>? id,
     Expression<int>? dayKey,
     Expression<String>? track,
+    Expression<String>? metadataJson,
     Expression<int>? plannedItems,
     Expression<int>? completedItems,
     Expression<DateTime>? createdAt,
@@ -3044,6 +3097,7 @@ class DailySessionsCompanion extends UpdateCompanion<DailySession> {
       if (id != null) 'id': id,
       if (dayKey != null) 'day_key': dayKey,
       if (track != null) 'track': track,
+      if (metadataJson != null) 'metadata_json': metadataJson,
       if (plannedItems != null) 'planned_items': plannedItems,
       if (completedItems != null) 'completed_items': completedItems,
       if (createdAt != null) 'created_at': createdAt,
@@ -3054,6 +3108,7 @@ class DailySessionsCompanion extends UpdateCompanion<DailySession> {
     Value<int>? id,
     Value<int>? dayKey,
     Value<String>? track,
+    Value<DailySessionMetadata>? metadataJson,
     Value<int>? plannedItems,
     Value<int>? completedItems,
     Value<DateTime>? createdAt,
@@ -3062,6 +3117,7 @@ class DailySessionsCompanion extends UpdateCompanion<DailySession> {
       id: id ?? this.id,
       dayKey: dayKey ?? this.dayKey,
       track: track ?? this.track,
+      metadataJson: metadataJson ?? this.metadataJson,
       plannedItems: plannedItems ?? this.plannedItems,
       completedItems: completedItems ?? this.completedItems,
       createdAt: createdAt ?? this.createdAt,
@@ -3079,6 +3135,11 @@ class DailySessionsCompanion extends UpdateCompanion<DailySession> {
     }
     if (track.present) {
       map['track'] = Variable<String>(track.value);
+    }
+    if (metadataJson.present) {
+      map['metadata_json'] = Variable<String>(
+        $DailySessionsTable.$convertermetadataJson.toSql(metadataJson.value),
+      );
     }
     if (plannedItems.present) {
       map['planned_items'] = Variable<int>(plannedItems.value);
@@ -3098,6 +3159,7 @@ class DailySessionsCompanion extends UpdateCompanion<DailySession> {
           ..write('id: $id, ')
           ..write('dayKey: $dayKey, ')
           ..write('track: $track, ')
+          ..write('metadataJson: $metadataJson, ')
           ..write('plannedItems: $plannedItems, ')
           ..write('completedItems: $completedItems, ')
           ..write('createdAt: $createdAt')
@@ -10668,6 +10730,7 @@ typedef $$DailySessionsTableCreateCompanionBuilder =
       Value<int> id,
       required int dayKey,
       Value<String> track,
+      Value<DailySessionMetadata> metadataJson,
       Value<int> plannedItems,
       Value<int> completedItems,
       Value<DateTime> createdAt,
@@ -10677,6 +10740,7 @@ typedef $$DailySessionsTableUpdateCompanionBuilder =
       Value<int> id,
       Value<int> dayKey,
       Value<String> track,
+      Value<DailySessionMetadata> metadataJson,
       Value<int> plannedItems,
       Value<int> completedItems,
       Value<DateTime> createdAt,
@@ -10756,6 +10820,16 @@ class $$DailySessionsTableFilterComposer
   ColumnFilters<String> get track => $composableBuilder(
     column: $table.track,
     builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<
+    DailySessionMetadata,
+    DailySessionMetadata,
+    String
+  >
+  get metadataJson => $composableBuilder(
+    column: $table.metadataJson,
+    builder: (column) => ColumnWithTypeConverterFilters(column),
   );
 
   ColumnFilters<int> get plannedItems => $composableBuilder(
@@ -10848,6 +10922,11 @@ class $$DailySessionsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get metadataJson => $composableBuilder(
+    column: $table.metadataJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get plannedItems => $composableBuilder(
     column: $table.plannedItems,
     builder: (column) => ColumnOrderings(column),
@@ -10881,6 +10960,12 @@ class $$DailySessionsTableAnnotationComposer
 
   GeneratedColumn<String> get track =>
       $composableBuilder(column: $table.track, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<DailySessionMetadata, String>
+  get metadataJson => $composableBuilder(
+    column: $table.metadataJson,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get plannedItems => $composableBuilder(
     column: $table.plannedItems,
@@ -10981,6 +11066,7 @@ class $$DailySessionsTableTableManager
                 Value<int> id = const Value.absent(),
                 Value<int> dayKey = const Value.absent(),
                 Value<String> track = const Value.absent(),
+                Value<DailySessionMetadata> metadataJson = const Value.absent(),
                 Value<int> plannedItems = const Value.absent(),
                 Value<int> completedItems = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
@@ -10988,6 +11074,7 @@ class $$DailySessionsTableTableManager
                 id: id,
                 dayKey: dayKey,
                 track: track,
+                metadataJson: metadataJson,
                 plannedItems: plannedItems,
                 completedItems: completedItems,
                 createdAt: createdAt,
@@ -10997,6 +11084,7 @@ class $$DailySessionsTableTableManager
                 Value<int> id = const Value.absent(),
                 required int dayKey,
                 Value<String> track = const Value.absent(),
+                Value<DailySessionMetadata> metadataJson = const Value.absent(),
                 Value<int> plannedItems = const Value.absent(),
                 Value<int> completedItems = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
@@ -11004,6 +11092,7 @@ class $$DailySessionsTableTableManager
                 id: id,
                 dayKey: dayKey,
                 track: track,
+                metadataJson: metadataJson,
                 plannedItems: plannedItems,
                 completedItems: completedItems,
                 createdAt: createdAt,

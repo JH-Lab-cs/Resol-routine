@@ -1,6 +1,8 @@
 import 'package:drift/drift.dart';
 
+import '../../../core/database/converters/json_models.dart';
 import '../../../core/database/app_database.dart';
+import '../../../core/domain/domain_enums.dart';
 import '../../../core/time/day_key.dart';
 
 class DailySessionBundle {
@@ -11,6 +13,7 @@ class DailySessionBundle {
     required this.plannedItems,
     required this.completedItems,
     required this.items,
+    this.metadata = const DailySessionMetadata(),
   });
 
   final int sessionId;
@@ -19,6 +22,9 @@ class DailySessionBundle {
   final int plannedItems;
   final int completedItems;
   final List<DailySessionItemBundle> items;
+  final DailySessionMetadata metadata;
+
+  DailySectionOrder? get sectionOrder => metadata.sectionOrder;
 }
 
 class DailySessionItemBundle {
@@ -93,6 +99,65 @@ class TodaySessionRepository {
         session: createdSession,
         dayKey: dayKey,
         items: createdItems,
+      );
+    });
+  }
+
+  Future<DailySessionBundle> saveSectionOrder({
+    required int sessionId,
+    required DailySectionOrder sectionOrder,
+  }) async {
+    return _database.transaction(() async {
+      final session = await _findSessionById(sessionId);
+      if (session == null) {
+        throw StateError('Daily session not found: $sessionId');
+      }
+
+      final items = await _loadSessionItems(sessionId);
+      final storedOrder = session.metadataJson.sectionOrder;
+      final inferredOrder = inferDailySectionOrder(items);
+      final currentOrder = storedOrder ?? inferredOrder;
+      final attemptCount = await _countSessionAttempts(sessionId);
+
+      if (attemptCount > 0 && currentOrder != sectionOrder) {
+        throw StateError(
+          'Daily section order cannot change after the session has started.',
+        );
+      }
+
+      if (attemptCount == 0) {
+        final reorderedQuestionIds = _reorderQuestionIds(
+          items: items,
+          sectionOrder: sectionOrder,
+        );
+        final currentQuestionIds = items
+            .map((item) => item.questionId)
+            .toList(growable: false);
+        if (!_questionIdListsEqual(currentQuestionIds, reorderedQuestionIds)) {
+          await (_database.delete(
+            _database.dailySessionItems,
+          )..where((tbl) => tbl.sessionId.equals(sessionId))).go();
+          await _insertSessionItems(
+            sessionId: sessionId,
+            questionIds: reorderedQuestionIds,
+          );
+        }
+      }
+
+      await _writeSessionMetadata(
+        sessionId: sessionId,
+        metadata: session.metadataJson.copyWith(sectionOrder: sectionOrder),
+      );
+
+      final updatedSession = await _findSessionById(sessionId);
+      if (updatedSession == null) {
+        throw StateError('Updated daily session not found: $sessionId');
+      }
+      final updatedItems = await _loadSessionItems(sessionId);
+      return _toBundle(
+        session: updatedSession,
+        dayKey: updatedSession.dayKey.toString().padLeft(8, '0'),
+        items: updatedItems,
       );
     });
   }
@@ -241,7 +306,61 @@ class TodaySessionRepository {
       plannedItems: session.plannedItems,
       completedItems: session.completedItems,
       items: items,
+      metadata: session.metadataJson,
     );
+  }
+
+  Future<void> _writeSessionMetadata({
+    required int sessionId,
+    required DailySessionMetadata metadata,
+  }) {
+    return (_database.update(_database.dailySessions)
+          ..where((tbl) => tbl.id.equals(sessionId)))
+        .write(DailySessionsCompanion(metadataJson: Value(metadata)));
+  }
+
+  Future<int> _countSessionAttempts(int sessionId) async {
+    final row = await _database
+        .customSelect(
+          'SELECT COUNT(*) AS attempt_count FROM attempts WHERE session_id = ?',
+          variables: <Variable<Object>>[Variable<int>(sessionId)],
+          readsFrom: {_database.attempts},
+        )
+        .getSingle();
+    return row.read<int>('attempt_count');
+  }
+
+  List<String> _reorderQuestionIds({
+    required List<DailySessionItemBundle> items,
+    required DailySectionOrder sectionOrder,
+  }) {
+    final listeningItems = items
+        .where((item) => item.skill == 'LISTENING')
+        .map((item) => item.questionId)
+        .toList(growable: false);
+    final readingItems = items
+        .where((item) => item.skill == 'READING')
+        .map((item) => item.questionId)
+        .toList(growable: false);
+
+    switch (sectionOrder) {
+      case DailySectionOrder.listeningFirst:
+        return <String>[...listeningItems, ...readingItems];
+      case DailySectionOrder.readingFirst:
+        return <String>[...readingItems, ...listeningItems];
+    }
+  }
+
+  bool _questionIdListsEqual(List<String> a, List<String> b) {
+    if (a.length != b.length) {
+      return false;
+    }
+    for (var index = 0; index < a.length; index++) {
+      if (a[index] != b[index]) {
+        return false;
+      }
+    }
+    return true;
   }
 
   void _validateTrack(String track) {
@@ -249,6 +368,24 @@ class TodaySessionRepository {
       throw FormatException('Unsupported track: "$track"');
     }
   }
+}
+
+DailySectionOrder inferDailySectionOrder(List<DailySessionItemBundle> items) {
+  final firstListeningIndex = items.indexWhere(
+    (item) => item.skill == 'LISTENING',
+  );
+  final firstReadingIndex = items.indexWhere((item) => item.skill == 'READING');
+
+  if (firstReadingIndex == -1) {
+    return DailySectionOrder.listeningFirst;
+  }
+  if (firstListeningIndex == -1) {
+    return DailySectionOrder.readingFirst;
+  }
+  if (firstReadingIndex < firstListeningIndex) {
+    return DailySectionOrder.readingFirst;
+  }
+  return DailySectionOrder.listeningFirst;
 }
 
 class _ScoredQuestion {

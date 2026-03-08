@@ -40,6 +40,7 @@ class _QuizFlowScreenState extends ConsumerState<QuizFlowScreen> {
   bool _isLoading = true;
   bool _started = false;
   int _currentIndex = 0;
+  DailySectionOrder? _pendingSectionOrder;
 
   String? _selectedAnswer;
   WrongReasonTag? _selectedWrongReasonTag;
@@ -57,11 +58,12 @@ class _QuizFlowScreenState extends ConsumerState<QuizFlowScreen> {
 
   Future<void> _bootstrap() async {
     try {
-      final session = await ref
-          .read(todaySessionRepositoryProvider)
-          .getOrCreateSession(track: widget.track);
+      final sessionRepository = ref.read(todaySessionRepositoryProvider);
+      var session = await sessionRepository.getOrCreateSession(
+        track: widget.track,
+      );
       final quizRepository = ref.read(todayQuizRepositoryProvider);
-      final questions = await quizRepository.loadSessionQuestions(
+      var questions = await quizRepository.loadSessionQuestions(
         session.sessionId,
       );
       final firstUnansweredIndex = await quizRepository
@@ -69,6 +71,16 @@ class _QuizFlowScreenState extends ConsumerState<QuizFlowScreen> {
       final progress = await quizRepository.loadSessionProgress(
         session.sessionId,
       );
+
+      if (session.sectionOrder == null && progress.completed > 0) {
+        session = await sessionRepository.saveSectionOrder(
+          sessionId: session.sessionId,
+          sectionOrder: inferDailySectionOrder(session.items),
+        );
+        questions = await quizRepository.loadSessionQuestions(
+          session.sessionId,
+        );
+      }
 
       if (!mounted) {
         return;
@@ -79,6 +91,8 @@ class _QuizFlowScreenState extends ConsumerState<QuizFlowScreen> {
         _questions = questions;
         _progress = progress;
         _currentIndex = firstUnansweredIndex;
+        _pendingSectionOrder =
+            session.sectionOrder ?? DailySectionOrder.listeningFirst;
         _isLoading = false;
       });
 
@@ -131,6 +145,14 @@ class _QuizFlowScreenState extends ConsumerState<QuizFlowScreen> {
 
     if (!_started) {
       final startLabel = _progress.completed == 0 ? '시작하기' : '이어하기';
+      final selectedOrder =
+          _pendingSectionOrder ??
+          session.sectionOrder ??
+          DailySectionOrder.listeningFirst;
+      final orderDescription = selectedOrder == DailySectionOrder.listeningFirst
+          ? '듣기 먼저'
+          : '독해 먼저';
+
       return Scaffold(
         appBar: AppBar(title: const Text('오늘 루틴 퀴즈')),
         body: Padding(
@@ -152,16 +174,76 @@ class _QuizFlowScreenState extends ConsumerState<QuizFlowScreen> {
                 style: AppTypography.body,
               ),
               const SizedBox(height: AppSpacing.sm),
-              Text(
-                '문제 순서는 듣기 3문제 후 독해 3문제로 고정됩니다.',
-                style: AppTypography.body.copyWith(
-                  color: AppColors.textSecondary,
+              if (_progress.completed == 0) ...[
+                Text('시작 순서를 선택하세요.', style: AppTypography.body),
+                const SizedBox(height: AppSpacing.sm),
+                _SectionOrderOptionCard(
+                  key: const ValueKey<String>(
+                    'daily-section-order-listening-first',
+                  ),
+                  title: '듣기 먼저',
+                  description: '듣기 3문제를 먼저 풀고 독해로 넘어갑니다.',
+                  selected: selectedOrder == DailySectionOrder.listeningFirst,
+                  onTap: () {
+                    setState(() {
+                      _pendingSectionOrder = DailySectionOrder.listeningFirst;
+                    });
+                  },
                 ),
-              ),
+                const SizedBox(height: AppSpacing.sm),
+                _SectionOrderOptionCard(
+                  key: const ValueKey<String>(
+                    'daily-section-order-reading-first',
+                  ),
+                  title: '독해 먼저',
+                  description: '독해 3문제를 먼저 풀고 듣기로 넘어갑니다.',
+                  selected: selectedOrder == DailySectionOrder.readingFirst,
+                  onTap: () {
+                    setState(() {
+                      _pendingSectionOrder = DailySectionOrder.readingFirst;
+                    });
+                  },
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  '주간/월간 모의고사는 기존 고정 순서를 유지합니다.',
+                  style: AppTypography.body.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ] else
+                Text(
+                  '현재 순서: $orderDescription',
+                  style: AppTypography.body.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
               const Spacer(),
               PrimaryPillButton(
                 label: startLabel,
-                onPressed: () {
+                onPressed: () async {
+                  if (_progress.completed == 0) {
+                    final updatedSession = await ref
+                        .read(todaySessionRepositoryProvider)
+                        .saveSectionOrder(
+                          sessionId: session.sessionId,
+                          sectionOrder: selectedOrder,
+                        );
+                    final updatedQuestions = await ref
+                        .read(todayQuizRepositoryProvider)
+                        .loadSessionQuestions(updatedSession.sessionId);
+                    if (!mounted) {
+                      return;
+                    }
+                    setState(() {
+                      _session = updatedSession;
+                      _questions = updatedQuestions;
+                      _pendingSectionOrder = updatedSession.sectionOrder;
+                      _started = true;
+                    });
+                    return;
+                  }
+
                   setState(() {
                     _started = true;
                   });
@@ -666,6 +748,61 @@ class _QuizFlowScreenState extends ConsumerState<QuizFlowScreen> {
       return '리스닝 부족';
     }
     return displayWrongReasonTag(tag.dbValue);
+  }
+}
+
+class _SectionOrderOptionCard extends StatelessWidget {
+  const _SectionOrderOptionCard({
+    super.key,
+    required this.title,
+    required this.description,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String title;
+  final String description;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: selected ? AppColors.primaryContainer : Colors.white,
+      borderRadius: BorderRadius.circular(AppRadius.lg),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(AppSpacing.md),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+            border: Border.all(
+              color: selected ? AppColors.primary : AppColors.border,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: AppTypography.section.copyWith(
+                  color: selected ? AppColors.primary : AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                description,
+                style: AppTypography.body.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 

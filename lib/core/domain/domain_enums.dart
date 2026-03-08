@@ -6,6 +6,8 @@ enum MockExamType { weekly, monthly }
 
 enum WrongReasonTag { vocab, evidence, inference, careless, time }
 
+enum DailySectionOrder { listeningFirst, readingFirst }
+
 extension SkillDbValue on Skill {
   String get dbValue {
     switch (this) {
@@ -56,6 +58,17 @@ extension WrongReasonTagDbValue on WrongReasonTag {
         return 'CARELESS';
       case WrongReasonTag.time:
         return 'TIME';
+    }
+  }
+}
+
+extension DailySectionOrderJsonValue on DailySectionOrder {
+  String get jsonValue {
+    switch (this) {
+      case DailySectionOrder.listeningFirst:
+        return 'listening-first';
+      case DailySectionOrder.readingFirst:
+        return 'reading-first';
     }
   }
 }
@@ -120,6 +133,28 @@ WrongReasonTag? wrongReasonTagFromDbOrNull(String? raw) {
   }
   try {
     return wrongReasonTagFromDb(raw);
+  } on FormatException {
+    return null;
+  }
+}
+
+DailySectionOrder dailySectionOrderFromJson(String raw) {
+  switch (raw) {
+    case 'listening-first':
+      return DailySectionOrder.listeningFirst;
+    case 'reading-first':
+      return DailySectionOrder.readingFirst;
+    default:
+      throw FormatException('Unsupported daily section order value: "$raw"');
+  }
+}
+
+DailySectionOrder? dailySectionOrderFromJsonOrNull(String? raw) {
+  if (raw == null) {
+    return null;
+  }
+  try {
+    return dailySectionOrderFromJson(raw);
   } on FormatException {
     return null;
   }

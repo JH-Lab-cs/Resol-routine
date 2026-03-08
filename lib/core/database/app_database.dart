@@ -36,7 +36,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase({QueryExecutor? executor}) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 12;
+  int get schemaVersion => 13;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -78,6 +78,9 @@ class AppDatabase extends _$AppDatabase {
       }
       if (from < 12) {
         await _migrateToV12(m);
+      }
+      if (from < 13) {
+        await _migrateToV13(m);
       }
       await _createIndexes();
       await _ensureUserSettingsRow();
@@ -294,6 +297,20 @@ class AppDatabase extends _$AppDatabase {
     } finally {
       await customStatement('PRAGMA foreign_keys = ON');
     }
+  }
+
+  Future<void> _migrateToV13(Migrator m) async {
+    final columns = await customSelect(
+      "PRAGMA table_info('daily_sessions')",
+      readsFrom: {dailySessions},
+    ).get();
+    final hasMetadataJson = columns.any(
+      (row) => row.read<String>('name') == 'metadata_json',
+    );
+    if (hasMetadataJson) {
+      return;
+    }
+    await m.addColumn(dailySessions, dailySessions.metadataJson);
   }
 
   Future<void> _createIndexes() async {

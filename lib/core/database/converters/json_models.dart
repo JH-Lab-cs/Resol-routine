@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import '../../domain/domain_enums.dart';
+
 typedef JsonMap = Map<String, Object?>;
 
 const List<String> optionKeys = <String>['A', 'B', 'C', 'D', 'E'];
@@ -210,6 +212,38 @@ class OptionMap {
       default:
         throw ArgumentError.value(key, 'key', 'Expected one of A..E');
     }
+  }
+}
+
+class DailySessionMetadata {
+  const DailySessionMetadata({this.sectionOrder});
+
+  final DailySectionOrder? sectionOrder;
+
+  factory DailySessionMetadata.fromJson(JsonMap json, {required String path}) {
+    final rawSectionOrder = json['sectionOrder'];
+    if (rawSectionOrder == null) {
+      return const DailySessionMetadata();
+    }
+    if (rawSectionOrder is! String || rawSectionOrder.trim().isEmpty) {
+      throw FormatException('Expected "$path.sectionOrder" to be a string.');
+    }
+
+    return DailySessionMetadata(
+      sectionOrder: dailySectionOrderFromJson(rawSectionOrder),
+    );
+  }
+
+  JsonMap toJson() {
+    return <String, Object?>{
+      if (sectionOrder != null) 'sectionOrder': sectionOrder!.jsonValue,
+    };
+  }
+
+  DailySessionMetadata copyWith({DailySectionOrder? sectionOrder}) {
+    return DailySessionMetadata(
+      sectionOrder: sectionOrder ?? this.sectionOrder,
+    );
   }
 }
 
