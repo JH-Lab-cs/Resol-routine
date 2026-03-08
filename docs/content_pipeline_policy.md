@@ -38,6 +38,7 @@ Implementation note:
 - Only validated and reviewed content can be published
 - Published content must be immutable by version
 - Rollback path must exist for each publish batch
+- Client delivery must serve published content only; draft/archived revisions are never app-facing
 
 ## 5) Mock Exam Assembly Policy
 

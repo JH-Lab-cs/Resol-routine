@@ -173,6 +173,33 @@ This document is the backend handoff baseline for the next chat/session.
 - For DB state checks, `lifecycle_status` is the single source of truth.
 - Auto-publish is forbidden in phase-1.
 
+## K-1. Published Content Delivery
+
+- The app must consume backend-authored content from `PUBLISHED` revisions only.
+- Public delivery endpoints:
+  - `GET /public/content/units`
+  - `GET /public/content/units/{revision_id}`
+- Public list payload is lightweight:
+  - `unitId`
+  - `revisionId`
+  - `track`
+  - `skill`
+  - `typeTag`
+  - `difficulty`
+  - `publishedAt`
+  - `hasAudio`
+- Public detail payload is canonical and full-fidelity:
+  - READING: `bodyText`, question/options, answer/explanation metadata
+  - LISTENING: `transcriptText`, `ttsPlan`, audio asset payload when available
+- Delta sync contract:
+  - `changedSince` is ISO-8601 UTC
+  - filter rule: `published_at > changedSince`
+  - response cursor: `nextChangedSince`
+- Audio delivery contract:
+  - audio stays in private R2 only
+  - signed URL appears only on detail responses
+  - default signed URL TTL is 5 minutes
+
 ## L. Mock Exam Assembly Rules
 
 - Weekly and monthly mock exams are assembled server-side and published.

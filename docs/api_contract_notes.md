@@ -83,6 +83,32 @@ This note captures frontend-backend contracts that must remain stable while form
 - `POST /internal/ai/tts/jobs` is create-only; if an identical successful request fingerprint already exists and `forceRegen=false`, the request is rejected instead of creating a duplicate asset.
 - `POST /internal/ai/tts/revisions/{revision_id}/ensure-audio` remains the idempotent no-op path when audio is already linked.
 
+## Published Content Delivery Contract
+
+- The app consumes backend content through public published-revision delivery only:
+  - `GET /public/content/units`
+  - `GET /public/content/units/{revision_id}`
+- Public delivery must exclude `DRAFT` and `ARCHIVED` revisions.
+- `typeTag` in delivery payloads must always be canonical semantic taxonomy values.
+- List endpoint contract:
+  - `track` required
+  - optional filters: `skill`, `typeTag`, `changedSince`
+  - pagination: `page`, `pageSize`
+  - delta sync cursor: `nextChangedSince`
+  - list payload is summary-only (no full body/transcript text)
+- Detail endpoint contract:
+  - returns full canonical payload for a single `PUBLISHED` revision
+  - `LISTENING` payload may include an audio signed URL
+  - `READING` payload includes full body/question/explanation fields
+- Delta sync rules:
+  - `changedSince` is ISO-8601 UTC
+  - server filters `published_at > changedSince`
+  - `nextChangedSince` is the max delivered `published_at`
+- Signed URL rules:
+  - private bucket only
+  - included on detail responses only
+  - default TTL: 5 minutes
+
 ## Sync Contract Direction
 
 - Backend ingest unit is event-level results, not only final report snapshots

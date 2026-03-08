@@ -7,6 +7,7 @@ from app.api.auth import router as auth_router
 from app.api.billing import router as billing_router
 from app.api.billing_webhooks import router as billing_webhooks_router
 from app.api.content_internal import router as content_internal_router
+from app.api.content_public import router as content_public_router
 from app.api.family import router as family_router
 from app.api.health import router as health_router
 from app.api.mock_assembly_internal import router as mock_assembly_internal_router
@@ -25,6 +26,7 @@ api_router.include_router(auth_router)
 api_router.include_router(billing_router)
 api_router.include_router(billing_webhooks_router)
 api_router.include_router(content_internal_router)
+api_router.include_router(content_public_router)
 api_router.include_router(family_router)
 api_router.include_router(health_router)
 api_router.include_router(mock_exam_internal_router)
