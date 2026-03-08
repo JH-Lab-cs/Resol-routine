@@ -36,7 +36,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase({QueryExecutor? executor}) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 13;
+  int get schemaVersion => 14;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -81,6 +81,9 @@ class AppDatabase extends _$AppDatabase {
       }
       if (from < 13) {
         await _migrateToV13(m);
+      }
+      if (from < 14) {
+        await _migrateToV14(m);
       }
       await _createIndexes();
       await _ensureUserSettingsRow();
@@ -313,6 +316,36 @@ class AppDatabase extends _$AppDatabase {
     await m.addColumn(dailySessions, dailySessions.metadataJson);
   }
 
+  Future<void> _migrateToV14(Migrator m) async {
+    final columns = await customSelect(
+      "PRAGMA table_info('vocab_master')",
+      readsFrom: {vocabMaster},
+    ).get();
+    final existingColumnNames = columns
+        .map((row) => row.read<String>('name'))
+        .toSet();
+
+    if (!existingColumnNames.contains('source_tag')) {
+      await m.addColumn(vocabMaster, vocabMaster.sourceTag);
+      await customStatement(
+        "UPDATE vocab_master SET source_tag = 'USER_CUSTOM' "
+        "WHERE id LIKE 'user_%'",
+      );
+    }
+    if (!existingColumnNames.contains('target_min_track')) {
+      await m.addColumn(vocabMaster, vocabMaster.targetMinTrack);
+    }
+    if (!existingColumnNames.contains('target_max_track')) {
+      await m.addColumn(vocabMaster, vocabMaster.targetMaxTrack);
+    }
+    if (!existingColumnNames.contains('difficulty_band')) {
+      await m.addColumn(vocabMaster, vocabMaster.difficultyBand);
+    }
+    if (!existingColumnNames.contains('frequency_tier')) {
+      await m.addColumn(vocabMaster, vocabMaster.frequencyTier);
+    }
+  }
+
   Future<void> _createIndexes() async {
     await customStatement(
       'CREATE INDEX IF NOT EXISTS idx_passages_pack_order '
@@ -367,6 +400,10 @@ class AppDatabase extends _$AppDatabase {
     await customStatement(
       'CREATE INDEX IF NOT EXISTS idx_vocab_master_deleted_at '
       'ON vocab_master(deleted_at)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_vocab_master_source_tag '
+      'ON vocab_master(source_tag)',
     );
     await customStatement(
       'CREATE INDEX IF NOT EXISTS idx_shared_reports_created_at '

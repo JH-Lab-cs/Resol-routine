@@ -646,6 +646,11 @@ class SeedVocabItem {
     required this.meaning,
     required this.example,
     required this.ipa,
+    required this.sourceTag,
+    required this.targetMinTrack,
+    required this.targetMaxTrack,
+    required this.difficultyBand,
+    required this.frequencyTier,
   });
 
   final String id;
@@ -654,8 +659,46 @@ class SeedVocabItem {
   final String meaning;
   final String? example;
   final String? ipa;
+  final String sourceTag;
+  final String? targetMinTrack;
+  final String? targetMaxTrack;
+  final int? difficultyBand;
+  final int? frequencyTier;
 
   factory SeedVocabItem.fromJson(JsonMap json, {required String path}) {
+    final sourceTag = _readEnum(
+      json,
+      'sourceTag',
+      allowed: const <String>{'CSAT', 'SCHOOL_CORE', 'USER_CUSTOM'},
+      parentPath: path,
+    );
+    final targetMinTrack = _readNullableEnum(
+      json,
+      'targetMinTrack',
+      allowed: _allowedTracks,
+      parentPath: path,
+    );
+    final targetMaxTrack = _readNullableEnum(
+      json,
+      'targetMaxTrack',
+      allowed: _allowedTracks,
+      parentPath: path,
+    );
+    final difficultyBand = _readNullableRangeInt(
+      json,
+      'difficultyBand',
+      min: 1,
+      max: 5,
+      parentPath: path,
+    );
+    final frequencyTier = _readNullableRangeInt(
+      json,
+      'frequencyTier',
+      min: 1,
+      max: 5,
+      parentPath: path,
+    );
+
     return SeedVocabItem(
       id: _readString(
         json,
@@ -678,6 +721,11 @@ class SeedVocabItem {
       ),
       example: _readNullableString(json, 'example', parentPath: path),
       ipa: _readNullableString(json, 'ipa', parentPath: path),
+      sourceTag: sourceTag,
+      targetMinTrack: targetMinTrack,
+      targetMaxTrack: targetMaxTrack,
+      difficultyBand: difficultyBand,
+      frequencyTier: frequencyTier,
     );
   }
 }
@@ -842,6 +890,24 @@ int _readRangeInt(
   return value;
 }
 
+int? _readNullableRangeInt(
+  JsonMap map,
+  String key, {
+  required int min,
+  required int max,
+  String? parentPath,
+}) {
+  final path = parentPath == null ? key : '$parentPath.$key';
+  if (!map.containsKey(key) || map[key] == null) {
+    return null;
+  }
+  final value = _readInt(map, key, parentPath: parentPath);
+  if (value < min || value > max) {
+    throw FormatException('Expected "$path" to be between $min and $max.');
+  }
+  return value;
+}
+
 String _readEnum(
   JsonMap map,
   String key, {
@@ -851,6 +917,25 @@ String _readEnum(
   final value = _readString(map, key, parentPath: parentPath);
   if (!allowed.contains(value)) {
     final path = parentPath == null ? key : '$parentPath.$key';
+    throw FormatException(
+      'Expected "$path" to be one of: ${allowed.toList()..sort()}.',
+    );
+  }
+  return value;
+}
+
+String? _readNullableEnum(
+  JsonMap map,
+  String key, {
+  required Set<String> allowed,
+  String? parentPath,
+}) {
+  final path = parentPath == null ? key : '$parentPath.$key';
+  if (!map.containsKey(key) || map[key] == null) {
+    return null;
+  }
+  final value = _readString(map, key, parentPath: parentPath);
+  if (!allowed.contains(value)) {
     throw FormatException(
       'Expected "$path" to be one of: ${allowed.toList()..sort()}.',
     );

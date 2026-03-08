@@ -358,6 +358,21 @@ class VocabMaster extends Table {
       text().withLength(min: 1, max: DbTextLimits.meaningMax)();
   TextColumn get example => text().nullable()();
   TextColumn get ipa => text().nullable()();
+  TextColumn get sourceTag => text().customConstraint(
+    "NOT NULL DEFAULT 'SCHOOL_CORE' CHECK (source_tag IN ('CSAT', 'SCHOOL_CORE', 'USER_CUSTOM'))",
+  )();
+  TextColumn get targetMinTrack => text().nullable().customConstraint(
+    "CHECK (target_min_track IN ('M3', 'H1', 'H2', 'H3'))",
+  )();
+  TextColumn get targetMaxTrack => text().nullable().customConstraint(
+    "CHECK (target_max_track IN ('M3', 'H1', 'H2', 'H3'))",
+  )();
+  IntColumn get difficultyBand => integer().nullable().customConstraint(
+    'CHECK (difficulty_band BETWEEN 1 AND 5)',
+  )();
+  IntColumn get frequencyTier => integer().nullable().customConstraint(
+    'CHECK (frequency_tier BETWEEN 1 AND 5)',
+  )();
   DateTimeColumn get deletedAt => dateTime().nullable()();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 

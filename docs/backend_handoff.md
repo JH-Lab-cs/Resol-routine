@@ -30,6 +30,12 @@ This document is the backend handoff baseline for the next chat/session.
 
 - Daily quiz flow: implemented
 - Vocab + custom vocab CRUD: implemented
+- Local vocab metadata now includes:
+  - `sourceTag`
+  - `targetMinTrack`
+  - `targetMaxTrack`
+  - `difficultyBand`
+  - `frequencyTier`
 - Weekly/monthly mock flows (resume/completion/result/history): implemented
 - Wrong notes integration (daily + mock): implemented
 - Report schema v5 (export/import): implemented
@@ -214,6 +220,21 @@ This document is the backend handoff baseline for the next chat/session.
   - signed URL appears only on detail responses
   - default signed URL TTL is 5 minutes
   - signed URL cache must be treated separately from payload cache
+
+## K-2. Local Dev/QA Content Readiness
+
+- Local PostgreSQL verification is supported without Render/prod.
+- Seed/audit tools:
+  - `backend/tools/seed_dev_content.py`
+  - `backend/tools/content_readiness_audit.py`
+- Dev/QA seed intent:
+  - sample published Daily candidate pool by track
+  - sample weekly/monthly mock drafts for local verification
+  - not a launch-readiness production bank snapshot
+- Vocabulary banding metadata is currently seeded through the local app starter pack,
+  not through backend PostgreSQL tables.
+- Frozen vocabulary banding policy:
+  - see `docs/vocab_banding_policy.md`
 
 ## L. Mock Exam Assembly Rules
 

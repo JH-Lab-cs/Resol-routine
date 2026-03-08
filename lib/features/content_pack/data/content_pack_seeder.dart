@@ -190,6 +190,11 @@ class ContentPackSeeder {
           meaning: Value(vocab.meaning),
           example: Value(vocab.example),
           ipa: Value(vocab.ipa),
+          sourceTag: Value(vocab.sourceTag),
+          targetMinTrack: Value(vocab.targetMinTrack),
+          targetMaxTrack: Value(vocab.targetMaxTrack),
+          difficultyBand: Value(vocab.difficultyBand),
+          frequencyTier: Value(vocab.frequencyTier),
         ),
     ];
     await _insertAllChunked(_database.vocabMaster, vocabMasterRows);

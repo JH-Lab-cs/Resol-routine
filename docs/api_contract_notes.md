@@ -83,6 +83,23 @@ This note captures frontend-backend contracts that must remain stable while form
 - `POST /internal/ai/tts/jobs` is create-only; if an identical successful request fingerprint already exists and `forceRegen=false`, the request is rejected instead of creating a duplicate asset.
 - `POST /internal/ai/tts/revisions/{revision_id}/ensure-audio` remains the idempotent no-op path when audio is already linked.
 
+## Vocabulary Banding Contract
+
+- Pre-B3 vocabulary banding metadata lives in the local app `vocab_master` table.
+- Required metadata fields:
+  - `sourceTag`
+  - `targetMinTrack`
+  - `targetMaxTrack`
+  - `difficultyBand`
+  - optional `frequencyTier`
+- Frozen source tags:
+  - `CSAT`
+  - `SCHOOL_CORE`
+  - `USER_CUSTOM`
+- Frozen progression policy is documented in `docs/vocab_banding_policy.md`.
+- Adaptive/user-specific vocab selection is still post-B3 and must not be treated
+  as implemented by this contract.
+
 ## Published Content Delivery Contract
 
 - The app consumes backend content through public published-revision delivery only:

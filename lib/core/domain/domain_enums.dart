@@ -6,6 +6,8 @@ enum MockExamType { weekly, monthly }
 
 enum WrongReasonTag { vocab, evidence, inference, careless, time }
 
+enum VocabSourceTag { csat, schoolCore, userCustom }
+
 enum DailySectionOrder { listeningFirst, readingFirst }
 
 extension SkillDbValue on Skill {
@@ -58,6 +60,19 @@ extension WrongReasonTagDbValue on WrongReasonTag {
         return 'CARELESS';
       case WrongReasonTag.time:
         return 'TIME';
+    }
+  }
+}
+
+extension VocabSourceTagDbValue on VocabSourceTag {
+  String get dbValue {
+    switch (this) {
+      case VocabSourceTag.csat:
+        return 'CSAT';
+      case VocabSourceTag.schoolCore:
+        return 'SCHOOL_CORE';
+      case VocabSourceTag.userCustom:
+        return 'USER_CUSTOM';
     }
   }
 }
@@ -133,6 +148,30 @@ WrongReasonTag? wrongReasonTagFromDbOrNull(String? raw) {
   }
   try {
     return wrongReasonTagFromDb(raw);
+  } on FormatException {
+    return null;
+  }
+}
+
+VocabSourceTag vocabSourceTagFromDb(String raw) {
+  switch (raw) {
+    case 'CSAT':
+      return VocabSourceTag.csat;
+    case 'SCHOOL_CORE':
+      return VocabSourceTag.schoolCore;
+    case 'USER_CUSTOM':
+      return VocabSourceTag.userCustom;
+    default:
+      throw FormatException('Unsupported vocab source tag value: "$raw"');
+  }
+}
+
+VocabSourceTag? vocabSourceTagFromDbOrNull(String? raw) {
+  if (raw == null) {
+    return null;
+  }
+  try {
+    return vocabSourceTagFromDb(raw);
   } on FormatException {
     return null;
   }

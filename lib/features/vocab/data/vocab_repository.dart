@@ -6,6 +6,7 @@ import '../../../core/database/app_database.dart';
 import '../../../core/database/db_text_limits.dart';
 import '../../../core/security/hidden_unicode.dart';
 import '../../../core/time/day_key.dart';
+import '../../../core/domain/domain_enums.dart';
 
 class VocabListItem {
   const VocabListItem({
@@ -141,6 +142,7 @@ class VocabRepository {
             meaning: normalized.meaning,
             pos: Value(normalized.pos),
             example: Value(normalized.example),
+            sourceTag: Value(VocabSourceTag.userCustom.dbValue),
           ),
         );
   }

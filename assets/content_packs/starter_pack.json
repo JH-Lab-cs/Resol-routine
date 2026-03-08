@@ -1940,7 +1940,12 @@
       "pos": "verb",
       "meaning": "to have no more of something to sell",
       "example": "Tickets can sell out quickly.",
-      "ipa": "/sel aʊt/"
+      "ipa": "/sel aʊt/",
+      "sourceTag": "SCHOOL_CORE",
+      "targetMinTrack": "M3",
+      "targetMaxTrack": "H1",
+      "difficultyBand": 1,
+      "frequencyTier": 1
     },
     {
       "id": "vocab_reusable",
@@ -1948,7 +1953,12 @@
       "pos": "adjective",
       "meaning": "able to be used again",
       "example": "Bring a reusable bottle.",
-      "ipa": "/riːˈjuːzəbl/"
+      "ipa": "/riːˈjuːzəbl/",
+      "sourceTag": "SCHOOL_CORE",
+      "targetMinTrack": "M3",
+      "targetMaxTrack": "H2",
+      "difficultyBand": 2,
+      "frequencyTier": 1
     },
     {
       "id": "vocab_register",
@@ -1956,7 +1966,12 @@
       "pos": "verb",
       "meaning": "to record your name for an activity",
       "example": "New members can register at the front desk.",
-      "ipa": "/ˈredʒɪstər/"
+      "ipa": "/ˈredʒɪstər/",
+      "sourceTag": "CSAT",
+      "targetMinTrack": "H1",
+      "targetMaxTrack": "H3",
+      "difficultyBand": 3,
+      "frequencyTier": 2
     }
   ]
 }

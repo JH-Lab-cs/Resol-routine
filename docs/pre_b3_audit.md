@@ -364,3 +364,109 @@ Recommended interpretation:
 
 - B3 can proceed for wiring/integration work
 - B3 must not be treated as launch-readiness for content depth
+
+## Appendix: B2.6.2 Local PostgreSQL Dev/QA Baseline
+
+This appendix captures the local docker-compose + PostgreSQL verification path
+added after the original pre-B3 audit.
+
+Purpose:
+
+- make Daily/mock readiness auditable from a local backend database
+- provide deterministic dev/qa seed data
+- keep launch-readiness judgment separate from seed-only verification
+
+Local verification tools:
+
+- `backend/tools/seed_dev_content.py`
+- `backend/tools/content_readiness_audit.py`
+
+Seed intent:
+
+- `M3`, `H1`: Daily candidate coverage only
+- `H2`: Daily coverage plus one weekly-ready published bank slice
+- `H3`: Daily coverage plus one monthly-ready published bank slice
+- weekly mock draft sample:
+  - `track=H2`
+  - `periodKey=2026W15`
+- monthly mock draft sample:
+  - `track=H3`
+  - `periodKey=202603`
+
+Interpretation:
+
+- local dev/qa seed readiness demonstrates backend auditability and assembly
+  behavior
+- it does **not** certify production launch depth on its own
+
+### Verified local seed result (2026-03-08)
+
+`backend/tools/seed_dev_content.py --json`
+
+- created published units: `107`
+- skipped published units: `0`
+- weekly mock sample created:
+  - `track=H2`
+  - `periodKey=2026W15`
+  - status `SUCCEEDED`
+- monthly mock sample created:
+  - `track=H3`
+  - `periodKey=202603`
+  - status `SUCCEEDED`
+
+### Verified local Daily readiness
+
+From `backend/tools/content_readiness_audit.py --json` against local Postgres:
+
+| Track | Listening total | Reading total | Daily readiness | Notes |
+| --- | ---: | ---: | --- | --- |
+| M3 | 6 | 6 | `WARNING` | Daily 3+3 is possible, but type diversity and live-service depth are below target |
+| H1 | 8 | 8 | `WARNING` | Daily 3+3 is possible, but counts are below live threshold |
+| H2 | 12 | 10 | `WARNING` | Daily 3+3 is possible, but listening/reading diversity is still narrow |
+| H3 | 21 | 36 | `READY` | Meets the local dev/qa ready threshold for Daily |
+
+Key coverage holes from the seeded bank:
+
+- `M3`
+  - listening missing: `L_RESPONSE`, `L_SITUATION`, `L_LONG_TALK`
+  - reading missing: `R_BLANK`, `R_ORDER`, `R_INSERTION`, `R_SUMMARY`, `R_VOCAB`
+- `H1`
+  - listening missing: `L_SITUATION`, `L_LONG_TALK`
+  - reading missing: `R_BLANK`, `R_ORDER`, `R_INSERTION`, `R_SUMMARY`
+- `H2`
+  - listening missing: `L_RESPONSE`, `L_SITUATION`, `L_LONG_TALK`
+  - reading missing: `R_ORDER`, `R_INSERTION`, `R_SUMMARY`, `R_VOCAB`
+- `H3`
+  - listening missing: `L_RESPONSE`, `L_SITUATION`
+  - reading missing: `R_SUMMARY`, `R_VOCAB`
+
+### Verified local Mock readiness
+
+From the same local audit run:
+
+| Track | Weekly | Monthly | Verdict |
+| --- | --- | --- | --- |
+| M3 | `NOT_READY` | `NOT_READY` | blocked by insufficient published content |
+| H1 | `NOT_READY` | `NOT_READY` | blocked by insufficient published content |
+| H2 | `READY` | `NOT_READY` | weekly-ready slice only |
+| H3 | `READY` | `READY` | both weekly/monthly-ready slice available |
+
+Difficulty and diversity notes:
+
+- `H2 weekly`
+  - average difficulty: `2.9`
+  - target range: `2.8 .. 3.6`
+  - listening type diversity: `3`
+  - reading type diversity: `4`
+- `H3 monthly`
+  - average difficulty: `3.5556`
+  - target range: `3.3 .. 4.2`
+  - listening type diversity: `4`
+  - reading type diversity: `6`
+
+Local conclusion:
+
+- Daily auditability is now reproducible from local Postgres
+- mock assembly readiness is now reproducible from local Postgres
+- the seeded bank is suitable for dev/qa verification
+- it is still intentionally narrower than a production content bank

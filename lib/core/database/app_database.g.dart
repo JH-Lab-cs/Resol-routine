@@ -6491,6 +6491,70 @@ class $VocabMasterTable extends VocabMaster
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _sourceTagMeta = const VerificationMeta(
+    'sourceTag',
+  );
+  @override
+  late final GeneratedColumn<String> sourceTag = GeneratedColumn<String>(
+    'source_tag',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints:
+        'NOT NULL DEFAULT \'SCHOOL_CORE\' CHECK (source_tag IN (\'CSAT\', \'SCHOOL_CORE\', \'USER_CUSTOM\'))',
+    defaultValue: const CustomExpression('\'SCHOOL_CORE\''),
+  );
+  static const VerificationMeta _targetMinTrackMeta = const VerificationMeta(
+    'targetMinTrack',
+  );
+  @override
+  late final GeneratedColumn<String> targetMinTrack = GeneratedColumn<String>(
+    'target_min_track',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints:
+        'CHECK (target_min_track IN (\'M3\', \'H1\', \'H2\', \'H3\'))',
+  );
+  static const VerificationMeta _targetMaxTrackMeta = const VerificationMeta(
+    'targetMaxTrack',
+  );
+  @override
+  late final GeneratedColumn<String> targetMaxTrack = GeneratedColumn<String>(
+    'target_max_track',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints:
+        'CHECK (target_max_track IN (\'M3\', \'H1\', \'H2\', \'H3\'))',
+  );
+  static const VerificationMeta _difficultyBandMeta = const VerificationMeta(
+    'difficultyBand',
+  );
+  @override
+  late final GeneratedColumn<int> difficultyBand = GeneratedColumn<int>(
+    'difficulty_band',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    $customConstraints: 'CHECK (difficulty_band BETWEEN 1 AND 5)',
+  );
+  static const VerificationMeta _frequencyTierMeta = const VerificationMeta(
+    'frequencyTier',
+  );
+  @override
+  late final GeneratedColumn<int> frequencyTier = GeneratedColumn<int>(
+    'frequency_tier',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    $customConstraints: 'CHECK (frequency_tier BETWEEN 1 AND 5)',
+  );
   static const VerificationMeta _deletedAtMeta = const VerificationMeta(
     'deletedAt',
   );
@@ -6522,6 +6586,11 @@ class $VocabMasterTable extends VocabMaster
     meaning,
     example,
     ipa,
+    sourceTag,
+    targetMinTrack,
+    targetMaxTrack,
+    difficultyBand,
+    frequencyTier,
     deletedAt,
     createdAt,
   ];
@@ -6576,6 +6645,48 @@ class $VocabMasterTable extends VocabMaster
         ipa.isAcceptableOrUnknown(data['ipa']!, _ipaMeta),
       );
     }
+    if (data.containsKey('source_tag')) {
+      context.handle(
+        _sourceTagMeta,
+        sourceTag.isAcceptableOrUnknown(data['source_tag']!, _sourceTagMeta),
+      );
+    }
+    if (data.containsKey('target_min_track')) {
+      context.handle(
+        _targetMinTrackMeta,
+        targetMinTrack.isAcceptableOrUnknown(
+          data['target_min_track']!,
+          _targetMinTrackMeta,
+        ),
+      );
+    }
+    if (data.containsKey('target_max_track')) {
+      context.handle(
+        _targetMaxTrackMeta,
+        targetMaxTrack.isAcceptableOrUnknown(
+          data['target_max_track']!,
+          _targetMaxTrackMeta,
+        ),
+      );
+    }
+    if (data.containsKey('difficulty_band')) {
+      context.handle(
+        _difficultyBandMeta,
+        difficultyBand.isAcceptableOrUnknown(
+          data['difficulty_band']!,
+          _difficultyBandMeta,
+        ),
+      );
+    }
+    if (data.containsKey('frequency_tier')) {
+      context.handle(
+        _frequencyTierMeta,
+        frequencyTier.isAcceptableOrUnknown(
+          data['frequency_tier']!,
+          _frequencyTierMeta,
+        ),
+      );
+    }
     if (data.containsKey('deleted_at')) {
       context.handle(
         _deletedAtMeta,
@@ -6621,6 +6732,26 @@ class $VocabMasterTable extends VocabMaster
         DriftSqlType.string,
         data['${effectivePrefix}ipa'],
       ),
+      sourceTag: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source_tag'],
+      )!,
+      targetMinTrack: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}target_min_track'],
+      ),
+      targetMaxTrack: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}target_max_track'],
+      ),
+      difficultyBand: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}difficulty_band'],
+      ),
+      frequencyTier: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}frequency_tier'],
+      ),
       deletedAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}deleted_at'],
@@ -6645,6 +6776,11 @@ class VocabMasterData extends DataClass implements Insertable<VocabMasterData> {
   final String meaning;
   final String? example;
   final String? ipa;
+  final String sourceTag;
+  final String? targetMinTrack;
+  final String? targetMaxTrack;
+  final int? difficultyBand;
+  final int? frequencyTier;
   final DateTime? deletedAt;
   final DateTime createdAt;
   const VocabMasterData({
@@ -6654,6 +6790,11 @@ class VocabMasterData extends DataClass implements Insertable<VocabMasterData> {
     required this.meaning,
     this.example,
     this.ipa,
+    required this.sourceTag,
+    this.targetMinTrack,
+    this.targetMaxTrack,
+    this.difficultyBand,
+    this.frequencyTier,
     this.deletedAt,
     required this.createdAt,
   });
@@ -6672,6 +6813,19 @@ class VocabMasterData extends DataClass implements Insertable<VocabMasterData> {
     if (!nullToAbsent || ipa != null) {
       map['ipa'] = Variable<String>(ipa);
     }
+    map['source_tag'] = Variable<String>(sourceTag);
+    if (!nullToAbsent || targetMinTrack != null) {
+      map['target_min_track'] = Variable<String>(targetMinTrack);
+    }
+    if (!nullToAbsent || targetMaxTrack != null) {
+      map['target_max_track'] = Variable<String>(targetMaxTrack);
+    }
+    if (!nullToAbsent || difficultyBand != null) {
+      map['difficulty_band'] = Variable<int>(difficultyBand);
+    }
+    if (!nullToAbsent || frequencyTier != null) {
+      map['frequency_tier'] = Variable<int>(frequencyTier);
+    }
     if (!nullToAbsent || deletedAt != null) {
       map['deleted_at'] = Variable<DateTime>(deletedAt);
     }
@@ -6689,6 +6843,19 @@ class VocabMasterData extends DataClass implements Insertable<VocabMasterData> {
           ? const Value.absent()
           : Value(example),
       ipa: ipa == null && nullToAbsent ? const Value.absent() : Value(ipa),
+      sourceTag: Value(sourceTag),
+      targetMinTrack: targetMinTrack == null && nullToAbsent
+          ? const Value.absent()
+          : Value(targetMinTrack),
+      targetMaxTrack: targetMaxTrack == null && nullToAbsent
+          ? const Value.absent()
+          : Value(targetMaxTrack),
+      difficultyBand: difficultyBand == null && nullToAbsent
+          ? const Value.absent()
+          : Value(difficultyBand),
+      frequencyTier: frequencyTier == null && nullToAbsent
+          ? const Value.absent()
+          : Value(frequencyTier),
       deletedAt: deletedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(deletedAt),
@@ -6708,6 +6875,11 @@ class VocabMasterData extends DataClass implements Insertable<VocabMasterData> {
       meaning: serializer.fromJson<String>(json['meaning']),
       example: serializer.fromJson<String?>(json['example']),
       ipa: serializer.fromJson<String?>(json['ipa']),
+      sourceTag: serializer.fromJson<String>(json['sourceTag']),
+      targetMinTrack: serializer.fromJson<String?>(json['targetMinTrack']),
+      targetMaxTrack: serializer.fromJson<String?>(json['targetMaxTrack']),
+      difficultyBand: serializer.fromJson<int?>(json['difficultyBand']),
+      frequencyTier: serializer.fromJson<int?>(json['frequencyTier']),
       deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
     );
@@ -6722,6 +6894,11 @@ class VocabMasterData extends DataClass implements Insertable<VocabMasterData> {
       'meaning': serializer.toJson<String>(meaning),
       'example': serializer.toJson<String?>(example),
       'ipa': serializer.toJson<String?>(ipa),
+      'sourceTag': serializer.toJson<String>(sourceTag),
+      'targetMinTrack': serializer.toJson<String?>(targetMinTrack),
+      'targetMaxTrack': serializer.toJson<String?>(targetMaxTrack),
+      'difficultyBand': serializer.toJson<int?>(difficultyBand),
+      'frequencyTier': serializer.toJson<int?>(frequencyTier),
       'deletedAt': serializer.toJson<DateTime?>(deletedAt),
       'createdAt': serializer.toJson<DateTime>(createdAt),
     };
@@ -6734,6 +6911,11 @@ class VocabMasterData extends DataClass implements Insertable<VocabMasterData> {
     String? meaning,
     Value<String?> example = const Value.absent(),
     Value<String?> ipa = const Value.absent(),
+    String? sourceTag,
+    Value<String?> targetMinTrack = const Value.absent(),
+    Value<String?> targetMaxTrack = const Value.absent(),
+    Value<int?> difficultyBand = const Value.absent(),
+    Value<int?> frequencyTier = const Value.absent(),
     Value<DateTime?> deletedAt = const Value.absent(),
     DateTime? createdAt,
   }) => VocabMasterData(
@@ -6743,6 +6925,19 @@ class VocabMasterData extends DataClass implements Insertable<VocabMasterData> {
     meaning: meaning ?? this.meaning,
     example: example.present ? example.value : this.example,
     ipa: ipa.present ? ipa.value : this.ipa,
+    sourceTag: sourceTag ?? this.sourceTag,
+    targetMinTrack: targetMinTrack.present
+        ? targetMinTrack.value
+        : this.targetMinTrack,
+    targetMaxTrack: targetMaxTrack.present
+        ? targetMaxTrack.value
+        : this.targetMaxTrack,
+    difficultyBand: difficultyBand.present
+        ? difficultyBand.value
+        : this.difficultyBand,
+    frequencyTier: frequencyTier.present
+        ? frequencyTier.value
+        : this.frequencyTier,
     deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
     createdAt: createdAt ?? this.createdAt,
   );
@@ -6754,6 +6949,19 @@ class VocabMasterData extends DataClass implements Insertable<VocabMasterData> {
       meaning: data.meaning.present ? data.meaning.value : this.meaning,
       example: data.example.present ? data.example.value : this.example,
       ipa: data.ipa.present ? data.ipa.value : this.ipa,
+      sourceTag: data.sourceTag.present ? data.sourceTag.value : this.sourceTag,
+      targetMinTrack: data.targetMinTrack.present
+          ? data.targetMinTrack.value
+          : this.targetMinTrack,
+      targetMaxTrack: data.targetMaxTrack.present
+          ? data.targetMaxTrack.value
+          : this.targetMaxTrack,
+      difficultyBand: data.difficultyBand.present
+          ? data.difficultyBand.value
+          : this.difficultyBand,
+      frequencyTier: data.frequencyTier.present
+          ? data.frequencyTier.value
+          : this.frequencyTier,
       deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
     );
@@ -6768,6 +6976,11 @@ class VocabMasterData extends DataClass implements Insertable<VocabMasterData> {
           ..write('meaning: $meaning, ')
           ..write('example: $example, ')
           ..write('ipa: $ipa, ')
+          ..write('sourceTag: $sourceTag, ')
+          ..write('targetMinTrack: $targetMinTrack, ')
+          ..write('targetMaxTrack: $targetMaxTrack, ')
+          ..write('difficultyBand: $difficultyBand, ')
+          ..write('frequencyTier: $frequencyTier, ')
           ..write('deletedAt: $deletedAt, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
@@ -6775,8 +6988,21 @@ class VocabMasterData extends DataClass implements Insertable<VocabMasterData> {
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, lemma, pos, meaning, example, ipa, deletedAt, createdAt);
+  int get hashCode => Object.hash(
+    id,
+    lemma,
+    pos,
+    meaning,
+    example,
+    ipa,
+    sourceTag,
+    targetMinTrack,
+    targetMaxTrack,
+    difficultyBand,
+    frequencyTier,
+    deletedAt,
+    createdAt,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -6787,6 +7013,11 @@ class VocabMasterData extends DataClass implements Insertable<VocabMasterData> {
           other.meaning == this.meaning &&
           other.example == this.example &&
           other.ipa == this.ipa &&
+          other.sourceTag == this.sourceTag &&
+          other.targetMinTrack == this.targetMinTrack &&
+          other.targetMaxTrack == this.targetMaxTrack &&
+          other.difficultyBand == this.difficultyBand &&
+          other.frequencyTier == this.frequencyTier &&
           other.deletedAt == this.deletedAt &&
           other.createdAt == this.createdAt);
 }
@@ -6798,6 +7029,11 @@ class VocabMasterCompanion extends UpdateCompanion<VocabMasterData> {
   final Value<String> meaning;
   final Value<String?> example;
   final Value<String?> ipa;
+  final Value<String> sourceTag;
+  final Value<String?> targetMinTrack;
+  final Value<String?> targetMaxTrack;
+  final Value<int?> difficultyBand;
+  final Value<int?> frequencyTier;
   final Value<DateTime?> deletedAt;
   final Value<DateTime> createdAt;
   final Value<int> rowid;
@@ -6808,6 +7044,11 @@ class VocabMasterCompanion extends UpdateCompanion<VocabMasterData> {
     this.meaning = const Value.absent(),
     this.example = const Value.absent(),
     this.ipa = const Value.absent(),
+    this.sourceTag = const Value.absent(),
+    this.targetMinTrack = const Value.absent(),
+    this.targetMaxTrack = const Value.absent(),
+    this.difficultyBand = const Value.absent(),
+    this.frequencyTier = const Value.absent(),
     this.deletedAt = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -6819,6 +7060,11 @@ class VocabMasterCompanion extends UpdateCompanion<VocabMasterData> {
     required String meaning,
     this.example = const Value.absent(),
     this.ipa = const Value.absent(),
+    this.sourceTag = const Value.absent(),
+    this.targetMinTrack = const Value.absent(),
+    this.targetMaxTrack = const Value.absent(),
+    this.difficultyBand = const Value.absent(),
+    this.frequencyTier = const Value.absent(),
     this.deletedAt = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -6832,6 +7078,11 @@ class VocabMasterCompanion extends UpdateCompanion<VocabMasterData> {
     Expression<String>? meaning,
     Expression<String>? example,
     Expression<String>? ipa,
+    Expression<String>? sourceTag,
+    Expression<String>? targetMinTrack,
+    Expression<String>? targetMaxTrack,
+    Expression<int>? difficultyBand,
+    Expression<int>? frequencyTier,
     Expression<DateTime>? deletedAt,
     Expression<DateTime>? createdAt,
     Expression<int>? rowid,
@@ -6843,6 +7094,11 @@ class VocabMasterCompanion extends UpdateCompanion<VocabMasterData> {
       if (meaning != null) 'meaning': meaning,
       if (example != null) 'example': example,
       if (ipa != null) 'ipa': ipa,
+      if (sourceTag != null) 'source_tag': sourceTag,
+      if (targetMinTrack != null) 'target_min_track': targetMinTrack,
+      if (targetMaxTrack != null) 'target_max_track': targetMaxTrack,
+      if (difficultyBand != null) 'difficulty_band': difficultyBand,
+      if (frequencyTier != null) 'frequency_tier': frequencyTier,
       if (deletedAt != null) 'deleted_at': deletedAt,
       if (createdAt != null) 'created_at': createdAt,
       if (rowid != null) 'rowid': rowid,
@@ -6856,6 +7112,11 @@ class VocabMasterCompanion extends UpdateCompanion<VocabMasterData> {
     Value<String>? meaning,
     Value<String?>? example,
     Value<String?>? ipa,
+    Value<String>? sourceTag,
+    Value<String?>? targetMinTrack,
+    Value<String?>? targetMaxTrack,
+    Value<int?>? difficultyBand,
+    Value<int?>? frequencyTier,
     Value<DateTime?>? deletedAt,
     Value<DateTime>? createdAt,
     Value<int>? rowid,
@@ -6867,6 +7128,11 @@ class VocabMasterCompanion extends UpdateCompanion<VocabMasterData> {
       meaning: meaning ?? this.meaning,
       example: example ?? this.example,
       ipa: ipa ?? this.ipa,
+      sourceTag: sourceTag ?? this.sourceTag,
+      targetMinTrack: targetMinTrack ?? this.targetMinTrack,
+      targetMaxTrack: targetMaxTrack ?? this.targetMaxTrack,
+      difficultyBand: difficultyBand ?? this.difficultyBand,
+      frequencyTier: frequencyTier ?? this.frequencyTier,
       deletedAt: deletedAt ?? this.deletedAt,
       createdAt: createdAt ?? this.createdAt,
       rowid: rowid ?? this.rowid,
@@ -6894,6 +7160,21 @@ class VocabMasterCompanion extends UpdateCompanion<VocabMasterData> {
     if (ipa.present) {
       map['ipa'] = Variable<String>(ipa.value);
     }
+    if (sourceTag.present) {
+      map['source_tag'] = Variable<String>(sourceTag.value);
+    }
+    if (targetMinTrack.present) {
+      map['target_min_track'] = Variable<String>(targetMinTrack.value);
+    }
+    if (targetMaxTrack.present) {
+      map['target_max_track'] = Variable<String>(targetMaxTrack.value);
+    }
+    if (difficultyBand.present) {
+      map['difficulty_band'] = Variable<int>(difficultyBand.value);
+    }
+    if (frequencyTier.present) {
+      map['frequency_tier'] = Variable<int>(frequencyTier.value);
+    }
     if (deletedAt.present) {
       map['deleted_at'] = Variable<DateTime>(deletedAt.value);
     }
@@ -6915,6 +7196,11 @@ class VocabMasterCompanion extends UpdateCompanion<VocabMasterData> {
           ..write('meaning: $meaning, ')
           ..write('example: $example, ')
           ..write('ipa: $ipa, ')
+          ..write('sourceTag: $sourceTag, ')
+          ..write('targetMinTrack: $targetMinTrack, ')
+          ..write('targetMaxTrack: $targetMaxTrack, ')
+          ..write('difficultyBand: $difficultyBand, ')
+          ..write('frequencyTier: $frequencyTier, ')
           ..write('deletedAt: $deletedAt, ')
           ..write('createdAt: $createdAt, ')
           ..write('rowid: $rowid')
@@ -13820,6 +14106,11 @@ typedef $$VocabMasterTableCreateCompanionBuilder =
       required String meaning,
       Value<String?> example,
       Value<String?> ipa,
+      Value<String> sourceTag,
+      Value<String?> targetMinTrack,
+      Value<String?> targetMaxTrack,
+      Value<int?> difficultyBand,
+      Value<int?> frequencyTier,
       Value<DateTime?> deletedAt,
       Value<DateTime> createdAt,
       Value<int> rowid,
@@ -13832,6 +14123,11 @@ typedef $$VocabMasterTableUpdateCompanionBuilder =
       Value<String> meaning,
       Value<String?> example,
       Value<String?> ipa,
+      Value<String> sourceTag,
+      Value<String?> targetMinTrack,
+      Value<String?> targetMaxTrack,
+      Value<int?> difficultyBand,
+      Value<int?> frequencyTier,
       Value<DateTime?> deletedAt,
       Value<DateTime> createdAt,
       Value<int> rowid,
@@ -13917,6 +14213,31 @@ class $$VocabMasterTableFilterComposer
 
   ColumnFilters<String> get ipa => $composableBuilder(
     column: $table.ipa,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sourceTag => $composableBuilder(
+    column: $table.sourceTag,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get targetMinTrack => $composableBuilder(
+    column: $table.targetMinTrack,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get targetMaxTrack => $composableBuilder(
+    column: $table.targetMaxTrack,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get difficultyBand => $composableBuilder(
+    column: $table.difficultyBand,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get frequencyTier => $composableBuilder(
+    column: $table.frequencyTier,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -14020,6 +14341,31 @@ class $$VocabMasterTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get sourceTag => $composableBuilder(
+    column: $table.sourceTag,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get targetMinTrack => $composableBuilder(
+    column: $table.targetMinTrack,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get targetMaxTrack => $composableBuilder(
+    column: $table.targetMaxTrack,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get difficultyBand => $composableBuilder(
+    column: $table.difficultyBand,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get frequencyTier => $composableBuilder(
+    column: $table.frequencyTier,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
     column: $table.deletedAt,
     builder: (column) => ColumnOrderings(column),
@@ -14057,6 +14403,29 @@ class $$VocabMasterTableAnnotationComposer
 
   GeneratedColumn<String> get ipa =>
       $composableBuilder(column: $table.ipa, builder: (column) => column);
+
+  GeneratedColumn<String> get sourceTag =>
+      $composableBuilder(column: $table.sourceTag, builder: (column) => column);
+
+  GeneratedColumn<String> get targetMinTrack => $composableBuilder(
+    column: $table.targetMinTrack,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get targetMaxTrack => $composableBuilder(
+    column: $table.targetMaxTrack,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get difficultyBand => $composableBuilder(
+    column: $table.difficultyBand,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get frequencyTier => $composableBuilder(
+    column: $table.frequencyTier,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<DateTime> get deletedAt =>
       $composableBuilder(column: $table.deletedAt, builder: (column) => column);
@@ -14149,6 +14518,11 @@ class $$VocabMasterTableTableManager
                 Value<String> meaning = const Value.absent(),
                 Value<String?> example = const Value.absent(),
                 Value<String?> ipa = const Value.absent(),
+                Value<String> sourceTag = const Value.absent(),
+                Value<String?> targetMinTrack = const Value.absent(),
+                Value<String?> targetMaxTrack = const Value.absent(),
+                Value<int?> difficultyBand = const Value.absent(),
+                Value<int?> frequencyTier = const Value.absent(),
                 Value<DateTime?> deletedAt = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -14159,6 +14533,11 @@ class $$VocabMasterTableTableManager
                 meaning: meaning,
                 example: example,
                 ipa: ipa,
+                sourceTag: sourceTag,
+                targetMinTrack: targetMinTrack,
+                targetMaxTrack: targetMaxTrack,
+                difficultyBand: difficultyBand,
+                frequencyTier: frequencyTier,
                 deletedAt: deletedAt,
                 createdAt: createdAt,
                 rowid: rowid,
@@ -14171,6 +14550,11 @@ class $$VocabMasterTableTableManager
                 required String meaning,
                 Value<String?> example = const Value.absent(),
                 Value<String?> ipa = const Value.absent(),
+                Value<String> sourceTag = const Value.absent(),
+                Value<String?> targetMinTrack = const Value.absent(),
+                Value<String?> targetMaxTrack = const Value.absent(),
+                Value<int?> difficultyBand = const Value.absent(),
+                Value<int?> frequencyTier = const Value.absent(),
                 Value<DateTime?> deletedAt = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -14181,6 +14565,11 @@ class $$VocabMasterTableTableManager
                 meaning: meaning,
                 example: example,
                 ipa: ipa,
+                sourceTag: sourceTag,
+                targetMinTrack: targetMinTrack,
+                targetMaxTrack: targetMaxTrack,
+                difficultyBand: difficultyBand,
+                frequencyTier: frequencyTier,
                 deletedAt: deletedAt,
                 createdAt: createdAt,
                 rowid: rowid,
