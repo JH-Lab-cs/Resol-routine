@@ -19,6 +19,7 @@ def test_dev_seed_creates_daily_and_mock_readiness_baseline(db_session_factory) 
 
     with db_session_factory() as db:
         report = build_content_readiness_report(db)
+        assert report["policyVersion"] == "2026-03-08-b2.6.3"
 
         daily_tracks = report["daily"]["tracks"]
         assert daily_tracks["M3"]["readiness"] == "WARNING"
@@ -32,6 +33,11 @@ def test_dev_seed_creates_daily_and_mock_readiness_baseline(db_session_factory) 
         assert mock_tracks["H2"]["weekly"]["readiness"] == "READY"
         assert mock_tracks["H2"]["monthly"]["readiness"] == "NOT_READY"
         assert mock_tracks["H3"]["monthly"]["readiness"] == "READY"
+
+        vocab = report["vocab"]
+        assert vocab["backendCatalogPresent"] is False
+        assert vocab["serviceReadiness"] == "NOT_READY"
+        assert vocab["tracks"]["M3"]["readiness"] == "NOT_READY"
 
 
 def test_dev_seed_materializes_weekly_and_monthly_mock_samples(db_session_factory) -> None:
