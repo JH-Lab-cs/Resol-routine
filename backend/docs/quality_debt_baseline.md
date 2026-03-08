@@ -23,6 +23,10 @@ while still blocking regressions on newly changed backend Python files.
 - Lint/type strict gate is changed-files based:
   - `ruff` runs only on changed backend Python files.
   - `mypy` runs only on derived `app.*` module targets from changed backend Python files.
+  - Local default resolution prefers the current branch upstream via merge-base.
+  - Local default also includes staged/unstaged/untracked backend Python files from the current working tree.
+  - PR/default-base resolution uses merge-base against the target branch (`origin/main` preferred).
+  - Positional args and `CHANGED_PYTHON_FILES` still override the auto-detected set.
 - If no backend Python files changed, strict lint/type gate is skipped.
 
 ## Regression Rule

@@ -18,7 +18,8 @@ Usage: backend_ci.sh [sync|quality-strict|test|alembic|full] [changed-python-fil
              1) positional file arguments
              2) CHANGED_PYTHON_FILES env (newline-separated)
              3) BASE_SHA + HEAD_SHA env via git diff
-             4) default git diff (HEAD~1..HEAD)
+             4) merge-base against target branch (default local/PR path)
+             5) fallback git diff (HEAD~1..HEAD)
   test     Run full backend test gates (compileall, pytest, app import smoke).
   alembic  Run alembic upgrade head (requires runtime env vars and PostgreSQL).
   full     Run sync + quality-strict + test + alembic.
@@ -57,20 +58,24 @@ run_sync() {
 
 collect_changed_python_files() {
   if (($# > 0)); then
+    echo "Changed-file source: positional args" >&2
     printf '%s\n' "$@"
     return 0
   fi
 
   if [[ -n "${CHANGED_PYTHON_FILES:-}" ]]; then
+    echo "Changed-file source: CHANGED_PYTHON_FILES env" >&2
     printf '%s\n' "${CHANGED_PYTHON_FILES}"
     return 0
   fi
 
   if [[ -n "${BASE_SHA:-}" && -n "${HEAD_SHA:-}" ]]; then
+    echo "Changed-file source: BASE_SHA/HEAD_SHA env" >&2
     python3 scripts/list_changed_python_files.py --base "${BASE_SHA}" --head "${HEAD_SHA}"
     return 0
   fi
 
+  echo "Changed-file source: merge-base/default local detection" >&2
   python3 scripts/list_changed_python_files.py
 }
 

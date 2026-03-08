@@ -31,19 +31,27 @@ jobs:
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
             BASE_SHA="${{ github.event.pull_request.base.sha }}"
             HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+            BASE_BRANCH_REF="origin/${{ github.base_ref }}"
           elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             BASE_SHA="${{ github.sha }}"
             HEAD_SHA="${{ github.sha }}"
+            BASE_BRANCH_REF=""
           else
             BASE_SHA="${{ github.event.before }}"
             HEAD_SHA="${{ github.sha }}"
+            BASE_BRANCH_REF=""
           fi
 
           if [[ -z "${BASE_SHA}" || "${BASE_SHA}" == "0000000000000000000000000000000000000000" ]]; then
             BASE_SHA="$(git rev-list --max-parents=0 HEAD | tail -n 1)"
           fi
 
-          git diff --name-only --diff-filter=ACMR "${BASE_SHA}" "${HEAD_SHA}" > /tmp/changed_files.txt
+          COMPARE_BASE="${BASE_SHA}"
+          if [[ -n "${BASE_BRANCH_REF}" ]] && git rev-parse --verify "${BASE_BRANCH_REF}" >/dev/null 2>&1; then
+            COMPARE_BASE="$(git merge-base "${HEAD_SHA}" "${BASE_BRANCH_REF}")"
+          fi
+
+          git diff --name-only --diff-filter=ACMR "${COMPARE_BASE}" "${HEAD_SHA}" > /tmp/changed_files.txt
 
           RUNTIME_AFFECTING="false"
           while IFS= read -r changed_file; do
@@ -55,7 +63,7 @@ jobs:
             esac
           done < /tmp/changed_files.txt
 
-          python3 backend/scripts/list_changed_python_files.py --base "${BASE_SHA}" --head "${HEAD_SHA}" > /tmp/changed_backend_python.txt
+          python3 backend/scripts/list_changed_python_files.py --base "${COMPARE_BASE}" --head "${HEAD_SHA}" > /tmp/changed_backend_python.txt
           CHANGED_PY_COUNT="$(grep -cve '^[[:space:]]*$' /tmp/changed_backend_python.txt || true)"
           HAS_BACKEND_PROJECT="false"
           if [[ -f "backend/pyproject.toml" ]]; then
@@ -77,6 +85,8 @@ jobs:
           } >> "${GITHUB_OUTPUT}"
 
           echo "Runtime-affecting backend change: ${RUNTIME_AFFECTING}"
+          echo "Changed-file compare base: ${COMPARE_BASE}"
+          echo "Changed-file head: ${HEAD_SHA}"
           echo "Backend project present: ${HAS_BACKEND_PROJECT}"
           echo "Base commit has backend project: ${BASE_HAS_BACKEND_PROJECT}"
           echo "Changed backend Python files count: ${CHANGED_PY_COUNT}"

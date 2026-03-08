@@ -95,8 +95,21 @@ bash scripts/backend_ci.sh full
   - positional file args
   - `CHANGED_PYTHON_FILES` env (newline-separated)
   - `BASE_SHA` + `HEAD_SHA` env
-  - default git diff (`HEAD~1..HEAD`)
+  - local default: merge-base against current branch upstream when available
+  - PR/default base fallback: merge-base against target branch (`origin/main` preferred)
+  - final fallback: `HEAD~1..HEAD`
+- local default also unions staged/unstaged/untracked backend Python files from the current working tree
+- prints the comparison basis (`base`, `head`, strategy) before listing strict targets
 - skips when no changed backend Python files are detected
+
+Local override examples:
+
+```bash
+cd backend
+bash scripts/backend_ci.sh quality-strict app/services/content_sync_service.py
+BASE_SHA="$(git merge-base HEAD origin/main)" HEAD_SHA="$(git rev-parse HEAD)" \
+  bash scripts/backend_ci.sh quality-strict
+```
 
 `test` includes:
 
