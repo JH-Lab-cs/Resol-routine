@@ -8,7 +8,7 @@ import 'package:path/path.dart' as p;
 import 'package:resol_routine/core/database/app_database.dart';
 
 void main() {
-  test('migrates v1 schema to v13 while preserving rows', () async {
+  test('migrates v1 schema to v14 while preserving rows', () async {
     final tempDir = await Directory.systemTemp.createTemp('resol_migration_');
     final dbFile = File(p.join(tempDir.path, 'migration_v1.sqlite'));
 
@@ -29,7 +29,7 @@ void main() {
     final userVersionRow = await database
         .customSelect('PRAGMA user_version', readsFrom: {})
         .getSingle();
-    expect(userVersionRow.read<int>('user_version'), 13);
+    expect(userVersionRow.read<int>('user_version'), 14);
 
     final attemptsRow = await database
         .customSelect('SELECT COUNT(*) AS count FROM attempts', readsFrom: {})
@@ -132,6 +132,34 @@ void main() {
       vocabMasterColumns.any((row) => row.read<String>('name') == 'deleted_at'),
       isTrue,
     );
+    expect(
+      vocabMasterColumns.any((row) => row.read<String>('name') == 'source_tag'),
+      isTrue,
+    );
+    expect(
+      vocabMasterColumns.any(
+        (row) => row.read<String>('name') == 'target_min_track',
+      ),
+      isTrue,
+    );
+    expect(
+      vocabMasterColumns.any(
+        (row) => row.read<String>('name') == 'target_max_track',
+      ),
+      isTrue,
+    );
+    expect(
+      vocabMasterColumns.any(
+        (row) => row.read<String>('name') == 'difficulty_band',
+      ),
+      isTrue,
+    );
+    expect(
+      vocabMasterColumns.any(
+        (row) => row.read<String>('name') == 'frequency_tier',
+      ),
+      isTrue,
+    );
 
     final mockExamSessionsCount = await database
         .customSelect(
@@ -164,7 +192,7 @@ void main() {
   });
 
   test(
-    'migrates v11 questions table with numeric-only type tag checks to v13',
+      'migrates v11 questions table with numeric-only type tag checks to v14',
     () async {
       final tempDir = await Directory.systemTemp.createTemp(
         'resol_migration_v11_',
@@ -188,12 +216,20 @@ void main() {
       final userVersionRow = await database
           .customSelect('PRAGMA user_version', readsFrom: {})
           .getSingle();
-      expect(userVersionRow.read<int>('user_version'), 13);
+      expect(userVersionRow.read<int>('user_version'), 14);
 
       final migratedQuestion = await (database.select(
         database.questions,
       )..where((tbl) => tbl.id.equals('question_v11'))).getSingle();
       expect(migratedQuestion.typeTag, 'L_GIST');
+
+      final vocabColumns = await database
+          .customSelect("PRAGMA table_info('vocab_master')", readsFrom: {})
+          .get();
+      expect(
+        vocabColumns.any((row) => row.read<String>('name') == 'source_tag'),
+        isTrue,
+      );
     },
   );
 }

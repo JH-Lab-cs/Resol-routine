@@ -37,6 +37,11 @@ void main() {
         expect(inserted.meaning, '분석하다');
         expect(inserted.pos, 'verb');
         expect(inserted.example, 'We analyze results daily.');
+        expect(inserted.sourceTag, 'USER_CUSTOM');
+        expect(inserted.targetMinTrack, isNull);
+        expect(inserted.targetMaxTrack, isNull);
+        expect(inserted.difficultyBand, isNull);
+        expect(inserted.frequencyTier, isNull);
 
         final myVocabulary = await repository.listMyVocabulary();
         expect(myVocabulary.any((item) => item.id == inserted.id), isTrue);

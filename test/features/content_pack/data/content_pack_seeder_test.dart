@@ -89,6 +89,17 @@ void main() {
       );
       expect(listeningExplanation.whyWrongKoJson.byKey('A'), isNotEmpty);
       expect(listeningExplanation.evidenceSentenceIdsJson, contains('ls_002'));
+
+      final vocabRow =
+          await (database.select(database.vocabMaster)..where(
+                (tbl) => tbl.id.equals('vocab_register'),
+              ))
+              .getSingle();
+      expect(vocabRow.sourceTag, 'CSAT');
+      expect(vocabRow.targetMinTrack, 'H1');
+      expect(vocabRow.targetMaxTrack, 'H3');
+      expect(vocabRow.difficultyBand, 3);
+      expect(vocabRow.frequencyTier, 2);
     });
 
     test(
