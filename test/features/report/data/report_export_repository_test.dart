@@ -127,6 +127,51 @@ void main() {
     );
 
     test(
+      'daily report stays skill-based after reading-first session reorder',
+      () async {
+        final session = await sessionRepository.getOrCreateSession(
+          track: 'M3',
+          nowLocal: DateTime(2026, 2, 22, 9, 0),
+        );
+        final reordered = await sessionRepository.saveSectionOrder(
+          sessionId: session.sessionId,
+          sectionOrder: DailySectionOrder.readingFirst,
+        );
+
+        await quizRepository.saveAttemptIdempotent(
+          sessionId: reordered.sessionId,
+          questionId: reordered.items[0].questionId,
+          selectedAnswer: 'A',
+          isCorrect: true,
+        );
+        await quizRepository.saveAttemptIdempotent(
+          sessionId: reordered.sessionId,
+          questionId: reordered.items[1].questionId,
+          selectedAnswer: 'B',
+          isCorrect: false,
+          wrongReasonTag: WrongReasonTag.vocab,
+        );
+        await quizRepository.saveAttemptIdempotent(
+          sessionId: reordered.sessionId,
+          questionId: reordered.items[3].questionId,
+          selectedAnswer: 'C',
+          isCorrect: true,
+        );
+
+        final report = await reportRepository.buildCumulativeReport(
+          track: 'M3',
+          nowLocal: DateTime(2026, 2, 22, 10, 0),
+        );
+
+        expect(report.days, hasLength(1));
+        final day = report.days.single;
+        expect(day.listeningCorrect, 1);
+        expect(day.readingCorrect, 1);
+        expect(day.wrongCount, 1);
+      },
+    );
+
+    test(
       'returns empty days when no sessions exist for selected track',
       () async {
         final report = await reportRepository.buildCumulativeReport(

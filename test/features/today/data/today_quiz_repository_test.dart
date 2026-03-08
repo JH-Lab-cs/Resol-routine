@@ -173,6 +173,52 @@ void main() {
     );
 
     test(
+      'loadSessionCompletionReport stays correct after reading-first reorder',
+      () async {
+        final session = await sessionRepository.getOrCreateSession(
+          track: 'H2',
+          nowLocal: DateTime(2026, 2, 19, 9, 45),
+        );
+        final reordered = await sessionRepository.saveSectionOrder(
+          sessionId: session.sessionId,
+          sectionOrder: DailySectionOrder.readingFirst,
+        );
+
+        expect(reordered.sectionOrder, DailySectionOrder.readingFirst);
+        expect(reordered.items.first.skill, 'READING');
+
+        await quizRepository.saveAttemptIdempotent(
+          sessionId: reordered.sessionId,
+          questionId: reordered.items[0].questionId,
+          selectedAnswer: 'A',
+          isCorrect: true,
+        );
+        await quizRepository.saveAttemptIdempotent(
+          sessionId: reordered.sessionId,
+          questionId: reordered.items[1].questionId,
+          selectedAnswer: 'B',
+          isCorrect: false,
+          wrongReasonTag: WrongReasonTag.evidence,
+        );
+        await quizRepository.saveAttemptIdempotent(
+          sessionId: reordered.sessionId,
+          questionId: reordered.items[3].questionId,
+          selectedAnswer: 'C',
+          isCorrect: true,
+        );
+
+        final report = await quizRepository.loadSessionCompletionReport(
+          reordered.sessionId,
+        );
+
+        expect(report.listeningCorrectCount, 1);
+        expect(report.readingCorrectCount, 1);
+        expect(report.wrongCount, 1);
+        expect(report.topWrongReasonTag, WrongReasonTag.evidence);
+      },
+    );
+
+    test(
       'completedItems remains 1 when same question is saved twice',
       () async {
         final session = await sessionRepository.getOrCreateSession(

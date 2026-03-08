@@ -5,6 +5,7 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:resol_routine/core/database/app_database.dart';
+import 'package:resol_routine/core/domain/domain_enums.dart';
 import 'package:resol_routine/features/content_pack/data/content_pack_seeder.dart';
 import 'package:resol_routine/features/today/data/today_session_repository.dart';
 
@@ -124,5 +125,30 @@ void main() {
         expect(firstQuestionIds, orderedEquals(secondQuestionIds));
       },
     );
+
+    test('saveSectionOrder persists metadata and reorders items', () async {
+      final bundle = await repository.getOrCreateSession(
+        track: 'H2',
+        nowLocal: DateTime(2026, 2, 19, 13, 0),
+      );
+
+      final updated = await repository.saveSectionOrder(
+        sessionId: bundle.sessionId,
+        sectionOrder: DailySectionOrder.readingFirst,
+      );
+
+      expect(updated.sectionOrder, DailySectionOrder.readingFirst);
+      expect(
+        updated.items.map((item) => item.skill).toList(growable: false),
+        orderedEquals(<String>[
+          'READING',
+          'READING',
+          'READING',
+          'LISTENING',
+          'LISTENING',
+          'LISTENING',
+        ]),
+      );
+    });
   });
 }

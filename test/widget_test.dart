@@ -656,17 +656,25 @@ Future<void> _scrollUntilVisible(WidgetTester tester, Finder finder) async {
 class _FakeTodaySessionRepository extends TodaySessionRepository {
   _FakeTodaySessionRepository(AppDatabase database) : super(database: database);
 
+  DailySessionBundle? _bundle;
+
   @override
   Future<DailySessionBundle> getOrCreateSession({
     required String track,
     DateTime? nowLocal,
   }) async {
-    return DailySessionBundle(
+    final existing = _bundle;
+    if (existing != null) {
+      return existing;
+    }
+
+    final created = DailySessionBundle(
       sessionId: 1,
       dayKey: '20260219',
       track: track,
       plannedItems: 6,
       completedItems: 0,
+      metadata: const DailySessionMetadata(),
       items: const [
         DailySessionItemBundle(
           orderIndex: 0,
@@ -700,6 +708,49 @@ class _FakeTodaySessionRepository extends TodaySessionRepository {
         ),
       ],
     );
+    _bundle = created;
+    return created;
+  }
+
+  @override
+  Future<DailySessionBundle> saveSectionOrder({
+    required int sessionId,
+    required DailySectionOrder sectionOrder,
+  }) async {
+    final bundle = _bundle;
+    if (bundle == null || bundle.sessionId != sessionId) {
+      throw StateError('Daily session not found: $sessionId');
+    }
+
+    final listeningItems = bundle.items
+        .where((item) => item.skill == 'LISTENING')
+        .toList(growable: false);
+    final readingItems = bundle.items
+        .where((item) => item.skill == 'READING')
+        .toList(growable: false);
+    final orderedItems = sectionOrder == DailySectionOrder.listeningFirst
+        ? <DailySessionItemBundle>[...listeningItems, ...readingItems]
+        : <DailySessionItemBundle>[...readingItems, ...listeningItems];
+    final normalizedItems = [
+      for (var index = 0; index < orderedItems.length; index++)
+        DailySessionItemBundle(
+          orderIndex: index,
+          questionId: orderedItems[index].questionId,
+          skill: orderedItems[index].skill,
+        ),
+    ];
+
+    final updated = DailySessionBundle(
+      sessionId: bundle.sessionId,
+      dayKey: bundle.dayKey,
+      track: bundle.track,
+      plannedItems: bundle.plannedItems,
+      completedItems: bundle.completedItems,
+      metadata: bundle.metadata.copyWith(sectionOrder: sectionOrder),
+      items: normalizedItems,
+    );
+    _bundle = updated;
+    return updated;
   }
 }
 

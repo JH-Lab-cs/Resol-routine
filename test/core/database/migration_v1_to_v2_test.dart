@@ -8,7 +8,7 @@ import 'package:path/path.dart' as p;
 import 'package:resol_routine/core/database/app_database.dart';
 
 void main() {
-  test('migrates v1 schema to v12 while preserving rows', () async {
+  test('migrates v1 schema to v13 while preserving rows', () async {
     final tempDir = await Directory.systemTemp.createTemp('resol_migration_');
     final dbFile = File(p.join(tempDir.path, 'migration_v1.sqlite'));
 
@@ -29,7 +29,7 @@ void main() {
     final userVersionRow = await database
         .customSelect('PRAGMA user_version', readsFrom: {})
         .getSingle();
-    expect(userVersionRow.read<int>('user_version'), 12);
+    expect(userVersionRow.read<int>('user_version'), 13);
 
     final attemptsRow = await database
         .customSelect('SELECT COUNT(*) AS count FROM attempts', readsFrom: {})
@@ -164,7 +164,7 @@ void main() {
   });
 
   test(
-    'migrates v11 questions table with numeric-only type tag checks to v12',
+    'migrates v11 questions table with numeric-only type tag checks to v13',
     () async {
       final tempDir = await Directory.systemTemp.createTemp(
         'resol_migration_v11_',
@@ -188,7 +188,7 @@ void main() {
       final userVersionRow = await database
           .customSelect('PRAGMA user_version', readsFrom: {})
           .getSingle();
-      expect(userVersionRow.read<int>('user_version'), 12);
+      expect(userVersionRow.read<int>('user_version'), 13);
 
       final migratedQuestion = await (database.select(
         database.questions,
