@@ -470,3 +470,95 @@ Local conclusion:
 - mock assembly readiness is now reproducible from local Postgres
 - the seeded bank is suitable for dev/qa verification
 - it is still intentionally narrower than a production content bank
+
+## 9. B2.6.3 Readiness Backfill Policy
+
+### Frozen service thresholds
+
+- Daily
+  - published count per skill >= `21`
+  - listening typeTag diversity >= `4`
+  - reading typeTag diversity >= `6`
+  - average difficulty must stay inside the track target range closely enough
+- Weekly
+  - listening `10`
+  - reading `10`
+  - listening diversity >= `3`
+  - reading diversity >= `4`
+- Monthly
+  - listening `17`
+  - reading `28`
+  - listening diversity >= `4`
+  - reading diversity >= `6`
+- Vocabulary
+  - per-track eligible vocab rows >= `20`
+  - required metadata:
+    - `sourceTag`
+    - `targetMinTrack`
+    - `targetMaxTrack`
+    - `difficultyBand`
+
+### Backfill execution policy
+
+- planner output is generated from published inventory only
+- planner emits deficit rows with:
+  - `track`
+  - `skill`
+  - `typeTag`
+  - `difficultyMin`
+  - `difficultyMax`
+  - `requiredCount`
+  - `reason`
+- deficit reasons are frozen:
+  - `DAILY_READINESS_DEFICIT`
+  - `WEEKLY_READINESS_DEFICIT`
+  - `MONTHLY_READINESS_DEFICIT`
+  - `VOCAB_BANDING_DEFICIT`
+- AI enqueue bridge reuses B2.1 content generation jobs
+- auto-publish remains forbidden
+
+### Cost control policy
+
+- `backfill-plan` is dry-run by default
+- real enqueue requires `backfill-enqueue --execute`
+- batch budgets are explicit:
+  - `maxTargetsPerRun`
+  - `maxCandidatesPerRun`
+- priority order is fixed:
+  1. Daily readiness deficits
+  2. Weekly readiness deficits
+  3. Monthly readiness deficits
+
+### Current backfill interpretation from the seeded local bank
+
+- `M3`
+  - Daily: backfill required
+  - Weekly: backfill required
+  - Monthly: backfill required
+- `H1`
+  - Daily: backfill required
+  - Weekly: backfill required
+  - Monthly: backfill required
+- `H2`
+  - Daily: backfill required
+  - Weekly: ready from the local seed
+  - Monthly: backfill required
+- `H3`
+  - Daily: ready from the local seed
+  - Weekly: ready from the local seed
+  - Monthly: ready from the local seed
+  - Vocabulary: still not ready by service threshold
+
+### Reviewer ops batch flow
+
+- `reviewer_ops.py backfill-plan --json`
+  - inspect deficit rows and estimated AI job cost
+- `reviewer_ops.py backfill-enqueue --execute --json`
+  - create AI content generation jobs from the planner output
+- `reviewer_ops.py batch-validate --validator ... --json`
+- `reviewer_ops.py batch-review --reviewer ... --json`
+- `reviewer_ops.py batch-publish --confirm --json`
+
+Integration tests now verify that publishing the final missing Daily draft can
+move a track from `WARNING` to `READY`, so the backfill -> human review ->
+publish loop is covered before B3 wiring starts.

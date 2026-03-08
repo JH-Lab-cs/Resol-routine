@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import json
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from pathlib import Path
 from uuid import UUID
 
 from sqlalchemy import select
@@ -14,6 +16,11 @@ from app.core.content_type_taxonomy import (
     normalize_type_tag_alias_or_canonical,
 )
 from app.core.policies import (
+    CONTENT_READINESS_POLICY_VERSION,
+    DAILY_READINESS_DIFFICULTY_RANGE_BY_TRACK,
+    DAILY_READINESS_LISTENING_TYPE_DIVERSITY_MIN,
+    DAILY_READINESS_MIN_PER_SKILL,
+    DAILY_READINESS_READING_TYPE_DIVERSITY_MIN,
     MOCK_ASSEMBLY_DEFAULT_DIFFICULTY_RANGE_BY_TRACK,
     MOCK_ASSEMBLY_MONTHLY_LISTENING_TYPE_DIVERSITY_MIN,
     MOCK_ASSEMBLY_MONTHLY_READING_TYPE_DIVERSITY_MIN,
@@ -23,6 +30,8 @@ from app.core.policies import (
     MOCK_EXAM_MONTHLY_READING_COUNT,
     MOCK_EXAM_WEEKLY_LISTENING_COUNT,
     MOCK_EXAM_WEEKLY_READING_COUNT,
+    VOCAB_READINESS_MIN_ROWS_BY_TRACK,
+    VOCAB_READINESS_REQUIRED_SOURCE_TAGS,
 )
 from app.models.content_enums import ContentLifecycleStatus
 from app.models.content_question import ContentQuestion
@@ -32,12 +41,13 @@ from app.models.enums import AIGenerationJobStatus, MockExamType, Skill, Track
 from app.schemas.mock_assembly import MockAssemblyJobCreateRequest
 from app.services.mock_assembly_service import create_mock_assembly_job
 
-DAILY_LIVE_SERVICE_MIN_PER_SKILL = 21
 DAILY_MIN_LISTENING_COUNT = 3
 DAILY_MIN_READING_COUNT = 3
-DAILY_READY_LISTENING_TYPE_DIVERSITY_MIN = 4
-DAILY_READY_READING_TYPE_DIVERSITY_MIN = 5
-DAILY_READY_DIFFICULTY_BUCKET_MIN = 2
+_CONTENT_PACK_PATH = (
+    Path(__file__).resolve().parents[3] / "assets" / "content_packs" / "starter_pack.json"
+)
+_TRACK_SEQUENCE = [Track.M3, Track.H1, Track.H2, Track.H3]
+_TRACK_INDEX = {track.value: index for index, track in enumerate(_TRACK_SEQUENCE)}
 
 
 @dataclass(frozen=True, slots=True)
@@ -51,13 +61,108 @@ class PublishedContentInventoryItem:
     difficulty: int
 
 
+@dataclass(frozen=True, slots=True)
+class VocabularySeedItem:
+    vocab_id: str
+    source_tag: str | None
+    target_min_track: str | None
+    target_max_track: str | None
+    difficulty_band: int | None
+    frequency_tier: int | None
+
+
 def build_content_readiness_report(db: Session) -> dict[str, object]:
-    inventory = _load_published_inventory(db)
+    inventory = load_published_inventory(db)
+    vocab_rows = load_seed_vocabulary_rows()
     return {
-        "generatedAt": datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
+        "policyVersion": CONTENT_READINESS_POLICY_VERSION,
+        "generatedAt": _utc_now_iso(),
         "daily": build_daily_readiness_report(inventory),
         "mock": build_mock_readiness_report(db, inventory=inventory),
+        "vocab": build_vocab_readiness_report(vocab_rows=vocab_rows),
     }
+
+
+def load_published_inventory(db: Session) -> list[PublishedContentInventoryItem]:
+    rows = db.execute(
+        select(ContentUnit, ContentUnitRevision, ContentQuestion)
+        .join(ContentUnitRevision, ContentUnitRevision.id == ContentUnit.published_revision_id)
+        .join(ContentQuestion, ContentQuestion.content_unit_revision_id == ContentUnitRevision.id)
+        .where(
+            ContentUnit.lifecycle_status == ContentLifecycleStatus.PUBLISHED,
+            ContentUnitRevision.lifecycle_status == ContentLifecycleStatus.PUBLISHED,
+            ContentUnit.published_revision_id.is_not(None),
+        )
+        .order_by(
+            ContentUnit.track.asc(),
+            ContentUnit.skill.asc(),
+            ContentUnit.external_id.asc(),
+            ContentQuestion.order_index.asc(),
+            ContentQuestion.id.asc(),
+        )
+    ).all()
+
+    inventory: list[PublishedContentInventoryItem] = []
+    for unit, revision, question in rows:
+        metadata = question.metadata_json if isinstance(question.metadata_json, dict) else {}
+        raw_type_tag = metadata.get("typeTag")
+        raw_difficulty = metadata.get("difficulty")
+        if not isinstance(raw_type_tag, str):
+            continue
+        if not isinstance(raw_difficulty, (int, float, str)) or isinstance(raw_difficulty, bool):
+            continue
+
+        normalized_type_tag = normalize_type_tag_alias_or_canonical(type_tag=raw_type_tag)
+        if not is_canonical_type_tag_for_skill(
+            skill=unit.skill.value,
+            type_tag=normalized_type_tag,
+        ):
+            continue
+
+        try:
+            difficulty = int(raw_difficulty)
+        except (TypeError, ValueError):
+            continue
+        if difficulty < 1 or difficulty > 5:
+            continue
+
+        inventory.append(
+            PublishedContentInventoryItem(
+                track=unit.track,
+                skill=unit.skill,
+                unit_id=unit.id,
+                revision_id=revision.id,
+                question_id=question.id,
+                type_tag=normalized_type_tag,
+                difficulty=difficulty,
+            )
+        )
+
+    return inventory
+
+
+def load_seed_vocabulary_rows(*, pack_path: Path | None = None) -> list[VocabularySeedItem]:
+    resolved_path = pack_path or _CONTENT_PACK_PATH
+    payload = json.loads(resolved_path.read_text(encoding="utf-8"))
+    rows = payload.get("vocabulary", [])
+    if not isinstance(rows, list):
+        return []
+
+    items: list[VocabularySeedItem] = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        items.append(
+            VocabularySeedItem(
+                vocab_id=str(row.get("id", "")),
+                source_tag=_as_optional_str(row.get("sourceTag")),
+                target_min_track=_as_optional_str(row.get("targetMinTrack")),
+                target_max_track=_as_optional_str(row.get("targetMaxTrack")),
+                difficulty_band=_as_optional_int(row.get("difficultyBand")),
+                frequency_tier=_as_optional_int(row.get("frequencyTier")),
+            )
+        )
+    return items
 
 
 def build_daily_readiness_report(
@@ -69,14 +174,19 @@ def build_daily_readiness_report(
         per_skill: dict[str, object] = {}
         daily_possible = True
         warning_reasons: list[str] = []
+        expected_min, expected_max = DAILY_READINESS_DIFFICULTY_RANGE_BY_TRACK[track.value]
+        average_min, average_max = MOCK_ASSEMBLY_DEFAULT_DIFFICULTY_RANGE_BY_TRACK[track.value]
 
         for skill in Skill:
             skill_items = [item for item in track_items if item.skill == skill]
             type_counts: dict[str, int] = {}
             difficulty_counts = {str(index): 0 for index in range(1, 6)}
+            in_band_count = 0
             for item in skill_items:
                 type_counts[item.type_tag] = type_counts.get(item.type_tag, 0) + 1
                 difficulty_counts[str(item.difficulty)] += 1
+                if expected_min <= item.difficulty <= expected_max:
+                    in_band_count += 1
 
             missing_type_tags = [
                 type_tag
@@ -86,12 +196,20 @@ def build_daily_readiness_report(
             missing_difficulty_buckets = [
                 bucket for bucket, count in difficulty_counts.items() if count == 0
             ]
-            populated_difficulty_buckets = [
-                bucket for bucket, count in difficulty_counts.items() if count > 0
-            ]
+            average_difficulty = _average_difficulty(skill_items)
 
             per_skill[skill.value] = {
                 "total": len(skill_items),
+                "averageDifficulty": average_difficulty,
+                "expectedDifficultyBand": {
+                    "min": expected_min,
+                    "max": expected_max,
+                },
+                "targetAverageRange": {
+                    "min": average_min,
+                    "max": average_max,
+                },
+                "inBandCount": in_band_count,
                 "byTypeTag": dict(sorted(type_counts.items())),
                 "byDifficulty": difficulty_counts,
                 "missingTypeTags": missing_type_tags,
@@ -102,20 +220,21 @@ def build_daily_readiness_report(
                 DAILY_MIN_LISTENING_COUNT if skill == Skill.LISTENING else DAILY_MIN_READING_COUNT
             )
             diversity_floor = (
-                DAILY_READY_LISTENING_TYPE_DIVERSITY_MIN
+                DAILY_READINESS_LISTENING_TYPE_DIVERSITY_MIN
                 if skill == Skill.LISTENING
-                else DAILY_READY_READING_TYPE_DIVERSITY_MIN
+                else DAILY_READINESS_READING_TYPE_DIVERSITY_MIN
             )
             if len(skill_items) < minimum_count:
                 daily_possible = False
-            if len(skill_items) < DAILY_LIVE_SERVICE_MIN_PER_SKILL:
-                warning_reasons.append(f"{skill.value.lower()}_count_below_live_threshold")
+            if len(skill_items) < DAILY_READINESS_MIN_PER_SKILL:
+                warning_reasons.append(f"{skill.value.lower()}_count_below_service_threshold")
             if len(type_counts) < diversity_floor:
-                warning_reasons.append(f"{skill.value.lower()}_type_diversity_below_ready_threshold")
-            if len(populated_difficulty_buckets) < DAILY_READY_DIFFICULTY_BUCKET_MIN:
-                warning_reasons.append(
-                    f"{skill.value.lower()}_difficulty_buckets_below_ready_threshold"
-                )
+                warning_reasons.append(f"{skill.value.lower()}_type_diversity_below_service_threshold")
+            if (
+                average_difficulty is not None
+                and not (average_min <= average_difficulty <= average_max)
+            ):
+                warning_reasons.append(f"{skill.value.lower()}_difficulty_band_misaligned")
 
         readiness = "READY"
         if not daily_possible:
@@ -127,8 +246,10 @@ def build_daily_readiness_report(
             "matrix": per_skill,
             "dailyPossible": daily_possible,
             "recommendedMinimumThreshold": {
-                "listening": DAILY_LIVE_SERVICE_MIN_PER_SKILL,
-                "reading": DAILY_LIVE_SERVICE_MIN_PER_SKILL,
+                "listening": DAILY_READINESS_MIN_PER_SKILL,
+                "reading": DAILY_READINESS_MIN_PER_SKILL,
+                "listeningTypeDiversity": DAILY_READINESS_LISTENING_TYPE_DIVERSITY_MIN,
+                "readingTypeDiversity": DAILY_READINESS_READING_TYPE_DIVERSITY_MIN,
             },
             "readiness": readiness,
             "warningReasons": sorted(set(warning_reasons)),
@@ -148,13 +269,10 @@ def build_mock_readiness_report(
         listening_items = [item for item in track_items if item.skill == Skill.LISTENING]
         reading_items = [item for item in track_items if item.skill == Skill.READING]
 
-        listening_counts = _skill_bucket_counts(listening_items)
-        reading_counts = _skill_bucket_counts(reading_items)
-
         tracks[track.value] = {
             "inventory": {
-                "LISTENING": listening_counts,
-                "READING": reading_counts,
+                "LISTENING": _skill_bucket_counts(listening_items),
+                "READING": _skill_bucket_counts(reading_items),
             },
             "weekly": _run_mock_readiness_check(
                 db,
@@ -171,6 +289,72 @@ def build_mock_readiness_report(
         }
 
     return {"tracks": tracks}
+
+
+def build_vocab_readiness_report(
+    *,
+    vocab_rows: list[VocabularySeedItem] | None = None,
+) -> dict[str, object]:
+    rows = vocab_rows or load_seed_vocabulary_rows()
+    missing_metadata_ids: list[str] = []
+    track_counts: dict[str, int] = {track.value: 0 for track in Track}
+    source_counts: dict[str, int] = defaultdict(int)
+    difficulty_counts: dict[str, int] = {str(index): 0 for index in range(1, 6)}
+
+    for row in rows:
+        if not _vocab_row_has_required_metadata(row):
+            missing_metadata_ids.append(row.vocab_id)
+            continue
+
+        assert row.source_tag is not None
+        assert row.difficulty_band is not None
+        source_counts[row.source_tag] += 1
+        difficulty_counts[str(row.difficulty_band)] += 1
+
+        for track in Track:
+            if _track_is_within_vocab_band(
+                track=track.value,
+                minimum=row.target_min_track,
+                maximum=row.target_max_track,
+            ):
+                track_counts[track.value] += 1
+
+    tracks: dict[str, object] = {}
+    overall_readiness = "READY"
+    for track in Track:
+        minimum_required = VOCAB_READINESS_MIN_ROWS_BY_TRACK[track.value]
+        count = track_counts[track.value]
+        track_readiness = "READY" if count >= minimum_required else "NOT_READY"
+        if track_readiness != "READY":
+            overall_readiness = "NOT_READY"
+        tracks[track.value] = {
+            "eligibleCount": count,
+            "minimumRequired": minimum_required,
+            "readiness": track_readiness,
+        }
+
+    if missing_metadata_ids:
+        overall_readiness = "NOT_READY"
+
+    return {
+        "backendCatalogPresent": False,
+        "serviceReadiness": overall_readiness,
+        "selectionRule": {
+            "M3": "foundational / high-frequency academic",
+            "H1": "lower-band CSAT / school core",
+            "H2": "mid-band CSAT + carry-over review",
+            "H3": "upper-band CSAT + spaced review of lower bands",
+        },
+        "tracks": tracks,
+        "metadataCoverage": {
+            "totalRows": len(rows),
+            "rowsWithRequiredMetadata": len(rows) - len(missing_metadata_ids),
+            "missingMetadataIds": missing_metadata_ids,
+            "sourceTagCounts": dict(sorted(source_counts.items())),
+            "difficultyBandCounts": difficulty_counts,
+            "requiredSourceTags": list(VOCAB_READINESS_REQUIRED_SOURCE_TAGS),
+        },
+    }
 
 
 def _run_mock_readiness_check(
@@ -198,7 +382,7 @@ def _run_mock_readiness_check(
     difficulty_profile = MOCK_ASSEMBLY_DEFAULT_DIFFICULTY_RANGE_BY_TRACK[track.value]
     summary = response.summary_json
     constraint_summary = response.constraint_summary_json
-    warning_codes = []
+    warning_codes: list[str] = []
     warnings = summary.get("warnings")
     if isinstance(warnings, list):
         warning_codes = [str(item) for item in warnings]
@@ -258,64 +442,6 @@ def _run_mock_readiness_check(
     }
 
 
-def _load_published_inventory(db: Session) -> list[PublishedContentInventoryItem]:
-    rows = db.execute(
-        select(ContentUnit, ContentUnitRevision, ContentQuestion)
-        .join(ContentUnitRevision, ContentUnitRevision.id == ContentUnit.published_revision_id)
-        .join(ContentQuestion, ContentQuestion.content_unit_revision_id == ContentUnitRevision.id)
-        .where(
-            ContentUnit.lifecycle_status == ContentLifecycleStatus.PUBLISHED,
-            ContentUnitRevision.lifecycle_status == ContentLifecycleStatus.PUBLISHED,
-            ContentUnit.published_revision_id.is_not(None),
-        )
-        .order_by(
-            ContentUnit.track.asc(),
-            ContentUnit.skill.asc(),
-            ContentUnit.external_id.asc(),
-            ContentQuestion.order_index.asc(),
-            ContentQuestion.id.asc(),
-        )
-    ).all()
-
-    inventory: list[PublishedContentInventoryItem] = []
-    for unit, revision, question in rows:
-        metadata = question.metadata_json if isinstance(question.metadata_json, dict) else {}
-        raw_type_tag = metadata.get("typeTag")
-        raw_difficulty = metadata.get("difficulty")
-        if not isinstance(raw_type_tag, str):
-            continue
-        if not isinstance(raw_difficulty, (int, float, str)) or isinstance(raw_difficulty, bool):
-            continue
-
-        normalized_type_tag = normalize_type_tag_alias_or_canonical(type_tag=raw_type_tag)
-        if not is_canonical_type_tag_for_skill(
-            skill=unit.skill.value,
-            type_tag=normalized_type_tag,
-        ):
-            continue
-
-        try:
-            difficulty = int(raw_difficulty)
-        except (TypeError, ValueError):
-            continue
-        if difficulty < 1 or difficulty > 5:
-            continue
-
-        inventory.append(
-            PublishedContentInventoryItem(
-                track=unit.track,
-                skill=unit.skill,
-                unit_id=unit.id,
-                revision_id=revision.id,
-                question_id=question.id,
-                type_tag=normalized_type_tag,
-                difficulty=difficulty,
-            )
-        )
-
-    return inventory
-
-
 def _skill_bucket_counts(
     items: list[PublishedContentInventoryItem],
 ) -> dict[str, object]:
@@ -324,13 +450,6 @@ def _skill_bucket_counts(
     for item in items:
         by_type_tag[item.type_tag] += 1
         by_difficulty[str(item.difficulty)] += 1
-
-    average_difficulty = None
-    if items:
-        average_difficulty = round(
-            sum(item.difficulty for item in items) / len(items),
-            4,
-        )
 
     skill = items[0].skill.value if items else None
     missing_type_tags: list[str] = []
@@ -343,7 +462,7 @@ def _skill_bucket_counts(
 
     return {
         "total": len(items),
-        "averageDifficulty": average_difficulty,
+        "averageDifficulty": _average_difficulty(items),
         "byTypeTag": dict(sorted(by_type_tag.items())),
         "byDifficulty": by_difficulty,
         "missingTypeTags": missing_type_tags,
@@ -351,3 +470,62 @@ def _skill_bucket_counts(
             bucket for bucket, count in by_difficulty.items() if count == 0
         ],
     }
+
+
+def _average_difficulty(items: list[PublishedContentInventoryItem]) -> float | None:
+    if not items:
+        return None
+    return round(sum(item.difficulty for item in items) / len(items), 4)
+
+
+def _track_is_within_vocab_band(
+    *,
+    track: str,
+    minimum: str | None,
+    maximum: str | None,
+) -> bool:
+    if minimum is None or maximum is None:
+        return False
+    try:
+        track_index = _TRACK_INDEX[track]
+        minimum_index = _TRACK_INDEX[minimum]
+        maximum_index = _TRACK_INDEX[maximum]
+    except KeyError:
+        return False
+    return minimum_index <= track_index <= maximum_index
+
+
+def _vocab_row_has_required_metadata(row: VocabularySeedItem) -> bool:
+    if row.source_tag not in VOCAB_READINESS_REQUIRED_SOURCE_TAGS:
+        return False
+    if row.target_min_track not in _TRACK_INDEX or row.target_max_track not in _TRACK_INDEX:
+        return False
+    if row.difficulty_band is None or not 1 <= row.difficulty_band <= 5:
+        return False
+    if row.frequency_tier is not None and not 1 <= row.frequency_tier <= 5:
+        return False
+    return _track_is_within_vocab_band(
+        track=row.target_min_track,
+        minimum=row.target_min_track,
+        maximum=row.target_max_track,
+    )
+
+
+def _as_optional_int(value: object) -> int | None:
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _as_optional_str(value: object) -> str | None:
+    if not isinstance(value, str):
+        return None
+    normalized = value.strip()
+    return normalized or None
+
+
+def _utc_now_iso() -> str:
+    return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")

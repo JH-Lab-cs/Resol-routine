@@ -76,6 +76,28 @@ document and is defined separately in `docs/adaptive_selection_design.md`.
   - `difficultyBand = null`
   - `frequencyTier = null`
 
+## Readiness Threshold
+
+Pre-B3 readiness uses a conservative service threshold:
+
+- each track band should have at least `20` vocab rows eligible for that band
+- each row must carry:
+  - `sourceTag`
+  - `targetMinTrack`
+  - `targetMaxTrack`
+  - `difficultyBand`
+- the current repository still treats vocabulary as local/front-owned metadata
+  rather than a backend catalog
+
+That means vocabulary can be audited for readiness, but it is not yet part of
+the backend AI backfill flow.
+
+Current implication:
+
+- metadata structure is ready
+- deterministic banding policy is ready
+- live-service depth is still not ready
+
 ## Implementation Timing
 
 - metadata schema expansion: now

@@ -227,12 +227,41 @@ This document is the backend handoff baseline for the next chat/session.
 - Seed/audit tools:
   - `backend/tools/seed_dev_content.py`
   - `backend/tools/content_readiness_audit.py`
+  - `backend/tools/reviewer_ops.py backfill-plan --json`
+  - `backend/tools/reviewer_ops.py backfill-enqueue --json`
+  - `backend/tools/reviewer_ops.py batch-validate --json`
+  - `backend/tools/reviewer_ops.py batch-review --json`
+  - `backend/tools/reviewer_ops.py batch-publish --json --confirm`
 - Dev/QA seed intent:
   - sample published Daily candidate pool by track
   - sample weekly/monthly mock drafts for local verification
   - not a launch-readiness production bank snapshot
 - Vocabulary banding metadata is currently seeded through the local app starter pack,
   not through backend PostgreSQL tables.
+- Readiness policy is frozen in code and audit output:
+  - Daily service-ready:
+    - published count per skill >= `21`
+    - listening diversity >= `4`
+    - reading diversity >= `6`
+    - average difficulty must stay close to the track target range
+  - Weekly service-ready:
+    - listening `10`
+    - reading `10`
+    - listening diversity >= `3`
+    - reading diversity >= `4`
+  - Monthly service-ready:
+    - listening `17`
+    - reading `28`
+    - listening diversity >= `4`
+    - reading diversity >= `6`
+- Backfill planning is CLI-first and cost-capped:
+  - default mode is dry-run
+  - execution requires `backfill-enqueue --execute`
+  - priority order is `Daily -> Weekly -> Monthly`
+  - `maxTargetsPerRun` and `maxCandidatesPerRun` cap each AI generation batch
+- Reviewer batch operations remain human-controlled:
+  - AI generation creates DRAFT only
+  - validate/review/publish are done explicitly through batch ops commands
 - Frozen vocabulary banding policy:
   - see `docs/vocab_banding_policy.md`
 
