@@ -7,6 +7,8 @@ from app.models.billing_webhook_event import BillingWebhookEvent
 from app.models.content_asset import ContentAsset
 from app.models.content_enums import ContentLifecycleStatus
 from app.models.content_question import ContentQuestion
+from app.models.content_sync_enums import ContentSyncEventReason, ContentSyncEventType
+from app.models.content_sync_event import ContentSyncEvent
 from app.models.content_unit import ContentUnit
 from app.models.content_unit_revision import ContentUnitRevision
 from app.models.daily_report_aggregate import DailyReportAggregate
@@ -63,6 +65,9 @@ __all__ = [
     "ContentAsset",
     "ContentLifecycleStatus",
     "ContentQuestion",
+    "ContentSyncEvent",
+    "ContentSyncEventReason",
+    "ContentSyncEventType",
     "ContentSourcePolicy",
     "ContentTypeTag",
     "ContentUnit",

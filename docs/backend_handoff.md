@@ -179,6 +179,7 @@ This document is the backend handoff baseline for the next chat/session.
 - Public delivery endpoints:
   - `GET /public/content/units`
   - `GET /public/content/units/{revision_id}`
+  - `GET /public/content/sync`
 - Public list payload is lightweight:
   - `unitId`
   - `revisionId`
@@ -192,13 +193,27 @@ This document is the backend handoff baseline for the next chat/session.
   - READING: `bodyText`, question/options, answer/explanation metadata
   - LISTENING: `transcriptText`, `ttsPlan`, audio asset payload when available
 - Delta sync contract:
-  - `changedSince` is ISO-8601 UTC
-  - filter rule: `published_at > changedSince`
-  - response cursor: `nextChangedSince`
+  - `GET /public/content/sync` is the primary app sync surface.
+  - Primary cursor is opaque and ordered by `(cursor_published_at, cursor_revision_id)`.
+  - `GET /public/content/units?changedSince=...` remains compatibility/debug only.
+  - Sync response splits:
+    - `upserts`
+    - `deletes`
+    - `nextCursor`
+    - `hasMore`
+- Tombstone contract:
+  - `content_sync_events` stores append-only client sync events.
+  - `UPSERT` means the revision should exist in client cache.
+  - `DELETE` means the revision must be removed or invalidated in client cache.
+  - Delete reasons:
+    - `ARCHIVED`
+    - `REPLACED`
+    - `UNPUBLISHED`
 - Audio delivery contract:
   - audio stays in private R2 only
   - signed URL appears only on detail responses
   - default signed URL TTL is 5 minutes
+  - signed URL cache must be treated separately from payload cache
 
 ## L. Mock Exam Assembly Rules
 

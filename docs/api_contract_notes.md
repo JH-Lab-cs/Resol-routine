@@ -88,6 +88,7 @@ This note captures frontend-backend contracts that must remain stable while form
 - The app consumes backend content through public published-revision delivery only:
   - `GET /public/content/units`
   - `GET /public/content/units/{revision_id}`
+  - `GET /public/content/sync`
 - Public delivery must exclude `DRAFT` and `ARCHIVED` revisions.
 - `typeTag` in delivery payloads must always be canonical semantic taxonomy values.
 - List endpoint contract:
@@ -101,13 +102,31 @@ This note captures frontend-backend contracts that must remain stable while form
   - `LISTENING` payload may include an audio signed URL
   - `READING` payload includes full body/question/explanation fields
 - Delta sync rules:
-  - `changedSince` is ISO-8601 UTC
-  - server filters `published_at > changedSince`
-  - `nextChangedSince` is the max delivered `published_at`
+  - `GET /public/content/sync` is the primary client sync contract.
+  - `changedSince` on `GET /public/content/units` remains compatibility/debug only, not the primary cursor.
+  - Primary sync cursor is opaque and ordered by `(cursor_published_at ASC, cursor_revision_id ASC)`.
+  - The tuple rule is:
+    - `cursor_published_at > last_published_at`
+    - or `cursor_published_at = last_published_at` and `cursor_revision_id > last_revision_id`
+  - This prevents same-timestamp page-boundary omissions.
+  - `nextCursor` is the value clients must persist for the next sync call.
+- Tombstone rules:
+  - `content_sync_events` is append-only and client-facing only.
+  - `UPSERT` is emitted when a revision becomes public-visible.
+  - `DELETE` is emitted when a revision is removed from public-visible state.
+  - `DELETE.reason` is one of:
+    - `ARCHIVED`
+    - `REPLACED`
+    - `UNPUBLISHED`
+  - App sync must treat `DELETE` as cache removal/invalidation.
 - Signed URL rules:
   - private bucket only
   - included on detail responses only
   - default TTL: 5 minutes
+- Cache rules:
+  - App cache identity is `revisionId`.
+  - `unitId` is used to understand replacement lineage, not as the primary cache key.
+  - Signed audio URLs are never durable cache keys; they must be re-issued and treated separately from payload cache.
 
 ## Sync Contract Direction
 

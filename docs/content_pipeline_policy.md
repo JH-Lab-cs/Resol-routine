@@ -48,6 +48,8 @@ Implementation note:
   - fixed skill counts
   - type diversity
   - deterministic period keys
+- App synchronization must consume published content through the public sync contract.
+- Archive/replacement/unpublish transitions must emit tombstone/delete sync events so clients can invalidate cached revisions.
 
 ## 6) Audit and Traceability
 

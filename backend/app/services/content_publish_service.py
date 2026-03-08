@@ -11,6 +11,7 @@ from app.core.input_validation import validate_user_input_text
 from app.core.policies import CONTENT_IDENTIFIER_MAX_LENGTH
 from app.models.content_enums import ContentLifecycleStatus
 from app.models.content_question import ContentQuestion
+from app.models.content_sync_enums import ContentSyncEventReason
 from app.models.content_unit import ContentUnit
 from app.models.content_unit_revision import ContentUnitRevision
 from app.models.enums import Skill
@@ -27,6 +28,10 @@ from app.schemas.content import (
 )
 from app.services.audit_service import append_audit_log
 from app.services.content_ingest_service import _to_revision_response
+from app.services.content_sync_service import (
+    append_content_delete_event,
+    append_content_upsert_event,
+)
 
 # Lifecycle contract:
 # - Status enum remains minimal (DRAFT / PUBLISHED / ARCHIVED).
@@ -135,6 +140,22 @@ def publish_content_unit_revision(
         revision=revision,
     )
 
+    if previous_published_revision_id is not None:
+        append_content_delete_event(
+            db,
+            unit=unit,
+            revision_id=previous_published_revision_id,
+            changed_at=published_at,
+            reason=ContentSyncEventReason.REPLACED,
+        )
+    append_content_upsert_event(
+        db,
+        unit=unit,
+        revision=revision,
+        published_at=published_at,
+        reason=ContentSyncEventReason.PUBLISHED,
+    )
+
     append_audit_log(
         db,
         action="content_revision_published",
@@ -189,6 +210,21 @@ def rollback_content_unit_revision(
         revision=target_revision,
     )
 
+    append_content_delete_event(
+        db,
+        unit=unit,
+        revision_id=previous_published_revision_id,
+        changed_at=published_at,
+        reason=ContentSyncEventReason.REPLACED,
+    )
+    append_content_upsert_event(
+        db,
+        unit=unit,
+        revision=target_revision,
+        published_at=published_at,
+        reason=ContentSyncEventReason.PUBLISHED,
+    )
+
     append_audit_log(
         db,
         action="content_revision_rolled_back",
@@ -213,6 +249,7 @@ def rollback_content_unit_revision(
 
 def archive_content_unit(db: Session, *, unit_id: UUID) -> ContentUnitArchiveResponse:
     unit = _get_unit_for_update(db, unit_id=unit_id)
+    previous_published_revision_id = unit.published_revision_id
 
     db.execute(
         update(ContentUnitRevision)
@@ -227,6 +264,15 @@ def archive_content_unit(db: Session, *, unit_id: UUID) -> ContentUnitArchiveRes
     unit.lifecycle_status = ContentLifecycleStatus.ARCHIVED
     unit.published_revision_id = None
     db.flush()
+
+    if previous_published_revision_id is not None:
+        append_content_delete_event(
+            db,
+            unit=unit,
+            revision_id=previous_published_revision_id,
+            changed_at=archived_at,
+            reason=ContentSyncEventReason.UNPUBLISHED,
+        )
 
     return ContentUnitArchiveResponse(
         unit_id=unit.id,
@@ -256,6 +302,7 @@ def archive_content_revision(
         )
 
     unit = _get_unit_for_update(db, unit_id=revision.content_unit_id)
+    was_published_revision = unit.published_revision_id == revision.id
     archived_reason = _validate_archive_reason(reason)
     archived_by_identity = _validate_archive_actor_identity(archived_by)
     archived_at = datetime.now(UTC)
@@ -288,6 +335,15 @@ def archive_content_revision(
         unit.lifecycle_status = ContentLifecycleStatus.ARCHIVED
 
     db.flush()
+
+    if was_published_revision:
+        append_content_delete_event(
+            db,
+            unit=unit,
+            revision_id=revision.id,
+            changed_at=archived_at,
+            reason=ContentSyncEventReason.ARCHIVED,
+        )
 
     return ContentRevisionArchiveResponse(
         revision_id=revision.id,

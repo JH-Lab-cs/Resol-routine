@@ -55,6 +55,13 @@ from app.schemas.content import (
     ContentUnitRollbackRequest,
     ContentUnitRollbackResponse,
 )
+from app.schemas.content_sync import (
+    PublicContentSyncCursorPayload,
+    PublicContentSyncDeleteItem,
+    PublicContentSyncQuery,
+    PublicContentSyncResponse,
+    PublicContentSyncUpsertItem,
+)
 from app.schemas.family import (
     InviteConsumeRequest,
     InviteConsumeResponse,
@@ -164,6 +171,11 @@ __all__ = [
     "ContentUnitRevisionResponse",
     "ContentUnitRollbackRequest",
     "ContentUnitRollbackResponse",
+    "PublicContentSyncCursorPayload",
+    "PublicContentSyncDeleteItem",
+    "PublicContentSyncQuery",
+    "PublicContentSyncResponse",
+    "PublicContentSyncUpsertItem",
     "DailyReportResponse",
     "HealthResponse",
     "InviteConsumeRequest",

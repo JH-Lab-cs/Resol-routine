@@ -75,9 +75,8 @@ def list_published_content_units(
 
     next_changed_since = (
         max(
-            revision.published_at
+            _require_published_at(revision)
             for revision, _unit in filtered_rows
-            if revision.published_at is not None
         )
         if filtered_rows
         else query.changed_since
@@ -85,21 +84,10 @@ def list_published_content_units(
 
     return PublishedContentListResponse(
         items=[
-            PublishedContentListItem(
-                unit_id=unit.id,
-                revision_id=revision.id,
-                track=unit.track,
-                skill=unit.skill,
-                type_tag=_extract_type_tag(
-                    revision=revision,
-                    question=primary_questions.get(revision.id),
-                ),
-                difficulty=_extract_difficulty(
-                    revision=revision,
-                    question=primary_questions.get(revision.id),
-                ),
-                published_at=_require_published_at(revision),
-                has_audio=unit.skill == Skill.LISTENING and revision.asset_id is not None,
+            build_published_content_list_item(
+                revision=revision,
+                unit=unit,
+                question=primary_questions.get(revision.id),
             )
             for revision, unit in paged_rows
         ],
@@ -212,6 +200,24 @@ def _load_primary_questions_for_revisions(
     for question in rows:
         questions_by_revision_id.setdefault(question.content_unit_revision_id, question)
     return questions_by_revision_id
+
+
+def build_published_content_list_item(
+    *,
+    revision: ContentUnitRevision,
+    unit: ContentUnit,
+    question: ContentQuestion | None,
+) -> PublishedContentListItem:
+    return PublishedContentListItem(
+        unit_id=unit.id,
+        revision_id=revision.id,
+        track=unit.track,
+        skill=unit.skill,
+        type_tag=_extract_type_tag(revision=revision, question=question),
+        difficulty=_extract_difficulty(revision=revision, question=question),
+        published_at=_require_published_at(revision),
+        has_audio=unit.skill == Skill.LISTENING and revision.asset_id is not None,
+    )
 
 
 def _build_question_payload(
