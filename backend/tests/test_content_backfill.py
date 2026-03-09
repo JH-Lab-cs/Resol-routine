@@ -436,6 +436,73 @@ def test_b34_content_sync_gate_uses_backfill_plan_to_evaluate_entry(db_session_f
     assert "vocab_backend_catalog_not_implemented" in gate["warnings"]
 
 
+def test_batch_publish_promotes_backfill_draft_into_public_delivery_contract(
+    client,
+    db_session_factory,
+) -> None:
+    backfill_job_id = UUID("55555555-5555-5555-5555-555555555555")
+    with db_session_factory() as db:
+        _, revision_id = _create_content_revision(
+            db,
+            external_id="backfill-public-delivery",
+            track=Track.H2,
+            skill=Skill.LISTENING,
+            type_tag="L_RESPONSE",
+            difficulty=3,
+            lifecycle_status=ContentLifecycleStatus.DRAFT,
+            metadata_extra={
+                "source": "content_readiness_backfill",
+                "generationJobId": str(backfill_job_id),
+            },
+        )
+        db.commit()
+
+    filters = ReviewerBatchFilter(
+        track=Track.H2,
+        skill=Skill.LISTENING,
+        source="content_readiness_backfill",
+        generation_job_id=backfill_job_id,
+        limit=1,
+    )
+    with db_session_factory() as db:
+        validate_result = batch_validate_content_revisions(
+            db,
+            filters=filters,
+            validator_version="ops-validator-v3",
+        )
+        review_result = batch_review_content_revisions(
+            db,
+            filters=filters,
+            reviewer_identity="ops:delivery",
+        )
+        publish_result = batch_publish_content_revisions(
+            db,
+            filters=filters,
+            confirm=True,
+        )
+        db.commit()
+
+    assert validate_result["processedCount"] == 1
+    assert review_result["processedCount"] == 1
+    assert publish_result["processedCount"] == 1
+
+    list_response = client.get("/public/content/units", params={"track": "H2"})
+    assert list_response.status_code == 200, list_response.text
+    list_body = list_response.json()
+    assert any(item["revisionId"] == str(revision_id) for item in list_body["items"])
+
+    detail_response = client.get(f"/public/content/units/{revision_id}")
+    assert detail_response.status_code == 200, detail_response.text
+    detail_body = detail_response.json()
+    assert detail_body["revisionId"] == str(revision_id)
+    assert detail_body["typeTag"] == "L_RESPONSE"
+
+    sync_response = client.get("/public/content/sync", params={"track": "H2"})
+    assert sync_response.status_code == 200, sync_response.text
+    sync_body = sync_response.json()
+    assert any(item["revisionId"] == str(revision_id) for item in sync_body["upserts"])
+
+
 def _seed_near_ready_daily_bank(db) -> None:
     listening_types = ["L_GIST", "L_DETAIL", "L_INTENT", "L_RESPONSE"]
     reading_types = [
