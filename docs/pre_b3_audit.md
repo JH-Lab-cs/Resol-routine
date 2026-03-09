@@ -15,6 +15,23 @@ This document freezes the pre-B3 audit baseline for:
 It is intentionally an audit and policy document. It does not change user-facing
 product behavior by itself.
 
+## B3.4 Minimum Gate
+
+The frozen minimum gate for `B3.4` content sync is:
+
+- Daily
+  - every track must be at least `WARNING`
+  - `H2` / `H3` `READY` is preferred, not mandatory
+  - `M3` / `H1` must have an explicit backfill plan and publish queue
+- Mock
+  - `H2 weekly` must be `READY`
+  - `H3 weekly/monthly` must be `READY`
+  - `M3` / `H1` must have an explicit deficit plan
+- Vocab
+  - metadata must exist
+  - each track band must have a non-empty eligible pool
+  - backend vocab catalog may still be absent if the local policy remains aligned
+
 ## Audit Inputs
 
 ### Frontend-local content source

@@ -274,8 +274,38 @@ This document is the backend handoff baseline for the next chat/session.
 - Reviewer batch operations remain human-controlled:
   - AI generation creates DRAFT only
   - validate/review/publish are done explicitly through batch ops commands
+  - batch filters support:
+    - `--track`
+    - `--skill`
+    - `--type-tag`
+    - `--difficulty-min`
+    - `--difficulty-max`
+    - `--limit`
+    - `--source`
+    - `--generation-job-id`
+  - controlled backfill drafts should be filtered with:
+    - `source = content_readiness_backfill`
+    - optional `generationJobId`
 - Frozen vocabulary banding policy:
   - see `docs/vocab_banding_policy.md`
+
+## K-3. B3.4 Content Sync Readiness Gate
+
+- `B3.4` (published content sync) may proceed only when the minimum gate holds.
+- Frozen minimum gate:
+  - Daily:
+    - every track is at least `WARNING`
+    - `H2` / `H3` being `READY` is preferred, not mandatory
+    - `M3` / `H1` deficits must have an explicit backfill plan + publish queue
+  - Mock:
+    - `H2 weekly` must be `READY`
+    - `H3 weekly/monthly` must be `READY`
+    - `M3` / `H1` deficits must have an explicit backfill plan
+  - Vocab:
+    - metadata fields exist
+    - each track band has a non-empty eligible pool
+    - backend catalog may still be absent if local policy remains the source of truth
+- Current audit output exposes this as `b34ContentSyncGate`.
 
 ## L. Mock Exam Assembly Rules
 

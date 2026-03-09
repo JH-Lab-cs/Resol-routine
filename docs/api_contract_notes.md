@@ -131,6 +131,10 @@ This note captures frontend-backend contracts that must remain stable while form
   - provider/model/template version
   - prompt/response/candidate/validation artifact keys
   - estimated cost summary
+- Reviewer batch operations can target backfill drafts using:
+  - `source = content_readiness_backfill`
+  - `generationJobId = <uuid>`
+  - publish remains explicit and human-confirmed only
 
 ## Published Content Delivery Contract
 
