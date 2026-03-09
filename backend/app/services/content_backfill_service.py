@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+import hashlib
+import json
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from math import ceil
+from typing import Any, cast
 from uuid import uuid4
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -16,9 +20,7 @@ from app.core.policies import (
     CONTENT_BACKFILL_ESTIMATED_OUTPUT_TOKENS_PER_CANDIDATE,
     CONTENT_BACKFILL_ESTIMATED_PROMPT_TOKENS_PER_JOB,
     CONTENT_BACKFILL_ESTIMATED_PROMPT_TOKENS_PER_TARGET,
-    CONTENT_BACKFILL_MAX_CANDIDATES_PER_RUN_DEFAULT,
     CONTENT_BACKFILL_MAX_CANDIDATES_PER_RUN_MAX,
-    CONTENT_BACKFILL_MAX_TARGETS_PER_RUN_DEFAULT,
     CONTENT_BACKFILL_MAX_TARGETS_PER_RUN_MAX,
     CONTENT_BACKFILL_PRIORITY_ORDER,
     CONTENT_READINESS_POLICY_VERSION,
@@ -38,7 +40,8 @@ from app.core.policies import (
     VOCAB_READINESS_MIN_ROWS_BY_TRACK,
 )
 from app.db.session import run_post_commit_ai_content_generation_tasks
-from app.models.enums import Skill, Track
+from app.models.ai_content_generation_job import AIContentGenerationJob
+from app.models.enums import AIGenerationJobStatus, Skill, Track
 from app.schemas.ai_content_generation import AIContentGenerationJobCreateRequest
 from app.services.ai_content_generation_service import create_ai_content_generation_job
 from app.services.content_readiness_service import (
@@ -71,16 +74,41 @@ class BackfillFilter:
     limit: int | None = None
 
 
+class ContentBackfillExecutionError(RuntimeError):
+    def __init__(self, *, code: str, message: str) -> None:
+        super().__init__(message)
+        self.code = code
+        self.message = message
+
+
+@dataclass(frozen=True, slots=True)
+class ContentBackfillExecutionConfig:
+    provider_name: str
+    provider_configured: bool
+    api_key_present: bool
+    model_name: str
+    prompt_template_version: str
+    max_targets_per_run: int
+    max_candidates_per_run: int
+    max_estimated_cost_usd: float
+    default_dry_run: bool
+    estimated_input_cost_per_million_tokens: float
+    estimated_output_cost_per_million_tokens: float
+
+
 def build_content_backfill_plan(
     db: Session,
     *,
     filters: BackfillFilter | None = None,
-    max_targets_per_run: int = CONTENT_BACKFILL_MAX_TARGETS_PER_RUN_DEFAULT,
-    max_candidates_per_run: int = CONTENT_BACKFILL_MAX_CANDIDATES_PER_RUN_DEFAULT,
+    max_targets_per_run: int | None = None,
+    max_candidates_per_run: int | None = None,
     provider_override: str | None = None,
 ) -> dict[str, object]:
-    normalized_targets_per_run = _normalize_max_targets_per_run(max_targets_per_run)
-    normalized_candidates_per_run = _normalize_max_candidates_per_run(max_candidates_per_run)
+    execution_config = _resolve_execution_config(
+        provider_override=provider_override,
+        max_targets_per_run=max_targets_per_run,
+        max_candidates_per_run=max_candidates_per_run,
+    )
     active_filters = filters or BackfillFilter()
 
     readiness_report = build_content_readiness_report(db)
@@ -94,20 +122,18 @@ def build_content_backfill_plan(
     vocab_deficits = _build_vocab_deficits(vocab_rows=vocab_rows)
     target_batches = _build_target_matrix_batches(
         deficits=filtered_content_deficits,
-        max_targets_per_run=normalized_targets_per_run,
-        max_candidates_per_run=normalized_candidates_per_run,
+        max_targets_per_run=execution_config.max_targets_per_run,
+        max_candidates_per_run=execution_config.max_candidates_per_run,
     )
     queue_preview = _build_queue_preview(
         target_batches=target_batches,
-        max_targets_per_run=normalized_targets_per_run,
-        max_candidates_per_run=normalized_candidates_per_run,
-        provider_override=provider_override,
+        execution_config=execution_config,
     )
 
     return {
         "policyVersion": CONTENT_READINESS_POLICY_VERSION,
         "generatedAt": _utc_now_iso(),
-        "dryRunDefault": True,
+        "dryRunDefault": execution_config.default_dry_run,
         "filters": _serialize_filters(active_filters),
         "readiness": readiness_report,
         "contentDeficits": [
@@ -122,8 +148,8 @@ def enqueue_content_backfill_jobs(
     db: Session,
     *,
     filters: BackfillFilter | None = None,
-    max_targets_per_run: int = CONTENT_BACKFILL_MAX_TARGETS_PER_RUN_DEFAULT,
-    max_candidates_per_run: int = CONTENT_BACKFILL_MAX_CANDIDATES_PER_RUN_DEFAULT,
+    max_targets_per_run: int | None = None,
+    max_candidates_per_run: int | None = None,
     provider_override: str | None = None,
     execute: bool = False,
 ) -> dict[str, object]:
@@ -134,8 +160,9 @@ def enqueue_content_backfill_jobs(
         max_candidates_per_run=max_candidates_per_run,
         provider_override=provider_override,
     )
-    preview_jobs = plan["enqueuePreview"]["jobs"]
-    if not execute or not preview_jobs:
+    preview = cast(dict[str, Any], plan["enqueuePreview"])
+    preview_jobs = cast(list[dict[str, Any]], preview["jobs"])
+    if not execute:
         plan["enqueueSummary"] = {
             "executed": False,
             "jobCount": 0,
@@ -143,8 +170,58 @@ def enqueue_content_backfill_jobs(
         }
         return plan
 
+    if not preview_jobs:
+        raise ContentBackfillExecutionError(
+            code="VALIDATION_FAILED",
+            message="No deficits matched the requested filters.",
+        )
+
+    if not bool(preview["providerConfigured"]):
+        raise ContentBackfillExecutionError(
+            code="PROVIDER_NOT_CONFIGURED",
+            message="AI content provider is not configured for execution.",
+        )
+    if str(preview["provider"]) != "fake" and not bool(preview["apiKeyPresent"]):
+        raise ContentBackfillExecutionError(
+            code="PROVIDER_NOT_CONFIGURED",
+            message="AI content provider API key is not configured for execution.",
+        )
+    if str(preview["model"]) in {"", "not-configured"}:
+        raise ContentBackfillExecutionError(
+            code="PROVIDER_MODEL_NOT_SET",
+            message="AI content model is not configured.",
+        )
+    if str(preview["promptTemplateVersion"]) in {"", "not-configured"}:
+        raise ContentBackfillExecutionError(
+            code="PROVIDER_MODEL_NOT_SET",
+            message="AI content prompt template version is not configured.",
+        )
+
+    estimated_cost_usd = float(preview["estimatedCostUsd"])
+    max_estimated_cost_usd = float(preview["maxEstimatedCostUsd"])
+    if estimated_cost_usd > max_estimated_cost_usd:
+        raise ContentBackfillExecutionError(
+            code="PROVIDER_BUDGET_EXCEEDED",
+            message="Estimated backfill cost exceeds the configured budget limit.",
+        )
+
     created_jobs: list[dict[str, object]] = []
+    skipped_existing_jobs: list[dict[str, object]] = []
+    existing_active_jobs = _list_existing_active_backfill_jobs(db)
     for index, job_preview in enumerate(preview_jobs, start=1):
+        deficit_signature = _build_deficit_signature(job_preview["targetMatrix"])
+        duplicate_job = existing_active_jobs.get(deficit_signature)
+        if duplicate_job is not None:
+            skipped_existing_jobs.append(
+                {
+                    "existingJobId": str(duplicate_job.id),
+                    "deficitSignature": deficit_signature,
+                    "status": duplicate_job.status.value,
+                    "primaryReasons": job_preview["primaryReasons"],
+                }
+            )
+            continue
+
         payload = AIContentGenerationJobCreateRequest.model_validate(
             {
                 "requestId": _build_backfill_request_id(index=index),
@@ -152,17 +229,27 @@ def enqueue_content_backfill_jobs(
                 "candidateCountPerTarget": CONTENT_BACKFILL_DEFAULT_CANDIDATE_COUNT_PER_TARGET,
                 "providerOverride": provider_override,
                 "dryRun": False,
-                "notes": "B2.6.3 readiness backfill enqueue",
+                "notes": "Controlled readiness backfill enqueue",
                 "metadata": {
                     "source": "content_readiness_backfill",
                     "primaryReasons": job_preview["primaryReasons"],
                     "filters": plan["filters"],
+                    "originatingDeficitPlan": job_preview["originatingDeficits"],
+                    "deficitSignature": deficit_signature,
+                    "estimatedCostUsd": job_preview["estimatedCostUsd"],
                     "estimatedTotalTokens": job_preview["estimatedTotalTokens"],
+                    "estimatedProviderCalls": job_preview["estimatedProviderCalls"],
+                    "estimatedPromptTokens": job_preview["estimatedPromptTokens"],
+                    "estimatedOutputTokens": job_preview["estimatedOutputTokens"],
+                    "costComputation": preview["costComputation"],
                 },
             }
         )
         response = create_ai_content_generation_job(db, payload=payload)
         created_jobs.append(response.model_dump(mode="json"))
+        stored_job = db.get(AIContentGenerationJob, response.id)
+        if stored_job is not None:
+            existing_active_jobs[deficit_signature] = stored_job
 
     db.commit()
     run_post_commit_ai_content_generation_tasks(db)
@@ -170,6 +257,7 @@ def enqueue_content_backfill_jobs(
         "executed": True,
         "jobCount": len(created_jobs),
         "jobs": created_jobs,
+        "skippedExistingJobs": skipped_existing_jobs,
     }
     return plan
 
@@ -248,7 +336,7 @@ def _build_aggregated_content_deficits(
             )
         )
 
-    aggregated: dict[tuple[str, str, str, int], dict[str, object]] = {}
+    aggregated: dict[tuple[str, str, str, int], dict[str, Any]] = {}
     for row in raw_rows:
         key = (row.track.value, row.skill.value, row.type_tag, row.difficulty)
         entry = aggregated.get(key)
@@ -304,9 +392,7 @@ def _build_objective_deficits(
     reason: str,
     target_average_range: tuple[float, float] | None,
 ) -> list[BackfillDeficitRow]:
-    skill_items = [
-        item for item in inventory if item.track == track and item.skill == skill
-    ]
+    skill_items = [item for item in inventory if item.track == track and item.skill == skill]
     current_total = len(skill_items)
     current_sum = sum(item.difficulty for item in skill_items)
     type_counts: dict[str, int] = defaultdict(int)
@@ -473,9 +559,9 @@ def _build_target_matrix_batches(
     deficits: list[BackfillDeficitRow],
     max_targets_per_run: int,
     max_candidates_per_run: int,
-) -> list[list[dict[str, object]]]:
-    batches: list[list[dict[str, object]]] = []
-    current_batch: list[dict[str, object]] = []
+) -> list[list[dict[str, Any]]]:
+    batches: list[list[dict[str, Any]]] = []
+    current_batch: list[dict[str, Any]] = []
     current_candidate_total = 0
     for row in deficits:
         row_candidate_total = (
@@ -510,12 +596,9 @@ def _build_target_matrix_batches(
 
 def _build_queue_preview(
     *,
-    target_batches: list[list[dict[str, object]]],
-    max_targets_per_run: int,
-    max_candidates_per_run: int,
-    provider_override: str | None,
+    target_batches: list[list[dict[str, Any]]],
+    execution_config: ContentBackfillExecutionConfig,
 ) -> dict[str, object]:
-    provider_name = provider_override or settings.ai_generation_provider
     jobs: list[dict[str, object]] = []
     estimated_prompt_tokens = 0
     estimated_output_tokens = 0
@@ -540,6 +623,26 @@ def _build_queue_preview(
                 "estimatedPromptTokens": prompt_tokens,
                 "estimatedOutputTokens": output_tokens,
                 "estimatedTotalTokens": prompt_tokens + output_tokens,
+                "estimatedProviderCalls": 1,
+                "estimatedCostUsd": _estimate_cost_usd(
+                    prompt_tokens=prompt_tokens,
+                    output_tokens=output_tokens,
+                    execution_config=execution_config,
+                ),
+                "originatingDeficits": [
+                    {
+                        "track": row["track"],
+                        "skill": row["skill"],
+                        "typeTag": row["typeTag"],
+                        "difficultyMin": row["difficulty"],
+                        "difficultyMax": row["difficulty"],
+                        "requiredCount": row["count"],
+                        "reason": row["reason"],
+                        "reasons": list(row["reasons"]),
+                        "priority": _reason_priority(str(row["reason"])),
+                    }
+                    for row in batch
+                ],
                 "targetMatrix": [
                     {
                         "track": row["track"],
@@ -553,20 +656,29 @@ def _build_queue_preview(
             }
         )
 
+    estimated_total_tokens = estimated_prompt_tokens + estimated_output_tokens
+    estimated_cost_usd = _estimate_cost_usd(
+        prompt_tokens=estimated_prompt_tokens,
+        output_tokens=estimated_output_tokens,
+        execution_config=execution_config,
+    )
     return {
-        "dryRunDefault": True,
-        "provider": provider_name,
-        "model": settings.ai_content_model,
-        "promptTemplateVersion": settings.ai_content_prompt_template_version,
+        "dryRunDefault": execution_config.default_dry_run,
+        "provider": execution_config.provider_name,
+        "providerConfigured": execution_config.provider_configured,
+        "apiKeyPresent": execution_config.api_key_present,
+        "model": execution_config.model_name,
+        "promptTemplateVersion": execution_config.prompt_template_version,
         "candidateCountPerTarget": CONTENT_BACKFILL_DEFAULT_CANDIDATE_COUNT_PER_TARGET,
-        "maxTargetsPerRun": max_targets_per_run,
-        "maxCandidatesPerRun": max_candidates_per_run,
+        "maxTargetsPerRun": execution_config.max_targets_per_run,
+        "maxCandidatesPerRun": execution_config.max_candidates_per_run,
+        "maxEstimatedCostUsd": execution_config.max_estimated_cost_usd,
         "estimatedProviderCalls": len(jobs),
         "estimatedPromptTokens": estimated_prompt_tokens,
         "estimatedOutputTokens": estimated_output_tokens,
-        "estimatedTotalTokens": estimated_prompt_tokens + estimated_output_tokens,
-        "estimatedCostUsd": None,
-        "costComputation": "pricing_not_configured",
+        "estimatedTotalTokens": estimated_total_tokens,
+        "estimatedCostUsd": estimated_cost_usd,
+        "costComputation": "heuristic_per_million_tokens",
         "jobs": jobs,
     }
 
@@ -655,15 +767,119 @@ def _preferred_mock_difficulties(track: Track) -> tuple[int, ...]:
 
 
 def _normalize_max_targets_per_run(value: int) -> int:
-    if value <= 0 or value > CONTENT_BACKFILL_MAX_TARGETS_PER_RUN_MAX:
+    max_allowed = min(
+        settings.ai_content_max_targets_per_run,
+        CONTENT_BACKFILL_MAX_TARGETS_PER_RUN_MAX,
+    )
+    if value <= 0 or value > max_allowed:
         raise ValueError("invalid_max_targets_per_run")
     return value
 
 
 def _normalize_max_candidates_per_run(value: int) -> int:
-    if value <= 0 or value > CONTENT_BACKFILL_MAX_CANDIDATES_PER_RUN_MAX:
+    max_allowed = min(
+        settings.ai_content_max_candidates_per_run,
+        CONTENT_BACKFILL_MAX_CANDIDATES_PER_RUN_MAX,
+    )
+    if value <= 0 or value > max_allowed:
         raise ValueError("invalid_max_candidates_per_run")
     return value
+
+
+def _resolve_execution_config(
+    *,
+    provider_override: str | None,
+    max_targets_per_run: int | None,
+    max_candidates_per_run: int | None,
+) -> ContentBackfillExecutionConfig:
+    provider_name = (provider_override or settings.resolved_ai_content_provider).strip()
+    api_key = settings.resolved_ai_content_api_key
+    model_name = settings.ai_content_model.strip()
+    prompt_template_version = settings.ai_content_prompt_template_version.strip()
+    resolved_max_targets = _normalize_max_targets_per_run(
+        max_targets_per_run or settings.ai_content_max_targets_per_run
+    )
+    resolved_max_candidates = _normalize_max_candidates_per_run(
+        max_candidates_per_run or settings.ai_content_max_candidates_per_run
+    )
+    return ContentBackfillExecutionConfig(
+        provider_name=provider_name,
+        provider_configured=provider_name not in {"", "disabled", "not-configured"},
+        api_key_present=bool(api_key and api_key.strip()),
+        model_name=model_name,
+        prompt_template_version=prompt_template_version,
+        max_targets_per_run=resolved_max_targets,
+        max_candidates_per_run=resolved_max_candidates,
+        max_estimated_cost_usd=settings.ai_content_max_estimated_cost_usd,
+        default_dry_run=settings.ai_content_default_dry_run,
+        estimated_input_cost_per_million_tokens=(
+            settings.ai_content_estimated_input_cost_per_million_tokens
+        ),
+        estimated_output_cost_per_million_tokens=(
+            settings.ai_content_estimated_output_cost_per_million_tokens
+        ),
+    )
+
+
+def _estimate_cost_usd(
+    *,
+    prompt_tokens: int,
+    output_tokens: int,
+    execution_config: ContentBackfillExecutionConfig,
+) -> float:
+    input_cost = (
+        prompt_tokens / 1_000_000
+    ) * execution_config.estimated_input_cost_per_million_tokens
+    output_cost = (
+        output_tokens / 1_000_000
+    ) * execution_config.estimated_output_cost_per_million_tokens
+    return round(input_cost + output_cost, 6)
+
+
+def _build_deficit_signature(target_matrix: list[dict[str, Any]]) -> str:
+    normalized = sorted(
+        [
+            {
+                "track": str(row["track"]),
+                "skill": str(row["skill"]),
+                "typeTag": str(row["typeTag"]),
+                "difficulty": int(row["difficulty"]),
+                "count": int(row["count"]),
+            }
+            for row in target_matrix
+        ],
+        key=lambda row: (
+            row["track"],
+            row["skill"],
+            row["typeTag"],
+            row["difficulty"],
+            row["count"],
+        ),
+    )
+    payload = json.dumps(normalized, ensure_ascii=True, separators=(",", ":"), sort_keys=True)
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def _list_existing_active_backfill_jobs(
+    db: Session,
+) -> dict[str, AIContentGenerationJob]:
+    rows = db.execute(
+        select(AIContentGenerationJob).where(
+            AIContentGenerationJob.status.in_(
+                [AIGenerationJobStatus.QUEUED, AIGenerationJobStatus.RUNNING]
+            )
+        )
+    ).scalars()
+    active_jobs: dict[str, AIContentGenerationJob] = {}
+    for row in rows:
+        metadata = row.metadata_json or {}
+        if metadata.get("source") != "content_readiness_backfill":
+            continue
+        signature = metadata.get("deficitSignature")
+        if not isinstance(signature, str) or not signature:
+            continue
+        active_jobs[signature] = row
+    return active_jobs
 
 
 def _track_in_range(*, track: str, minimum: str, maximum: str) -> bool:

@@ -14,6 +14,7 @@ from app.db.session import SessionLocal
 from app.models.enums import Skill, Track
 from app.services.content_backfill_service import (
     BackfillFilter,
+    ContentBackfillExecutionError,
     build_content_backfill_plan,
     enqueue_content_backfill_jobs,
 )
@@ -181,13 +182,11 @@ def _add_backfill_budget_args(parser: argparse.ArgumentParser) -> None:
         "--max-targets-per-run",
         dest="max_targets_per_run",
         type=int,
-        default=12,
     )
     parser.add_argument(
         "--max-candidates-per-run",
         dest="max_candidates_per_run",
         type=int,
-        default=40,
     )
 
 
@@ -461,6 +460,19 @@ def main() -> int:
             print(json.dumps(error_payload, ensure_ascii=False, indent=2))
         else:
             print(str(exc), file=sys.stderr)
+        return 1
+    except ContentBackfillExecutionError as exc:
+        error_payload = {
+            "error": {
+                "statusCode": 409,
+                "code": exc.code,
+                "detail": exc.message,
+            }
+        }
+        if getattr(args, "json", False):
+            print(json.dumps(error_payload, ensure_ascii=False, indent=2))
+        else:
+            print(f"{exc.code}: {exc.message}", file=sys.stderr)
         return 1
     except Exception as exc:
         error_payload = {"error": str(exc)}

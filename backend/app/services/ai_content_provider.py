@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from datetime import UTC, datetime
-import json
 from typing import Any, Protocol
 from urllib import error as urllib_error
 from urllib import request as urllib_request
@@ -66,7 +66,9 @@ class ContentGenerationResult:
 
 
 class AIContentGenerationProvider(Protocol):
-    def generate_candidates(self, *, context: ContentGenerationContext) -> ContentGenerationResult: ...
+    def generate_candidates(
+        self, *, context: ContentGenerationContext
+    ) -> ContentGenerationResult: ...
 
 
 class DeterministicAIContentProvider:
@@ -126,7 +128,9 @@ class OpenAIContentGenerationProvider:
                 {"role": "system", "content": _system_instruction()},
                 {
                     "role": "user",
-                    "content": json.dumps(prompt_payload, ensure_ascii=False, separators=(",", ":")),
+                    "content": json.dumps(
+                        prompt_payload, ensure_ascii=False, separators=(",", ":")
+                    ),
                 },
             ],
         }
@@ -190,7 +194,9 @@ class AnthropicContentGenerationProvider:
             "messages": [
                 {
                     "role": "user",
-                    "content": json.dumps(prompt_payload, ensure_ascii=False, separators=(",", ":")),
+                    "content": json.dumps(
+                        prompt_payload, ensure_ascii=False, separators=(",", ":")
+                    ),
                 }
             ],
         }
@@ -232,8 +238,14 @@ class AnthropicContentGenerationProvider:
         )
 
 
-def build_ai_content_generation_provider(*, provider_override: str | None = None) -> AIContentGenerationProvider:
-    provider_name = provider_override.strip().lower() if provider_override is not None else settings.ai_generation_provider.strip().lower()
+def build_ai_content_generation_provider(
+    *, provider_override: str | None = None
+) -> AIContentGenerationProvider:
+    provider_name = (
+        provider_override.strip().lower()
+        if provider_override is not None
+        else settings.resolved_ai_content_provider.strip().lower()
+    )
     if provider_name in {"", "disabled", "none"}:
         raise AIProviderError(
             code="PROVIDER_NOT_CONFIGURED",
@@ -241,13 +253,29 @@ def build_ai_content_generation_provider(*, provider_override: str | None = None
             transient=False,
         )
 
-    if provider_name == "fake":
-        return DeterministicAIContentProvider(
-            model_name=settings.ai_content_model,
-            prompt_template_version=settings.ai_content_prompt_template_version,
+    model_name = settings.ai_content_model.strip()
+    if model_name in {"", "not-configured"}:
+        raise AIProviderError(
+            code="PROVIDER_MODEL_NOT_SET",
+            message="AI content generation model is not configured.",
+            transient=False,
         )
 
-    api_key = settings.ai_generation_api_key
+    prompt_template_version = settings.ai_content_prompt_template_version.strip()
+    if not prompt_template_version or prompt_template_version == "not-configured":
+        raise AIProviderError(
+            code="PROVIDER_MODEL_NOT_SET",
+            message="AI content prompt template version is not configured.",
+            transient=False,
+        )
+
+    if provider_name == "fake":
+        return DeterministicAIContentProvider(
+            model_name=model_name,
+            prompt_template_version=prompt_template_version,
+        )
+
+    api_key = settings.resolved_ai_content_api_key
     if api_key is None:
         raise AIProviderError(
             code="PROVIDER_NOT_CONFIGURED",
@@ -258,16 +286,16 @@ def build_ai_content_generation_provider(*, provider_override: str | None = None
     if provider_name == "openai":
         return OpenAIContentGenerationProvider(
             api_key=api_key,
-            model_name=settings.ai_content_model,
-            prompt_template_version=settings.ai_content_prompt_template_version,
+            model_name=model_name,
+            prompt_template_version=prompt_template_version,
             base_url=settings.ai_openai_base_url,
         )
 
     if provider_name == "anthropic":
         return AnthropicContentGenerationProvider(
             api_key=api_key,
-            model_name=settings.ai_content_model,
-            prompt_template_version=settings.ai_content_prompt_template_version,
+            model_name=model_name,
+            prompt_template_version=prompt_template_version,
             base_url=settings.ai_anthropic_base_url,
         )
 
@@ -278,7 +306,9 @@ def build_ai_content_generation_provider(*, provider_override: str | None = None
     )
 
 
-def _build_deterministic_candidate(*, index: int, target: ContentGenerationTarget) -> GeneratedContentCandidate:
+def _build_deterministic_candidate(
+    *, index: int, target: ContentGenerationTarget
+) -> GeneratedContentCandidate:
     sentence_ids = ["s1", "s2", "s3"]
     options = {
         "A": f"Correct option for {target.type_tag.value} {index}",
@@ -298,7 +328,8 @@ def _build_deterministic_candidate(*, index: int, target: ContentGenerationTarge
     if target.skill == Skill.READING:
         passage = (
             f"Track {target.track.value} reading passage for {target.type_tag.value}. "
-            f"Difficulty level {target.difficulty}. The message emphasizes careful evidence tracking."
+            f"Difficulty level {target.difficulty}. "
+            "The message emphasizes careful evidence tracking."
         )
         sentences = [
             {"id": "s1", "text": "The speaker introduces the main context in clear terms."},
@@ -320,7 +351,9 @@ def _build_deterministic_candidate(*, index: int, target: ContentGenerationTarge
             stem=f"What is the best answer for reading item {index}?",
             options=options,
             answer_key="A",
-            explanation="Option A is correct because it matches the explicit evidence in sentence s2.",
+            explanation=(
+                "Option A is correct because it matches the explicit evidence in sentence s2."
+            ),
             evidence_sentence_ids=sentence_ids[:2],
             why_correct_ko="근거 문장 s2의 핵심 의미와 정답 선택지가 일치합니다.",
             why_wrong_ko_by_option=why_wrong,
@@ -352,7 +385,9 @@ def _build_deterministic_candidate(*, index: int, target: ContentGenerationTarge
         stem=f"What is the best response for listening item {index}?",
         options=options,
         answer_key="A",
-        explanation="Option A is correct because it reflects the explicit instruction in sentence s2.",
+        explanation=(
+            "Option A is correct because it reflects the explicit instruction in sentence s2."
+        ),
         evidence_sentence_ids=["s2"],
         why_correct_ko="문장 s2에서 의사결정 전에 근거를 확인해야 한다고 명시합니다.",
         why_wrong_ko_by_option=why_wrong,
@@ -413,7 +448,8 @@ def _system_instruction() -> str:
         "Generate English-learning content units and return strict JSON only. "
         "Top-level key must be candidates (array). "
         "Each candidate must include track, skill, typeTag, difficulty, sourcePolicy, "
-        "passage or transcript, sentences, question(stem/options/answerKey/explanation/evidenceSentenceIds/"
+        "passage or transcript, sentences, "
+        "question(stem/options/answerKey/explanation/evidenceSentenceIds/"
         "whyCorrectKo/whyWrongKoByOption). "
         "Do not include markdown or surrounding prose."
     )
@@ -421,21 +457,36 @@ def _system_instruction() -> str:
 
 def _post_json(*, url: str, headers: dict[str, str], payload: dict[str, Any]) -> str:
     encoded_payload = json.dumps(payload, ensure_ascii=False).encode("utf-8")
-    request = urllib_request.Request(
+    request = urllib_request.Request(  # noqa: S310
         url=url,
         data=encoded_payload,
         headers=headers,
         method="POST",
     )
     try:
-        with urllib_request.urlopen(request, timeout=AI_PROVIDER_HTTP_TIMEOUT_SECONDS) as response:
-            body = response.read()
+        with urllib_request.urlopen(  # noqa: S310
+            request,
+            timeout=AI_PROVIDER_HTTP_TIMEOUT_SECONDS,
+        ) as response:
+            raw_body = response.read()
+            body = raw_body if isinstance(raw_body, bytes) else bytes(raw_body)
     except urllib_error.HTTPError as exc:
-        body = exc.read().decode("utf-8", errors="replace")
-        transient = exc.code in {408, 409, 425, 429, 500, 502, 503, 504}
+        error_body = exc.read().decode("utf-8", errors="replace")
+        if exc.code in {401, 403}:
+            code = "PROVIDER_AUTH_FAILED"
+            transient = False
+        elif exc.code == 429:
+            code = "PROVIDER_RATE_LIMITED"
+            transient = True
+        elif exc.code in {408, 504}:
+            code = "PROVIDER_TIMEOUT"
+            transient = True
+        else:
+            code = "PROVIDER_BAD_RESPONSE"
+            transient = exc.code in {409, 425, 500, 502, 503}
         raise AIProviderError(
-            code="PROVIDER_BAD_RESPONSE",
-            message=f"Provider HTTP error {exc.code}: {body[:400]}",
+            code=code,
+            message=f"Provider HTTP error {exc.code}: {error_body[:400]}",
             transient=transient,
         ) from exc
     except urllib_error.URLError as exc:
@@ -451,7 +502,8 @@ def _post_json(*, url: str, headers: dict[str, str], payload: dict[str, Any]) ->
             transient=True,
         ) from exc
 
-    return body.decode("utf-8")
+    decoded_body = body.decode("utf-8")
+    return decoded_body
 
 
 def _parse_json_object(payload: str) -> dict[str, Any]:
@@ -513,8 +565,10 @@ def _parse_generated_candidates(raw_content: str) -> list[GeneratedContentCandid
                 track=Track(str(raw_candidate.get("track"))),
                 skill=Skill(str(raw_candidate.get("skill"))),
                 type_tag=ContentTypeTag(str(raw_candidate.get("typeTag"))),
-                difficulty=int(raw_candidate.get("difficulty")),
-                source_policy=ContentSourcePolicy(str(raw_candidate.get("sourcePolicy", "AI_ORIGINAL"))),
+                difficulty=_required_int(raw_candidate.get("difficulty")),
+                source_policy=ContentSourcePolicy(
+                    str(raw_candidate.get("sourcePolicy", "AI_ORIGINAL"))
+                ),
                 title=_to_optional_str(raw_candidate.get("title")),
                 passage=_to_optional_str(raw_candidate.get("passage")),
                 transcript=_to_optional_str(raw_candidate.get("transcript")),
@@ -525,11 +579,15 @@ def _parse_generated_candidates(raw_content: str) -> list[GeneratedContentCandid
                 options={str(key): str(value) for key, value in options.items()},
                 answer_key=str(question.get("answerKey", "")),
                 explanation=str(question.get("explanation", "")),
-                evidence_sentence_ids=[str(value) for value in question.get("evidenceSentenceIds", [])],
+                evidence_sentence_ids=[
+                    str(value) for value in question.get("evidenceSentenceIds", [])
+                ],
                 why_correct_ko=str(question.get("whyCorrectKo", "")),
                 why_wrong_ko_by_option={
                     str(key): str(value)
-                    for key, value in _parse_object(question.get("whyWrongKoByOption"), default={}).items()
+                    for key, value in _parse_object(
+                        question.get("whyWrongKoByOption"), default={}
+                    ).items()
                 },
                 vocab_notes_ko=_to_optional_str(question.get("vocabNotesKo")),
                 structure_notes_ko=_to_optional_str(question.get("structureNotesKo")),
@@ -543,6 +601,16 @@ def _to_optional_str(value: object) -> str | None:
     if value is None:
         return None
     return str(value)
+
+
+def _required_int(value: object) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise AIProviderError(
+            code="OUTPUT_SCHEMA_INVALID",
+            message="Required integer field is missing or invalid.",
+            transient=False,
+        )
+    return value
 
 
 def _parse_object(value: object, *, default: dict[str, Any]) -> dict[str, Any]:

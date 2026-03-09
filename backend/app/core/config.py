@@ -8,8 +8,15 @@ from app.core.policies import (
     ACCESS_TOKEN_TTL_MINUTES,
     AI_ARTIFACT_RETENTION_DAYS_DEFAULT,
     AI_ARTIFACT_RETENTION_DAYS_MAX,
+    AI_CONTENT_ESTIMATED_INPUT_COST_PER_MILLION_TOKENS_DEFAULT,
+    AI_CONTENT_ESTIMATED_OUTPUT_COST_PER_MILLION_TOKENS_DEFAULT,
+    AI_CONTENT_MAX_ESTIMATED_COST_USD_DEFAULT,
     APP_TIMEZONE,
     BILLING_WEBHOOK_SIGNATURE_TOLERANCE_SECONDS,
+    CONTENT_BACKFILL_MAX_CANDIDATES_PER_RUN_DEFAULT,
+    CONTENT_BACKFILL_MAX_CANDIDATES_PER_RUN_MAX,
+    CONTENT_BACKFILL_MAX_TARGETS_PER_RUN_DEFAULT,
+    CONTENT_BACKFILL_MAX_TARGETS_PER_RUN_MAX,
     DB_TIMEZONE,
     JWT_ALGORITHM,
     R2_DOWNLOAD_SIGNED_URL_TTL_SECONDS,
@@ -53,8 +60,20 @@ class Settings(BaseSettings):
     ai_generation_api_key: str | None = None
     ai_mock_exam_model: str = "not-configured"
     ai_mock_exam_prompt_template_version: str = "v1"
+    ai_content_provider: str | None = None
+    ai_content_api_key: str | None = None
     ai_content_model: str = "not-configured"
     ai_content_prompt_template_version: str = "v1"
+    ai_content_max_targets_per_run: int = CONTENT_BACKFILL_MAX_TARGETS_PER_RUN_DEFAULT
+    ai_content_max_candidates_per_run: int = CONTENT_BACKFILL_MAX_CANDIDATES_PER_RUN_DEFAULT
+    ai_content_max_estimated_cost_usd: float = AI_CONTENT_MAX_ESTIMATED_COST_USD_DEFAULT
+    ai_content_default_dry_run: bool = True
+    ai_content_estimated_input_cost_per_million_tokens: float = (
+        AI_CONTENT_ESTIMATED_INPUT_COST_PER_MILLION_TOKENS_DEFAULT
+    )
+    ai_content_estimated_output_cost_per_million_tokens: float = (
+        AI_CONTENT_ESTIMATED_OUTPUT_COST_PER_MILLION_TOKENS_DEFAULT
+    )
     ai_openai_base_url: str = "https://api.openai.com"
     ai_anthropic_base_url: str = "https://api.anthropic.com"
     ai_artifact_retention_days: int = AI_ARTIFACT_RETENTION_DAYS_DEFAULT
@@ -146,14 +165,36 @@ class Settings(BaseSettings):
             allow_none=True,
         )
 
-    @field_validator("stripe_webhook_secret", "app_store_shared_secret", mode="before")
+    @field_validator("ai_content_api_key", mode="before")
     @classmethod
-    def validate_optional_billing_secret(cls, value: str | None, info: ValidationInfo) -> str | None:
+    def validate_optional_ai_content_api_key(cls, value: str | None) -> str | None:
         return cls._normalize_optional_secret(
             value=value,
-            field_name=info.field_name,
+            field_name="ai_content_api_key",
             allow_none=True,
         )
+
+    @field_validator("stripe_webhook_secret", "app_store_shared_secret", mode="before")
+    @classmethod
+    def validate_optional_billing_secret(
+        cls, value: str | None, info: ValidationInfo
+    ) -> str | None:
+        field_name = info.field_name or "billing_secret"
+        return cls._normalize_optional_secret(
+            value=value,
+            field_name=field_name,
+            allow_none=True,
+        )
+
+    @field_validator("ai_content_provider", mode="before")
+    @classmethod
+    def validate_optional_ai_content_provider(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        if not isinstance(value, str):
+            raise TypeError("ai_content_provider must be a string.")
+        normalized = value.strip()
+        return normalized or None
 
     @classmethod
     def _normalize_optional_secret(
@@ -177,7 +218,13 @@ class Settings(BaseSettings):
             raise ValueError(f"{field_name} must not use an insecure sample value.")
         return normalized
 
-    @field_validator("ai_openai_base_url", "ai_anthropic_base_url", "app_store_verify_url", "app_store_sandbox_verify_url", mode="before")
+    @field_validator(
+        "ai_openai_base_url",
+        "ai_anthropic_base_url",
+        "app_store_verify_url",
+        "app_store_sandbox_verify_url",
+        mode="before",
+    )
     @classmethod
     def validate_https_base_urls(cls, value: str, info: ValidationInfo) -> str:
         if not isinstance(value, str):
@@ -195,6 +242,38 @@ class Settings(BaseSettings):
     def validate_ai_artifact_retention_days(cls, value: int) -> int:
         if value <= 0 or value > AI_ARTIFACT_RETENTION_DAYS_MAX:
             raise ValueError("ai_artifact_retention_days out of allowed range.")
+        return value
+
+    @field_validator("ai_content_max_targets_per_run")
+    @classmethod
+    def validate_ai_content_max_targets_per_run(cls, value: int) -> int:
+        if value <= 0 or value > CONTENT_BACKFILL_MAX_TARGETS_PER_RUN_MAX:
+            raise ValueError("ai_content_max_targets_per_run out of allowed range.")
+        return value
+
+    @field_validator("ai_content_max_candidates_per_run")
+    @classmethod
+    def validate_ai_content_max_candidates_per_run(cls, value: int) -> int:
+        if value <= 0 or value > CONTENT_BACKFILL_MAX_CANDIDATES_PER_RUN_MAX:
+            raise ValueError("ai_content_max_candidates_per_run out of allowed range.")
+        return value
+
+    @field_validator(
+        "ai_content_max_estimated_cost_usd",
+        "ai_content_estimated_input_cost_per_million_tokens",
+        "ai_content_estimated_output_cost_per_million_tokens",
+    )
+    @classmethod
+    def validate_positive_float_settings(cls, value: float, info: ValidationInfo) -> float:
+        if value <= 0:
+            raise ValueError(f"{info.field_name} must be positive.")
+        return value
+
+    @field_validator("ai_content_default_dry_run")
+    @classmethod
+    def validate_ai_content_default_dry_run(cls, value: bool) -> bool:
+        if value is not True:
+            raise ValueError("ai_content_default_dry_run must remain enabled.")
         return value
 
     @field_validator("database_url", mode="before")
@@ -238,10 +317,22 @@ class Settings(BaseSettings):
             raise ValueError("r2_endpoint must include host.")
         return normalized
 
+    @property
+    def resolved_ai_content_provider(self) -> str:
+        if self.ai_content_provider is not None:
+            return self.ai_content_provider
+        return self.ai_generation_provider
+
+    @property
+    def resolved_ai_content_api_key(self) -> str | None:
+        if self.ai_content_api_key is not None:
+            return self.ai_content_api_key
+        return self.ai_generation_api_key
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
-    return Settings()
+    return Settings()  # type: ignore[call-arg]
 
 
 settings = get_settings()

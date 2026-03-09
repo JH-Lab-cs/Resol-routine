@@ -26,13 +26,11 @@ def _build_parser() -> argparse.ArgumentParser:
         "--max-targets-per-run",
         dest="max_targets_per_run",
         type=int,
-        default=12,
     )
     parser.add_argument(
         "--max-candidates-per-run",
         dest="max_candidates_per_run",
         type=int,
-        default=40,
     )
     return parser
 
