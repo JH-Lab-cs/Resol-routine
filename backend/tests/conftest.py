@@ -14,31 +14,39 @@ from sqlalchemy.pool import StaticPool
 # Test env must be initialized before importing any app package that resolves settings.
 os.environ["DATABASE_URL"] = "postgresql+psycopg://resol:resol@localhost:5432/resol_backend"
 os.environ["REDIS_URL"] = "redis://localhost:6379/0"
-os.environ["JWT_SECRET"] = "unit-test-secret-value-that-is-longer-than-32-chars"
+os.environ["JWT_SECRET"] = "unit-test-secret-value-that-is-longer-than-32-chars"  # noqa: S105
 os.environ["R2_ENDPOINT"] = "https://example.r2.cloudflarestorage.com"
 os.environ["R2_BUCKET"] = "resol-private-bucket"
 os.environ["R2_ACCESS_KEY_ID"] = "unit-test-access-key-id"
-os.environ["R2_SECRET_ACCESS_KEY"] = "unit-test-secret-access-key"
+os.environ["R2_SECRET_ACCESS_KEY"] = "unit-test-secret-access-key"  # noqa: S105
 os.environ["CONTENT_PIPELINE_API_KEY"] = "unit-test-internal-api-key-value"
 os.environ["AI_GENERATION_PROVIDER"] = "fake"
 os.environ["AI_MOCK_EXAM_MODEL"] = "unit-test-model"
 os.environ["AI_MOCK_EXAM_PROMPT_TEMPLATE_VERSION"] = "v1"
 os.environ["AI_GENERATION_API_KEY"] = "unit-test-ai-api-key"
+os.environ["AI_CONTENT_PROVIDER"] = "fake"
+os.environ["AI_CONTENT_API_KEY"] = "unit-test-ai-content-api-key"
+os.environ["AI_CONTENT_MODEL"] = "unit-test-content-model"
+os.environ["AI_CONTENT_PROMPT_TEMPLATE_VERSION"] = "v1"
+os.environ["AI_CONTENT_MAX_TARGETS_PER_RUN"] = "12"
+os.environ["AI_CONTENT_MAX_CANDIDATES_PER_RUN"] = "40"
+os.environ["AI_CONTENT_MAX_ESTIMATED_COST_USD"] = "5.0"
+os.environ["AI_CONTENT_DEFAULT_DRY_RUN"] = "true"
 
 from app.core.config import get_settings
 
 get_settings.cache_clear()
 
-import app.models  # noqa: F401
+import app.models
 from app.api.dependencies import get_db, get_rate_limiter
 from app.db.base import Base
 from app.db.session import (
+    POST_COMMIT_AGGREGATION_STUDENT_IDS_KEY,
     POST_COMMIT_AI_CONTENT_GENERATION_JOB_IDS_KEY,
     POST_COMMIT_AI_GENERATION_JOB_IDS_KEY,
-    POST_COMMIT_AGGREGATION_STUDENT_IDS_KEY,
+    run_post_commit_aggregation_tasks,
     run_post_commit_ai_content_generation_tasks,
     run_post_commit_ai_generation_tasks,
-    run_post_commit_aggregation_tasks,
 )
 from app.main import app
 from app.services.rate_limit_service import RateLimitExceededError
@@ -48,7 +56,8 @@ class InMemoryRateLimiter:
     def __init__(self) -> None:
         self._counters: dict[str, int] = {}
 
-    def enforce(self, *, keys: list[str], max_attempts: int, window_seconds: int) -> None:  # noqa: ARG002
+    def enforce(self, *, keys: list[str], max_attempts: int, window_seconds: int) -> None:
+        del window_seconds
         for key in keys:
             new_count = self._counters.get(key, 0) + 1
             self._counters[key] = new_count
@@ -63,7 +72,12 @@ def test_app() -> Generator[FastAPI, None, None]:
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
-    testing_session = sessionmaker(bind=engine, autoflush=False, autocommit=False, expire_on_commit=False)
+    testing_session = sessionmaker(
+        bind=engine,
+        autoflush=False,
+        autocommit=False,
+        expire_on_commit=False,
+    )
     Base.metadata.create_all(bind=engine)
 
     limiter = InMemoryRateLimiter()

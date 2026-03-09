@@ -65,3 +65,51 @@ def test_rejects_invalid_database_url(monkeypatch: pytest.MonkeyPatch) -> None:
 
     with pytest.raises(ValidationError):
         Settings()
+
+
+def test_rejects_invalid_ai_content_run_limits(monkeypatch: pytest.MonkeyPatch) -> None:
+    env = _valid_env(
+        {
+            "AI_CONTENT_MAX_TARGETS_PER_RUN": "0",
+            "AI_CONTENT_MAX_CANDIDATES_PER_RUN": "-1",
+        }
+    )
+    _apply_env(monkeypatch, env)
+
+    with pytest.raises(ValidationError):
+        Settings()
+
+
+def test_ai_content_default_dry_run_must_remain_enabled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    env = _valid_env({"AI_CONTENT_DEFAULT_DRY_RUN": "false"})
+    _apply_env(monkeypatch, env)
+
+    with pytest.raises(ValidationError):
+        Settings()
+
+
+def test_ai_content_provider_specific_values_resolve_with_fallback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    env = _valid_env(
+        {
+            "AI_GENERATION_PROVIDER": "fake",
+            "AI_GENERATION_API_KEY": "generation-api-key",
+            "AI_CONTENT_PROVIDER": "openai",
+            "AI_CONTENT_API_KEY": "content-api-key",
+            "AI_CONTENT_MODEL": "gpt-4.1-mini",
+            "AI_CONTENT_PROMPT_TEMPLATE_VERSION": "content-v2",
+            "AI_CONTENT_MAX_ESTIMATED_COST_USD": "3.5",
+        }
+    )
+    _apply_env(monkeypatch, env)
+
+    settings = Settings()
+
+    assert settings.resolved_ai_content_provider == "openai"
+    assert settings.resolved_ai_content_api_key == "content-api-key"
+    assert settings.ai_content_model == "gpt-4.1-mini"
+    assert settings.ai_content_prompt_template_version == "content-v2"
+    assert settings.ai_content_max_estimated_cost_usd == 3.5

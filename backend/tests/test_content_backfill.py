@@ -3,6 +3,8 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from uuid import UUID
 
+import pytest
+
 from app.models.ai_content_generation_job import AIContentGenerationJob
 from app.models.content_enums import ContentLifecycleStatus
 from app.models.content_question import ContentQuestion
@@ -11,6 +13,7 @@ from app.models.content_unit_revision import ContentUnitRevision
 from app.models.enums import Skill, Track
 from app.services.content_backfill_service import (
     BackfillFilter,
+    ContentBackfillExecutionError,
     build_content_backfill_plan,
     enqueue_content_backfill_jobs,
 )
@@ -22,10 +25,52 @@ from app.services.reviewer_batch_service import (
     batch_review_content_revisions,
     batch_validate_content_revisions,
 )
+from tools.content_readiness_audit import _build_parser as build_content_readiness_audit_parser
+
+
+@pytest.fixture()
+def configured_content_backfill_settings(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "app.services.content_backfill_service.settings.ai_content_provider",
+        "fake",
+    )
+    monkeypatch.setattr(
+        "app.services.content_backfill_service.settings.ai_content_model",
+        "unit-test-content-model",
+    )
+    monkeypatch.setattr(
+        "app.services.content_backfill_service.settings.ai_content_prompt_template_version",
+        "content-v1",
+    )
+    monkeypatch.setattr(
+        "app.services.content_backfill_service.settings.ai_content_max_targets_per_run",
+        12,
+    )
+    monkeypatch.setattr(
+        "app.services.content_backfill_service.settings.ai_content_max_candidates_per_run",
+        40,
+    )
+    monkeypatch.setattr(
+        "app.services.content_backfill_service.settings.ai_content_max_estimated_cost_usd",
+        5.0,
+    )
+    monkeypatch.setattr(
+        "app.services.content_backfill_service.settings.ai_content_default_dry_run",
+        True,
+    )
+    monkeypatch.setattr(
+        "app.services.content_backfill_service.settings.ai_content_estimated_input_cost_per_million_tokens",
+        0.5,
+    )
+    monkeypatch.setattr(
+        "app.services.content_backfill_service.settings.ai_content_estimated_output_cost_per_million_tokens",
+        1.5,
+    )
 
 
 def test_backfill_plan_prioritizes_daily_deficits_and_keeps_dry_run_default(
     db_session_factory,
+    configured_content_backfill_settings,
 ) -> None:
     with db_session_factory() as db:
         seed_dev_content_and_mock_samples(db)
@@ -46,14 +91,51 @@ def test_backfill_plan_prioritizes_daily_deficits_and_keeps_dry_run_default(
     preview = plan["enqueuePreview"]
     assert preview["dryRunDefault"] is True
     assert preview["provider"]
+    assert preview["providerConfigured"] is True
+    assert preview["apiKeyPresent"] is True
     assert preview["model"]
     assert preview["promptTemplateVersion"]
+    assert preview["estimatedProviderCalls"] >= 1
+    assert preview["estimatedCostUsd"] > 0
     assert all(job["targetCount"] <= 12 for job in preview["jobs"])
+    assert all(job["estimatedCostUsd"] > 0 for job in preview["jobs"])
+    assert all(job["originatingDeficits"] for job in preview["jobs"])
+
+
+def test_content_readiness_audit_cli_uses_service_limits_by_default() -> None:
+    args = build_content_readiness_audit_parser().parse_args(["--with-backfill-plan"])
+
+    assert args.max_targets_per_run is None
+    assert args.max_candidates_per_run is None
+
+
+def test_backfill_enqueue_defaults_to_dry_run_without_creating_jobs(
+    db_session_factory,
+    configured_content_backfill_settings,
+) -> None:
+    with db_session_factory() as db:
+        seed_dev_content_and_mock_samples(db)
+        db.commit()
+
+    with db_session_factory() as db:
+        result = enqueue_content_backfill_jobs(
+            db,
+            filters=BackfillFilter(track=Track.M3, skill=Skill.LISTENING, limit=2),
+        )
+
+    assert result["enqueueSummary"]["executed"] is False
+    assert result["enqueueSummary"]["jobCount"] == 0
+
+    with db_session_factory() as db:
+        job_count = db.query(AIContentGenerationJob).count()
+
+    assert job_count == 0
 
 
 def test_backfill_enqueue_execute_creates_ai_generation_jobs(
     db_session_factory,
     monkeypatch,
+    configured_content_backfill_settings,
 ) -> None:
     monkeypatch.setattr(
         "app.services.content_backfill_service.run_post_commit_ai_content_generation_tasks",
@@ -77,14 +159,107 @@ def test_backfill_enqueue_execute_creates_ai_generation_jobs(
 
     with db_session_factory() as db:
         jobs = (
-            db.query(AIContentGenerationJob)
-            .order_by(AIContentGenerationJob.created_at.asc())
-            .all()
+            db.query(AIContentGenerationJob).order_by(AIContentGenerationJob.created_at.asc()).all()
         )
         assert jobs
         assert all(job.dry_run is False for job in jobs)
         assert jobs[0].target_matrix_json
         assert jobs[0].metadata_json["source"] == "content_readiness_backfill"
+        assert jobs[0].metadata_json["estimatedCostUsd"] > 0
+        assert jobs[0].metadata_json["originatingDeficitPlan"]
+
+
+def test_backfill_enqueue_rejects_unconfigured_provider_on_execute(
+    db_session_factory,
+    configured_content_backfill_settings,
+) -> None:
+    with db_session_factory() as db:
+        seed_dev_content_and_mock_samples(db)
+        db.commit()
+
+    with db_session_factory() as db:
+        with pytest.raises(ContentBackfillExecutionError) as exc_info:
+            enqueue_content_backfill_jobs(
+                db,
+                filters=BackfillFilter(track=Track.M3, skill=Skill.LISTENING, limit=2),
+                provider_override="disabled",
+                execute=True,
+            )
+
+    assert exc_info.value.code == "PROVIDER_NOT_CONFIGURED"
+
+
+def test_backfill_enqueue_rejects_budget_exceeded(
+    db_session_factory,
+    monkeypatch,
+    configured_content_backfill_settings,
+) -> None:
+    monkeypatch.setattr(
+        "app.services.content_backfill_service.settings.ai_content_max_estimated_cost_usd",
+        0.000001,
+    )
+    with db_session_factory() as db:
+        seed_dev_content_and_mock_samples(db)
+        db.commit()
+
+    with db_session_factory() as db:
+        with pytest.raises(ContentBackfillExecutionError) as exc_info:
+            enqueue_content_backfill_jobs(
+                db,
+                filters=BackfillFilter(track=Track.M3, skill=Skill.LISTENING, limit=2),
+                execute=True,
+            )
+
+    assert exc_info.value.code == "PROVIDER_BUDGET_EXCEEDED"
+
+
+def test_backfill_enqueue_rejects_missing_model_configuration(
+    db_session_factory,
+    monkeypatch,
+    configured_content_backfill_settings,
+) -> None:
+    monkeypatch.setattr(
+        "app.services.content_backfill_service.settings.ai_content_model",
+        "not-configured",
+    )
+    with db_session_factory() as db:
+        seed_dev_content_and_mock_samples(db)
+        db.commit()
+
+    with db_session_factory() as db:
+        with pytest.raises(ContentBackfillExecutionError) as exc_info:
+            enqueue_content_backfill_jobs(
+                db,
+                filters=BackfillFilter(track=Track.M3, skill=Skill.LISTENING, limit=2),
+                execute=True,
+            )
+
+    assert exc_info.value.code == "PROVIDER_MODEL_NOT_SET"
+
+
+def test_backfill_enqueue_skips_duplicate_active_deficit_signature(
+    db_session_factory,
+    monkeypatch,
+    configured_content_backfill_settings,
+) -> None:
+    monkeypatch.setattr(
+        "app.services.content_backfill_service.run_post_commit_ai_content_generation_tasks",
+        lambda db: None,
+    )
+    with db_session_factory() as db:
+        seed_dev_content_and_mock_samples(db)
+        db.commit()
+
+    filters = BackfillFilter(track=Track.M3, skill=Skill.LISTENING, limit=2)
+    with db_session_factory() as db:
+        first = enqueue_content_backfill_jobs(db, filters=filters, execute=True)
+    assert first["enqueueSummary"]["jobCount"] == 1
+
+    with db_session_factory() as db:
+        second = enqueue_content_backfill_jobs(db, filters=filters, execute=True)
+
+    assert second["enqueueSummary"]["jobCount"] == 0
+    assert len(second["enqueueSummary"]["skippedExistingJobs"]) == 1
 
 
 def test_batch_validate_review_publish_improves_daily_readiness(db_session_factory) -> None:
@@ -181,9 +356,7 @@ def _create_content_revision(
         skill=skill,
         track=track,
         lifecycle_status=(
-            ContentLifecycleStatus.PUBLISHED
-            if is_published
-            else ContentLifecycleStatus.DRAFT
+            ContentLifecycleStatus.PUBLISHED if is_published else ContentLifecycleStatus.DRAFT
         ),
     )
     db.add(unit)
