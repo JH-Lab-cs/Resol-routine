@@ -8,9 +8,12 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
+import app.services.ai_content_generation_service as ai_content_generation_service
+import app.workers.tasks as worker_tasks
 from app.models.ai_content_generation_candidate import AIContentGenerationCandidate
 from app.models.ai_content_generation_job import AIContentGenerationJob
 from app.models.content_enums import ContentLifecycleStatus
+from app.models.content_question import ContentQuestion
 from app.models.content_unit import ContentUnit
 from app.models.content_unit_revision import ContentUnitRevision
 from app.models.enums import (
@@ -22,11 +25,9 @@ from app.models.enums import (
     Track,
 )
 from app.services import ai_artifact_service
-import app.services.ai_content_generation_service as ai_content_generation_service
 from app.services.ai_content_generation_service import run_ai_content_generation_job
 from app.services.ai_content_provider import ContentGenerationResult, GeneratedContentCandidate
 from app.services.ai_provider import AIProviderError
-import app.workers.tasks as worker_tasks
 
 INTERNAL_API_KEY = "unit-test-internal-api-key-value"
 
@@ -44,14 +45,18 @@ class FakeAIArtifactStore:
             content_type="application/json",
         )
 
-    def put_text(self, *, kind: str, job_id: UUID, body: str, content_type: str = "text/plain") -> str:  # noqa: ARG002
+    def put_text(
+        self, *, kind: str, job_id: UUID, body: str, content_type: str = "text/plain"
+    ) -> str:
         self._counter += 1
         normalized_kind = kind.replace(" ", "-")
         object_key = f"ai-artifacts/test/{job_id}/{normalized_kind}-{self._counter}.json"
         self._objects[object_key] = body
         return object_key
 
-    def put_text_with_object_key(self, *, object_key: str, body: str, content_type: str = "text/plain") -> str:  # noqa: ARG002
+    def put_text_with_object_key(
+        self, *, object_key: str, body: str, content_type: str = "text/plain"
+    ) -> str:
         self._objects[object_key] = body
         return object_key
 
@@ -84,13 +89,17 @@ class FakeAIArtifactStore:
 
 
 class FailingArtifactStore(FakeAIArtifactStore):
-    def put_text(self, *, kind: str, job_id: UUID, body: str, content_type: str = "text/plain") -> str:  # noqa: ARG002
+    def put_text(
+        self, *, kind: str, job_id: UUID, body: str, content_type: str = "text/plain"
+    ) -> str:
         raise ai_artifact_service.ArtifactStoreError(
             code="artifact_write_failed",
             message="failed to upload artifact",
         )
 
-    def put_text_with_object_key(self, *, object_key: str, body: str, content_type: str = "text/plain") -> str:  # noqa: ARG002
+    def put_text_with_object_key(
+        self, *, object_key: str, body: str, content_type: str = "text/plain"
+    ) -> str:
         raise ai_artifact_service.ArtifactStoreError(
             code="artifact_write_failed",
             message="failed to upload artifact",
@@ -101,7 +110,7 @@ class StaticProvider:
     def __init__(self, candidates: list[GeneratedContentCandidate]) -> None:
         self._candidates = candidates
 
-    def generate_candidates(self, *, context) -> ContentGenerationResult:  # noqa: ANN001
+    def generate_candidates(self, *, context) -> ContentGenerationResult:
         return ContentGenerationResult(
             provider_name="fake",
             model_name="ai-content-test-model",
@@ -195,7 +204,11 @@ def _valid_candidate(
             difficulty=difficulty,
             source_policy=ContentSourcePolicy.AI_ORIGINAL,
             title="Generated reading unit",
-            passage="Sentence one provides context. Sentence two gives evidence. Sentence three confirms conclusion.",
+            passage=(
+                "Sentence one provides context. "
+                "Sentence two gives evidence. "
+                "Sentence three confirms conclusion."
+            ),
             transcript=None,
             turns=[],
             sentences=[
@@ -207,7 +220,10 @@ def _valid_candidate(
             stem="Which option best matches the passage?",
             options=options,
             answer_key="A",
-            explanation="Option A is correct because sentence s2 directly supports the claim and sentence s3 confirms it.",
+            explanation=(
+                "Option A is correct because sentence s2 directly supports "
+                "the claim and sentence s3 confirms it."
+            ),
             evidence_sentence_ids=["s2", "s3"],
             why_correct_ko="핵심 근거 문장이 정답 선택지의 주장과 직접 연결됩니다.",
             why_wrong_ko_by_option=why_wrong,
@@ -223,7 +239,10 @@ def _valid_candidate(
         source_policy=ContentSourcePolicy.AI_ORIGINAL,
         title="Generated listening unit",
         passage=None,
-        transcript="A: Could you summarize the key point?\nB: We must verify evidence before deciding.",
+        transcript=(
+            "A: Could you summarize the key point?\n"
+            "B: We must verify evidence before deciding."
+        ),
         turns=[
             {"speaker": "A", "text": "Could you summarize the key point?"},
             {"speaker": "B", "text": "We must verify evidence before deciding."},
@@ -236,7 +255,10 @@ def _valid_candidate(
         stem="What is the best interpretation of the dialogue?",
         options=options,
         answer_key="A",
-        explanation="Option A is correct because the response explicitly prioritizes evidence verification.",
+        explanation=(
+            "Option A is correct because the response explicitly prioritizes "
+            "evidence verification."
+        ),
         evidence_sentence_ids=["s2"],
         why_correct_ko="응답 화자가 근거 확인을 우선한다고 명시하므로 정답이 됩니다.",
         why_wrong_ko_by_option=why_wrong,
@@ -248,7 +270,15 @@ def _valid_candidate(
 def test_internal_api_key_missing_and_invalid_rejected(client: TestClient) -> None:
     payload = {
         "requestId": "ai-content-key-test",
-        "targetMatrix": [{"track": "H2", "skill": "READING", "typeTag": "R_MAIN_IDEA", "difficulty": 3, "count": 1}],
+        "targetMatrix": [
+            {
+                "track": "H2",
+                "skill": "READING",
+                "typeTag": "R_MAIN_IDEA",
+                "difficulty": 3,
+                "count": 1,
+            }
+        ],
     }
 
     missing = client.post("/internal/ai/content-generation/jobs", json=payload)
@@ -346,9 +376,15 @@ def test_target_matrix_count_drives_candidate_attempts(
     assert result.status == AIGenerationJobStatus.SUCCEEDED
 
     with db_session_factory() as db:
-        count = db.execute(
-            select(AIContentGenerationCandidate).where(AIContentGenerationCandidate.job_id == UUID(job["id"]))
-        ).scalars().all()
+        count = (
+            db.execute(
+                select(AIContentGenerationCandidate).where(
+                    AIContentGenerationCandidate.job_id == UUID(job["id"])
+                )
+            )
+            .scalars()
+            .all()
+        )
         assert len(count) == 6
 
 
@@ -357,17 +393,21 @@ def test_provider_not_configured_failure(
     db_session_factory,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    matrix = [{"track": "H2", "skill": "READING", "typeTag": "R_MAIN_IDEA", "difficulty": 3, "count": 1}]
+    matrix = [
+        {"track": "H2", "skill": "READING", "typeTag": "R_MAIN_IDEA", "difficulty": 3, "count": 1}
+    ]
     job = _create_job(client, request_id="content-job-provider-missing", matrix=matrix)
 
-    def raise_not_configured(*, provider_override=None):  # noqa: ANN001, ARG001
+    def raise_not_configured(*, provider_override=None):
         raise AIProviderError(
             code="PROVIDER_NOT_CONFIGURED",
             message="provider missing",
             transient=False,
         )
 
-    monkeypatch.setattr(ai_content_generation_service, "build_ai_content_generation_provider", raise_not_configured)
+    monkeypatch.setattr(
+        ai_content_generation_service, "build_ai_content_generation_provider", raise_not_configured
+    )
 
     result = _run_job_once(db_session_factory, job_id=job["id"])
     assert result.status == AIGenerationJobStatus.FAILED
@@ -383,17 +423,21 @@ def test_malformed_provider_response_rejected(
     db_session_factory,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    matrix = [{"track": "H2", "skill": "READING", "typeTag": "R_MAIN_IDEA", "difficulty": 3, "count": 1}]
+    matrix = [
+        {"track": "H2", "skill": "READING", "typeTag": "R_MAIN_IDEA", "difficulty": 3, "count": 1}
+    ]
     job = _create_job(client, request_id="content-job-bad-response", matrix=matrix)
 
-    def raise_bad_response(*, provider_override=None):  # noqa: ANN001, ARG001
+    def raise_bad_response(*, provider_override=None):
         raise AIProviderError(
             code="PROVIDER_BAD_RESPONSE",
             message="bad response",
             transient=False,
         )
 
-    monkeypatch.setattr(ai_content_generation_service, "build_ai_content_generation_provider", raise_bad_response)
+    monkeypatch.setattr(
+        ai_content_generation_service, "build_ai_content_generation_provider", raise_bad_response
+    )
 
     result = _run_job_once(db_session_factory, job_id=job["id"])
     assert result.status == AIGenerationJobStatus.FAILED
@@ -430,7 +474,9 @@ def test_hidden_unicode_invalid_options_and_invalid_evidence_are_rejected(
         lambda provider_override=None: StaticProvider([bad]),
     )
 
-    matrix = [{"track": "H2", "skill": "READING", "typeTag": "R_MAIN_IDEA", "difficulty": 3, "count": 1}]
+    matrix = [
+        {"track": "H2", "skill": "READING", "typeTag": "R_MAIN_IDEA", "difficulty": 3, "count": 1}
+    ]
     job = _create_job(client, request_id="content-job-invalid-candidate", matrix=matrix)
 
     result = _run_job_once(db_session_factory, job_id=job["id"])
@@ -470,7 +516,9 @@ def test_skill_type_tag_and_difficulty_mismatch_rejected(
         lambda provider_override=None: StaticProvider([bad]),
     )
 
-    matrix = [{"track": "H2", "skill": "LISTENING", "typeTag": "L_DETAIL", "difficulty": 3, "count": 1}]
+    matrix = [
+        {"track": "H2", "skill": "LISTENING", "typeTag": "L_DETAIL", "difficulty": 3, "count": 1}
+    ]
     job = _create_job(client, request_id="content-job-mismatch", matrix=matrix)
     result = _run_job_once(db_session_factory, job_id=job["id"])
     assert result.status == AIGenerationJobStatus.SUCCEEDED
@@ -547,6 +595,74 @@ def test_materialize_reading_and_listening_draft_success_and_not_auto_published(
     assert publish_without_validation.json()["detail"] == "revision_not_validated"
 
 
+def test_materialize_draft_propagates_job_source_metadata(
+    client: TestClient,
+    db_session_factory,
+    monkeypatch: pytest.MonkeyPatch,
+    fake_ai_artifact_store: FakeAIArtifactStore,
+) -> None:
+    reading = _valid_candidate(
+        skill=Skill.READING,
+        type_tag=ContentTypeTag.R_BLANK,
+        track=Track.M3,
+        difficulty=1,
+    )
+
+    monkeypatch.setattr(
+        ai_content_generation_service,
+        "build_ai_content_generation_provider",
+        lambda provider_override=None: StaticProvider([reading]),
+    )
+
+    response = client.post(
+        "/internal/ai/content-generation/jobs",
+        json={
+            "requestId": "content-job-source-propagation",
+            "targetMatrix": [
+                {
+                    "track": "M3",
+                    "skill": "READING",
+                    "typeTag": "R_BLANK",
+                    "difficulty": 1,
+                    "count": 1,
+                }
+            ],
+            "candidateCountPerTarget": 1,
+            "dryRun": False,
+            "metadata": {"source": "content_readiness_backfill"},
+        },
+        headers=_internal_headers(),
+    )
+    assert response.status_code == 201, response.text
+    job = response.json()
+
+    result = _run_job_once(db_session_factory, job_id=job["id"])
+    assert result.status == AIGenerationJobStatus.SUCCEEDED
+
+    listed = client.get(
+        f"/internal/ai/content-generation/jobs/{job['id']}/candidates",
+        headers=_internal_headers(),
+    )
+    assert listed.status_code == 200, listed.text
+    candidate_id = listed.json()["items"][0]["id"]
+
+    materialize = client.post(
+        f"/internal/ai/content-generation/candidates/{candidate_id}/materialize-draft",
+        headers=_internal_headers(),
+    )
+    assert materialize.status_code == 200, materialize.text
+    revision_id = materialize.json()["contentRevisionId"]
+
+    with db_session_factory() as db:
+        revision = db.get(ContentUnitRevision, UUID(revision_id))
+        assert revision is not None
+        assert revision.metadata_json["source"] == "content_readiness_backfill"
+        question = db.execute(
+            select(ContentQuestion).where(ContentQuestion.content_unit_revision_id == revision.id)
+        ).scalar_one()
+        assert question.metadata_json["source"] == "content_readiness_backfill"
+
+
 def test_artifact_upload_failure_marks_job_failed(
     client: TestClient,
     db_session_factory,
@@ -559,9 +675,13 @@ def test_artifact_upload_failure_marks_job_failed(
         "build_ai_content_generation_provider",
         lambda provider_override=None: StaticProvider([reading]),
     )
-    monkeypatch.setattr(ai_content_generation_service, "get_ai_artifact_store", lambda: FailingArtifactStore())
+    monkeypatch.setattr(
+        ai_content_generation_service, "get_ai_artifact_store", lambda: FailingArtifactStore()
+    )
 
-    matrix = [{"track": "H2", "skill": "READING", "typeTag": "R_MAIN_IDEA", "difficulty": 3, "count": 1}]
+    matrix = [
+        {"track": "H2", "skill": "READING", "typeTag": "R_MAIN_IDEA", "difficulty": 3, "count": 1}
+    ]
     job = _create_job(client, request_id="content-job-artifact-fail", matrix=matrix)
 
     result = _run_job_once(db_session_factory, job_id=job["id"])
@@ -585,7 +705,7 @@ def test_retry_after_transient_failure_is_safe_and_no_duplicate_candidates(
         def __init__(self) -> None:
             self.calls = 0
 
-        def generate_candidates(self, *, context):  # noqa: ANN001
+        def generate_candidates(self, *, context):
             self.calls += 1
             if self.calls == 1:
                 raise AIProviderError(
@@ -602,7 +722,9 @@ def test_retry_after_transient_failure_is_safe_and_no_duplicate_candidates(
         lambda provider_override=None: flaky,
     )
 
-    matrix = [{"track": "H2", "skill": "READING", "typeTag": "R_MAIN_IDEA", "difficulty": 3, "count": 1}]
+    matrix = [
+        {"track": "H2", "skill": "READING", "typeTag": "R_MAIN_IDEA", "difficulty": 3, "count": 1}
+    ]
     job = _create_job(client, request_id="content-job-retry", matrix=matrix)
 
     first = _run_job_once(db_session_factory, job_id=job["id"])
@@ -619,11 +741,15 @@ def test_retry_after_transient_failure_is_safe_and_no_duplicate_candidates(
     assert second.status == AIGenerationJobStatus.SUCCEEDED
 
     with db_session_factory() as db:
-        rows = db.execute(
-            select(AIContentGenerationCandidate)
-            .where(AIContentGenerationCandidate.job_id == UUID(job["id"]))
-            .order_by(AIContentGenerationCandidate.candidate_index.asc())
-        ).scalars().all()
+        rows = (
+            db.execute(
+                select(AIContentGenerationCandidate)
+                .where(AIContentGenerationCandidate.job_id == UUID(job["id"]))
+                .order_by(AIContentGenerationCandidate.candidate_index.asc())
+            )
+            .scalars()
+            .all()
+        )
         assert len(rows) == 1
         assert rows[0].candidate_index == 1
 
@@ -641,7 +767,9 @@ def test_traceability_fields_and_artifact_keys_are_saved(
         lambda provider_override=None: StaticProvider([candidate]),
     )
 
-    matrix = [{"track": "H2", "skill": "READING", "typeTag": "R_MAIN_IDEA", "difficulty": 3, "count": 1}]
+    matrix = [
+        {"track": "H2", "skill": "READING", "typeTag": "R_MAIN_IDEA", "difficulty": 3, "count": 1}
+    ]
     job = _create_job(client, request_id="content-job-traceability", matrix=matrix)
 
     result = _run_job_once(db_session_factory, job_id=job["id"])
@@ -658,7 +786,9 @@ def test_traceability_fields_and_artifact_keys_are_saved(
         assert stored_job.candidate_snapshot_object_key is not None
 
         candidate_row = db.execute(
-            select(AIContentGenerationCandidate).where(AIContentGenerationCandidate.job_id == stored_job.id)
+            select(AIContentGenerationCandidate).where(
+                AIContentGenerationCandidate.job_id == stored_job.id
+            )
         ).scalar_one()
         assert candidate_row.artifact_prompt_key is not None
         assert candidate_row.artifact_response_key is not None
@@ -680,7 +810,9 @@ def test_generated_candidate_materialization_is_not_auto_published_in_current_ex
         lambda provider_override=None: StaticProvider([candidate]),
     )
 
-    matrix = [{"track": "H2", "skill": "READING", "typeTag": "R_MAIN_IDEA", "difficulty": 3, "count": 1}]
+    matrix = [
+        {"track": "H2", "skill": "READING", "typeTag": "R_MAIN_IDEA", "difficulty": 3, "count": 1}
+    ]
     job = _create_job(client, request_id="content-job-draft-only", matrix=matrix)
     _run_job_once(db_session_factory, job_id=job["id"])
 

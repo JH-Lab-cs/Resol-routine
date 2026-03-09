@@ -113,3 +113,24 @@ def test_ai_content_provider_specific_values_resolve_with_fallback(
     assert settings.ai_content_model == "gpt-4.1-mini"
     assert settings.ai_content_prompt_template_version == "content-v2"
     assert settings.ai_content_max_estimated_cost_usd == 3.5
+
+
+def test_ai_provider_http_timeout_seconds_can_be_overridden(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    env = _valid_env({"AI_PROVIDER_HTTP_TIMEOUT_SECONDS": "90"})
+    _apply_env(monkeypatch, env)
+
+    settings = Settings()
+
+    assert settings.ai_provider_http_timeout_seconds == 90
+
+
+def test_ai_provider_http_timeout_seconds_rejects_invalid_values(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    env = _valid_env({"AI_PROVIDER_HTTP_TIMEOUT_SECONDS": "0"})
+    _apply_env(monkeypatch, env)
+
+    with pytest.raises(ValidationError):
+        Settings()
