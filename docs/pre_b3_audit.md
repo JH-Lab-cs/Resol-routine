@@ -1,6 +1,6 @@
 # PRE-B3 Audit And Policy Freeze
 
-Last updated: 2026-03-08
+Last updated: 2026-03-09
 
 ## Scope
 
@@ -586,3 +586,67 @@ Local conclusion:
 Integration tests now verify that publishing the final missing Daily draft can
 move a track from `WARNING` to `READY`, so the backfill -> human review ->
 publish loop is covered before B3 wiring starts.
+
+## 10. B2.6.6 Live Provider Smoke Baseline
+
+The local backend now has a verified live-provider smoke path using:
+
+- provider: `openai`
+- model: `gpt-5-mini`
+- prompt template: `content-v1`
+- execution mode: controlled backfill only
+
+### Verified READING live smoke
+
+The READING path already completed end-to-end with:
+
+- live provider candidate generation
+- artifact persistence
+- draft materialization
+- batch validate / review / publish
+- public list / detail / sync visibility
+
+Observed `M3 READING` change from the published bank:
+
+- total published reading items: `6 -> 8`
+- `R_BLANK`: `0 -> 2`
+
+### Verified LISTENING live smoke
+
+The LISTENING path is also now closed end-to-end with the same provider/model:
+
+- live provider candidate generation
+- artifact persistence
+- draft materialization
+- batch validate / review / publish
+- public list / detail / sync visibility
+
+Observed `M3 LISTENING` change from the published bank:
+
+- total published listening items: `6 -> 7`
+- `L_DETAIL`: `2 -> 3`
+
+What this verifies:
+
+- real-provider generation works for both `READING` and `LISTENING`
+- reviewer source filtering by `content_readiness_backfill` and generation job id
+  is strong enough for batch promotion
+- publish results are reflected in public delivery contracts and readiness audit
+
+### LISTENING payload / TTS compatibility note
+
+The published LISTENING smoke revision is valid even when:
+
+- `transcriptText` is present
+- `ttsPlan` is present
+- `asset` is still `null`
+
+This is acceptable for the current public delivery contract because:
+
+- audio signed URLs remain optional until the TTS pipeline attaches an asset
+- the LISTENING payload shape remains stable for later B2.3 integration
+
+Practical interpretation:
+
+- live generation-path risk is now closed for both `READING` and `LISTENING`
+- inventory depth risk is still open for `M3`, `H1`, and parts of `H2`
