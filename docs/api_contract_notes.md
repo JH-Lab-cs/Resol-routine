@@ -100,6 +100,38 @@ This note captures frontend-backend contracts that must remain stable while form
 - Adaptive/user-specific vocab selection is still post-B3 and must not be treated
   as implemented by this contract.
 
+## Controlled Content Backfill Contract
+
+- Readiness backfill reuses the B2.1 AI content generation pipeline.
+- Controlled execution only:
+  - planner output is dry-run by default
+  - real enqueue requires `backfill-enqueue --execute`
+  - auto-publish is forbidden
+- Required provider contract for content backfill:
+  - `AI_CONTENT_PROVIDER`
+  - `AI_CONTENT_MODEL`
+  - `AI_CONTENT_API_KEY`
+  - `AI_CONTENT_PROMPT_TEMPLATE_VERSION`
+- Budget guard contract:
+  - `maxTargetsPerRun`
+  - `maxCandidatesPerRun`
+  - `estimatedProviderCalls`
+  - `estimatedPromptTokens`
+  - `estimatedOutputTokens`
+  - `estimatedCostUsd`
+  - `estimatedCostUsd` must not exceed `AI_CONTENT_MAX_ESTIMATED_COST_USD`
+- Priority order is fixed:
+  1. `DAILY_READINESS_DEFICIT`
+  2. `WEEKLY_READINESS_DEFICIT`
+  3. `MONTHLY_READINESS_DEFICIT`
+- Duplicate active deficit signatures must be skipped rather than enqueued twice.
+- Traceability requirements:
+  - `source = content_readiness_backfill`
+  - originating deficit plan
+  - provider/model/template version
+  - prompt/response/candidate/validation artifact keys
+  - estimated cost summary
+
 ## Published Content Delivery Contract
 
 - The app consumes backend content through public published-revision delivery only:

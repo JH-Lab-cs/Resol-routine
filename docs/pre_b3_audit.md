@@ -524,10 +524,17 @@ Local conclusion:
 - batch budgets are explicit:
   - `maxTargetsPerRun`
   - `maxCandidatesPerRun`
+- execution also checks:
+  - provider configured
+  - model configured
+  - prompt template version configured
+  - `estimatedCostUsd <= AI_CONTENT_MAX_ESTIMATED_COST_USD`
 - priority order is fixed:
   1. Daily readiness deficits
   2. Weekly readiness deficits
   3. Monthly readiness deficits
+- duplicate active deficit keys are skipped during enqueue so the same
+  track/skill/typeTag/difficulty deficit is not queued twice
 
 ### Current backfill interpretation from the seeded local bank
 

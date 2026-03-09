@@ -259,6 +259,18 @@ This document is the backend handoff baseline for the next chat/session.
   - execution requires `backfill-enqueue --execute`
   - priority order is `Daily -> Weekly -> Monthly`
   - `maxTargetsPerRun` and `maxCandidatesPerRun` cap each AI generation batch
+  - `estimatedCostUsd` must stay within `AI_CONTENT_MAX_ESTIMATED_COST_USD`
+  - provider/model/template validation happens before enqueue
+  - duplicate active deficit signatures are skipped instead of enqueued twice
+  - real provider env for content backfill:
+    - `AI_CONTENT_PROVIDER`
+    - `AI_CONTENT_MODEL`
+    - `AI_CONTENT_API_KEY`
+    - `AI_CONTENT_PROMPT_TEMPLATE_VERSION`
+    - `AI_CONTENT_MAX_TARGETS_PER_RUN`
+    - `AI_CONTENT_MAX_CANDIDATES_PER_RUN`
+    - `AI_CONTENT_MAX_ESTIMATED_COST_USD`
+    - `AI_CONTENT_DEFAULT_DRY_RUN`
 - Reviewer batch operations remain human-controlled:
   - AI generation creates DRAFT only
   - validate/review/publish are done explicitly through batch ops commands
