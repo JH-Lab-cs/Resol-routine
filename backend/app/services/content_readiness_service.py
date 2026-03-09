@@ -5,6 +5,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import cast
 from uuid import UUID
 
 from sqlalchemy import select
@@ -80,6 +81,98 @@ def build_content_readiness_report(db: Session) -> dict[str, object]:
         "daily": build_daily_readiness_report(inventory),
         "mock": build_mock_readiness_report(db, inventory=inventory),
         "vocab": build_vocab_readiness_report(vocab_rows=vocab_rows),
+    }
+
+
+def build_b34_content_sync_gate(
+    readiness_report: dict[str, object],
+    *,
+    backfill_plan: dict[str, object] | None = None,
+) -> dict[str, object]:
+    daily_section = _require_object_mapping(readiness_report["daily"])
+    mock_section = _require_object_mapping(readiness_report["mock"])
+    daily_tracks = _require_object_mapping(daily_section["tracks"])
+    mock_tracks = _require_object_mapping(mock_section["tracks"])
+    vocab_report = _require_object_mapping(readiness_report["vocab"])
+
+    planned_daily_tracks = _planned_deficit_tracks(
+        backfill_plan=backfill_plan,
+        reasons={"DAILY_READINESS_DEFICIT"},
+    )
+    planned_mock_tracks = _planned_deficit_tracks(
+        backfill_plan=backfill_plan,
+        reasons={"WEEKLY_READINESS_DEFICIT", "MONTHLY_READINESS_DEFICIT"},
+    )
+
+    daily_all_at_least_warning = all(
+        _readiness_value(daily_tracks, track.value) in {"WARNING", "READY"} for track in Track
+    )
+    daily_h2_h3_ready = all(
+        _readiness_value(daily_tracks, track) == "READY" for track in ("H2", "H3")
+    )
+    daily_m3_h1_planned = {"M3", "H1"}.issubset(planned_daily_tracks)
+
+    mock_h2_weekly_ready = _nested_readiness_value(mock_tracks, "H2", "weekly") == "READY"
+    mock_h3_weekly_ready = _nested_readiness_value(mock_tracks, "H3", "weekly") == "READY"
+    mock_h3_monthly_ready = _nested_readiness_value(mock_tracks, "H3", "monthly") == "READY"
+    mock_m3_h1_planned = {"M3", "H1"}.issubset(planned_mock_tracks)
+
+    vocab_tracks = _require_object_mapping(vocab_report["tracks"])
+    vocab_non_empty_pool = all(_eligible_count(vocab_tracks, track.value) > 0 for track in Track)
+    metadata_coverage = _require_object_mapping(vocab_report["metadataCoverage"])
+    vocab_metadata_present = (
+        _as_positive_int(metadata_coverage["rowsWithRequiredMetadata"]) > 0
+        and not _as_object_list(metadata_coverage["missingMetadataIds"])
+    )
+
+    blockers: list[str] = []
+    warnings: list[str] = []
+    if not daily_all_at_least_warning:
+        blockers.append("daily_all_tracks_must_be_warning_or_ready")
+    if not daily_h2_h3_ready:
+        warnings.append("daily_h2_h3_not_fully_ready")
+    if not daily_m3_h1_planned:
+        blockers.append("daily_m3_h1_deficit_plan_required")
+    if not mock_h2_weekly_ready:
+        blockers.append("mock_h2_weekly_must_be_ready")
+    if not mock_h3_weekly_ready:
+        blockers.append("mock_h3_weekly_must_be_ready")
+    if not mock_h3_monthly_ready:
+        blockers.append("mock_h3_monthly_must_be_ready")
+    if not mock_m3_h1_planned:
+        blockers.append("mock_m3_h1_deficit_plan_required")
+    if not vocab_non_empty_pool:
+        blockers.append("vocab_each_track_band_requires_non_empty_pool")
+    if not vocab_metadata_present:
+        blockers.append("vocab_metadata_required")
+    if vocab_report["backendCatalogPresent"] is False:
+        warnings.append("vocab_backend_catalog_not_implemented")
+
+    return {
+        "status": "READY" if not blockers else "NOT_READY",
+        "eligibleForB34ContentSync": not blockers,
+        "blockers": blockers,
+        "warnings": warnings,
+        "requirements": {
+            "daily": {
+                "allTracksAtLeastWarning": daily_all_at_least_warning,
+                "h2AndH3Ready": daily_h2_h3_ready,
+                "m3AndH1Planned": daily_m3_h1_planned,
+                "plannedTracks": sorted(planned_daily_tracks),
+            },
+            "mock": {
+                "h2WeeklyReady": mock_h2_weekly_ready,
+                "h3WeeklyReady": mock_h3_weekly_ready,
+                "h3MonthlyReady": mock_h3_monthly_ready,
+                "m3AndH1Planned": mock_m3_h1_planned,
+                "plannedTracks": sorted(planned_mock_tracks),
+            },
+            "vocab": {
+                "metadataPresent": vocab_metadata_present,
+                "nonEmptyPoolPerTrack": vocab_non_empty_pool,
+                "backendCatalogPresent": vocab_report["backendCatalogPresent"],
+            },
+        },
     }
 
 
@@ -514,6 +607,8 @@ def _vocab_row_has_required_metadata(row: VocabularySeedItem) -> bool:
 def _as_optional_int(value: object) -> int | None:
     if value is None or isinstance(value, bool):
         return None
+    if not isinstance(value, (int, float, str)):
+        return None
     try:
         return int(value)
     except (TypeError, ValueError):
@@ -529,3 +624,62 @@ def _as_optional_str(value: object) -> str | None:
 
 def _utc_now_iso() -> str:
     return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def _require_object_mapping(value: object) -> dict[str, object]:
+    if not isinstance(value, dict):
+        raise RuntimeError("content_readiness_report_shape_invalid")
+    return cast(dict[str, object], value)
+
+
+def _readiness_value(track_map: dict[str, object], track: str) -> str:
+    return str(_require_object_mapping(track_map[track])["readiness"])
+
+
+def _nested_readiness_value(track_map: dict[str, object], track: str, section: str) -> str:
+    track_payload = _require_object_mapping(track_map[track])
+    section_payload = _require_object_mapping(track_payload[section])
+    return str(section_payload["readiness"])
+
+
+def _eligible_count(track_map: dict[str, object], track: str) -> int:
+    raw_value = _require_object_mapping(track_map[track])["eligibleCount"]
+    return _as_positive_int(raw_value)
+
+
+def _as_positive_int(value: object) -> int:
+    if isinstance(value, bool) or value is None:
+        return 0
+    if isinstance(value, (int, float, str)):
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return 0
+    return 0
+
+
+def _as_object_list(value: object) -> list[object]:
+    if isinstance(value, list):
+        return value
+    return []
+
+
+def _planned_deficit_tracks(
+    *,
+    backfill_plan: dict[str, object] | None,
+    reasons: set[str],
+) -> set[str]:
+    if not isinstance(backfill_plan, dict):
+        return set()
+    content_deficits = backfill_plan.get("contentDeficits")
+    if not isinstance(content_deficits, list):
+        return set()
+    planned_tracks: set[str] = set()
+    for row in content_deficits:
+        if not isinstance(row, dict):
+            continue
+        reason = row.get("reason")
+        track = row.get("track")
+        if reason in reasons and isinstance(track, str) and track in _TRACK_INDEX:
+            planned_tracks.add(track)
+    return planned_tracks

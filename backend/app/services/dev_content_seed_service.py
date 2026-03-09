@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -20,6 +21,7 @@ from app.services.mock_assembly_service import create_mock_assembly_job
 DEV_SEED_GENERATOR_VERSION = "dev-seed-generator-v1"
 DEV_SEED_VALIDATOR_VERSION = "dev-seed-validator-v1"
 DEV_SEED_REVIEWER_IDENTITY = "dev-seed-reviewer"
+DEV_SEED_BACKFILL_JOB_ID = UUID("11111111-1111-1111-1111-111111111111")
 
 
 @dataclass(frozen=True, slots=True)
@@ -61,12 +63,14 @@ def seed_dev_content_and_mock_samples(db: Session) -> dict[str, object]:
         track=Track.H3,
         period_key="202603",
     )
+    backfill_draft = _ensure_backfill_draft_smoke_sample(db)
 
     return {
         "createdPublishedUnits": created_units,
         "skippedPublishedUnits": skipped_units,
         "weeklySample": weekly_job,
         "monthlySample": monthly_job,
+        "backfillDraftSample": backfill_draft,
     }
 
 
@@ -236,6 +240,86 @@ def _ensure_mock_sample(
         "examType": exam_type.value,
         "track": track.value,
         "periodKey": period_key,
+    }
+
+
+def _ensure_backfill_draft_smoke_sample(db: Session) -> dict[str, object]:
+    external_id = "dev-seed-backfill-draft-h2-listening-response"
+    existing_row = db.execute(
+        select(ContentUnit, ContentUnitRevision)
+        .join(ContentUnitRevision, ContentUnitRevision.content_unit_id == ContentUnit.id)
+        .where(
+            ContentUnit.external_id == external_id,
+            ContentUnitRevision.lifecycle_status == ContentLifecycleStatus.DRAFT,
+        )
+        .order_by(ContentUnitRevision.created_at.desc(), ContentUnitRevision.id.desc())
+    ).first()
+    if existing_row is not None:
+        unit, revision = existing_row
+        return {
+            "status": "EXISTING",
+            "contentUnitId": str(unit.id),
+            "contentRevisionId": str(revision.id),
+            "generationJobId": str(DEV_SEED_BACKFILL_JOB_ID),
+        }
+
+    unit = ContentUnit(
+        external_id=external_id,
+        slug="dev-seed-backfill-draft-h2-listening-response",
+        skill=Skill.LISTENING,
+        track=Track.H2,
+        lifecycle_status=ContentLifecycleStatus.DRAFT,
+    )
+    db.add(unit)
+    db.flush()
+
+    revision = ContentUnitRevision(
+        content_unit_id=unit.id,
+        revision_no=1,
+        revision_code="dev-bf-h2-l-response-d3-0",
+        generator_version=DEV_SEED_GENERATOR_VERSION,
+        title="Backfill draft smoke sample",
+        transcript_text="Please confirm the response before the final decision.",
+        explanation_text="Backfill draft smoke sample explanation.",
+        metadata_json={
+            "typeTag": "L_RESPONSE",
+            "difficulty": 3,
+            "source": "content_readiness_backfill",
+            "generationJobId": str(DEV_SEED_BACKFILL_JOB_ID),
+        },
+        lifecycle_status=ContentLifecycleStatus.DRAFT,
+    )
+    db.add(revision)
+    db.flush()
+
+    question = ContentQuestion(
+        content_unit_revision_id=revision.id,
+        question_code="dev-backfill-smoke-q-0",
+        order_index=1,
+        stem="Which response best matches the dialogue?",
+        choice_a="The speaker asks for a delay.",
+        choice_b="The speaker confirms the response.",
+        choice_c="The speaker changes the topic.",
+        choice_d="The speaker rejects all evidence.",
+        choice_e="The speaker leaves immediately.",
+        correct_answer="B",
+        explanation="The response explicitly confirms the decision path.",
+        metadata_json={
+            "typeTag": "L_RESPONSE",
+            "difficulty": 3,
+            "source": "content_readiness_backfill",
+            "generationJobId": str(DEV_SEED_BACKFILL_JOB_ID),
+            "sourcePolicy": "AI_ORIGINAL",
+        },
+    )
+    db.add(question)
+    db.flush()
+
+    return {
+        "status": "CREATED",
+        "contentUnitId": str(unit.id),
+        "contentRevisionId": str(revision.id),
+        "generationJobId": str(DEV_SEED_BACKFILL_JOB_ID),
     }
 
 

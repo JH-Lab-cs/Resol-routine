@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 from uuid import UUID
@@ -32,6 +33,8 @@ class ReviewerBatchFilter:
     type_tag: str | None = None
     difficulty_min: int | None = None
     difficulty_max: int | None = None
+    source: str | None = None
+    generation_job_id: UUID | None = None
     limit: int | None = None
 
 
@@ -43,6 +46,8 @@ class RevisionBatchTarget:
     skill: Skill
     type_tag: str | None
     difficulty: int | None
+    source: str | None
+    generation_job_id: UUID | None
     can_publish: bool
     created_at: Any
 
@@ -134,14 +139,14 @@ def _select_revision_batch_targets(
             skill=unit.skill,
             type_tag=type_tag,
             difficulty=difficulty,
+            source=_extract_revision_source(revision),
+            generation_job_id=_extract_generation_job_id(revision),
             can_publish=_can_publish(revision),
             created_at=revision.created_at,
         )
         if not _matches_filters(target=target, filters=filters):
             continue
         if publish_mode:
-            if not target.can_publish:
-                continue
             if target.unit_id in seen_unit_ids:
                 continue
             seen_unit_ids.add(target.unit_id)
@@ -156,7 +161,7 @@ def _run_batch_action(
     *,
     action: str,
     targets: list[RevisionBatchTarget],
-    callback,
+    callback: Callable[[RevisionBatchTarget], object],
 ) -> dict[str, object]:
     processed: list[dict[str, object]] = []
     failed: list[dict[str, object]] = []
@@ -171,6 +176,8 @@ def _run_batch_action(
                     "skill": target.skill.value,
                     "typeTag": target.type_tag,
                     "difficulty": target.difficulty,
+                    "source": target.source,
+                    "generationJobId": _serialize_generation_job_id(target.generation_job_id),
                     "result": (
                         response.model_dump(mode="json")
                         if hasattr(response, "model_dump")
@@ -183,6 +190,8 @@ def _run_batch_action(
                 {
                     "revisionId": str(target.revision_id),
                     "unitId": str(target.unit_id),
+                    "source": target.source,
+                    "generationJobId": _serialize_generation_job_id(target.generation_job_id),
                     "statusCode": exc.status_code,
                     "detail": exc.detail,
                 }
@@ -204,6 +213,13 @@ def _matches_filters(*, target: RevisionBatchTarget, filters: ReviewerBatchFilte
     if filters.skill is not None and target.skill != filters.skill:
         return False
     if filters.type_tag is not None and target.type_tag != filters.type_tag:
+        return False
+    if filters.source is not None and target.source != filters.source:
+        return False
+    if (
+        filters.generation_job_id is not None
+        and target.generation_job_id != filters.generation_job_id
+    ):
         return False
     if filters.difficulty_min is not None:
         if target.difficulty is None or target.difficulty < filters.difficulty_min:
@@ -241,6 +257,32 @@ def _extract_revision_difficulty(revision: ContentUnitRevision) -> int | None:
     if difficulty < 1 or difficulty > 5:
         return None
     return difficulty
+
+
+def _extract_revision_source(revision: ContentUnitRevision) -> str | None:
+    metadata = revision.metadata_json if isinstance(revision.metadata_json, dict) else {}
+    raw_source = metadata.get("source")
+    if not isinstance(raw_source, str):
+        return None
+    normalized = raw_source.strip()
+    return normalized or None
+
+
+def _extract_generation_job_id(revision: ContentUnitRevision) -> UUID | None:
+    metadata = revision.metadata_json if isinstance(revision.metadata_json, dict) else {}
+    raw_job_id = metadata.get("generationJobId")
+    if not isinstance(raw_job_id, str) or not raw_job_id.strip():
+        return None
+    try:
+        return UUID(raw_job_id.strip())
+    except ValueError:
+        return None
+
+
+def _serialize_generation_job_id(generation_job_id: UUID | None) -> str | None:
+    if generation_job_id is None:
+        return None
+    return str(generation_job_id)
 
 
 def _can_publish(revision: ContentUnitRevision) -> bool:

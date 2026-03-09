@@ -9,6 +9,7 @@ from typing import Any
 from urllib import error as urllib_error
 from urllib import parse as urllib_parse
 from urllib import request as urllib_request
+from uuid import UUID
 
 from app.db.session import SessionLocal
 from app.models.enums import Skill, Track
@@ -136,7 +137,7 @@ def _build_parser() -> argparse.ArgumentParser:
         "batch-validate",
         help="Validate matching draft revisions in bulk.",
     )
-    _add_batch_filters(batch_validate)
+    _add_reviewer_batch_filters(batch_validate)
     batch_validate.add_argument("--validator", required=True)
     batch_validate.set_defaults(handler=_cmd_batch_validate)
 
@@ -144,7 +145,7 @@ def _build_parser() -> argparse.ArgumentParser:
         "batch-review",
         help="Review matching draft revisions in bulk.",
     )
-    _add_batch_filters(batch_review)
+    _add_reviewer_batch_filters(batch_review)
     batch_review.add_argument("--reviewer", required=True)
     batch_review.set_defaults(handler=_cmd_batch_review)
 
@@ -152,7 +153,7 @@ def _build_parser() -> argparse.ArgumentParser:
         "batch-publish",
         help="Publish matching validated+reviewed drafts in bulk.",
     )
-    _add_batch_filters(batch_publish)
+    _add_reviewer_batch_filters(batch_publish)
     batch_publish.add_argument("--confirm", action="store_true")
     batch_publish.set_defaults(handler=_cmd_batch_publish)
 
@@ -175,6 +176,12 @@ def _add_batch_filters(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--difficulty-min", dest="difficulty_min", type=int, required=False)
     parser.add_argument("--difficulty-max", dest="difficulty_max", type=int, required=False)
     parser.add_argument("--limit", type=int, required=False)
+
+
+def _add_reviewer_batch_filters(parser: argparse.ArgumentParser) -> None:
+    _add_batch_filters(parser)
+    parser.add_argument("--source", required=False)
+    parser.add_argument("--generation-job-id", dest="generation_job_id", required=False)
 
 
 def _add_backfill_budget_args(parser: argparse.ArgumentParser) -> None:
@@ -437,6 +444,12 @@ def _reviewer_filters_from_args(args: argparse.Namespace) -> ReviewerBatchFilter
         type_tag=args.type_tag,
         difficulty_min=args.difficulty_min,
         difficulty_max=args.difficulty_max,
+        source=getattr(args, "source", None),
+        generation_job_id=(
+            UUID(args.generation_job_id)
+            if getattr(args, "generation_job_id", None) is not None
+            else None
+        ),
         limit=args.limit,
     )
 

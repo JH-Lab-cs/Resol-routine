@@ -5,7 +5,10 @@ import json
 
 from app.db.session import SessionLocal
 from app.services.content_backfill_service import build_content_backfill_plan
-from app.services.content_readiness_service import build_content_readiness_report
+from app.services.content_readiness_service import (
+    build_b34_content_sync_gate,
+    build_content_readiness_report,
+)
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -39,12 +42,18 @@ def main() -> int:
     args = _build_parser().parse_args()
     with SessionLocal() as db:
         report = build_content_readiness_report(db)
+        backfill_plan = None
         if args.with_backfill_plan:
-            report["backfillPlan"] = build_content_backfill_plan(
+            backfill_plan = build_content_backfill_plan(
                 db,
                 max_targets_per_run=args.max_targets_per_run,
                 max_candidates_per_run=args.max_candidates_per_run,
             )
+            report["backfillPlan"] = backfill_plan
+        report["b34ContentSyncGate"] = build_b34_content_sync_gate(
+            report,
+            backfill_plan=backfill_plan,
+        )
 
     if args.json:
         print(json.dumps(report, indent=2, sort_keys=True))
