@@ -17,7 +17,10 @@ from app.services.content_backfill_service import (
     build_content_backfill_plan,
     enqueue_content_backfill_jobs,
 )
-from app.services.content_readiness_service import build_content_readiness_report
+from app.services.content_readiness_service import (
+    build_b34_content_sync_gate,
+    build_content_readiness_report,
+)
 from app.services.dev_content_seed_service import seed_dev_content_and_mock_samples
 from app.services.reviewer_batch_service import (
     ReviewerBatchFilter,
@@ -297,6 +300,142 @@ def test_batch_validate_review_publish_improves_daily_readiness(db_session_facto
     assert after["daily"]["tracks"]["H3"]["readiness"] == "READY"
 
 
+def test_batch_validate_review_publish_filters_backfill_source_and_generation_job_id(
+    db_session_factory,
+) -> None:
+    backfill_job_id = UUID("22222222-2222-2222-2222-222222222222")
+    other_job_id = UUID("33333333-3333-3333-3333-333333333333")
+
+    with db_session_factory() as db:
+        _seed_near_ready_daily_bank(db)
+        _, tracked_revision_id = _create_content_revision(
+            db,
+            external_id="backfill-source-target",
+            track=Track.H3,
+            skill=Skill.LISTENING,
+            type_tag="L_RESPONSE",
+            difficulty=4,
+            lifecycle_status=ContentLifecycleStatus.DRAFT,
+            metadata_extra={
+                "source": "content_readiness_backfill",
+                "generationJobId": str(backfill_job_id),
+            },
+        )
+        _create_content_revision(
+            db,
+            external_id="backfill-source-other",
+            track=Track.H3,
+            skill=Skill.LISTENING,
+            type_tag="L_RESPONSE",
+            difficulty=4,
+            lifecycle_status=ContentLifecycleStatus.DRAFT,
+            metadata_extra={
+                "source": "manual_seed",
+                "generationJobId": str(other_job_id),
+            },
+        )
+        db.commit()
+
+    filters = ReviewerBatchFilter(
+        track=Track.H3,
+        skill=Skill.LISTENING,
+        source="content_readiness_backfill",
+        generation_job_id=backfill_job_id,
+        limit=1,
+    )
+    with db_session_factory() as db:
+        before = build_content_readiness_report(db)
+        validate_result = batch_validate_content_revisions(
+            db,
+            filters=filters,
+            validator_version="ops-validator-v2",
+        )
+        review_result = batch_review_content_revisions(
+            db,
+            filters=filters,
+            reviewer_identity="ops:backfill",
+        )
+        publish_result = batch_publish_content_revisions(
+            db,
+            filters=filters,
+            confirm=True,
+        )
+        db.commit()
+        after = build_content_readiness_report(db)
+
+    assert before["daily"]["tracks"]["H3"]["readiness"] == "WARNING"
+    assert validate_result["processedCount"] == 1
+    assert validate_result["items"][0]["source"] == "content_readiness_backfill"
+    assert validate_result["items"][0]["generationJobId"] == str(backfill_job_id)
+    assert review_result["processedCount"] == 1
+    assert publish_result["processedCount"] == 1
+    assert publish_result["items"][0]["generationJobId"] == str(backfill_job_id)
+    assert after["daily"]["tracks"]["H3"]["readiness"] == "READY"
+
+    with db_session_factory() as db:
+        tracked_revision = db.get(ContentUnitRevision, tracked_revision_id)
+        assert tracked_revision is not None
+        assert tracked_revision.lifecycle_status == ContentLifecycleStatus.PUBLISHED
+
+
+def test_batch_publish_reports_non_publishable_backfill_draft_as_failure(
+    db_session_factory,
+) -> None:
+    backfill_job_id = UUID("44444444-4444-4444-4444-444444444444")
+    with db_session_factory() as db:
+        _create_content_revision(
+            db,
+            external_id="backfill-non-publishable",
+            track=Track.H1,
+            skill=Skill.LISTENING,
+            type_tag="L_RESPONSE",
+            difficulty=3,
+            lifecycle_status=ContentLifecycleStatus.DRAFT,
+            metadata_extra={
+                "source": "content_readiness_backfill",
+                "generationJobId": str(backfill_job_id),
+            },
+        )
+        db.commit()
+
+    with db_session_factory() as db:
+        result = batch_publish_content_revisions(
+            db,
+            filters=ReviewerBatchFilter(
+                track=Track.H1,
+                skill=Skill.LISTENING,
+                source="content_readiness_backfill",
+                generation_job_id=backfill_job_id,
+                limit=1,
+            ),
+            confirm=True,
+        )
+
+    assert result["matchedCount"] == 1
+    assert result["processedCount"] == 0
+    assert result["failedCount"] == 1
+    assert result["failedItems"][0]["detail"] == "revision_not_validated"
+    assert result["failedItems"][0]["generationJobId"] == str(backfill_job_id)
+
+
+def test_b34_content_sync_gate_uses_backfill_plan_to_evaluate_entry(db_session_factory) -> None:
+    with db_session_factory() as db:
+        seed_dev_content_and_mock_samples(db)
+        db.commit()
+
+    with db_session_factory() as db:
+        report = build_content_readiness_report(db)
+        plan = build_content_backfill_plan(db)
+        gate = build_b34_content_sync_gate(report, backfill_plan=plan)
+
+    assert gate["eligibleForB34ContentSync"] is True
+    assert gate["status"] == "READY"
+    assert gate["requirements"]["mock"]["h2WeeklyReady"] is True
+    assert gate["requirements"]["mock"]["h3MonthlyReady"] is True
+    assert gate["requirements"]["daily"]["m3AndH1Planned"] is True
+    assert "vocab_backend_catalog_not_implemented" in gate["warnings"]
+
+
 def _seed_near_ready_daily_bank(db) -> None:
     listening_types = ["L_GIST", "L_DETAIL", "L_INTENT", "L_RESPONSE"]
     reading_types = [
@@ -347,6 +486,7 @@ def _create_content_revision(
     type_tag: str,
     difficulty: int,
     lifecycle_status: ContentLifecycleStatus,
+    metadata_extra: dict[str, object] | None = None,
 ) -> tuple[UUID, UUID]:
     now = datetime.now(UTC)
     is_published = lifecycle_status == ContentLifecycleStatus.PUBLISHED
@@ -375,7 +515,11 @@ def _create_content_revision(
         body_text=(f"Passage {external_id}" if skill == Skill.READING else None),
         transcript_text=(f"Transcript {external_id}" if skill == Skill.LISTENING else None),
         explanation_text="Explanation",
-        metadata_json={"typeTag": type_tag, "difficulty": difficulty},
+        metadata_json={
+            "typeTag": type_tag,
+            "difficulty": difficulty,
+            **(metadata_extra or {}),
+        },
         lifecycle_status=lifecycle_status,
         published_at=(now if lifecycle_status == ContentLifecycleStatus.PUBLISHED else None),
     )
@@ -394,7 +538,11 @@ def _create_content_revision(
         choice_e="E",
         correct_answer="A",
         explanation="Question explanation",
-        metadata_json={"typeTag": type_tag, "difficulty": difficulty},
+        metadata_json={
+            "typeTag": type_tag,
+            "difficulty": difficulty,
+            **(metadata_extra or {}),
+        },
     )
     db.add(question)
     db.flush()
