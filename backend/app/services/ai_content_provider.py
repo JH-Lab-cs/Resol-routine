@@ -8,7 +8,6 @@ from urllib import error as urllib_error
 from urllib import request as urllib_request
 
 from app.core.config import settings
-from app.core.policies import AI_PROVIDER_HTTP_TIMEOUT_SECONDS
 from app.models.enums import ContentSourcePolicy, ContentTypeTag, Skill, Track
 from app.services.ai_provider import AIProviderError
 
@@ -447,11 +446,19 @@ def _system_instruction() -> str:
     return (
         "Generate English-learning content units and return strict JSON only. "
         "Top-level key must be candidates (array). "
-        "Each candidate must include track, skill, typeTag, difficulty, sourcePolicy, "
-        "passage or transcript, sentences, "
-        "question(stem/options/answerKey/explanation/evidenceSentenceIds/"
+        "Every candidate must include track, skill, typeTag, difficulty, sourcePolicy, "
+        "sentences, and question(stem/options/answerKey/explanation/evidenceSentenceIds/"
         "whyCorrectKo/whyWrongKoByOption). "
-        "Do not include markdown or surrounding prose."
+        "sourcePolicy must be exactly AI_ORIGINAL. "
+        "question.options must contain exactly five options with keys A, B, C, D, and E. "
+        "question.whyWrongKoByOption must also contain exactly A, B, C, D, and E. "
+        "For the correct option, whyWrongKoByOption may say that it is the correct choice. "
+        "For READING candidates, passage is required. "
+        "For LISTENING candidates, transcript, turns, and ttsPlan are required. "
+        "turns must be an array of objects with speaker and text. "
+        "ttsPlan must be a non-empty object. "
+        "Example: {\"voice\":\"en-US-neutral\",\"pace\":\"normal\"}. "
+        "Do not omit required fields, and do not include markdown or surrounding prose."
     )
 
 
@@ -466,7 +473,7 @@ def _post_json(*, url: str, headers: dict[str, str], payload: dict[str, Any]) ->
     try:
         with urllib_request.urlopen(  # noqa: S310
             request,
-            timeout=AI_PROVIDER_HTTP_TIMEOUT_SECONDS,
+            timeout=settings.ai_provider_http_timeout_seconds,
         ) as response:
             raw_body = response.read()
             body = raw_body if isinstance(raw_body, bytes) else bytes(raw_body)
@@ -552,13 +559,7 @@ def _parse_generated_candidates(raw_content: str) -> list[GeneratedContentCandid
                 transient=False,
             )
 
-        options = question.get("options")
-        if not isinstance(options, dict):
-            raise AIProviderError(
-                code="OUTPUT_SCHEMA_INVALID",
-                message="Candidate options must be an object.",
-                transient=False,
-            )
+        options = _parse_options(question.get("options"))
 
         parsed.append(
             GeneratedContentCandidate(
@@ -566,9 +567,7 @@ def _parse_generated_candidates(raw_content: str) -> list[GeneratedContentCandid
                 skill=Skill(str(raw_candidate.get("skill"))),
                 type_tag=ContentTypeTag(str(raw_candidate.get("typeTag"))),
                 difficulty=_required_int(raw_candidate.get("difficulty")),
-                source_policy=ContentSourcePolicy(
-                    str(raw_candidate.get("sourcePolicy", "AI_ORIGINAL"))
-                ),
+                source_policy=_parse_source_policy(raw_candidate.get("sourcePolicy")),
                 title=_to_optional_str(raw_candidate.get("title")),
                 passage=_to_optional_str(raw_candidate.get("passage")),
                 transcript=_to_optional_str(raw_candidate.get("transcript")),
@@ -576,7 +575,7 @@ def _parse_generated_candidates(raw_content: str) -> list[GeneratedContentCandid
                 sentences=_parse_sentences(raw_candidate.get("sentences")),
                 tts_plan=_parse_object(raw_candidate.get("ttsPlan"), default={}),
                 stem=str(question.get("stem", "")),
-                options={str(key): str(value) for key, value in options.items()},
+                options=options,
                 answer_key=str(question.get("answerKey", "")),
                 explanation=str(question.get("explanation", "")),
                 evidence_sentence_ids=[
@@ -623,6 +622,115 @@ def _parse_object(value: object, *, default: dict[str, Any]) -> dict[str, Any]:
             transient=False,
         )
     return value
+
+
+def _parse_options(value: object) -> dict[str, str]:
+    if isinstance(value, dict):
+        parsed_from_object: dict[str, str] = {}
+        for key, option_value in value.items():
+            normalized_label = str(key).strip().upper()
+            normalized_text = _coerce_option_text(option_value)
+            if normalized_text is None:
+                raise AIProviderError(
+                    code="OUTPUT_SCHEMA_INVALID",
+                    message="Candidate options object values must be strings.",
+                    transient=False,
+                )
+            parsed_from_object[normalized_label] = normalized_text
+        return parsed_from_object
+
+    if not isinstance(value, list):
+        raise AIProviderError(
+            code="OUTPUT_SCHEMA_INVALID",
+            message="Candidate options must be an object or array.",
+            transient=False,
+        )
+
+    parsed: dict[str, str] = {}
+    labels = ["A", "B", "C", "D", "E"]
+    if all(isinstance(item, str) for item in value):
+        if len(value) != len(labels):
+            raise AIProviderError(
+                code="OUTPUT_SCHEMA_INVALID",
+                message="Candidate options array must contain exactly five items.",
+                transient=False,
+            )
+        return {label: str(text) for label, text in zip(labels, value, strict=True)}
+
+    for index, item in enumerate(value):
+        if not isinstance(item, dict):
+            raise AIProviderError(
+                code="OUTPUT_SCHEMA_INVALID",
+                message="Candidate option item must be an object.",
+                transient=False,
+            )
+
+        label = item.get("label") or item.get("key") or item.get("option") or item.get("id")
+        text = _coerce_option_text(
+            item.get("text")
+            or item.get("value")
+            or item.get("content")
+            or item.get("answer")
+            or item.get("choice")
+            or item.get("optionText")
+            or item.get("option_text")
+        )
+
+        if (not isinstance(label, str) or not label.strip()) and len(item) == 1:
+            single_key, single_value = next(iter(item.items()))
+            label = str(single_key)
+            text = _coerce_option_text(single_value)
+
+        if not isinstance(label, str) or text is None:
+            raise AIProviderError(
+                code="OUTPUT_SCHEMA_INVALID",
+                message="Candidate option object requires string label/text.",
+                transient=False,
+            )
+        normalized_label = label.strip().upper()
+        if not normalized_label and index < len(labels):
+            normalized_label = labels[index]
+        parsed[normalized_label] = text
+
+    return parsed
+
+
+def _coerce_option_text(value: object) -> str | None:
+    if isinstance(value, str):
+        return value
+    if not isinstance(value, dict):
+        return None
+
+    for key in (
+        "text",
+        "value",
+        "content",
+        "answer",
+        "choice",
+        "optionText",
+        "option_text",
+        "label",
+    ):
+        candidate = value.get(key)
+        if isinstance(candidate, str):
+            return candidate
+    return None
+
+
+def _parse_source_policy(value: object) -> ContentSourcePolicy:
+    if value is None:
+        return ContentSourcePolicy.AI_ORIGINAL
+
+    raw = str(value).strip()
+    if not raw:
+        return ContentSourcePolicy.AI_ORIGINAL
+
+    try:
+        return ContentSourcePolicy(raw)
+    except ValueError:
+        # Provider-generated content is constrained to the AI original policy.
+        # Some models return descriptive prose instead of the canonical enum.
+        return ContentSourcePolicy.AI_ORIGINAL
 
 
 def _parse_turns(value: object) -> list[dict[str, str]]:

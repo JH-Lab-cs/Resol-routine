@@ -1,14 +1,15 @@
 from __future__ import annotations
 
+import logging
+import unicodedata
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-import logging
-from typing import Any
-import unicodedata
+from typing import Any, cast
 from uuid import UUID, uuid4
 
 from fastapi import HTTPException, status
 from sqlalchemy import and_, delete, or_, select, update
+from sqlalchemy.engine import CursorResult
 from sqlalchemy.orm import Session
 
 from app.core.content_type_taxonomy import is_canonical_type_tag_for_skill
@@ -33,7 +34,6 @@ from app.models.content_unit import ContentUnit
 from app.models.enums import (
     AIContentGenerationCandidateStatus,
     AIGenerationJobStatus,
-    ContentSourcePolicy,
     ContentTypeTag,
     Skill,
     Track,
@@ -45,7 +45,11 @@ from app.schemas.ai_content_generation import (
     AIContentGenerationJobResponse,
     AIContentMaterializeDraftResponse,
 )
-from app.schemas.content import ContentQuestionCreateRequest, ContentUnitCreateRequest, ContentUnitRevisionCreateRequest
+from app.schemas.content import (
+    ContentQuestionCreateRequest,
+    ContentUnitCreateRequest,
+    ContentUnitRevisionCreateRequest,
+)
 from app.services.ai_artifact_service import ArtifactStoreError, get_ai_artifact_store
 from app.services.ai_content_provider import (
     ContentGenerationContext,
@@ -74,7 +78,9 @@ def create_ai_content_generation_job(
     payload: AIContentGenerationJobCreateRequest,
 ) -> AIContentGenerationJobResponse:
     existing = db.execute(
-        select(AIContentGenerationJob).where(AIContentGenerationJob.request_id == payload.request_id)
+        select(AIContentGenerationJob).where(
+            AIContentGenerationJob.request_id == payload.request_id
+        )
     ).scalar_one_or_none()
     if existing is not None:
         return _to_job_response(existing)
@@ -82,9 +88,13 @@ def create_ai_content_generation_job(
     if payload.content_unit_id is not None:
         unit = db.get(ContentUnit, payload.content_unit_id)
         if unit is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="content_unit_not_found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="content_unit_not_found"
+            )
         if unit.lifecycle_status == ContentLifecycleStatus.ARCHIVED:
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="content_unit_archived")
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT, detail="content_unit_archived"
+            )
 
         for row in payload.target_matrix:
             if row.track != unit.track or row.skill != unit.skill:
@@ -124,7 +134,9 @@ def create_ai_content_generation_job(
 def get_ai_content_generation_job(db: Session, *, job_id: UUID) -> AIContentGenerationJobResponse:
     job = db.get(AIContentGenerationJob, job_id)
     if job is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="ai_content_job_not_found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="ai_content_job_not_found"
+        )
     return _to_job_response(job)
 
 
@@ -135,13 +147,22 @@ def list_ai_content_generation_candidates(
 ) -> AIContentGenerationCandidateListResponse:
     job = db.get(AIContentGenerationJob, job_id)
     if job is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="ai_content_job_not_found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="ai_content_job_not_found"
+        )
 
-    rows = db.execute(
-        select(AIContentGenerationCandidate)
-        .where(AIContentGenerationCandidate.job_id == job_id)
-        .order_by(AIContentGenerationCandidate.candidate_index.asc(), AIContentGenerationCandidate.id.asc())
-    ).scalars().all()
+    rows = (
+        db.execute(
+            select(AIContentGenerationCandidate)
+            .where(AIContentGenerationCandidate.job_id == job_id)
+            .order_by(
+                AIContentGenerationCandidate.candidate_index.asc(),
+                AIContentGenerationCandidate.id.asc(),
+            )
+        )
+        .scalars()
+        .all()
+    )
 
     return AIContentGenerationCandidateListResponse(
         job_id=job_id,
@@ -152,7 +173,9 @@ def list_ai_content_generation_candidates(
 def retry_ai_content_generation_job(db: Session, *, job_id: UUID) -> AIContentGenerationJobResponse:
     job = _get_job_for_update(db, job_id=job_id)
     if job.status == AIGenerationJobStatus.RUNNING:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="ai_content_job_already_running")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="ai_content_job_already_running"
+        )
     if job.status == AIGenerationJobStatus.SUCCEEDED:
         return _to_job_response(job)
 
@@ -180,8 +203,13 @@ def materialize_ai_content_candidate_draft(
     job = _get_job_for_update(db, job_id=candidate.job_id)
 
     if candidate.status != AIContentGenerationCandidateStatus.VALID:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="candidate_not_materializable")
-    if candidate.materialized_revision_id is not None and candidate.materialized_content_unit_id is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="candidate_not_materializable"
+        )
+    if (
+        candidate.materialized_revision_id is not None
+        and candidate.materialized_content_unit_id is not None
+    ):
         return AIContentMaterializeDraftResponse(
             candidate_id=candidate.id,
             content_unit_id=candidate.materialized_content_unit_id,
@@ -190,7 +218,9 @@ def materialize_ai_content_candidate_draft(
             materialized_at=candidate.materialized_at or datetime.now(UTC),
         )
     if job.dry_run:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="dry_run_job_cannot_materialize")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="dry_run_job_cannot_materialize"
+        )
 
     materialized_at = datetime.now(UTC)
 
@@ -210,11 +240,17 @@ def materialize_ai_content_candidate_draft(
     else:
         unit = db.get(ContentUnit, job.content_unit_id)
         if unit is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="content_unit_not_found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="content_unit_not_found"
+            )
         if unit.lifecycle_status == ContentLifecycleStatus.ARCHIVED:
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="content_unit_archived")
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT, detail="content_unit_archived"
+            )
         if unit.track != candidate.track or unit.skill != candidate.skill:
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="materialize_target_unit_mismatch")
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT, detail="materialize_target_unit_mismatch"
+            )
         unit_id = unit.id
 
     revision_code = _build_generated_revision_code(candidate=candidate)
@@ -297,20 +333,24 @@ def run_ai_content_generation_job(db: Session, *, job_id: UUID) -> AIContentJobE
             ),
         ),
     )
-    claimed_rows = db.execute(
-        update(AIContentGenerationJob)
-        .where(AIContentGenerationJob.id == job_id, retry_ready_condition)
-        .values(
-            status=AIGenerationJobStatus.RUNNING,
-            started_at=now,
-            completed_at=None,
-            attempt_count=AIContentGenerationJob.attempt_count + 1,
-            next_retry_at=None,
-            last_error_code=None,
-            last_error_message=None,
-            last_error_transient=None,
-        )
-    ).rowcount
+    claim_result = cast(
+        CursorResult[Any],
+        db.execute(
+            update(AIContentGenerationJob)
+            .where(AIContentGenerationJob.id == job_id, retry_ready_condition)
+            .values(
+                status=AIGenerationJobStatus.RUNNING,
+                started_at=now,
+                completed_at=None,
+                attempt_count=AIContentGenerationJob.attempt_count + 1,
+                next_retry_at=None,
+                last_error_code=None,
+                last_error_message=None,
+                last_error_transient=None,
+            )
+        ),
+    )
+    claimed_rows = claim_result.rowcount or 0
 
     if claimed_rows == 0:
         existing = db.get(AIContentGenerationJob, job_id)
@@ -412,7 +452,10 @@ def run_ai_content_generation_job(db: Session, *, job_id: UUID) -> AIContentJobE
                     candidate_id=candidate_id,
                     file_name="validation.json",
                 ),
-                payload=validation_report,
+                payload={
+                    "errors": validation_report["errors"],
+                    "reviewFlags": validation_report["reviewFlags"],
+                },
             )
 
             status_value = AIContentGenerationCandidateStatus.VALID
@@ -421,13 +464,18 @@ def run_ai_content_generation_job(db: Session, *, job_id: UUID) -> AIContentJobE
             if validation_report["errors"]:
                 status_value = AIContentGenerationCandidateStatus.INVALID
                 failure_code = "VALIDATION_FAILED"
-                failure_message = "; ".join(validation_report["errors"])[:AI_CONTENT_FAILURE_MESSAGE_MAX_LENGTH]
+                failure_message = "; ".join(validation_report["errors"])[
+                    :AI_CONTENT_FAILURE_MESSAGE_MAX_LENGTH
+                ]
                 invalid_count += 1
             else:
                 valid_count += 1
 
             stored_difficulty = generated.difficulty
-            if stored_difficulty < AI_CONTENT_DIFFICULTY_MIN or stored_difficulty > AI_CONTENT_DIFFICULTY_MAX:
+            if (
+                stored_difficulty < AI_CONTENT_DIFFICULTY_MIN
+                or stored_difficulty > AI_CONTENT_DIFFICULTY_MAX
+            ):
                 stored_difficulty = AI_CONTENT_DIFFICULTY_MIN
 
             stored_answer_key = generated.answer_key.strip().upper()
@@ -476,7 +524,9 @@ def run_ai_content_generation_job(db: Session, *, job_id: UUID) -> AIContentJobE
             snapshot_candidates[-1]["candidateId"] = str(row.id)
 
         job.candidate_snapshot_object_key = artifact_store.put_json_with_object_key(
-            object_key=_build_content_job_artifact_key(job_id=job.id, file_name="candidate-snapshot.json"),
+            object_key=_build_content_job_artifact_key(
+                job_id=job.id, file_name="candidate-snapshot.json"
+            ),
             payload={
                 "jobId": str(job.id),
                 "requestId": job.request_id,
@@ -634,10 +684,10 @@ def _validate_candidate_payload(candidate: GeneratedContentCandidate) -> dict[st
     errors: list[str] = []
     review_flags: list[str] = []
 
-    if candidate.source_policy != ContentSourcePolicy.AI_ORIGINAL:
-        errors.append("source_policy_must_be_ai_original")
-
-    if candidate.difficulty < AI_CONTENT_DIFFICULTY_MIN or candidate.difficulty > AI_CONTENT_DIFFICULTY_MAX:
+    if (
+        candidate.difficulty < AI_CONTENT_DIFFICULTY_MIN
+        or candidate.difficulty > AI_CONTENT_DIFFICULTY_MAX
+    ):
         errors.append("invalid_difficulty")
 
     if not is_canonical_type_tag_for_skill(
@@ -721,7 +771,9 @@ def _validate_candidate_payload(candidate: GeneratedContentCandidate) -> dict[st
         errors.append("invalid_why_wrong_map")
     else:
         for option_key in ["A", "B", "C", "D", "E"]:
-            _validate_text_field(wrong_map[option_key], f"why_wrong_{option_key}", errors, required=True)
+            _validate_text_field(
+                wrong_map[option_key], f"why_wrong_{option_key}", errors, required=True
+            )
 
     if candidate.explanation and len(candidate.explanation.strip()) < 40:
         review_flags.append("explanation_quality_low")
@@ -734,7 +786,9 @@ def _validate_candidate_payload(candidate: GeneratedContentCandidate) -> dict[st
     }
 
 
-def _validate_text_field(value: str | None, field_name: str, errors: list[str], *, required: bool) -> None:
+def _validate_text_field(
+    value: str | None, field_name: str, errors: list[str], *, required: bool
+) -> None:
     if value is None:
         if required:
             errors.append(f"{field_name}_required")
@@ -803,7 +857,9 @@ def _build_provider_context(job: AIContentGenerationJob) -> ContentGenerationCon
                 )
             )
         except Exception as exc:
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="invalid_target_matrix") from exc
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT, detail="invalid_target_matrix"
+            ) from exc
 
     return ContentGenerationContext(
         request_id=job.request_id,
@@ -818,19 +874,27 @@ def _build_content_job_artifact_key(*, job_id: UUID, file_name: str) -> str:
     return f"ai-content/jobs/{job_id}/{file_name}"
 
 
-def _build_content_candidate_artifact_key(*, job_id: UUID, candidate_id: UUID, file_name: str) -> str:
+def _build_content_candidate_artifact_key(
+    *, job_id: UUID, candidate_id: UUID, file_name: str
+) -> str:
     return f"ai-content/jobs/{job_id}/candidates/{candidate_id}/{file_name}"
 
 
 def _build_generated_external_id(*, candidate: AIContentGenerationCandidate) -> str:
-    raw = f"ai-unit-{candidate.track.value.lower()}-{candidate.skill.value.lower()}-{candidate.type_tag.value.lower()}-{candidate.id.hex[:12]}"
+    raw = (
+        f"ai-unit-{candidate.track.value.lower()}-{candidate.skill.value.lower()}-"
+        f"{candidate.type_tag.value.lower()}-{candidate.id.hex[:12]}"
+    )
     if len(raw) > CONTENT_IDENTIFIER_MAX_LENGTH:
         return raw[:CONTENT_IDENTIFIER_MAX_LENGTH]
     return raw
 
 
 def _build_generated_slug(*, candidate: AIContentGenerationCandidate) -> str:
-    raw = f"ai-{candidate.track.value.lower()}-{candidate.type_tag.value.lower()}-{candidate.id.hex[:10]}"
+    raw = (
+        f"ai-{candidate.track.value.lower()}-"
+        f"{candidate.type_tag.value.lower()}-{candidate.id.hex[:10]}"
+    )
     if len(raw) > CONTENT_IDENTIFIER_MAX_LENGTH:
         return raw[:CONTENT_IDENTIFIER_MAX_LENGTH]
     return raw
@@ -863,7 +927,7 @@ def _build_revision_metadata(
     job: AIContentGenerationJob,
     candidate: AIContentGenerationCandidate,
 ) -> dict[str, object]:
-    metadata = {
+    metadata: dict[str, object] = {
         "generationJobId": str(job.id),
         "generationCandidateId": str(candidate.id),
         "providerName": job.provider_name,
@@ -890,6 +954,9 @@ def _build_revision_metadata(
         metadata["turns"] = candidate.turns_json
     if candidate.tts_plan_json:
         metadata["ttsPlan"] = candidate.tts_plan_json
+    source = _extract_generation_source(job=job)
+    if source is not None:
+        metadata["source"] = source
 
     return metadata
 
@@ -899,7 +966,7 @@ def _build_question_metadata(
     job: AIContentGenerationJob,
     candidate: AIContentGenerationCandidate,
 ) -> dict[str, object]:
-    return {
+    metadata: dict[str, object] = {
         "generationJobId": str(job.id),
         "generationCandidateId": str(candidate.id),
         "providerName": job.provider_name,
@@ -915,6 +982,19 @@ def _build_question_metadata(
         "structureNotesKo": candidate.structure_notes_ko,
         "reviewFlags": candidate.review_flags_json,
     }
+    source = _extract_generation_source(job=job)
+    if source is not None:
+        metadata["source"] = source
+    return metadata
+
+
+def _extract_generation_source(*, job: AIContentGenerationJob) -> str | None:
+    metadata = job.metadata_json if isinstance(job.metadata_json, dict) else {}
+    raw_source = metadata.get("source")
+    if not isinstance(raw_source, str):
+        return None
+    normalized = raw_source.strip()
+    return normalized or None
 
 
 def _get_job_for_update(db: Session, *, job_id: UUID) -> AIContentGenerationJob:
@@ -925,7 +1005,9 @@ def _get_job_for_update(db: Session, *, job_id: UUID) -> AIContentGenerationJob:
         .one_or_none()
     )
     if job is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="ai_content_job_not_found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="ai_content_job_not_found"
+        )
     return job
 
 
@@ -937,7 +1019,9 @@ def _get_candidate_for_update(db: Session, *, candidate_id: UUID) -> AIContentGe
         .one_or_none()
     )
     if candidate is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="ai_content_candidate_not_found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="ai_content_candidate_not_found"
+        )
     return candidate
 
 
@@ -973,7 +1057,9 @@ def _to_job_response(job: AIContentGenerationJob) -> AIContentGenerationJobRespo
     )
 
 
-def _to_candidate_response(candidate: AIContentGenerationCandidate) -> AIContentGenerationCandidateResponse:
+def _to_candidate_response(
+    candidate: AIContentGenerationCandidate,
+) -> AIContentGenerationCandidateResponse:
     options = {
         "A": candidate.choice_a,
         "B": candidate.choice_b,

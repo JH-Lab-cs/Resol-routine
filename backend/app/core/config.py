@@ -11,6 +11,8 @@ from app.core.policies import (
     AI_CONTENT_ESTIMATED_INPUT_COST_PER_MILLION_TOKENS_DEFAULT,
     AI_CONTENT_ESTIMATED_OUTPUT_COST_PER_MILLION_TOKENS_DEFAULT,
     AI_CONTENT_MAX_ESTIMATED_COST_USD_DEFAULT,
+    AI_PROVIDER_HTTP_TIMEOUT_SECONDS,
+    AI_PROVIDER_HTTP_TIMEOUT_SECONDS_MAX,
     APP_TIMEZONE,
     BILLING_WEBHOOK_SIGNATURE_TOLERANCE_SECONDS,
     CONTENT_BACKFILL_MAX_CANDIDATES_PER_RUN_DEFAULT,
@@ -74,6 +76,7 @@ class Settings(BaseSettings):
     ai_content_estimated_output_cost_per_million_tokens: float = (
         AI_CONTENT_ESTIMATED_OUTPUT_COST_PER_MILLION_TOKENS_DEFAULT
     )
+    ai_provider_http_timeout_seconds: int = AI_PROVIDER_HTTP_TIMEOUT_SECONDS
     ai_openai_base_url: str = "https://api.openai.com"
     ai_anthropic_base_url: str = "https://api.anthropic.com"
     ai_artifact_retention_days: int = AI_ARTIFACT_RETENTION_DAYS_DEFAULT
@@ -256,6 +259,13 @@ class Settings(BaseSettings):
     def validate_ai_content_max_candidates_per_run(cls, value: int) -> int:
         if value <= 0 or value > CONTENT_BACKFILL_MAX_CANDIDATES_PER_RUN_MAX:
             raise ValueError("ai_content_max_candidates_per_run out of allowed range.")
+        return value
+
+    @field_validator("ai_provider_http_timeout_seconds")
+    @classmethod
+    def validate_ai_provider_http_timeout_seconds(cls, value: int) -> int:
+        if value <= 0 or value > AI_PROVIDER_HTTP_TIMEOUT_SECONDS_MAX:
+            raise ValueError("ai_provider_http_timeout_seconds out of allowed range.")
         return value
 
     @field_validator(
