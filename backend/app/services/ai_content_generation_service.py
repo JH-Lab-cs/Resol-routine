@@ -374,7 +374,11 @@ def run_ai_content_generation_job(db: Session, *, job_id: UUID) -> AIContentJobE
     artifact_store = get_ai_artifact_store()
 
     try:
-        provider = build_ai_content_generation_provider(provider_override=job.provider_override)
+        provider = build_ai_content_generation_provider(
+            provider_override=job.provider_override,
+            model_override=_extract_generation_model_override(job=job),
+            prompt_template_version_override=_extract_prompt_template_override(job=job),
+        )
         context = _build_provider_context(job=job)
         provider_result = provider.generate_candidates(context=context)
         if not provider_result.candidates:
@@ -463,7 +467,9 @@ def run_ai_content_generation_job(db: Session, *, job_id: UUID) -> AIContentJobE
             failure_message: str | None = None
             if validation_report["errors"]:
                 status_value = AIContentGenerationCandidateStatus.INVALID
-                failure_code = "VALIDATION_FAILED"
+                failure_code = _map_candidate_validation_failure_code(
+                    validation_report["errors"]
+                )
                 failure_message = "; ".join(validation_report["errors"])[
                     :AI_CONTENT_FAILURE_MESSAGE_MAX_LENGTH
                 ]
@@ -731,6 +737,45 @@ def _validate_candidate_payload(candidate: GeneratedContentCandidate) -> dict[st
         elif contains_hidden_unicode(sentence_text):
             errors.append("invalid_hidden_unicode")
 
+    if candidate.skill == Skill.LISTENING:
+        if candidate.transcript is not None and candidate.turns:
+            normalized_transcript = candidate.transcript.strip()
+            for turn in candidate.turns:
+                turn_text = turn.get("text", "").strip()
+                if not turn_text or turn_text not in normalized_transcript:
+                    errors.append("listening_turn_sentence_alignment_invalid")
+                    break
+        if candidate.turns and len(candidate.sentences) < len(candidate.turns):
+            errors.append("listening_turn_sentence_alignment_invalid")
+
+        if candidate.type_tag == ContentTypeTag.L_LONG_TALK:
+            if len(candidate.turns) < 4:
+                errors.append("listening_long_talk_turn_count_insufficient")
+            if len(candidate.sentences) < 4:
+                errors.append("listening_long_talk_sentence_count_insufficient")
+        elif candidate.type_tag == ContentTypeTag.L_RESPONSE:
+            if len(candidate.turns) != 2:
+                errors.append("listening_response_turn_count_invalid")
+        elif candidate.type_tag == ContentTypeTag.L_SITUATION:
+            if len(candidate.turns) < 2 or len(candidate.sentences) < 3:
+                errors.append("listening_situation_alignment_invalid")
+    else:
+        passage_text = (candidate.passage or "").strip()
+        if candidate.type_tag == ContentTypeTag.R_BLANK and "[BLANK]" not in passage_text:
+            errors.append("reading_blank_marker_missing")
+        if candidate.type_tag == ContentTypeTag.R_INSERTION:
+            required_markers = ("[1]", "[2]", "[3]", "[4]")
+            if not all(marker in passage_text for marker in required_markers):
+                errors.append("reading_insertion_marker_missing")
+        if candidate.type_tag == ContentTypeTag.R_ORDER and len(candidate.sentences) < 4:
+            errors.append("reading_order_sentence_count_insufficient")
+        if candidate.type_tag == ContentTypeTag.R_SUMMARY and len(candidate.sentences) < 4:
+            errors.append("reading_summary_sentence_count_insufficient")
+        if candidate.type_tag == ContentTypeTag.R_VOCAB:
+            normalized_stem = candidate.stem.casefold()
+            if "word" not in normalized_stem and "meaning" not in normalized_stem:
+                errors.append("reading_vocab_prompt_misaligned")
+
     options = candidate.options
     if set(options.keys()) != {"A", "B", "C", "D", "E"}:
         errors.append("invalid_option_keys")
@@ -784,6 +829,42 @@ def _validate_candidate_payload(candidate: GeneratedContentCandidate) -> dict[st
         "errors": sorted(set(errors)),
         "reviewFlags": sorted(set(review_flags)),
     }
+
+
+def _map_candidate_validation_failure_code(errors: list[str]) -> str:
+    error_set = set(errors)
+    if any(error in error_set for error in {"duplicate_option_text", "invalid_option_keys"}):
+        return "OUTPUT_OPTION_DUPLICATE"
+    if any(
+        error in error_set
+        for error in {
+            "invalid_evidence_sentence_id",
+            "listening_turn_sentence_alignment_invalid",
+            "reading_insertion_marker_missing",
+        }
+    ):
+        return "OUTPUT_SENTENCE_ID_MISMATCH"
+    if any(
+        error in error_set
+        for error in {
+            "stem_required",
+            "explanation_required",
+            "why_correct_ko_required",
+            "passage_required",
+            "transcript_required",
+            "listening_turns_required",
+            "listening_tts_plan_required",
+            "sentences_must_not_be_empty",
+            "evidence_sentence_ids_required",
+            "reading_blank_marker_missing",
+            "listening_long_talk_turn_count_insufficient",
+            "listening_long_talk_sentence_count_insufficient",
+            "listening_response_turn_count_invalid",
+            "listening_situation_alignment_invalid",
+        }
+    ) or any(error.endswith("_required") for error in error_set):
+        return "OUTPUT_MISSING_FIELD"
+    return "OUTPUT_VALIDATION_FAILED"
 
 
 def _validate_text_field(
@@ -994,6 +1075,26 @@ def _extract_generation_source(*, job: AIContentGenerationJob) -> str | None:
     if not isinstance(raw_source, str):
         return None
     normalized = raw_source.strip()
+    return normalized or None
+
+
+def _extract_generation_model_override(*, job: AIContentGenerationJob) -> str | None:
+    metadata = job.metadata_json if isinstance(job.metadata_json, dict) else {}
+    raw_value = metadata.get("requestedModelName") or metadata.get("modelOverride")
+    if not isinstance(raw_value, str):
+        return None
+    normalized = raw_value.strip()
+    return normalized or None
+
+
+def _extract_prompt_template_override(*, job: AIContentGenerationJob) -> str | None:
+    metadata = job.metadata_json if isinstance(job.metadata_json, dict) else {}
+    raw_value = metadata.get("requestedPromptTemplateVersion") or metadata.get(
+        "promptTemplateVersionOverride"
+    )
+    if not isinstance(raw_value, str):
+        return None
+    normalized = raw_value.strip()
     return normalized or None
 
 

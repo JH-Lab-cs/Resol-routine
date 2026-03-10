@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from math import ceil
 from typing import Any, cast
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -16,6 +16,7 @@ from app.core.config import settings
 from app.core.content_type_taxonomy import canonical_type_tags_for_skill
 from app.core.policies import (
     AI_CONTENT_MAX_CANDIDATES_PER_JOB,
+    AI_CONTENT_MODEL_COST_ESTIMATES,
     CONTENT_BACKFILL_DEFAULT_CANDIDATE_COUNT_PER_TARGET,
     CONTENT_BACKFILL_ESTIMATED_OUTPUT_TOKENS_PER_CANDIDATE,
     CONTENT_BACKFILL_ESTIMATED_PROMPT_TOKENS_PER_JOB,
@@ -40,8 +41,11 @@ from app.core.policies import (
     VOCAB_READINESS_MIN_ROWS_BY_TRACK,
 )
 from app.db.session import run_post_commit_ai_content_generation_tasks
+from app.models.ai_content_generation_candidate import AIContentGenerationCandidate
 from app.models.ai_content_generation_job import AIContentGenerationJob
-from app.models.enums import AIGenerationJobStatus, Skill, Track
+from app.models.content_enums import ContentLifecycleStatus
+from app.models.content_unit_revision import ContentUnitRevision
+from app.models.enums import AIContentGenerationCandidateStatus, AIGenerationJobStatus, Skill, Track
 from app.schemas.ai_content_generation import AIContentGenerationJobCreateRequest
 from app.services.ai_content_generation_service import create_ai_content_generation_job
 from app.services.content_readiness_service import (
@@ -74,6 +78,16 @@ class BackfillFilter:
     limit: int | None = None
 
 
+@dataclass(frozen=True, slots=True)
+class BackfillEvaluationFilter:
+    track: Track | None = None
+    skill: Skill | None = None
+    type_tag: str | None = None
+    evaluation_label: str | None = None
+    model_name: str | None = None
+    limit: int | None = None
+
+
 class ContentBackfillExecutionError(RuntimeError):
     def __init__(self, *, code: str, message: str) -> None:
         super().__init__(message)
@@ -87,6 +101,7 @@ class ContentBackfillExecutionConfig:
     provider_configured: bool
     api_key_present: bool
     model_name: str
+    fallback_model_name: str | None
     prompt_template_version: str
     max_targets_per_run: int
     max_candidates_per_run: int
@@ -103,11 +118,16 @@ def build_content_backfill_plan(
     max_targets_per_run: int | None = None,
     max_candidates_per_run: int | None = None,
     provider_override: str | None = None,
+    model_override: str | None = None,
+    prompt_template_version_override: str | None = None,
+    evaluation_label: str | None = None,
 ) -> dict[str, object]:
     execution_config = _resolve_execution_config(
         provider_override=provider_override,
         max_targets_per_run=max_targets_per_run,
         max_candidates_per_run=max_candidates_per_run,
+        model_override=model_override,
+        prompt_template_version_override=prompt_template_version_override,
     )
     active_filters = filters or BackfillFilter()
 
@@ -128,6 +148,7 @@ def build_content_backfill_plan(
     queue_preview = _build_queue_preview(
         target_batches=target_batches,
         execution_config=execution_config,
+        evaluation_label=evaluation_label,
     )
 
     return {
@@ -151,6 +172,9 @@ def enqueue_content_backfill_jobs(
     max_targets_per_run: int | None = None,
     max_candidates_per_run: int | None = None,
     provider_override: str | None = None,
+    model_override: str | None = None,
+    prompt_template_version_override: str | None = None,
+    evaluation_label: str | None = None,
     execute: bool = False,
 ) -> dict[str, object]:
     plan = build_content_backfill_plan(
@@ -159,6 +183,9 @@ def enqueue_content_backfill_jobs(
         max_targets_per_run=max_targets_per_run,
         max_candidates_per_run=max_candidates_per_run,
         provider_override=provider_override,
+        model_override=model_override,
+        prompt_template_version_override=prompt_template_version_override,
+        evaluation_label=evaluation_label,
     )
     preview = cast(dict[str, Any], plan["enqueuePreview"])
     preview_jobs = cast(list[dict[str, Any]], preview["jobs"])
@@ -242,6 +269,10 @@ def enqueue_content_backfill_jobs(
                     "estimatedPromptTokens": job_preview["estimatedPromptTokens"],
                     "estimatedOutputTokens": job_preview["estimatedOutputTokens"],
                     "costComputation": preview["costComputation"],
+                    "requestedModelName": preview["model"],
+                    "requestedPromptTemplateVersion": preview["promptTemplateVersion"],
+                    "fallbackModelName": preview["fallbackModel"],
+                    "evaluationLabel": preview["evaluationLabel"],
                 },
             }
         )
@@ -260,6 +291,55 @@ def enqueue_content_backfill_jobs(
         "skippedExistingJobs": skipped_existing_jobs,
     }
     return plan
+
+
+def build_backfill_evaluation_report(
+    db: Session,
+    *,
+    filters: BackfillEvaluationFilter | None = None,
+) -> dict[str, object]:
+    active_filters = filters or BackfillEvaluationFilter()
+    matched_runs: list[dict[str, object]] = []
+    aggregate_index: dict[tuple[str, str, str], dict[str, Any]] = {}
+
+    for job in _list_backfill_jobs_for_evaluation(db):
+        candidates = _list_job_candidates(db, job_id=job.id)
+        if not _matches_evaluation_filters(job=job, candidates=candidates, filters=active_filters):
+            continue
+
+        revisions = _list_materialized_revisions(db, candidates=candidates)
+        run_summary = _build_evaluation_run_summary(
+            job=job,
+            candidates=candidates,
+            revisions=revisions,
+        )
+        matched_runs.append(run_summary)
+        _accumulate_evaluation_aggregate(
+            aggregate_index=aggregate_index,
+            run_summary=run_summary,
+        )
+
+        if active_filters.limit is not None and len(matched_runs) >= active_filters.limit:
+            break
+
+    aggregates = [
+        _finalize_evaluation_aggregate(entry)
+        for entry in sorted(
+            aggregate_index.values(),
+            key=lambda item: (
+                item["typeTag"],
+                item["modelName"],
+                item["promptTemplateVersion"],
+            ),
+        )
+    ]
+    return {
+        "generatedAt": _utc_now_iso(),
+        "filters": _serialize_evaluation_filters(active_filters),
+        "runCount": len(matched_runs),
+        "runs": matched_runs,
+        "aggregates": aggregates,
+    }
 
 
 def _build_aggregated_content_deficits(
@@ -598,6 +678,7 @@ def _build_queue_preview(
     *,
     target_batches: list[list[dict[str, Any]]],
     execution_config: ContentBackfillExecutionConfig,
+    evaluation_label: str | None,
 ) -> dict[str, object]:
     jobs: list[dict[str, object]] = []
     estimated_prompt_tokens = 0
@@ -629,6 +710,7 @@ def _build_queue_preview(
                     output_tokens=output_tokens,
                     execution_config=execution_config,
                 ),
+                "evaluationLabel": evaluation_label,
                 "originatingDeficits": [
                     {
                         "track": row["track"],
@@ -668,7 +750,9 @@ def _build_queue_preview(
         "providerConfigured": execution_config.provider_configured,
         "apiKeyPresent": execution_config.api_key_present,
         "model": execution_config.model_name,
+        "fallbackModel": execution_config.fallback_model_name,
         "promptTemplateVersion": execution_config.prompt_template_version,
+        "evaluationLabel": evaluation_label,
         "candidateCountPerTarget": CONTENT_BACKFILL_DEFAULT_CANDIDATE_COUNT_PER_TARGET,
         "maxTargetsPerRun": execution_config.max_targets_per_run,
         "maxCandidatesPerRun": execution_config.max_candidates_per_run,
@@ -704,6 +788,17 @@ def _serialize_filters(filters: BackfillFilter) -> dict[str, object]:
         "typeTag": filters.type_tag,
         "difficultyMin": filters.difficulty_min,
         "difficultyMax": filters.difficulty_max,
+        "limit": filters.limit,
+    }
+
+
+def _serialize_evaluation_filters(filters: BackfillEvaluationFilter) -> dict[str, object]:
+    return {
+        "track": filters.track.value if filters.track is not None else None,
+        "skill": filters.skill.value if filters.skill is not None else None,
+        "typeTag": filters.type_tag,
+        "evaluationLabel": filters.evaluation_label,
+        "modelName": filters.model_name,
         "limit": filters.limit,
     }
 
@@ -791,32 +886,42 @@ def _resolve_execution_config(
     provider_override: str | None,
     max_targets_per_run: int | None,
     max_candidates_per_run: int | None,
+    model_override: str | None,
+    prompt_template_version_override: str | None,
 ) -> ContentBackfillExecutionConfig:
     provider_name = (provider_override or settings.resolved_ai_content_provider).strip()
     api_key = settings.resolved_ai_content_api_key
-    model_name = settings.ai_content_model.strip()
-    prompt_template_version = settings.ai_content_prompt_template_version.strip()
+    model_name = (model_override or settings.ai_content_model).strip()
+    prompt_template_version = (
+        prompt_template_version_override or settings.ai_content_prompt_template_version
+    ).strip()
     resolved_max_targets = _normalize_max_targets_per_run(
         max_targets_per_run or settings.ai_content_max_targets_per_run
     )
     resolved_max_candidates = _normalize_max_candidates_per_run(
         max_candidates_per_run or settings.ai_content_max_candidates_per_run
     )
+    estimated_costs = AI_CONTENT_MODEL_COST_ESTIMATES.get(model_name)
     return ContentBackfillExecutionConfig(
         provider_name=provider_name,
         provider_configured=provider_name not in {"", "disabled", "not-configured"},
         api_key_present=bool(api_key and api_key.strip()),
         model_name=model_name,
+        fallback_model_name=settings.ai_content_fallback_model,
         prompt_template_version=prompt_template_version,
         max_targets_per_run=resolved_max_targets,
         max_candidates_per_run=resolved_max_candidates,
         max_estimated_cost_usd=settings.ai_content_max_estimated_cost_usd,
         default_dry_run=settings.ai_content_default_dry_run,
         estimated_input_cost_per_million_tokens=(
-            settings.ai_content_estimated_input_cost_per_million_tokens
+            float(estimated_costs["input"])
+            if estimated_costs is not None
+            else settings.ai_content_estimated_input_cost_per_million_tokens
         ),
         estimated_output_cost_per_million_tokens=(
-            settings.ai_content_estimated_output_cost_per_million_tokens
+            float(estimated_costs["output"])
+            if estimated_costs is not None
+            else settings.ai_content_estimated_output_cost_per_million_tokens
         ),
     )
 
@@ -880,6 +985,272 @@ def _list_existing_active_backfill_jobs(
             continue
         active_jobs[signature] = row
     return active_jobs
+
+
+def _list_backfill_jobs_for_evaluation(db: Session) -> list[AIContentGenerationJob]:
+    rows = db.execute(
+        select(AIContentGenerationJob).order_by(
+            AIContentGenerationJob.created_at.desc(),
+            AIContentGenerationJob.id.desc(),
+        )
+    ).scalars()
+    matched: list[AIContentGenerationJob] = []
+    for row in rows:
+        metadata = row.metadata_json if isinstance(row.metadata_json, dict) else {}
+        if metadata.get("source") != "content_readiness_backfill":
+            continue
+        matched.append(row)
+    return matched
+
+
+def _list_job_candidates(
+    db: Session,
+    *,
+    job_id: UUID,
+) -> list[AIContentGenerationCandidate]:
+    return list(
+        db.execute(
+            select(AIContentGenerationCandidate)
+            .where(AIContentGenerationCandidate.job_id == job_id)
+            .order_by(AIContentGenerationCandidate.candidate_index.asc())
+        ).scalars()
+    )
+
+
+def _list_materialized_revisions(
+    db: Session,
+    *,
+    candidates: list[AIContentGenerationCandidate],
+) -> dict[str, ContentUnitRevision]:
+    revision_ids = {
+        candidate.materialized_revision_id
+        for candidate in candidates
+        if candidate.materialized_revision_id is not None
+    }
+    if not revision_ids:
+        return {}
+    revisions = db.execute(
+        select(ContentUnitRevision).where(ContentUnitRevision.id.in_(revision_ids))
+    ).scalars()
+    return {str(revision.id): revision for revision in revisions}
+
+
+def _matches_evaluation_filters(
+    *,
+    job: AIContentGenerationJob,
+    candidates: list[AIContentGenerationCandidate],
+    filters: BackfillEvaluationFilter,
+) -> bool:
+    metadata = job.metadata_json if isinstance(job.metadata_json, dict) else {}
+    target_rows = metadata.get("originatingDeficitPlan")
+    target_track = None
+    target_skill = None
+    target_type_tags: set[str] = set()
+    if candidates:
+        target_track = candidates[0].track
+        target_skill = candidates[0].skill
+        target_type_tags = {candidate.type_tag.value for candidate in candidates}
+    elif isinstance(target_rows, list) and target_rows:
+        first_row = target_rows[0]
+        if isinstance(first_row, dict):
+            raw_track = first_row.get("track")
+            raw_skill = first_row.get("skill")
+            if isinstance(raw_track, str):
+                target_track = Track(raw_track)
+            if isinstance(raw_skill, str):
+                target_skill = Skill(raw_skill)
+        for row in target_rows:
+            if isinstance(row, dict) and isinstance(row.get("typeTag"), str):
+                target_type_tags.add(str(row["typeTag"]))
+
+    if filters.track is not None and target_track != filters.track:
+        return False
+    if filters.skill is not None and target_skill != filters.skill:
+        return False
+    if filters.type_tag is not None and filters.type_tag not in target_type_tags:
+        return False
+    if filters.evaluation_label is not None:
+        if metadata.get("evaluationLabel") != filters.evaluation_label:
+            return False
+    if filters.model_name is not None:
+        model_name = job.model_name or str(metadata.get("requestedModelName") or "")
+        if model_name != filters.model_name:
+            return False
+    return True
+
+
+def _build_evaluation_run_summary(
+    *,
+    job: AIContentGenerationJob,
+    candidates: list[AIContentGenerationCandidate],
+    revisions: dict[str, ContentUnitRevision],
+) -> dict[str, object]:
+    metadata = job.metadata_json if isinstance(job.metadata_json, dict) else {}
+    target_rows = metadata.get("originatingDeficitPlan")
+    fallback_track: str | None = None
+    fallback_skill: str | None = None
+    if isinstance(target_rows, list) and target_rows:
+        first_row = target_rows[0]
+        if isinstance(first_row, dict):
+            raw_track = first_row.get("track")
+            raw_skill = first_row.get("skill")
+            if isinstance(raw_track, str):
+                fallback_track = raw_track
+            if isinstance(raw_skill, str):
+                fallback_skill = raw_skill
+    candidate_count = len(candidates)
+    valid_count = sum(
+        1
+        for candidate in candidates
+        if candidate.status
+        in {
+            AIContentGenerationCandidateStatus.VALID,
+            AIContentGenerationCandidateStatus.MATERIALIZED,
+        }
+    )
+    materialized_count = sum(
+        1 for candidate in candidates if candidate.materialized_revision_id is not None
+    )
+    published_count = sum(
+        1
+        for candidate in candidates
+        if candidate.materialized_revision_id is not None
+        and (
+            revision := revisions.get(str(candidate.materialized_revision_id))
+        ) is not None
+        and revision.lifecycle_status == ContentLifecycleStatus.PUBLISHED
+    )
+    estimated_cost_usd = float(metadata.get("estimatedCostUsd") or 0.0)
+    latency_seconds = _job_latency_seconds(job)
+    type_tags = sorted(
+        {
+            candidate.type_tag.value for candidate in candidates
+        }
+        or {
+            str(row["typeTag"])
+            for row in metadata.get("originatingDeficitPlan", [])
+            if isinstance(row, dict) and isinstance(row.get("typeTag"), str)
+        }
+    )
+    return {
+        "jobId": str(job.id),
+        "providerName": job.provider_name,
+        "modelName": job.model_name or str(metadata.get("requestedModelName") or "unknown"),
+        "promptTemplateVersion": job.prompt_template_version
+        or str(metadata.get("requestedPromptTemplateVersion") or "unknown"),
+        "evaluationLabel": metadata.get("evaluationLabel"),
+        "track": candidates[0].track.value if candidates else fallback_track,
+        "skill": candidates[0].skill.value if candidates else fallback_skill,
+        "typeTags": type_tags,
+        "candidateCount": candidate_count,
+        "retryCount": max(job.attempt_count - 1, 0),
+        "validCandidateCount": valid_count,
+        "validCandidateRate": _rate(valid_count, candidate_count),
+        "materializedRevisionCount": materialized_count,
+        "materializeSuccessRate": _rate(materialized_count, candidate_count),
+        "publishedRevisionCount": published_count,
+        "publishableItemRate": _rate(published_count, candidate_count),
+        "estimatedCostUsd": estimated_cost_usd,
+        "publishableItemPerDollar": (
+            round(published_count / estimated_cost_usd, 6)
+            if estimated_cost_usd > 0
+            else None
+        ),
+        "latencySeconds": latency_seconds,
+        "status": job.status.value,
+    }
+
+
+def _accumulate_evaluation_aggregate(
+    *,
+    aggregate_index: dict[tuple[str, str, str], dict[str, Any]],
+    run_summary: dict[str, object],
+) -> None:
+    model_name = str(run_summary.get("modelName") or "unknown")
+    prompt_template_version = str(run_summary.get("promptTemplateVersion") or "unknown")
+    type_tags = cast(list[str], run_summary["typeTags"])
+    candidate_count = cast(int, run_summary["candidateCount"])
+    valid_candidate_count = cast(int, run_summary["validCandidateCount"])
+    materialized_revision_count = cast(int, run_summary["materializedRevisionCount"])
+    published_revision_count = cast(int, run_summary["publishedRevisionCount"])
+    estimated_cost_usd = cast(float, run_summary["estimatedCostUsd"])
+    latency_seconds = cast(float | None, run_summary["latencySeconds"])
+
+    for type_tag in type_tags:
+        key = (model_name, prompt_template_version, type_tag)
+        entry = aggregate_index.get(key)
+        if entry is None:
+            entry = {
+                "modelName": model_name,
+                "promptTemplateVersion": prompt_template_version,
+                "typeTag": type_tag,
+                "jobCount": 0,
+                "candidateCount": 0,
+                "validCandidateCount": 0,
+                "materializedRevisionCount": 0,
+                "publishedRevisionCount": 0,
+                "estimatedCostUsd": 0.0,
+                "totalLatencySeconds": 0.0,
+                "latencyCount": 0,
+                "evaluationLabels": set(),
+            }
+            aggregate_index[key] = entry
+        entry["jobCount"] += 1
+        entry["candidateCount"] += candidate_count
+        entry["validCandidateCount"] += valid_candidate_count
+        entry["materializedRevisionCount"] += materialized_revision_count
+        entry["publishedRevisionCount"] += published_revision_count
+        entry["estimatedCostUsd"] += estimated_cost_usd
+        if latency_seconds is not None:
+            entry["totalLatencySeconds"] += latency_seconds
+            entry["latencyCount"] += 1
+        evaluation_label = run_summary.get("evaluationLabel")
+        if isinstance(evaluation_label, str) and evaluation_label:
+            entry["evaluationLabels"].add(evaluation_label)
+
+
+def _finalize_evaluation_aggregate(entry: dict[str, Any]) -> dict[str, object]:
+    candidate_count = int(entry["candidateCount"])
+    estimated_cost_usd = round(float(entry["estimatedCostUsd"]), 6)
+    published_revision_count = int(entry["publishedRevisionCount"])
+    average_latency_seconds = (
+        round(float(entry["totalLatencySeconds"]) / int(entry["latencyCount"]), 3)
+        if int(entry["latencyCount"]) > 0
+        else None
+    )
+    return {
+        "modelName": entry["modelName"],
+        "promptTemplateVersion": entry["promptTemplateVersion"],
+        "typeTag": entry["typeTag"],
+        "jobCount": int(entry["jobCount"]),
+        "candidateCount": candidate_count,
+        "validCandidateCount": int(entry["validCandidateCount"]),
+        "validCandidateRate": _rate(int(entry["validCandidateCount"]), candidate_count),
+        "materializedRevisionCount": int(entry["materializedRevisionCount"]),
+        "materializeSuccessRate": _rate(int(entry["materializedRevisionCount"]), candidate_count),
+        "publishedRevisionCount": published_revision_count,
+        "publishableItemRate": _rate(published_revision_count, candidate_count),
+        "estimatedCostUsd": estimated_cost_usd,
+        "publishableItemPerDollar": (
+            round(published_revision_count / estimated_cost_usd, 6)
+            if estimated_cost_usd > 0
+            else None
+        ),
+        "averageLatencySeconds": average_latency_seconds,
+        "evaluationLabels": sorted(entry["evaluationLabels"]),
+    }
+
+
+def _job_latency_seconds(job: AIContentGenerationJob) -> float | None:
+    if job.started_at is None or job.completed_at is None:
+        return None
+    return round((job.completed_at - job.started_at).total_seconds(), 3)
+
+
+def _rate(numerator: int, denominator: int) -> float | None:
+    if denominator <= 0:
+        return None
+    return round(numerator / denominator, 4)
 
 
 def _track_in_range(*, track: str, minimum: str, maximum: str) -> bool:

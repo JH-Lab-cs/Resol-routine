@@ -64,6 +64,14 @@ class ContentGenerationResult:
     candidates: list[GeneratedContentCandidate]
 
 
+@dataclass(frozen=True, slots=True)
+class PromptProfile:
+    template_version: str
+    skill_mode: str
+    target_type_tags: tuple[str, ...]
+    instructions: tuple[str, ...]
+
+
 class AIContentGenerationProvider(Protocol):
     def generate_candidates(
         self, *, context: ContentGenerationContext
@@ -77,7 +85,11 @@ class DeterministicAIContentProvider:
         self._prompt_template_version = prompt_template_version
 
     def generate_candidates(self, *, context: ContentGenerationContext) -> ContentGenerationResult:
-        prompt_payload = _build_prompt_payload(context=context)
+        prompt_profile = _resolve_prompt_profile(
+            context=context,
+            base_template_version=self._prompt_template_version,
+        )
+        prompt_payload = _build_prompt_payload(context=context, prompt_profile=prompt_profile)
         candidates: list[GeneratedContentCandidate] = []
         counter = 1
 
@@ -97,7 +109,7 @@ class DeterministicAIContentProvider:
         return ContentGenerationResult(
             provider_name=self._provider_name,
             model_name=self._model_name,
-            prompt_template_version=self._prompt_template_version,
+            prompt_template_version=prompt_profile.template_version,
             raw_prompt=json.dumps(prompt_payload, ensure_ascii=False, separators=(",", ":")),
             raw_response=json.dumps(response_payload, ensure_ascii=False, separators=(",", ":")),
             candidates=candidates,
@@ -119,12 +131,16 @@ class OpenAIContentGenerationProvider:
         self._endpoint = f"{base_url.rstrip('/')}/v1/chat/completions"
 
     def generate_candidates(self, *, context: ContentGenerationContext) -> ContentGenerationResult:
-        prompt_payload = _build_prompt_payload(context=context)
+        prompt_profile = _resolve_prompt_profile(
+            context=context,
+            base_template_version=self._prompt_template_version,
+        )
+        prompt_payload = _build_prompt_payload(context=context, prompt_profile=prompt_profile)
         request_payload: dict[str, Any] = {
             "model": self._model_name,
             "response_format": {"type": "json_object"},
             "messages": [
-                {"role": "system", "content": _system_instruction()},
+                {"role": "system", "content": _system_instruction(prompt_profile=prompt_profile)},
                 {
                     "role": "user",
                     "content": json.dumps(
@@ -163,7 +179,7 @@ class OpenAIContentGenerationProvider:
         return ContentGenerationResult(
             provider_name="openai",
             model_name=self._model_name,
-            prompt_template_version=self._prompt_template_version,
+            prompt_template_version=prompt_profile.template_version,
             raw_prompt=json.dumps(request_payload, ensure_ascii=False, separators=(",", ":")),
             raw_response=response_body,
             candidates=candidates,
@@ -185,11 +201,15 @@ class AnthropicContentGenerationProvider:
         self._endpoint = f"{base_url.rstrip('/')}/v1/messages"
 
     def generate_candidates(self, *, context: ContentGenerationContext) -> ContentGenerationResult:
-        prompt_payload = _build_prompt_payload(context=context)
+        prompt_profile = _resolve_prompt_profile(
+            context=context,
+            base_template_version=self._prompt_template_version,
+        )
+        prompt_payload = _build_prompt_payload(context=context, prompt_profile=prompt_profile)
         request_payload: dict[str, Any] = {
             "model": self._model_name,
             "max_tokens": 4096,
-            "system": _system_instruction(),
+            "system": _system_instruction(prompt_profile=prompt_profile),
             "messages": [
                 {
                     "role": "user",
@@ -230,7 +250,7 @@ class AnthropicContentGenerationProvider:
         return ContentGenerationResult(
             provider_name="anthropic",
             model_name=self._model_name,
-            prompt_template_version=self._prompt_template_version,
+            prompt_template_version=prompt_profile.template_version,
             raw_prompt=json.dumps(request_payload, ensure_ascii=False, separators=(",", ":")),
             raw_response=response_body,
             candidates=candidates,
@@ -238,7 +258,10 @@ class AnthropicContentGenerationProvider:
 
 
 def build_ai_content_generation_provider(
-    *, provider_override: str | None = None
+    *,
+    provider_override: str | None = None,
+    model_override: str | None = None,
+    prompt_template_version_override: str | None = None,
 ) -> AIContentGenerationProvider:
     provider_name = (
         provider_override.strip().lower()
@@ -252,7 +275,11 @@ def build_ai_content_generation_provider(
             transient=False,
         )
 
-    model_name = settings.ai_content_model.strip()
+    model_name = (
+        model_override.strip()
+        if model_override is not None
+        else settings.ai_content_model.strip()
+    )
     if model_name in {"", "not-configured"}:
         raise AIProviderError(
             code="PROVIDER_MODEL_NOT_SET",
@@ -260,7 +287,11 @@ def build_ai_content_generation_provider(
             transient=False,
         )
 
-    prompt_template_version = settings.ai_content_prompt_template_version.strip()
+    prompt_template_version = (
+        prompt_template_version_override.strip()
+        if prompt_template_version_override is not None
+        else settings.ai_content_prompt_template_version.strip()
+    )
     if not prompt_template_version or prompt_template_version == "not-configured":
         raise AIProviderError(
             code="PROVIDER_MODEL_NOT_SET",
@@ -303,6 +334,80 @@ def build_ai_content_generation_provider(
         message=f"Unsupported AI provider: {provider_name}",
         transient=False,
     )
+
+
+_HARD_TYPETAG_TEMPLATE_SUFFIX = {
+    "L_LONG_TALK": "listening-longtalk",
+    "L_RESPONSE": "listening-response",
+    "L_SITUATION": "listening-situation",
+    "R_INSERTION": "reading-insertion",
+    "R_BLANK": "reading-blank",
+    "R_ORDER": "reading-order",
+    "R_SUMMARY": "reading-summary",
+    "R_VOCAB": "reading-vocab",
+}
+
+_HARD_TYPETAG_RULES = {
+    "L_LONG_TALK": (
+        "Produce at least four turns and at least four sentence rows.",
+        (
+            "Every turn text must appear verbatim inside transcriptText and the "
+            "transcript order must match turns order."
+        ),
+        "Use evidenceSentenceIds that point to explicit sentence ids only.",
+        "Keep options A..E mutually exclusive and explanation complete enough for human review.",
+    ),
+    "L_RESPONSE": (
+        "Produce exactly two turns: setup then response prompt.",
+        (
+            "Make the answer depend on the immediate response that best fits "
+            "the prompt, not on world knowledge."
+        ),
+        "Keep sentence ids aligned to the turn texts and cite only existing ids.",
+    ),
+    "L_SITUATION": (
+        "Produce at least two turns and at least three sentence rows.",
+        "The situation must be inferable from dialogue evidence, not from unstated assumptions.",
+        "Keep transcript, turns, and sentence ids fully aligned.",
+    ),
+    "R_INSERTION": (
+        "Passage must include insertion markers [1], [2], [3], and [4].",
+        "Question options A..E must represent insertion positions or a no-fit distractor.",
+        (
+            "EvidenceSentenceIds must point to the discourse sentences that "
+            "justify the insertion location."
+        ),
+    ),
+    "R_BLANK": (
+        "Passage must include exactly one [BLANK] marker.",
+        "Question must ask for the best phrase or sentence to fill the blank.",
+        "Use evidenceSentenceIds that point to context sentences surrounding [BLANK].",
+    ),
+    "R_ORDER": (
+        "Provide at least four sentence rows so order can be resolved from discourse flow.",
+        "Explanation must describe the sequence logic explicitly.",
+    ),
+    "R_SUMMARY": (
+        "Provide at least four sentence rows so the summary is grounded in the passage.",
+        (
+            "Distractors must omit or distort at least one key idea rather "
+            "than paraphrasing the answer."
+        ),
+    ),
+    "R_VOCAB": (
+        "Question must ask about the meaning of a target word or phrase in context.",
+        "The passage must contain the target expression explicitly.",
+        "Explanation must tie the answer to the local context, not a dictionary gloss alone.",
+    ),
+}
+
+_DEFAULT_PROMPT_RULES = (
+    "Return strict JSON only. Do not include markdown or prose outside the JSON object.",
+    "question.options must contain exactly A, B, C, D, and E with unique option text.",
+    "answerKey must be exactly one of A, B, C, D, or E.",
+    "evidenceSentenceIds must contain only ids that exist in sentences[].",
+    "whyCorrectKo and whyWrongKoByOption must be complete and reviewer-friendly.",
+)
 
 
 def _build_deterministic_candidate(
@@ -422,13 +527,20 @@ def _candidate_to_json_payload(candidate: GeneratedContentCandidate) -> dict[str
     }
 
 
-def _build_prompt_payload(*, context: ContentGenerationContext) -> dict[str, Any]:
+def _build_prompt_payload(
+    *, context: ContentGenerationContext, prompt_profile: PromptProfile
+) -> dict[str, Any]:
     return {
         "generatedAt": datetime.now(UTC).isoformat(),
         "requestId": context.request_id,
+        "promptTemplateVersion": prompt_profile.template_version,
+        "promptSkillMode": prompt_profile.skill_mode,
+        "promptTargetTypeTags": list(prompt_profile.target_type_tags),
         "candidateCountPerTarget": context.candidate_count_per_target,
         "dryRun": context.dry_run,
         "notes": context.notes,
+        "strictOutputChecklist": list(_DEFAULT_PROMPT_RULES),
+        "typeTagSpecificRequirements": list(prompt_profile.instructions),
         "targetMatrix": [
             {
                 "track": row.track.value,
@@ -442,7 +554,21 @@ def _build_prompt_payload(*, context: ContentGenerationContext) -> dict[str, Any
     }
 
 
-def _system_instruction() -> str:
+def _system_instruction(*, prompt_profile: PromptProfile) -> str:
+    skill_rule = (
+        "For READING candidates, bodyText/passage and sentences are required."
+        if prompt_profile.skill_mode == "reading"
+        else (
+            "For LISTENING candidates, transcriptText/transcript, turns, "
+            "sentences, and ttsPlan are required."
+        )
+        if prompt_profile.skill_mode == "listening"
+        else (
+            "For mixed batches, every candidate must satisfy its own "
+            "skill-specific required fields."
+        )
+    )
+    joined_type_rules = " ".join(prompt_profile.instructions)
     return (
         "Generate English-learning content units and return strict JSON only. "
         "Top-level key must be candidates (array). "
@@ -450,15 +576,48 @@ def _system_instruction() -> str:
         "sentences, and question(stem/options/answerKey/explanation/evidenceSentenceIds/"
         "whyCorrectKo/whyWrongKoByOption). "
         "sourcePolicy must be exactly AI_ORIGINAL. "
-        "question.options must contain exactly five options with keys A, B, C, D, and E. "
+        "question.options must contain exactly five options with keys A, B, C, D, and E, "
+        "and all option texts must be unique. "
         "question.whyWrongKoByOption must also contain exactly A, B, C, D, and E. "
         "For the correct option, whyWrongKoByOption may say that it is the correct choice. "
-        "For READING candidates, passage is required. "
-        "For LISTENING candidates, transcript, turns, and ttsPlan are required. "
+        f"{skill_rule} "
         "turns must be an array of objects with speaker and text. "
-        "ttsPlan must be a non-empty object. "
+        "sentences must be an array of objects with id and text. "
+        "Every evidenceSentenceId must point to an existing sentence id. "
+        "ttsPlan must be a non-empty object when skill is LISTENING. "
         "Example: {\"voice\":\"en-US-neutral\",\"pace\":\"normal\"}. "
+        f"TypeTag-specific requirements: {joined_type_rules} "
         "Do not omit required fields, and do not include markdown or surrounding prose."
+    )
+
+
+def _resolve_prompt_profile(
+    *, context: ContentGenerationContext, base_template_version: str
+) -> PromptProfile:
+    type_tags = tuple(dict.fromkeys(row.type_tag.value for row in context.target_matrix))
+    skill_modes = {row.skill.value for row in context.target_matrix}
+    if len(skill_modes) == 1:
+        skill_mode = next(iter(skill_modes)).lower()
+    else:
+        skill_mode = "mixed"
+
+    if len(type_tags) == 1 and type_tags[0] in _HARD_TYPETAG_TEMPLATE_SUFFIX:
+        type_tag = type_tags[0]
+        template_version = f"{base_template_version}-{_HARD_TYPETAG_TEMPLATE_SUFFIX[type_tag]}"
+        instructions = _DEFAULT_PROMPT_RULES + _HARD_TYPETAG_RULES[type_tag]
+        return PromptProfile(
+            template_version=template_version,
+            skill_mode=skill_mode,
+            target_type_tags=type_tags,
+            instructions=instructions,
+        )
+
+    default_suffix = f"{skill_mode}-default"
+    return PromptProfile(
+        template_version=f"{base_template_version}-{default_suffix}",
+        skill_mode=skill_mode,
+        target_type_tags=type_tags,
+        instructions=_DEFAULT_PROMPT_RULES,
     )
 
 
@@ -545,49 +704,65 @@ def _parse_generated_candidates(raw_content: str) -> list[GeneratedContentCandid
     parsed: list[GeneratedContentCandidate] = []
     for raw_candidate in raw_candidates:
         if not isinstance(raw_candidate, dict):
-            raise AIProviderError(
-                code="OUTPUT_SCHEMA_INVALID",
-                message="Candidate item must be an object.",
-                transient=False,
-            )
+            raise _output_error("OUTPUT_SCHEMA_INVALID", "Candidate item must be an object.")
 
         question = raw_candidate.get("question")
         if not isinstance(question, dict):
-            raise AIProviderError(
-                code="OUTPUT_SCHEMA_INVALID",
-                message="Candidate question must be an object.",
-                transient=False,
-            )
+            raise _output_error("OUTPUT_MISSING_FIELD", "Candidate question must be an object.")
+
+        track = Track(str(raw_candidate.get("track")))
+        skill = Skill(str(raw_candidate.get("skill")))
+        passage = _to_optional_str(
+            raw_candidate.get("passage")
+            or raw_candidate.get("bodyText")
+            or raw_candidate.get("passageText")
+        )
+        transcript = _to_optional_str(
+            raw_candidate.get("transcript")
+            or raw_candidate.get("transcriptText")
+        )
+        turns = _parse_turns(raw_candidate.get("turns"))
+        sentences = _parse_sentences(raw_candidate.get("sentences"))
+        if skill == Skill.LISTENING and turns and not sentences:
+            sentences = _sentences_from_turns(turns)
 
         options = _parse_options(question.get("options"))
+        why_wrong = _parse_why_wrong_by_option(
+            value=question.get("whyWrongKoByOption"),
+            answer_key=str(question.get("answerKey", "")),
+        )
 
         parsed.append(
             GeneratedContentCandidate(
-                track=Track(str(raw_candidate.get("track"))),
-                skill=Skill(str(raw_candidate.get("skill"))),
+                track=track,
+                skill=skill,
                 type_tag=ContentTypeTag(str(raw_candidate.get("typeTag"))),
                 difficulty=_required_int(raw_candidate.get("difficulty")),
                 source_policy=_parse_source_policy(raw_candidate.get("sourcePolicy")),
                 title=_to_optional_str(raw_candidate.get("title")),
-                passage=_to_optional_str(raw_candidate.get("passage")),
-                transcript=_to_optional_str(raw_candidate.get("transcript")),
-                turns=_parse_turns(raw_candidate.get("turns")),
-                sentences=_parse_sentences(raw_candidate.get("sentences")),
-                tts_plan=_parse_object(raw_candidate.get("ttsPlan"), default={}),
-                stem=str(question.get("stem", "")),
+                passage=passage,
+                transcript=transcript,
+                turns=turns,
+                sentences=sentences,
+                tts_plan=_parse_tts_plan(raw_candidate.get("ttsPlan"), skill=skill),
+                stem=str(question.get("stem") or question.get("questionStem") or ""),
                 options=options,
-                answer_key=str(question.get("answerKey", "")),
-                explanation=str(question.get("explanation", "")),
-                evidence_sentence_ids=[
-                    str(value) for value in question.get("evidenceSentenceIds", [])
-                ],
-                why_correct_ko=str(question.get("whyCorrectKo", "")),
-                why_wrong_ko_by_option={
-                    str(key): str(value)
-                    for key, value in _parse_object(
-                        question.get("whyWrongKoByOption"), default={}
-                    ).items()
-                },
+                answer_key=_normalize_answer_key(
+                    question.get("answerKey") or question.get("answer")
+                ),
+                explanation=str(
+                    question.get("explanation")
+                    or question.get("rationale")
+                    or question.get("why")
+                    or ""
+                ),
+                evidence_sentence_ids=_parse_evidence_sentence_ids(
+                    question.get("evidenceSentenceIds") or question.get("evidence"),
+                ),
+                why_correct_ko=str(
+                    question.get("whyCorrectKo") or question.get("whyCorrect") or ""
+                ),
+                why_wrong_ko_by_option=why_wrong,
                 vocab_notes_ko=_to_optional_str(question.get("vocabNotesKo")),
                 structure_notes_ko=_to_optional_str(question.get("structureNotesKo")),
             )
@@ -604,11 +779,7 @@ def _to_optional_str(value: object) -> str | None:
 
 def _required_int(value: object) -> int:
     if isinstance(value, bool) or not isinstance(value, int):
-        raise AIProviderError(
-            code="OUTPUT_SCHEMA_INVALID",
-            message="Required integer field is missing or invalid.",
-            transient=False,
-        )
+        raise _output_error("OUTPUT_MISSING_FIELD", "Required integer field is missing or invalid.")
     return value
 
 
@@ -616,11 +787,7 @@ def _parse_object(value: object, *, default: dict[str, Any]) -> dict[str, Any]:
     if value is None:
         return default
     if not isinstance(value, dict):
-        raise AIProviderError(
-            code="OUTPUT_SCHEMA_INVALID",
-            message="Expected object payload.",
-            transient=False,
-        )
+        raise _output_error("OUTPUT_SCHEMA_INVALID", "Expected object payload.")
     return value
 
 
@@ -628,42 +795,35 @@ def _parse_options(value: object) -> dict[str, str]:
     if isinstance(value, dict):
         parsed_from_object: dict[str, str] = {}
         for key, option_value in value.items():
-            normalized_label = str(key).strip().upper()
+            normalized_label = _normalize_option_label(key)
             normalized_text = _coerce_option_text(option_value)
             if normalized_text is None:
-                raise AIProviderError(
-                    code="OUTPUT_SCHEMA_INVALID",
-                    message="Candidate options object values must be strings.",
-                    transient=False,
+                raise _output_error(
+                    "OUTPUT_MISSING_FIELD",
+                    "Candidate options object values must be strings.",
                 )
             parsed_from_object[normalized_label] = normalized_text
         return parsed_from_object
 
     if not isinstance(value, list):
-        raise AIProviderError(
-            code="OUTPUT_SCHEMA_INVALID",
-            message="Candidate options must be an object or array.",
-            transient=False,
+        raise _output_error(
+            "OUTPUT_SCHEMA_INVALID",
+            "Candidate options must be an object or array.",
         )
 
     parsed: dict[str, str] = {}
     labels = ["A", "B", "C", "D", "E"]
     if all(isinstance(item, str) for item in value):
         if len(value) != len(labels):
-            raise AIProviderError(
-                code="OUTPUT_SCHEMA_INVALID",
-                message="Candidate options array must contain exactly five items.",
-                transient=False,
+            raise _output_error(
+                "OUTPUT_MISSING_FIELD",
+                "Candidate options array must contain exactly five items.",
             )
         return {label: str(text) for label, text in zip(labels, value, strict=True)}
 
     for index, item in enumerate(value):
         if not isinstance(item, dict):
-            raise AIProviderError(
-                code="OUTPUT_SCHEMA_INVALID",
-                message="Candidate option item must be an object.",
-                transient=False,
-            )
+            raise _output_error("OUTPUT_SCHEMA_INVALID", "Candidate option item must be an object.")
 
         label = item.get("label") or item.get("key") or item.get("option") or item.get("id")
         text = _coerce_option_text(
@@ -682,12 +842,11 @@ def _parse_options(value: object) -> dict[str, str]:
             text = _coerce_option_text(single_value)
 
         if not isinstance(label, str) or text is None:
-            raise AIProviderError(
-                code="OUTPUT_SCHEMA_INVALID",
-                message="Candidate option object requires string label/text.",
-                transient=False,
+            raise _output_error(
+                "OUTPUT_MISSING_FIELD",
+                "Candidate option object requires string label/text.",
             )
-        normalized_label = label.strip().upper()
+        normalized_label = _normalize_option_label(label)
         if not normalized_label and index < len(labels):
             normalized_label = labels[index]
         parsed[normalized_label] = text
@@ -737,27 +896,30 @@ def _parse_turns(value: object) -> list[dict[str, str]]:
     if value is None:
         return []
     if not isinstance(value, list):
-        raise AIProviderError(
-            code="OUTPUT_SCHEMA_INVALID",
-            message="Turns must be an array.",
-            transient=False,
-        )
+        raise _output_error("OUTPUT_MISSING_FIELD", "Turns must be an array.")
 
     parsed: list[dict[str, str]] = []
-    for item in value:
-        if not isinstance(item, dict):
-            raise AIProviderError(
-                code="OUTPUT_SCHEMA_INVALID",
-                message="Turn item must be an object.",
-                transient=False,
+    for index, item in enumerate(value, start=1):
+        speaker: object
+        text: object
+        if isinstance(item, str):
+            speaker = "A" if index % 2 == 1 else "B"
+            text = item
+        elif isinstance(item, dict):
+            speaker = item.get("speaker") or item.get("speakerLabel") or item.get("role")
+            text = (
+                item.get("text")
+                or item.get("utterance")
+                or item.get("content")
+                or item.get("line")
             )
-        speaker = item.get("speaker")
-        text = item.get("text")
+        else:
+            raise _output_error("OUTPUT_SCHEMA_INVALID", "Turn item must be an object.")
+
         if not isinstance(speaker, str) or not isinstance(text, str):
-            raise AIProviderError(
-                code="OUTPUT_SCHEMA_INVALID",
-                message="Turn item requires string speaker/text.",
-                transient=False,
+            raise _output_error(
+                "OUTPUT_MISSING_FIELD",
+                "Turn item requires string speaker/text.",
             )
         parsed.append({"speaker": speaker, "text": text})
     return parsed
@@ -767,27 +929,85 @@ def _parse_sentences(value: object) -> list[dict[str, str]]:
     if value is None:
         return []
     if not isinstance(value, list):
-        raise AIProviderError(
-            code="OUTPUT_SCHEMA_INVALID",
-            message="Sentences must be an array.",
-            transient=False,
-        )
+        raise _output_error("OUTPUT_MISSING_FIELD", "Sentences must be an array.")
 
     parsed: list[dict[str, str]] = []
-    for item in value:
-        if not isinstance(item, dict):
-            raise AIProviderError(
-                code="OUTPUT_SCHEMA_INVALID",
-                message="Sentence item must be an object.",
-                transient=False,
-            )
-        sentence_id = item.get("id")
-        text = item.get("text")
+    for index, item in enumerate(value, start=1):
+        sentence_id: object
+        text: object
+        if isinstance(item, str):
+            sentence_id = f"s{index}"
+            text = item
+        elif isinstance(item, dict):
+            sentence_id = item.get("id") or item.get("sentenceId") or item.get("sentence_id")
+            text = item.get("text") or item.get("content") or item.get("sentence")
+        else:
+            raise _output_error("OUTPUT_SCHEMA_INVALID", "Sentence item must be an object.")
         if not isinstance(sentence_id, str) or not isinstance(text, str):
-            raise AIProviderError(
-                code="OUTPUT_SCHEMA_INVALID",
-                message="Sentence item requires string id/text.",
-                transient=False,
+            raise _output_error(
+                "OUTPUT_MISSING_FIELD",
+                "Sentence item requires string id/text.",
             )
         parsed.append({"id": sentence_id, "text": text})
     return parsed
+
+
+def _parse_tts_plan(value: object, *, skill: Skill) -> dict[str, Any]:
+    if value is None and skill == Skill.LISTENING:
+        return {"voice": "en-US-neutral", "pace": "normal"}
+    return _parse_object(value, default={})
+
+
+def _parse_evidence_sentence_ids(value: object) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, str):
+        return [value]
+    if not isinstance(value, list):
+        raise _output_error(
+            "OUTPUT_SENTENCE_ID_MISMATCH",
+            "evidenceSentenceIds must be an array or string.",
+        )
+
+    parsed: list[str] = []
+    for item in value:
+        if isinstance(item, int):
+            parsed.append(f"s{item}")
+            continue
+        parsed.append(str(item))
+    return parsed
+
+
+def _parse_why_wrong_by_option(*, value: object, answer_key: str) -> dict[str, str]:
+    parsed = {
+        str(key): str(item)
+        for key, item in _parse_object(value, default={}).items()
+    }
+    normalized_answer = _normalize_answer_key(answer_key)
+    if normalized_answer and normalized_answer not in parsed:
+        parsed[normalized_answer] = "정답 보기입니다."
+    return parsed
+
+
+def _normalize_answer_key(value: object) -> str:
+    raw = str(value or "").strip().upper()
+    if raw[:1] in {"A", "B", "C", "D", "E"}:
+        return raw[:1]
+    return raw
+
+
+def _normalize_option_label(value: object) -> str:
+    normalized = str(value).strip().upper().replace(".", "").replace(")", "")
+    numeric_map = {"1": "A", "2": "B", "3": "C", "4": "D", "5": "E"}
+    return numeric_map.get(normalized, normalized)
+
+
+def _sentences_from_turns(turns: list[dict[str, str]]) -> list[dict[str, str]]:
+    return [
+        {"id": f"s{index}", "text": turn["text"]}
+        for index, turn in enumerate(turns, start=1)
+    ]
+
+
+def _output_error(code: str, message: str) -> AIProviderError:
+    return AIProviderError(code=code, message=message, transient=False)

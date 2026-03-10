@@ -65,6 +65,7 @@ class Settings(BaseSettings):
     ai_content_provider: str | None = None
     ai_content_api_key: str | None = None
     ai_content_model: str = "not-configured"
+    ai_content_fallback_model: str | None = None
     ai_content_prompt_template_version: str = "v1"
     ai_content_max_targets_per_run: int = CONTENT_BACKFILL_MAX_TARGETS_PER_RUN_DEFAULT
     ai_content_max_candidates_per_run: int = CONTENT_BACKFILL_MAX_CANDIDATES_PER_RUN_DEFAULT
@@ -196,6 +197,16 @@ class Settings(BaseSettings):
             return None
         if not isinstance(value, str):
             raise TypeError("ai_content_provider must be a string.")
+        normalized = value.strip()
+        return normalized or None
+
+    @field_validator("ai_content_fallback_model", mode="before")
+    @classmethod
+    def validate_optional_ai_content_fallback_model(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        if not isinstance(value, str):
+            raise TypeError("ai_content_fallback_model must be a string.")
         normalized = value.strip()
         return normalized or None
 

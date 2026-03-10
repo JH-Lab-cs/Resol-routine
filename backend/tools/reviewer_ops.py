@@ -14,8 +14,10 @@ from uuid import UUID
 from app.db.session import SessionLocal
 from app.models.enums import Skill, Track
 from app.services.content_backfill_service import (
+    BackfillEvaluationFilter,
     BackfillFilter,
     ContentBackfillExecutionError,
+    build_backfill_evaluation_report,
     build_content_backfill_plan,
     enqueue_content_backfill_jobs,
 )
@@ -133,6 +135,15 @@ def _build_parser() -> argparse.ArgumentParser:
     backfill_enqueue.add_argument("--execute", action="store_true")
     backfill_enqueue.set_defaults(handler=_cmd_backfill_enqueue)
 
+    backfill_eval_report = subparsers.add_parser(
+        "backfill-eval-report",
+        help="Summarize hard type-tag backfill evaluation runs.",
+    )
+    _add_batch_filters(backfill_eval_report)
+    backfill_eval_report.add_argument("--evaluation-label", dest="evaluation_label")
+    backfill_eval_report.add_argument("--model-name", dest="model_name")
+    backfill_eval_report.set_defaults(handler=_cmd_backfill_eval_report)
+
     batch_validate = subparsers.add_parser(
         "batch-validate",
         help="Validate matching draft revisions in bulk.",
@@ -195,6 +206,12 @@ def _add_backfill_budget_args(parser: argparse.ArgumentParser) -> None:
         dest="max_candidates_per_run",
         type=int,
     )
+    parser.add_argument("--model-override", dest="model_override")
+    parser.add_argument(
+        "--prompt-template-version",
+        dest="prompt_template_version_override",
+    )
+    parser.add_argument("--evaluation-label", dest="evaluation_label")
 
 
 def _base_url() -> str:
@@ -376,6 +393,9 @@ def _cmd_backfill_plan(args: argparse.Namespace) -> int:
             filters=_backfill_filters_from_args(args),
             max_targets_per_run=args.max_targets_per_run,
             max_candidates_per_run=args.max_candidates_per_run,
+            model_override=args.model_override,
+            prompt_template_version_override=args.prompt_template_version_override,
+            evaluation_label=args.evaluation_label,
         )
     return _emit(args=args, payload=payload)
 
@@ -388,7 +408,26 @@ def _cmd_backfill_enqueue(args: argparse.Namespace) -> int:
             max_targets_per_run=args.max_targets_per_run,
             max_candidates_per_run=args.max_candidates_per_run,
             provider_override=args.provider_override,
+            model_override=args.model_override,
+            prompt_template_version_override=args.prompt_template_version_override,
+            evaluation_label=args.evaluation_label,
             execute=args.execute,
+        )
+    return _emit(args=args, payload=payload)
+
+
+def _cmd_backfill_eval_report(args: argparse.Namespace) -> int:
+    with SessionLocal() as db:
+        payload = build_backfill_evaluation_report(
+            db,
+            filters=BackfillEvaluationFilter(
+                track=Track(args.track) if args.track is not None else None,
+                skill=Skill(args.skill) if args.skill is not None else None,
+                type_tag=args.type_tag,
+                evaluation_label=args.evaluation_label,
+                model_name=args.model_name,
+                limit=args.limit,
+            ),
         )
     return _emit(args=args, payload=payload)
 

@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from datetime import datetime
-from enum import Enum
 import json
 import unicodedata
+from datetime import datetime
+from enum import StrEnum
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -41,7 +41,9 @@ def _validate_identifier(value: str, *, field_name: str, max_length: int) -> str
     return normalized
 
 
-def _validate_optional_identifier(value: str | None, *, field_name: str, max_length: int) -> str | None:
+def _validate_optional_identifier(
+    value: str | None, *, field_name: str, max_length: int
+) -> str | None:
     if value is None:
         return None
     return _validate_identifier(value, field_name=field_name, max_length=max_length)
@@ -63,11 +65,15 @@ def _validate_multiline_text(value: str, *, field_name: str, max_length: int) ->
     return normalized
 
 
-class AIContentGenerationFailureCode(str, Enum):
+class AIContentGenerationFailureCode(StrEnum):
     PROVIDER_NOT_CONFIGURED = "PROVIDER_NOT_CONFIGURED"
     PROVIDER_TIMEOUT = "PROVIDER_TIMEOUT"
     PROVIDER_BAD_RESPONSE = "PROVIDER_BAD_RESPONSE"
     OUTPUT_SCHEMA_INVALID = "OUTPUT_SCHEMA_INVALID"
+    OUTPUT_VALIDATION_FAILED = "OUTPUT_VALIDATION_FAILED"
+    OUTPUT_MISSING_FIELD = "OUTPUT_MISSING_FIELD"
+    OUTPUT_OPTION_DUPLICATE = "OUTPUT_OPTION_DUPLICATE"
+    OUTPUT_SENTENCE_ID_MISMATCH = "OUTPUT_SENTENCE_ID_MISMATCH"
     VALIDATION_FAILED = "VALIDATION_FAILED"
     ARTIFACT_UPLOAD_FAILED = "ARTIFACT_UPLOAD_FAILED"
     DRAFT_PERSIST_FAILED = "DRAFT_PERSIST_FAILED"
@@ -152,7 +158,9 @@ class AIContentGenerationJobCreateRequest(BaseModel):
 
     @field_validator("target_matrix")
     @classmethod
-    def validate_target_matrix(cls, value: list[AIContentTargetMatrixRow]) -> list[AIContentTargetMatrixRow]:
+    def validate_target_matrix(
+        cls, value: list[AIContentTargetMatrixRow]
+    ) -> list[AIContentTargetMatrixRow]:
         if not value:
             raise ValueError("target_matrix_must_not_be_empty")
         if len(value) > AI_CONTENT_TARGET_MATRIX_MAX_ROWS:
@@ -176,7 +184,9 @@ class AIContentGenerationJobCreateRequest(BaseModel):
 
     @model_validator(mode="after")
     def validate_total_candidates(self) -> AIContentGenerationJobCreateRequest:
-        requested_count = sum(row.count for row in self.target_matrix) * self.candidate_count_per_target
+        requested_count = (
+            sum(row.count for row in self.target_matrix) * self.candidate_count_per_target
+        )
         if requested_count > AI_CONTENT_MAX_CANDIDATES_PER_JOB:
             raise ValueError("requested_candidates_too_many")
         return self
@@ -196,9 +206,15 @@ class AIContentGenerationJobResponse(BaseModel):
     provider_name: str | None = Field(serialization_alias="providerName")
     model_name: str | None = Field(serialization_alias="modelName")
     prompt_template_version: str | None = Field(serialization_alias="promptTemplateVersion")
-    input_artifact_object_key: str | None = Field(serialization_alias="inputArtifactObjectKey")
-    output_artifact_object_key: str | None = Field(serialization_alias="outputArtifactObjectKey")
-    candidate_snapshot_object_key: str | None = Field(serialization_alias="candidateSnapshotObjectKey")
+    input_artifact_object_key: str | None = Field(
+        serialization_alias="inputArtifactObjectKey"
+    )
+    output_artifact_object_key: str | None = Field(
+        serialization_alias="outputArtifactObjectKey"
+    )
+    candidate_snapshot_object_key: str | None = Field(
+        serialization_alias="candidateSnapshotObjectKey"
+    )
     attempt_count: int = Field(serialization_alias="attemptCount")
     last_error_code: str | None = Field(serialization_alias="lastErrorCode")
     last_error_message: str | None = Field(serialization_alias="lastErrorMessage")
@@ -243,8 +259,12 @@ class AIContentGenerationCandidateResponse(BaseModel):
     artifact_prompt_key: str | None = Field(serialization_alias="artifactPromptKey")
     artifact_response_key: str | None = Field(serialization_alias="artifactResponseKey")
     artifact_candidate_json_key: str | None = Field(serialization_alias="artifactCandidateJsonKey")
-    artifact_validation_report_key: str | None = Field(serialization_alias="artifactValidationReportKey")
-    materialized_content_unit_id: UUID | None = Field(serialization_alias="materializedContentUnitId")
+    artifact_validation_report_key: str | None = Field(
+        serialization_alias="artifactValidationReportKey"
+    )
+    materialized_content_unit_id: UUID | None = Field(
+        serialization_alias="materializedContentUnitId"
+    )
     materialized_revision_id: UUID | None = Field(serialization_alias="materializedRevisionId")
     materialized_at: datetime | None = Field(serialization_alias="materializedAt")
     created_at: datetime = Field(serialization_alias="createdAt")
@@ -260,5 +280,7 @@ class AIContentMaterializeDraftResponse(BaseModel):
     candidate_id: UUID = Field(serialization_alias="candidateId")
     content_unit_id: UUID = Field(serialization_alias="contentUnitId")
     content_revision_id: UUID = Field(serialization_alias="contentRevisionId")
-    revision_lifecycle_status: ContentLifecycleStatus = Field(serialization_alias="revisionLifecycleStatus")
+    revision_lifecycle_status: ContentLifecycleStatus = Field(
+        serialization_alias="revisionLifecycleStatus"
+    )
     materialized_at: datetime = Field(serialization_alias="materializedAt")
