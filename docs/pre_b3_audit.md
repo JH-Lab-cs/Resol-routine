@@ -650,3 +650,111 @@ Practical interpretation:
 
 - live generation-path risk is now closed for both `READING` and `LISTENING`
 - inventory depth risk is still open for `M3`, `H1`, and parts of `H2`
+
+## 11. B2.6.7 Controlled Inventory Backfill Execution
+
+This run used the same controlled execution policy as B2.6.6/B2.6.6a:
+
+- provider: `openai`
+- model: `gpt-5-mini`
+- prompt template: `content-v1`
+- max targets per run: `1`
+- max candidates per run: `2`
+
+The goal was not bulk generation. The goal was to reduce the next highest
+priority Daily deficits with very small live batches and then immediately
+validate, review, publish, and re-audit.
+
+### Successful batches
+
+1. `M3 / LISTENING / L_GIST / difficulty 1`
+   - generation job: `b55ddb7f-7bd5-453b-b194-a21a38308ca3`
+   - published revision: `378d429b-6361-4bde-acd5-40de52595788`
+   - effect:
+     - `M3 LISTENING total: 7 -> 8`
+     - `L_GIST: 2 -> 3`
+
+2. `H1 / LISTENING / L_DETAIL / difficulty 2`
+   - generation job: `fed0db38-c998-43b0-9be6-709a5a52e70d`
+   - published revision: `653e6ec5-a46f-4197-a935-bad5a52b16e4`
+   - effect:
+     - `H1 LISTENING total: 8 -> 9`
+     - `L_DETAIL: 2 -> 3`
+
+### Failed live batches
+
+The following small runs reached the real provider and worker path, but failed
+at generation validation with `OUTPUT_SCHEMA_INVALID`:
+
+- `M3 / LISTENING / L_LONG_TALK / difficulty 1`
+- `M3 / LISTENING / L_RESPONSE / difficulty 1`
+- `M3 / READING / R_INSERTION / difficulty 1`
+- `M3 / READING / R_MAIN_IDEA / difficulty 1`
+- `H1 / READING / R_BLANK / difficulty 2`
+- `H2 / READING / R_INSERTION / difficulty 3`
+
+Interpretation:
+
+- `gpt-5-mini` is stable enough for some small `LISTENING` count-focused deficits
+  (`L_GIST`, `L_DETAIL`)
+- the same model is still unstable for several missing-type deficits, especially
+  `R_INSERTION` and `L_LONG_TALK`
+- this is no longer a pipeline correctness problem; it is a model/typeTag fit
+  problem for low-cost controlled backfill
+
+### Before / after readiness summary
+
+- `M3`
+  - Daily: `WARNING -> WARNING`
+  - Weekly: `NOT_READY -> NOT_READY`
+  - Monthly: `NOT_READY -> NOT_READY`
+  - published counts:
+    - LISTENING `7 -> 8`
+    - READING `8 -> 8`
+
+- `H1`
+  - Daily: `WARNING -> WARNING`
+  - Weekly: `NOT_READY -> NOT_READY`
+  - Monthly: `NOT_READY -> NOT_READY`
+  - published counts:
+    - LISTENING `8 -> 9`
+    - READING `8 -> 8`
+
+- `H2`
+  - Daily: `WARNING -> WARNING`
+  - Weekly: `READY -> READY`
+  - Monthly: `NOT_READY -> NOT_READY`
+  - published counts:
+    - LISTENING `13 -> 13`
+    - READING `10 -> 10`
+
+- `H3`
+  - unchanged
+
+### Remaining deficit interpretation after this run
+
+- `M3`
+  - still needs additional Daily count
+  - still missing `L_RESPONSE`, `L_SITUATION`, `L_LONG_TALK`
+  - still missing `R_ORDER`, `R_INSERTION`, `R_SUMMARY`, `R_VOCAB`
+
+- `H1`
+  - still needs additional Daily count
+  - still missing `L_SITUATION`, `L_LONG_TALK`
+  - still missing `R_BLANK`, `R_ORDER`, `R_INSERTION`, `R_SUMMARY`
+
+- `H2`
+  - Weekly remains serviceable
+  - Monthly remains blocked by reading-side inventory and diversity
+
+### Practical next step
+
+For the next controlled run, the evidence now supports:
+
+1. keep using very small batches
+2. keep `Daily` ahead of `Weekly/Monthly`
+3. prefer proven schema-friendly deficits first
+4. treat `R_INSERTION`, `L_LONG_TALK`, and similar harder typeTags as either:
+   - a prompt-tuning follow-up, or
+   - a model-selection follow-up (for example `gpt-4.1-mini`) before larger
+     inventory fill
