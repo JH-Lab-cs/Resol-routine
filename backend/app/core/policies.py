@@ -96,6 +96,10 @@ AI_CONTENT_MODEL_COST_ESTIMATES = {
     "gpt-5-mini": {"input": 0.25, "output": 2.0},
     "gpt-4.1-mini": {"input": 0.40, "output": 1.60},
 }
+AI_CONTENT_APPROVED_FALLBACK_MODELS_BY_TYPETAG = {
+    "L_LONG_TALK": "gpt-4.1-mini",
+    "R_INSERTION": "gpt-4.1-mini",
+}
 
 CONTENT_ASSET_ALLOWED_MIME_TYPES = (
     "application/json",

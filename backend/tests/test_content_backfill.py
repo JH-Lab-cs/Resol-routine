@@ -142,6 +142,41 @@ def test_backfill_plan_supports_model_override_and_evaluation_label(
     assert preview["estimatedCostUsd"] > 0
 
 
+def test_backfill_plan_routes_approved_hard_typetag_to_fallback_model(
+    db_session_factory,
+    monkeypatch,
+    configured_content_backfill_settings,
+) -> None:
+    monkeypatch.setattr(
+        "app.services.content_backfill_service.settings.ai_content_fallback_model",
+        "gpt-4.1-mini",
+    )
+    with db_session_factory() as db:
+        seed_dev_content_and_mock_samples(db)
+        db.commit()
+
+    with db_session_factory() as db:
+        plan = build_content_backfill_plan(
+            db,
+            filters=BackfillFilter(
+                track=Track.M3,
+                skill=Skill.LISTENING,
+                type_tag="L_LONG_TALK",
+                limit=1,
+            ),
+            evaluation_label="fallback-routing-check",
+        )
+
+    preview = plan["enqueuePreview"]
+    assert preview["model"] == "unit-test-content-model"
+    assert preview["fallbackModel"] == "gpt-4.1-mini"
+    assert preview["evaluationLabel"] == "fallback-routing-check"
+    assert len(preview["jobs"]) == 1
+    assert preview["jobs"][0]["modelName"] == "gpt-4.1-mini"
+    assert preview["jobs"][0]["fallbackTriggered"] is True
+    assert preview["jobs"][0]["fallbackTypeTags"] == ["L_LONG_TALK"]
+
+
 def test_content_readiness_audit_cli_uses_service_limits_by_default() -> None:
     args = build_content_readiness_audit_parser().parse_args(["--with-backfill-plan"])
 
@@ -213,6 +248,49 @@ def test_backfill_enqueue_execute_creates_ai_generation_jobs(
         assert jobs[0].metadata_json["evaluationLabel"] == "hard-typetag-ab"
 
 
+def test_backfill_enqueue_execute_records_fallback_trigger_metadata(
+    db_session_factory,
+    monkeypatch,
+    configured_content_backfill_settings,
+) -> None:
+    monkeypatch.setattr(
+        "app.services.content_backfill_service.settings.ai_content_fallback_model",
+        "gpt-4.1-mini",
+    )
+    monkeypatch.setattr(
+        "app.services.content_backfill_service.run_post_commit_ai_content_generation_tasks",
+        lambda db: None,
+    )
+    with db_session_factory() as db:
+        seed_dev_content_and_mock_samples(db)
+        db.commit()
+
+    with db_session_factory() as db:
+        result = enqueue_content_backfill_jobs(
+            db,
+            filters=BackfillFilter(
+                track=Track.H1,
+                skill=Skill.READING,
+                type_tag="R_INSERTION",
+                limit=1,
+            ),
+            max_targets_per_run=1,
+            max_candidates_per_run=4,
+            evaluation_label="fallback-routing-check",
+            execute=True,
+        )
+
+    assert result["enqueueSummary"]["executed"] is True
+    assert result["enqueueSummary"]["jobCount"] == 1
+
+    with db_session_factory() as db:
+        job = db.query(AIContentGenerationJob).one()
+        assert job.metadata_json["requestedModelName"] == "gpt-4.1-mini"
+        assert job.metadata_json["fallbackTriggered"] is True
+        assert job.metadata_json["fallbackTypeTags"] == ["R_INSERTION"]
+        assert job.metadata_json["evaluationLabel"] == "fallback-routing-check"
+
+
 def test_backfill_evaluation_report_summarizes_publishable_item_rates(
     db_session_factory,
     configured_content_backfill_settings,
@@ -249,6 +327,8 @@ def test_backfill_evaluation_report_summarizes_publishable_item_rates(
                 "source": "content_readiness_backfill",
                 "estimatedCostUsd": 0.25,
                 "evaluationLabel": "hard-typetag-ab",
+                "fallbackTriggered": True,
+                "fallbackTypeTags": ["R_INSERTION"],
                 "originatingDeficitPlan": [
                     {
                         "track": "M3",
@@ -330,8 +410,11 @@ def test_backfill_evaluation_report_summarizes_publishable_item_rates(
     assert report["runs"][0]["materializeSuccessRate"] == 1.0
     assert report["runs"][0]["publishableItemRate"] == 1.0
     assert report["runs"][0]["publishableItemPerDollar"] == 4.0
+    assert report["runs"][0]["fallbackTriggered"] is True
+    assert report["runs"][0]["fallbackTypeTags"] == ["R_INSERTION"]
     assert report["aggregates"][0]["typeTag"] == "R_INSERTION"
     assert report["aggregates"][0]["publishableItemPerDollar"] == 4.0
+    assert report["aggregates"][0]["fallbackTriggered"] is True
 
 
 def test_backfill_evaluation_report_falls_back_to_requested_model_for_failed_jobs(

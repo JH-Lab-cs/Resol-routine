@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.content_type_taxonomy import canonical_type_tags_for_skill
 from app.core.policies import (
+    AI_CONTENT_APPROVED_FALLBACK_MODELS_BY_TYPETAG,
     AI_CONTENT_MAX_CANDIDATES_PER_JOB,
     AI_CONTENT_MODEL_COST_ESTIMATES,
     CONTENT_BACKFILL_DEFAULT_CANDIDATE_COUNT_PER_TARGET,
@@ -111,6 +112,13 @@ class ContentBackfillExecutionConfig:
     estimated_output_cost_per_million_tokens: float
 
 
+@dataclass(frozen=True, slots=True)
+class BackfillBatchModelSelection:
+    model_name: str
+    fallback_triggered: bool
+    fallback_type_tags: tuple[str, ...]
+
+
 def build_content_backfill_plan(
     db: Session,
     *,
@@ -149,6 +157,7 @@ def build_content_backfill_plan(
         target_batches=target_batches,
         execution_config=execution_config,
         evaluation_label=evaluation_label,
+        explicit_model_override=model_override,
     )
 
     return {
@@ -269,9 +278,11 @@ def enqueue_content_backfill_jobs(
                     "estimatedPromptTokens": job_preview["estimatedPromptTokens"],
                     "estimatedOutputTokens": job_preview["estimatedOutputTokens"],
                     "costComputation": preview["costComputation"],
-                    "requestedModelName": preview["model"],
+                    "requestedModelName": job_preview["modelName"],
                     "requestedPromptTemplateVersion": preview["promptTemplateVersion"],
                     "fallbackModelName": preview["fallbackModel"],
+                    "fallbackTriggered": job_preview["fallbackTriggered"],
+                    "fallbackTypeTags": job_preview["fallbackTypeTags"],
                     "evaluationLabel": preview["evaluationLabel"],
                 },
             }
@@ -679,11 +690,18 @@ def _build_queue_preview(
     target_batches: list[list[dict[str, Any]]],
     execution_config: ContentBackfillExecutionConfig,
     evaluation_label: str | None,
+    explicit_model_override: str | None,
 ) -> dict[str, object]:
     jobs: list[dict[str, object]] = []
     estimated_prompt_tokens = 0
     estimated_output_tokens = 0
+    estimated_cost_usd = 0.0
     for index, batch in enumerate(target_batches, start=1):
+        model_selection = _resolve_batch_model_selection(
+            batch=batch,
+            execution_config=execution_config,
+            explicit_model_override=explicit_model_override,
+        )
         candidate_total = sum(int(row["count"]) for row in batch)
         prompt_tokens = (
             CONTENT_BACKFILL_ESTIMATED_PROMPT_TOKENS_PER_JOB
@@ -692,11 +710,24 @@ def _build_queue_preview(
         output_tokens = candidate_total * CONTENT_BACKFILL_ESTIMATED_OUTPUT_TOKENS_PER_CANDIDATE
         estimated_prompt_tokens += prompt_tokens
         estimated_output_tokens += output_tokens
+        job_execution_config = _execution_config_for_model(
+            execution_config=execution_config,
+            model_name=model_selection.model_name,
+        )
+        job_estimated_cost = _estimate_cost_usd(
+            prompt_tokens=prompt_tokens,
+            output_tokens=output_tokens,
+            execution_config=job_execution_config,
+        )
+        estimated_cost_usd += job_estimated_cost
         jobs.append(
             {
                 "index": index,
                 "targetCount": len(batch),
                 "candidateCount": candidate_total,
+                "modelName": model_selection.model_name,
+                "fallbackTriggered": model_selection.fallback_triggered,
+                "fallbackTypeTags": list(model_selection.fallback_type_tags),
                 "primaryReasons": sorted(
                     {str(row["reason"]) for row in batch},
                     key=_reason_priority,
@@ -705,11 +736,7 @@ def _build_queue_preview(
                 "estimatedOutputTokens": output_tokens,
                 "estimatedTotalTokens": prompt_tokens + output_tokens,
                 "estimatedProviderCalls": 1,
-                "estimatedCostUsd": _estimate_cost_usd(
-                    prompt_tokens=prompt_tokens,
-                    output_tokens=output_tokens,
-                    execution_config=execution_config,
-                ),
+                "estimatedCostUsd": round(job_estimated_cost, 6),
                 "evaluationLabel": evaluation_label,
                 "originatingDeficits": [
                     {
@@ -739,11 +766,6 @@ def _build_queue_preview(
         )
 
     estimated_total_tokens = estimated_prompt_tokens + estimated_output_tokens
-    estimated_cost_usd = _estimate_cost_usd(
-        prompt_tokens=estimated_prompt_tokens,
-        output_tokens=estimated_output_tokens,
-        execution_config=execution_config,
-    )
     return {
         "dryRunDefault": execution_config.default_dry_run,
         "provider": execution_config.provider_name,
@@ -761,7 +783,7 @@ def _build_queue_preview(
         "estimatedPromptTokens": estimated_prompt_tokens,
         "estimatedOutputTokens": estimated_output_tokens,
         "estimatedTotalTokens": estimated_total_tokens,
-        "estimatedCostUsd": estimated_cost_usd,
+        "estimatedCostUsd": round(estimated_cost_usd, 6),
         "costComputation": "heuristic_per_million_tokens",
         "jobs": jobs,
     }
@@ -923,6 +945,75 @@ def _resolve_execution_config(
             if estimated_costs is not None
             else settings.ai_content_estimated_output_cost_per_million_tokens
         ),
+    )
+
+
+def _execution_config_for_model(
+    *,
+    execution_config: ContentBackfillExecutionConfig,
+    model_name: str,
+) -> ContentBackfillExecutionConfig:
+    estimated_costs = AI_CONTENT_MODEL_COST_ESTIMATES.get(model_name)
+    if estimated_costs is None:
+        return execution_config
+    return ContentBackfillExecutionConfig(
+        provider_name=execution_config.provider_name,
+        provider_configured=execution_config.provider_configured,
+        api_key_present=execution_config.api_key_present,
+        model_name=model_name,
+        fallback_model_name=execution_config.fallback_model_name,
+        prompt_template_version=execution_config.prompt_template_version,
+        max_targets_per_run=execution_config.max_targets_per_run,
+        max_candidates_per_run=execution_config.max_candidates_per_run,
+        max_estimated_cost_usd=execution_config.max_estimated_cost_usd,
+        default_dry_run=execution_config.default_dry_run,
+        estimated_input_cost_per_million_tokens=float(estimated_costs["input"]),
+        estimated_output_cost_per_million_tokens=float(estimated_costs["output"]),
+    )
+
+
+def _resolve_batch_model_selection(
+    *,
+    batch: list[dict[str, Any]],
+    execution_config: ContentBackfillExecutionConfig,
+    explicit_model_override: str | None,
+) -> BackfillBatchModelSelection:
+    if explicit_model_override is not None:
+        return BackfillBatchModelSelection(
+            model_name=execution_config.model_name,
+            fallback_triggered=False,
+            fallback_type_tags=(),
+        )
+
+    batch_type_tags = {
+        str(row["typeTag"])
+        for row in batch
+        if isinstance(row.get("typeTag"), str) and str(row["typeTag"])
+    }
+    if not batch_type_tags or execution_config.fallback_model_name is None:
+        return BackfillBatchModelSelection(
+            model_name=execution_config.model_name,
+            fallback_triggered=False,
+            fallback_type_tags=(),
+        )
+
+    approved_fallback_tags = sorted(
+        type_tag
+        for type_tag in batch_type_tags
+        if AI_CONTENT_APPROVED_FALLBACK_MODELS_BY_TYPETAG.get(type_tag)
+        == execution_config.fallback_model_name
+    )
+    if len(approved_fallback_tags) != len(batch_type_tags):
+        return BackfillBatchModelSelection(
+            model_name=execution_config.model_name,
+            fallback_triggered=False,
+            fallback_type_tags=(),
+        )
+
+    return BackfillBatchModelSelection(
+        model_name=execution_config.fallback_model_name,
+        fallback_triggered=True,
+        fallback_type_tags=tuple(approved_fallback_tags),
     )
 
 
@@ -1138,6 +1229,12 @@ def _build_evaluation_run_summary(
         "modelName": job.model_name or str(metadata.get("requestedModelName") or "unknown"),
         "promptTemplateVersion": job.prompt_template_version
         or str(metadata.get("requestedPromptTemplateVersion") or "unknown"),
+        "fallbackTriggered": bool(metadata.get("fallbackTriggered")),
+        "fallbackTypeTags": [
+            str(value)
+            for value in metadata.get("fallbackTypeTags", [])
+            if isinstance(value, str)
+        ],
         "evaluationLabel": metadata.get("evaluationLabel"),
         "track": candidates[0].track.value if candidates else fallback_track,
         "skill": candidates[0].skill.value if candidates else fallback_skill,
@@ -1184,6 +1281,7 @@ def _accumulate_evaluation_aggregate(
                 "modelName": model_name,
                 "promptTemplateVersion": prompt_template_version,
                 "typeTag": type_tag,
+                "fallbackTriggered": bool(run_summary.get("fallbackTriggered")),
                 "jobCount": 0,
                 "candidateCount": 0,
                 "validCandidateCount": 0,
@@ -1222,6 +1320,7 @@ def _finalize_evaluation_aggregate(entry: dict[str, Any]) -> dict[str, object]:
         "modelName": entry["modelName"],
         "promptTemplateVersion": entry["promptTemplateVersion"],
         "typeTag": entry["typeTag"],
+        "fallbackTriggered": bool(entry["fallbackTriggered"]),
         "jobCount": int(entry["jobCount"]),
         "candidateCount": candidate_count,
         "validCandidateCount": int(entry["validCandidateCount"]),
