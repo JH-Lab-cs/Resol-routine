@@ -100,6 +100,7 @@ def test_ai_content_provider_specific_values_resolve_with_fallback(
             "AI_CONTENT_PROVIDER": "openai",
             "AI_CONTENT_API_KEY": "content-api-key",
             "AI_CONTENT_MODEL": "gpt-4.1-mini",
+            "AI_CONTENT_FALLBACK_MODEL": "gpt-4.1-mini",
             "AI_CONTENT_PROMPT_TEMPLATE_VERSION": "content-v2",
             "AI_CONTENT_MAX_ESTIMATED_COST_USD": "3.5",
         }
@@ -111,6 +112,7 @@ def test_ai_content_provider_specific_values_resolve_with_fallback(
     assert settings.resolved_ai_content_provider == "openai"
     assert settings.resolved_ai_content_api_key == "content-api-key"
     assert settings.ai_content_model == "gpt-4.1-mini"
+    assert settings.ai_content_fallback_model == "gpt-4.1-mini"
     assert settings.ai_content_prompt_template_version == "content-v2"
     assert settings.ai_content_max_estimated_cost_usd == 3.5
 

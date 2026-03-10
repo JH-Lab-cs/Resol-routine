@@ -140,6 +140,23 @@ def captured_ai_content_enqueues(monkeypatch: pytest.MonkeyPatch) -> list[UUID]:
     return captured
 
 
+def _patch_provider_builder(
+    monkeypatch: pytest.MonkeyPatch,
+    provider: object,
+) -> None:
+    def _builder(
+        *, provider_override=None, model_override=None, prompt_template_version_override=None
+    ):
+        del provider_override, model_override, prompt_template_version_override
+        return provider
+
+    monkeypatch.setattr(
+        ai_content_generation_service,
+        "build_ai_content_generation_provider",
+        _builder,
+    )
+
+
 def _internal_headers(api_key: str = INTERNAL_API_KEY) -> dict[str, str]:
     return {"X-Internal-Api-Key": api_key}
 
@@ -197,6 +214,24 @@ def _valid_candidate(
     }
 
     if skill == Skill.READING:
+        passage = (
+            "Sentence one provides context. "
+            "Sentence two gives evidence. "
+            "Sentence three confirms conclusion."
+        )
+        stem = "Which option best matches the passage?"
+        if type_tag == ContentTypeTag.R_BLANK:
+            passage = "Sentence one provides context. [BLANK] Sentence three confirms conclusion."
+            stem = "Which option best fills the [BLANK]?"
+        elif type_tag == ContentTypeTag.R_INSERTION:
+            passage = (
+                "Sentence one provides context. [1] Sentence two gives evidence. "
+                "[2] Sentence three confirms conclusion. [3] Sentence four adds contrast. [4]"
+            )
+            stem = "Where should the sentence be inserted?"
+        elif type_tag == ContentTypeTag.R_VOCAB:
+            stem = "What is the meaning of the underlined word in context?"
+
         return GeneratedContentCandidate(
             track=track,
             skill=skill,
@@ -204,11 +239,7 @@ def _valid_candidate(
             difficulty=difficulty,
             source_policy=ContentSourcePolicy.AI_ORIGINAL,
             title="Generated reading unit",
-            passage=(
-                "Sentence one provides context. "
-                "Sentence two gives evidence. "
-                "Sentence three confirms conclusion."
-            ),
+            passage=passage,
             transcript=None,
             turns=[],
             sentences=[
@@ -217,7 +248,7 @@ def _valid_candidate(
                 {"id": "s3", "text": "Sentence three confirms conclusion."},
             ],
             tts_plan={},
-            stem="Which option best matches the passage?",
+            stem=stem,
             options=options,
             answer_key="A",
             explanation=(
@@ -231,6 +262,33 @@ def _valid_candidate(
             structure_notes_ko="근거 문장(s2)과 결론 문장(s3)을 연결해 판단하세요.",
         )
 
+    transcript = (
+        "A: Could you summarize the key point?\n"
+        "B: We must verify evidence before deciding."
+    )
+    turns = [
+        {"speaker": "A", "text": "Could you summarize the key point?"},
+        {"speaker": "B", "text": "We must verify evidence before deciding."},
+    ]
+    sentences = [
+        {"id": "s1", "text": "Could you summarize the key point?"},
+        {"id": "s2", "text": "We must verify evidence before deciding."},
+    ]
+    if type_tag == ContentTypeTag.L_LONG_TALK:
+        turns = [
+            {"speaker": "A", "text": "Welcome to the school radio update."},
+            {"speaker": "B", "text": "Today we will explain the field-trip schedule."},
+            {"speaker": "A", "text": "Students should gather by 8 a.m. at the main gate."},
+            {"speaker": "B", "text": "Please bring water and a notebook for observations."},
+        ]
+        transcript = "\n".join(f"{turn['speaker']}: {turn['text']}" for turn in turns)
+        sentences = [
+            {"id": "s1", "text": "Welcome to the school radio update."},
+            {"id": "s2", "text": "Today we will explain the field-trip schedule."},
+            {"id": "s3", "text": "Students should gather by 8 a.m. at the main gate."},
+            {"id": "s4", "text": "Please bring water and a notebook for observations."},
+        ]
+
     return GeneratedContentCandidate(
         track=track,
         skill=skill,
@@ -239,18 +297,9 @@ def _valid_candidate(
         source_policy=ContentSourcePolicy.AI_ORIGINAL,
         title="Generated listening unit",
         passage=None,
-        transcript=(
-            "A: Could you summarize the key point?\n"
-            "B: We must verify evidence before deciding."
-        ),
-        turns=[
-            {"speaker": "A", "text": "Could you summarize the key point?"},
-            {"speaker": "B", "text": "We must verify evidence before deciding."},
-        ],
-        sentences=[
-            {"id": "s1", "text": "Could you summarize the key point?"},
-            {"id": "s2", "text": "We must verify evidence before deciding."},
-        ],
+        transcript=transcript,
+        turns=turns,
+        sentences=sentences,
         tts_plan={"voice": "en-US-neutral", "pace": "normal"},
         stem="What is the best interpretation of the dialogue?",
         options=options,
@@ -398,7 +447,9 @@ def test_provider_not_configured_failure(
     ]
     job = _create_job(client, request_id="content-job-provider-missing", matrix=matrix)
 
-    def raise_not_configured(*, provider_override=None):
+    def raise_not_configured(
+        *, provider_override=None, model_override=None, prompt_template_version_override=None
+    ):
         raise AIProviderError(
             code="PROVIDER_NOT_CONFIGURED",
             message="provider missing",
@@ -428,7 +479,9 @@ def test_malformed_provider_response_rejected(
     ]
     job = _create_job(client, request_id="content-job-bad-response", matrix=matrix)
 
-    def raise_bad_response(*, provider_override=None):
+    def raise_bad_response(
+        *, provider_override=None, model_override=None, prompt_template_version_override=None
+    ):
         raise AIProviderError(
             code="PROVIDER_BAD_RESPONSE",
             message="bad response",
@@ -468,11 +521,7 @@ def test_hidden_unicode_invalid_options_and_invalid_evidence_are_rejected(
         evidence_sentence_ids=["missing-sentence"],
     )
 
-    monkeypatch.setattr(
-        ai_content_generation_service,
-        "build_ai_content_generation_provider",
-        lambda provider_override=None: StaticProvider([bad]),
-    )
+    _patch_provider_builder(monkeypatch, StaticProvider([bad]))
 
     matrix = [
         {"track": "H2", "skill": "READING", "typeTag": "R_MAIN_IDEA", "difficulty": 3, "count": 1}
@@ -490,7 +539,7 @@ def test_hidden_unicode_invalid_options_and_invalid_evidence_are_rejected(
     body = listed.json()
     assert len(body["items"]) == 1
     assert body["items"][0]["status"] == AIContentGenerationCandidateStatus.INVALID.value
-    assert body["items"][0]["failureCode"] == "VALIDATION_FAILED"
+    assert body["items"][0]["failureCode"] == "OUTPUT_OPTION_DUPLICATE"
 
 
 def test_skill_type_tag_and_difficulty_mismatch_rejected(
@@ -510,11 +559,7 @@ def test_skill_type_tag_and_difficulty_mismatch_rejected(
         tts_plan={},
     )
 
-    monkeypatch.setattr(
-        ai_content_generation_service,
-        "build_ai_content_generation_provider",
-        lambda provider_override=None: StaticProvider([bad]),
-    )
+    _patch_provider_builder(monkeypatch, StaticProvider([bad]))
 
     matrix = [
         {"track": "H2", "skill": "LISTENING", "typeTag": "L_DETAIL", "difficulty": 3, "count": 1}
@@ -531,6 +576,102 @@ def test_skill_type_tag_and_difficulty_mismatch_rejected(
     assert listed.json()["items"][0]["status"] == AIContentGenerationCandidateStatus.INVALID.value
 
 
+def test_hard_typetag_listening_alignment_errors_map_to_sentence_mismatch(
+    client: TestClient,
+    db_session_factory,
+    fake_ai_artifact_store: FakeAIArtifactStore,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    bad = _valid_candidate(
+        skill=Skill.LISTENING,
+        type_tag=ContentTypeTag.L_LONG_TALK,
+        track=Track.M3,
+        difficulty=1,
+    )
+    bad = replace(
+        bad,
+        transcript="A: Hello\nB: Thanks",
+        turns=[
+            {"speaker": "A", "text": "Hello"},
+            {"speaker": "B", "text": "Thanks"},
+            {"speaker": "A", "text": "Missing from transcript"},
+            {"speaker": "B", "text": "Still missing"},
+        ],
+        sentences=[
+            {"id": "s1", "text": "Hello"},
+            {"id": "s2", "text": "Thanks"},
+            {"id": "s3", "text": "Missing from transcript"},
+            {"id": "s4", "text": "Still missing"},
+        ],
+    )
+
+    _patch_provider_builder(monkeypatch, StaticProvider([bad]))
+
+    job = _create_job(
+        client,
+        request_id="content-job-hard-listening-invalid",
+        matrix=[
+            {
+                "track": "M3",
+                "skill": "LISTENING",
+                "typeTag": "L_LONG_TALK",
+                "difficulty": 1,
+                "count": 1,
+            }
+        ],
+    )
+    _run_job_once(db_session_factory, job_id=job["id"])
+
+    listed = client.get(
+        f"/internal/ai/content-generation/jobs/{job['id']}/candidates",
+        headers=_internal_headers(),
+    )
+    assert listed.status_code == 200, listed.text
+    assert listed.json()["items"][0]["failureCode"] == "OUTPUT_SENTENCE_ID_MISMATCH"
+
+
+def test_hard_typetag_reading_missing_marker_maps_to_missing_field(
+    client: TestClient,
+    db_session_factory,
+    fake_ai_artifact_store: FakeAIArtifactStore,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    bad = _valid_candidate(
+        skill=Skill.READING,
+        type_tag=ContentTypeTag.R_BLANK,
+        track=Track.M3,
+        difficulty=1,
+    )
+    bad = replace(
+        bad,
+        passage="Sentence one provides context. Sentence three confirms conclusion.",
+    )
+
+    _patch_provider_builder(monkeypatch, StaticProvider([bad]))
+
+    job = _create_job(
+        client,
+        request_id="content-job-hard-reading-missing-marker",
+        matrix=[
+            {
+                "track": "M3",
+                "skill": "READING",
+                "typeTag": "R_BLANK",
+                "difficulty": 1,
+                "count": 1,
+            }
+        ],
+    )
+    _run_job_once(db_session_factory, job_id=job["id"])
+
+    listed = client.get(
+        f"/internal/ai/content-generation/jobs/{job['id']}/candidates",
+        headers=_internal_headers(),
+    )
+    assert listed.status_code == 200, listed.text
+    assert listed.json()["items"][0]["failureCode"] == "OUTPUT_MISSING_FIELD"
+
+
 def test_materialize_reading_and_listening_draft_success_and_not_auto_published(
     client: TestClient,
     db_session_factory,
@@ -540,11 +681,7 @@ def test_materialize_reading_and_listening_draft_success_and_not_auto_published(
     reading = _valid_candidate(skill=Skill.READING, type_tag=ContentTypeTag.R_MAIN_IDEA)
     listening = _valid_candidate(skill=Skill.LISTENING, type_tag=ContentTypeTag.L_DETAIL)
 
-    monkeypatch.setattr(
-        ai_content_generation_service,
-        "build_ai_content_generation_provider",
-        lambda provider_override=None: StaticProvider([reading, listening]),
-    )
+    _patch_provider_builder(monkeypatch, StaticProvider([reading, listening]))
 
     matrix = [
         {"track": "H2", "skill": "READING", "typeTag": "R_MAIN_IDEA", "difficulty": 3, "count": 1},
@@ -608,11 +745,7 @@ def test_materialize_draft_propagates_job_source_metadata(
         difficulty=1,
     )
 
-    monkeypatch.setattr(
-        ai_content_generation_service,
-        "build_ai_content_generation_provider",
-        lambda provider_override=None: StaticProvider([reading]),
-    )
+    _patch_provider_builder(monkeypatch, StaticProvider([reading]))
 
     response = client.post(
         "/internal/ai/content-generation/jobs",
@@ -670,11 +803,7 @@ def test_artifact_upload_failure_marks_job_failed(
 ) -> None:
     reading = _valid_candidate(skill=Skill.READING, type_tag=ContentTypeTag.R_MAIN_IDEA)
 
-    monkeypatch.setattr(
-        ai_content_generation_service,
-        "build_ai_content_generation_provider",
-        lambda provider_override=None: StaticProvider([reading]),
-    )
+    _patch_provider_builder(monkeypatch, StaticProvider([reading]))
     monkeypatch.setattr(
         ai_content_generation_service, "get_ai_artifact_store", lambda: FailingArtifactStore()
     )
@@ -716,11 +845,7 @@ def test_retry_after_transient_failure_is_safe_and_no_duplicate_candidates(
             return StaticProvider([reading]).generate_candidates(context=context)
 
     flaky = FlakyProvider()
-    monkeypatch.setattr(
-        ai_content_generation_service,
-        "build_ai_content_generation_provider",
-        lambda provider_override=None: flaky,
-    )
+    _patch_provider_builder(monkeypatch, flaky)
 
     matrix = [
         {"track": "H2", "skill": "READING", "typeTag": "R_MAIN_IDEA", "difficulty": 3, "count": 1}
@@ -761,11 +886,7 @@ def test_traceability_fields_and_artifact_keys_are_saved(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     candidate = _valid_candidate(skill=Skill.READING, type_tag=ContentTypeTag.R_MAIN_IDEA)
-    monkeypatch.setattr(
-        ai_content_generation_service,
-        "build_ai_content_generation_provider",
-        lambda provider_override=None: StaticProvider([candidate]),
-    )
+    _patch_provider_builder(monkeypatch, StaticProvider([candidate]))
 
     matrix = [
         {"track": "H2", "skill": "READING", "typeTag": "R_MAIN_IDEA", "difficulty": 3, "count": 1}
@@ -804,11 +925,7 @@ def test_generated_candidate_materialization_is_not_auto_published_in_current_ex
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     candidate = _valid_candidate(skill=Skill.READING, type_tag=ContentTypeTag.R_MAIN_IDEA)
-    monkeypatch.setattr(
-        ai_content_generation_service,
-        "build_ai_content_generation_provider",
-        lambda provider_override=None: StaticProvider([candidate]),
-    )
+    _patch_provider_builder(monkeypatch, StaticProvider([candidate]))
 
     matrix = [
         {"track": "H2", "skill": "READING", "typeTag": "R_MAIN_IDEA", "difficulty": 3, "count": 1}

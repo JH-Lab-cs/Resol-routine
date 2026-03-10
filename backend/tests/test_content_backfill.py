@@ -5,15 +5,25 @@ from uuid import UUID
 
 import pytest
 
+from app.models.ai_content_generation_candidate import AIContentGenerationCandidate
 from app.models.ai_content_generation_job import AIContentGenerationJob
 from app.models.content_enums import ContentLifecycleStatus
 from app.models.content_question import ContentQuestion
 from app.models.content_unit import ContentUnit
 from app.models.content_unit_revision import ContentUnitRevision
-from app.models.enums import Skill, Track
+from app.models.enums import (
+    AIContentGenerationCandidateStatus,
+    AIGenerationJobStatus,
+    ContentSourcePolicy,
+    ContentTypeTag,
+    Skill,
+    Track,
+)
 from app.services.content_backfill_service import (
+    BackfillEvaluationFilter,
     BackfillFilter,
     ContentBackfillExecutionError,
+    build_backfill_evaluation_report,
     build_content_backfill_plan,
     enqueue_content_backfill_jobs,
 )
@@ -40,6 +50,10 @@ def configured_content_backfill_settings(monkeypatch: pytest.MonkeyPatch) -> Non
     monkeypatch.setattr(
         "app.services.content_backfill_service.settings.ai_content_model",
         "unit-test-content-model",
+    )
+    monkeypatch.setattr(
+        "app.services.content_backfill_service.settings.ai_content_fallback_model",
+        None,
     )
     monkeypatch.setattr(
         "app.services.content_backfill_service.settings.ai_content_prompt_template_version",
@@ -105,6 +119,29 @@ def test_backfill_plan_prioritizes_daily_deficits_and_keeps_dry_run_default(
     assert all(job["originatingDeficits"] for job in preview["jobs"])
 
 
+def test_backfill_plan_supports_model_override_and_evaluation_label(
+    db_session_factory,
+    configured_content_backfill_settings,
+) -> None:
+    with db_session_factory() as db:
+        seed_dev_content_and_mock_samples(db)
+        db.commit()
+
+    with db_session_factory() as db:
+        plan = build_content_backfill_plan(
+            db,
+            filters=BackfillFilter(track=Track.M3, skill=Skill.LISTENING, type_tag="L_LONG_TALK"),
+            model_override="gpt-4.1-mini",
+            evaluation_label="hard-typetag-ab",
+        )
+
+    preview = plan["enqueuePreview"]
+    assert preview["model"] == "gpt-4.1-mini"
+    assert preview["fallbackModel"] is None
+    assert preview["evaluationLabel"] == "hard-typetag-ab"
+    assert preview["estimatedCostUsd"] > 0
+
+
 def test_content_readiness_audit_cli_uses_service_limits_by_default() -> None:
     args = build_content_readiness_audit_parser().parse_args(["--with-backfill-plan"])
 
@@ -154,6 +191,8 @@ def test_backfill_enqueue_execute_creates_ai_generation_jobs(
             filters=BackfillFilter(track=Track.M3, skill=Skill.LISTENING, limit=3),
             max_targets_per_run=2,
             max_candidates_per_run=6,
+            model_override="gpt-4.1-mini",
+            evaluation_label="hard-typetag-ab",
             execute=True,
         )
 
@@ -170,6 +209,189 @@ def test_backfill_enqueue_execute_creates_ai_generation_jobs(
         assert jobs[0].metadata_json["source"] == "content_readiness_backfill"
         assert jobs[0].metadata_json["estimatedCostUsd"] > 0
         assert jobs[0].metadata_json["originatingDeficitPlan"]
+        assert jobs[0].metadata_json["requestedModelName"] == "gpt-4.1-mini"
+        assert jobs[0].metadata_json["evaluationLabel"] == "hard-typetag-ab"
+
+
+def test_backfill_evaluation_report_summarizes_publishable_item_rates(
+    db_session_factory,
+    configured_content_backfill_settings,
+) -> None:
+    with db_session_factory() as db:
+        unit_id, revision_id = _create_content_revision(
+            db,
+            external_id="backfill-eval-published",
+            track=Track.M3,
+            skill=Skill.READING,
+            type_tag="R_INSERTION",
+            difficulty=1,
+            lifecycle_status=ContentLifecycleStatus.PUBLISHED,
+            metadata_extra={
+                "source": "content_readiness_backfill",
+                "generationJobId": "99999999-9999-9999-9999-999999999999",
+            },
+        )
+        job = AIContentGenerationJob(
+            request_id="backfill-eval-report-job",
+            status=AIGenerationJobStatus.SUCCEEDED,
+            dry_run=False,
+            candidate_count_per_target=1,
+            target_matrix_json=[
+                {
+                    "track": "M3",
+                    "skill": "READING",
+                    "typeTag": "R_INSERTION",
+                    "difficulty": 1,
+                    "count": 1,
+                }
+            ],
+            metadata_json={
+                "source": "content_readiness_backfill",
+                "estimatedCostUsd": 0.25,
+                "evaluationLabel": "hard-typetag-ab",
+                "originatingDeficitPlan": [
+                    {
+                        "track": "M3",
+                        "skill": "READING",
+                        "typeTag": "R_INSERTION",
+                    }
+                ],
+            },
+            provider_name="openai",
+            model_name="gpt-4.1-mini",
+            prompt_template_version="content-v1-reading-insertion",
+            attempt_count=2,
+            started_at=datetime.now(UTC),
+            completed_at=datetime.now(UTC),
+        )
+        db.add(job)
+        db.flush()
+        candidate = AIContentGenerationCandidate(
+            job_id=job.id,
+            candidate_index=1,
+            status=AIContentGenerationCandidateStatus.MATERIALIZED,
+            track=Track.M3,
+            skill=Skill.READING,
+            type_tag=ContentTypeTag.R_INSERTION,
+            difficulty=1,
+            source_policy=ContentSourcePolicy.AI_ORIGINAL,
+            title="Eval candidate",
+            passage_text=(
+                "Sentence one. [1] Sentence two. [2] Sentence three. "
+                "[3] Sentence four. [4]"
+            ),
+            transcript_text=None,
+            sentences_json=[
+                {"id": "s1", "text": "Sentence one."},
+                {"id": "s2", "text": "Sentence two."},
+                {"id": "s3", "text": "Sentence three."},
+                {"id": "s4", "text": "Sentence four."},
+            ],
+            turns_json=[],
+            tts_plan_json={},
+            question_stem="Where should the sentence be inserted?",
+            choice_a="Position 1",
+            choice_b="Position 2",
+            choice_c="Position 3",
+            choice_d="Position 4",
+            choice_e="It does not fit.",
+            answer_key="B",
+            explanation_text="Explanation",
+            evidence_sentence_ids_json=["s2", "s3"],
+            why_correct_ko="정답 설명",
+            why_wrong_ko_by_option_json={
+                "A": "오답",
+                "B": "정답 보기입니다.",
+                "C": "오답",
+                "D": "오답",
+                "E": "오답",
+            },
+            review_flags_json=[],
+            materialized_content_unit_id=unit_id,
+            materialized_revision_id=revision_id,
+        )
+        db.add(candidate)
+        db.commit()
+
+    with db_session_factory() as db:
+        report = build_backfill_evaluation_report(
+            db,
+            filters=BackfillEvaluationFilter(
+                track=Track.M3,
+                skill=Skill.READING,
+                type_tag="R_INSERTION",
+                evaluation_label="hard-typetag-ab",
+            ),
+        )
+
+    assert report["runCount"] == 1
+    assert report["runs"][0]["modelName"] == "gpt-4.1-mini"
+    assert report["runs"][0]["validCandidateRate"] == 1.0
+    assert report["runs"][0]["materializeSuccessRate"] == 1.0
+    assert report["runs"][0]["publishableItemRate"] == 1.0
+    assert report["runs"][0]["publishableItemPerDollar"] == 4.0
+    assert report["aggregates"][0]["typeTag"] == "R_INSERTION"
+    assert report["aggregates"][0]["publishableItemPerDollar"] == 4.0
+
+
+def test_backfill_evaluation_report_falls_back_to_requested_model_for_failed_jobs(
+    db_session_factory,
+    configured_content_backfill_settings,
+) -> None:
+    with db_session_factory() as db:
+        job = AIContentGenerationJob(
+            request_id="backfill-eval-report-failed-job",
+            status=AIGenerationJobStatus.FAILED,
+            dry_run=False,
+            candidate_count_per_target=1,
+            target_matrix_json=[
+                {
+                    "track": "M3",
+                    "skill": "LISTENING",
+                    "typeTag": "L_LONG_TALK",
+                    "difficulty": 1,
+                    "count": 1,
+                }
+            ],
+            metadata_json={
+                "source": "content_readiness_backfill",
+                "estimatedCostUsd": 0.1,
+                "evaluationLabel": "hard-typetag-ab",
+                "requestedModelName": "gpt-5-mini",
+                "requestedPromptTemplateVersion": "content-v1",
+                "originatingDeficitPlan": [
+                    {
+                        "track": "M3",
+                        "skill": "LISTENING",
+                        "typeTag": "L_LONG_TALK",
+                    }
+                ],
+            },
+            provider_name=None,
+            model_name=None,
+            prompt_template_version=None,
+            attempt_count=1,
+            started_at=datetime.now(UTC),
+            completed_at=datetime.now(UTC),
+        )
+        db.add(job)
+        db.commit()
+
+    with db_session_factory() as db:
+        report = build_backfill_evaluation_report(
+            db,
+            filters=BackfillEvaluationFilter(
+                type_tag="L_LONG_TALK",
+                evaluation_label="hard-typetag-ab",
+                model_name="gpt-5-mini",
+            ),
+        )
+
+    assert report["runCount"] == 1
+    assert report["runs"][0]["modelName"] == "gpt-5-mini"
+    assert report["runs"][0]["promptTemplateVersion"] == "content-v1"
+    assert report["runs"][0]["track"] == "M3"
+    assert report["runs"][0]["skill"] == "LISTENING"
 
 
 def test_backfill_enqueue_rejects_unconfigured_provider_on_execute(

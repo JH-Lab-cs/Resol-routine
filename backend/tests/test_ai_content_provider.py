@@ -42,6 +42,42 @@ def _provider() -> OpenAIContentGenerationProvider:
     )
 
 
+def _listening_context(type_tag: ContentTypeTag) -> ContentGenerationContext:
+    return ContentGenerationContext(
+        request_id="provider-listening-hardtag-test",
+        target_matrix=[
+            ContentGenerationTarget(
+                track=Track.M3,
+                skill=Skill.LISTENING,
+                type_tag=type_tag,
+                difficulty=1,
+                count=1,
+            )
+        ],
+        candidate_count_per_target=1,
+        dry_run=False,
+        notes="provider-listening-hardtag-test",
+    )
+
+
+def _reading_context(type_tag: ContentTypeTag) -> ContentGenerationContext:
+    return ContentGenerationContext(
+        request_id="provider-reading-hardtag-test",
+        target_matrix=[
+            ContentGenerationTarget(
+                track=Track.H1,
+                skill=Skill.READING,
+                type_tag=type_tag,
+                difficulty=2,
+                count=1,
+            )
+        ],
+        candidate_count_per_target=1,
+        dry_run=False,
+        notes="provider-reading-hardtag-test",
+    )
+
+
 def test_openai_provider_maps_auth_failure(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -442,3 +478,235 @@ def test_openai_provider_accepts_single_key_option_objects(
         "D": "D text",
         "E": "E text",
     }
+
+
+def test_openai_provider_uses_hard_typetag_prompt_template_and_rules(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured_payload: dict[str, object] = {}
+
+    class _Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def read(self):
+            payload = {
+                "choices": [
+                    {
+                        "message": {
+                            "content": json.dumps(
+                                {
+                                    "candidates": [
+                                        {
+                                            "track": "M3",
+                                            "skill": "LISTENING",
+                                            "typeTag": "L_LONG_TALK",
+                                            "difficulty": 1,
+                                            "sourcePolicy": "AI_ORIGINAL",
+                                            "title": "Unit",
+                                            "transcriptText": "A: Hello\nB: Hi\nA: Plan\nB: Agreed",
+                                            "turns": [
+                                                {"speaker": "A", "text": "Hello"},
+                                                {"speaker": "B", "text": "Hi"},
+                                                {"speaker": "A", "text": "Plan"},
+                                                {"speaker": "B", "text": "Agreed"},
+                                            ],
+                                            "sentences": [
+                                                "Hello",
+                                                "Hi",
+                                                "Plan",
+                                                "Agreed",
+                                            ],
+                                            "question": {
+                                                "stem": "What is the main idea?",
+                                                "options": [
+                                                    "A text",
+                                                    "B text",
+                                                    "C text",
+                                                    "D text",
+                                                    "E text",
+                                                ],
+                                                "answerKey": "A",
+                                                "explanation": "Explanation long enough to pass.",
+                                                "evidenceSentenceIds": [1, 2],
+                                                "whyCorrectKo": "정답 설명",
+                                                "whyWrongKoByOption": {
+                                                    "B": "오답",
+                                                    "C": "오답",
+                                                    "D": "오답",
+                                                    "E": "오답",
+                                                },
+                                            },
+                                        }
+                                    ]
+                                },
+                                ensure_ascii=False,
+                            ),
+                        }
+                    }
+                ]
+            }
+            return json.dumps(payload, ensure_ascii=False).encode("utf-8")
+
+    def fake_urlopen(request, timeout):
+        captured_payload.update(json.loads(request.data.decode("utf-8")))
+        return _Response()
+
+    monkeypatch.setattr("app.services.ai_content_provider.urllib_request.urlopen", fake_urlopen)
+
+    result = _provider().generate_candidates(context=_listening_context(ContentTypeTag.L_LONG_TALK))
+
+    assert result.prompt_template_version == "content-v1-listening-longtalk"
+    assert "at least four turns" in captured_payload["messages"][0]["content"]
+    assert "\"promptTemplateVersion\":\"content-v1-listening-longtalk\"" in captured_payload[
+        "messages"
+    ][1]["content"]
+    assert result.candidates[0].transcript == "A: Hello\nB: Hi\nA: Plan\nB: Agreed"
+    assert result.candidates[0].sentences[0]["id"] == "s1"
+    assert result.candidates[0].evidence_sentence_ids == ["s1", "s2"]
+
+
+def test_openai_provider_normalizes_transcript_body_and_answer_key_variants(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    content_payload = {
+        "candidates": [
+            {
+                "track": "H2",
+                "skill": "READING",
+                "typeTag": "R_BLANK",
+                "difficulty": 3,
+                "sourcePolicy": "AI_ORIGINAL",
+                "title": "Unit",
+                "bodyText": "Sentence one. [BLANK] Sentence two.",
+                "sentences": ["Sentence one.", "[BLANK] Sentence two."],
+                "question": {
+                    "stem": "Fill the blank.",
+                    "options": {
+                        "1": "A text",
+                        "2": "B text",
+                        "3": "C text",
+                        "4": "D text",
+                        "5": "E text",
+                    },
+                    "answer": "A)",
+                    "rationale": "Explanation",
+                    "evidence": [1],
+                    "whyCorrect": "정답 설명",
+                    "whyWrongKoByOption": {"B": "오답", "C": "오답", "D": "오답", "E": "오답"},
+                },
+            }
+        ]
+    }
+
+    class _Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def read(self):
+            payload = {"choices": [{"message": {"content": json.dumps(content_payload)}}]}
+            return json.dumps(payload).encode("utf-8")
+
+    monkeypatch.setattr(
+        "app.services.ai_content_provider.urllib_request.urlopen",
+        lambda request, timeout: _Response(),
+    )
+
+    result = _provider().generate_candidates(context=_context())
+
+    assert result.prompt_template_version == "content-v1-reading-default"
+    assert result.candidates[0].passage == "Sentence one. [BLANK] Sentence two."
+    assert result.candidates[0].options["A"] == "A text"
+    assert result.candidates[0].answer_key == "A"
+    assert result.candidates[0].evidence_sentence_ids == ["s1"]
+
+
+def test_openai_provider_uses_reading_insertion_prompt_template_and_rules(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured_payload: dict[str, object] = {}
+
+    class _Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def read(self):
+            payload = {
+                "choices": [
+                    {
+                        "message": {
+                            "content": json.dumps(
+                                {
+                                    "candidates": [
+                                        {
+                                            "track": "H1",
+                                            "skill": "READING",
+                                            "typeTag": "R_INSERTION",
+                                            "difficulty": 2,
+                                            "sourcePolicy": "AI_ORIGINAL",
+                                            "title": "Unit",
+                                            "bodyText": (
+                                                "Sentence one. [1] Sentence two. [2] "
+                                                "Sentence three. [3] Sentence four. [4]"
+                                            ),
+                                            "sentences": [
+                                                "Sentence one.",
+                                                "Sentence two.",
+                                                "Sentence three.",
+                                                "Sentence four.",
+                                            ],
+                                            "question": {
+                                                "stem": "Where should the sentence be inserted?",
+                                                "options": {
+                                                    "A": "Position 1",
+                                                    "B": "Position 2",
+                                                    "C": "Position 3",
+                                                    "D": "Position 4",
+                                                    "E": "It does not fit.",
+                                                },
+                                                "answerKey": "B",
+                                                "explanation": "Insertion explanation.",
+                                                "evidenceSentenceIds": ["s2", "s3"],
+                                                "whyCorrectKo": "정답 설명",
+                                                "whyWrongKoByOption": {
+                                                    "A": "오답",
+                                                    "C": "오답",
+                                                    "D": "오답",
+                                                    "E": "오답",
+                                                },
+                                            },
+                                        }
+                                    ]
+                                },
+                                ensure_ascii=False,
+                            ),
+                        }
+                    }
+                ]
+            }
+            return json.dumps(payload, ensure_ascii=False).encode("utf-8")
+
+    def fake_urlopen(request, timeout):
+        captured_payload.update(json.loads(request.data.decode("utf-8")))
+        return _Response()
+
+    monkeypatch.setattr("app.services.ai_content_provider.urllib_request.urlopen", fake_urlopen)
+
+    result = _provider().generate_candidates(context=_reading_context(ContentTypeTag.R_INSERTION))
+
+    assert result.prompt_template_version == "content-v1-reading-insertion"
+    assert "Passage must include insertion markers [1], [2], [3], and [4]." in captured_payload[
+        "messages"
+    ][0]["content"]
+    assert '"promptTemplateVersion":"content-v1-reading-insertion"' in captured_payload[
+        "messages"
+    ][1]["content"]
