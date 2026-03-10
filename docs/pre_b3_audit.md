@@ -1,6 +1,6 @@
 # PRE-B3 Audit And Policy Freeze
 
-Last updated: 2026-03-09
+Last updated: 2026-03-10
 
 ## Scope
 
@@ -873,3 +873,129 @@ The evaluation improved the published bank but did not change readiness labels:
 
 So B2.6.8 closed the model-selection question for two hard tags, but it did not
 finish the overall inventory-fill problem.
+
+## 13. B2.6.9 Controlled Inventory Backfill Round 2
+
+This round applied the B2.6.8 routing policy directly to real inventory fill:
+
+- default model: `gpt-5-mini`
+- approved hard-tag fallback:
+  - `L_LONG_TALK -> gpt-4.1-mini`
+  - `R_INSERTION -> gpt-4.1-mini`
+- excluded from this run:
+  - `L_RESPONSE`
+
+All publishable candidates in this round came from the approved fallback path.
+
+### Executed deficits
+
+- `M3 / LISTENING / L_LONG_TALK / difficulty 1`
+- `M3 / READING / R_INSERTION / difficulty 1`
+- `H1 / READING / R_INSERTION / difficulty 2`
+- `H1 / READING / R_INSERTION / difficulty 2`
+- `H2 / LISTENING / L_LONG_TALK / difficulty 3`
+- `H2 / READING / R_INSERTION / difficulty 3`
+
+### Published revisions
+
+Six fallback-routed candidates were materialized, validated, reviewed, and
+published:
+
+- `79dbf0cc-6a86-40a6-a444-416bd6549979`
+  - model: `gpt-4.1-mini`
+  - typeTag: `L_LONG_TALK`
+  - track/skill: `M3 / LISTENING`
+  - publishable item per dollar: `690.607735`
+- `6485e33b-bb5c-4260-bbc3-832e01b9dd1e`
+  - model: `gpt-4.1-mini`
+  - typeTag: `R_INSERTION`
+  - track/skill: `M3 / READING`
+  - publishable item per dollar: `690.607735`
+- `ee19fb3d-ed0c-4512-994d-5bf3862943a4`
+  - model: `gpt-4.1-mini`
+  - typeTag: `R_INSERTION`
+  - track/skill: `H1 / READING`
+  - publishable item per dollar: `401.92926`
+- `9f3c58b6-266d-4123-8cae-27f68021588a`
+  - model: `gpt-4.1-mini`
+  - typeTag: `R_INSERTION`
+  - track/skill: `H1 / READING`
+  - publishable item per dollar: `401.92926`
+- `5f11872a-cb8e-48a1-ad2a-4fd0295018f4`
+  - model: `gpt-4.1-mini`
+  - typeTag: `L_LONG_TALK`
+  - track/skill: `H2 / LISTENING`
+  - publishable item per dollar: `401.92926`
+- `4607d75a-8317-47fd-8da5-55826bb71390`
+  - model: `gpt-4.1-mini`
+  - typeTag: `R_INSERTION`
+  - track/skill: `H2 / READING`
+  - publishable item per dollar: `283.446712`
+
+### Before / after readiness summary
+
+- `M3`
+  - Daily: `WARNING -> WARNING`
+  - Weekly: `NOT_READY -> WARNING`
+  - Monthly: `NOT_READY -> NOT_READY`
+  - published counts:
+    - LISTENING `9 -> 10`
+    - READING `9 -> 10`
+  - practical effect:
+    - `L_LONG_TALK` no longer missing
+    - `R_INSERTION` no longer missing
+
+- `H1`
+  - Daily: `WARNING -> WARNING`
+  - Weekly: `NOT_READY -> NOT_READY`
+  - Monthly: `NOT_READY -> NOT_READY`
+  - published counts:
+    - LISTENING `9 -> 9`
+    - READING `8 -> 10`
+  - practical effect:
+    - `R_INSERTION` no longer missing
+    - reading type diversity `4 -> 5`
+
+- `H2`
+  - Daily: `WARNING -> WARNING`
+  - Weekly: `READY -> READY`
+  - Monthly: `NOT_READY -> NOT_READY`
+  - published counts:
+    - LISTENING `13 -> 14`
+    - READING `10 -> 11`
+  - practical effect:
+    - `L_LONG_TALK` no longer missing
+    - `R_INSERTION` no longer missing
+    - listening type diversity `4 -> 5`
+    - reading type diversity `4 -> 5`
+
+- `H3`
+  - unchanged
+
+Interpretation:
+
+- no Daily track changed label from `WARNING` to `READY`
+- however `M3`, `H1`, and `H2` all improved numerically at the published-bank
+  level
+- `M3 weekly` improved from `NOT_READY` to `WARNING`
+- the approved fallback policy materially increased publishable inventory
+
+### Remaining deficits after round 2
+
+- `M3`
+  - listening missing: `L_RESPONSE`, `L_SITUATION`
+  - reading missing: `R_ORDER`, `R_SUMMARY`, `R_VOCAB`
+- `H1`
+  - listening missing: `L_SITUATION`, `L_LONG_TALK`
+  - reading missing: `R_BLANK`, `R_ORDER`, `R_SUMMARY`
+- `H2`
+  - listening missing: `L_SITUATION`
+  - reading missing: `R_ORDER`, `R_SUMMARY`, `R_VOCAB`
+
+### Round 2 policy conclusion
+
+- the fallback policy is justified for:
+  - `L_LONG_TALK`
+  - `R_INSERTION`
+- the default model remains `gpt-5-mini`
+- `L_RESPONSE` remains excluded pending a separate generation redesign
