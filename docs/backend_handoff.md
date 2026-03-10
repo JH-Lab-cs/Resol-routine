@@ -258,6 +258,19 @@ This document is the backend handoff baseline for the next chat/session.
   - default mode is dry-run
   - execution requires `backfill-enqueue --execute`
   - priority order is `Daily -> Weekly -> Monthly`
+
+## K-3. Hard TypeTag Model Selection Policy
+
+- Default content generation model remains `gpt-5-mini`.
+- Hard-deficit typeTags must go through typeTag-specific hardened prompts first.
+- Fallback evaluation is allowed only for hard-deficit typeTags and only when
+  the comparison metric is `publishable item per dollar`.
+- Current approved fallback tags:
+  - `L_LONG_TALK -> gpt-4.1-mini`
+  - `R_INSERTION -> gpt-4.1-mini`
+- Current non-approved fallback tags:
+  - `L_RESPONSE`
+- `gpt-5.4` is explicitly out of scope for the current backfill policy.
   - `maxTargetsPerRun` and `maxCandidatesPerRun` cap each AI generation batch
   - `estimatedCostUsd` must stay within `AI_CONTENT_MAX_ESTIMATED_COST_USD`
   - provider/model/template validation happens before enqueue

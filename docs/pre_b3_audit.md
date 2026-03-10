@@ -758,3 +758,118 @@ For the next controlled run, the evidence now supports:
    - a prompt-tuning follow-up, or
    - a model-selection follow-up (for example `gpt-4.1-mini`) before larger
      inventory fill
+
+## 12. B2.6.8 Hard Deficit TypeTag Hardening and Fallback Evaluation
+
+This evaluation kept the default generation model unchanged:
+
+- default model: `gpt-5-mini`
+- fallback candidate: `gpt-4.1-mini`
+- excluded from this scope: `gpt-5.4`
+
+The goal was not bulk inventory fill. The goal was to determine whether
+hard-deficit typeTags should stay on the hardened default path or gain a
+typeTag-specific fallback policy.
+
+### Prompt and schema hardening now in effect
+
+- hard typeTags use dedicated prompt template variants:
+  - `content-v1-listening-longtalk`
+  - `content-v1-listening-response`
+  - `content-v1-listening-situation`
+  - `content-v1-reading-insertion`
+  - `content-v1-reading-blank`
+  - `content-v1-reading-order`
+  - `content-v1-reading-summary`
+  - `content-v1-reading-vocab`
+- validator rules are stricter for hard tags:
+  - options must remain unique
+  - `answerKey` must stay in `A..E`
+  - evidence ids must point to real sentences
+  - LISTENING transcript / turn / sentence alignment is required
+  - typeTag-specific field expectations are enforced before materialization
+
+### Small A/B evaluation label
+
+- evaluation label: `b2-6-8-ab-20260310125300`
+
+### Observed A/B outcomes
+
+1. `L_LONG_TALK`
+   - `gpt-5-mini`
+     - job: `2281cf76-9346-45c0-ad18-7f90a0049ab9`
+     - status: `FAILED`
+     - valid candidate rate: `0.0`
+     - materialize success rate: `0.0`
+     - publishable item rate: `0.0`
+     - estimated cost USD: `0.002855`
+   - `gpt-4.1-mini`
+     - job: `78bec2c3-7374-4e05-93eb-f1210ab88caf`
+     - status: `SUCCEEDED`
+     - valid candidate rate: `1.0`
+     - materialize success rate: `1.0`
+     - publishable item rate: `1.0`
+     - estimated cost USD: `0.002488`
+     - publishable item per dollar: `401.92926`
+
+2. `L_RESPONSE`
+   - `gpt-5-mini`
+     - job: `ffd2ab3f-3caf-421b-b1ae-60efeca0697b`
+     - status: `FAILED`
+     - valid candidate rate: `0.0`
+     - materialize success rate: `0.0`
+     - publishable item rate: `0.0`
+     - estimated cost USD: `0.004155`
+   - `gpt-4.1-mini`
+     - job: `fbefc49f-bffb-43f2-9d8f-be546052185a`
+     - status: `SUCCEEDED`
+     - valid candidate rate: `0.0`
+     - materialize success rate: `0.0`
+     - publishable item rate: `0.0`
+     - estimated cost USD: `0.003528`
+   - interpretation:
+     - the fallback candidate was still not publishable
+     - fallback is not approved yet for this typeTag
+
+3. `R_INSERTION`
+   - `gpt-5-mini`
+     - job: `e692933f-ce91-422a-b979-7c4c733c6a30`
+     - status: `FAILED`
+     - valid candidate rate: `0.0`
+     - materialize success rate: `0.0`
+     - publishable item rate: `0.0`
+     - estimated cost USD: `0.002855`
+   - `gpt-4.1-mini`
+     - job: `687490e7-9ecf-4e9a-ae4b-da470ce21ade`
+     - status: `SUCCEEDED`
+     - valid candidate rate: `1.0`
+     - materialize success rate: `1.0`
+     - publishable item rate: `1.0`
+     - estimated cost USD: `0.002488`
+     - publishable item per dollar: `401.92926`
+
+### Policy decision from the A/B
+
+- default model remains `gpt-5-mini`
+- approved fallback tags:
+  - `L_LONG_TALK`
+  - `R_INSERTION`
+- not approved for fallback yet:
+  - `L_RESPONSE`
+- decision rule:
+  - approve fallback only when the fallback path improves publishable item per
+    dollar enough to justify the added model branch
+
+### Practical inventory interpretation
+
+The evaluation improved the published bank but did not change readiness labels:
+
+- `M3 LISTENING`
+  - `L_LONG_TALK` is no longer missing
+  - still missing `L_RESPONSE`, `L_SITUATION`
+- `M3 READING`
+  - `R_INSERTION` is no longer missing
+  - still missing `R_ORDER`, `R_SUMMARY`, `R_VOCAB`
+
+So B2.6.8 closed the model-selection question for two hard tags, but it did not
+finish the overall inventory-fill problem.
