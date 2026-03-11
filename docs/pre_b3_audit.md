@@ -145,8 +145,19 @@ Status: `NOT_READY`
 Backend canonical source:
 
 - `vocab_catalog_entries`
-- bootstrap source: `assets/content_packs/starter_pack.json`
-- current starter bootstrap size: `3` curated rows
+- bootstrap sources:
+  - `assets/content_packs/starter_pack.json`
+  - `backend/shared/seed/vocab_catalog_seed.json`
+- current backend catalog size: `31` curated rows
+- sourceTag distribution:
+  - `CSAT`: `15`
+  - `SCHOOL_CORE`: `16`
+- difficultyBand distribution:
+  - `1`: `7`
+  - `2`: `10`
+  - `3`: `9`
+  - `4`: `4`
+  - `5`: `1`
 
 Compatibility source that still exists until B3.4:
 
@@ -195,8 +206,13 @@ remaining requirement is more curated rows per band.
 ### Vocabulary readiness verdict
 
 - Backend schema/policy: `Ready`
-- Real grade-differentiated service depth: `Warning`
-Status: `WARNING`
+- Real grade-differentiated service depth: `Ready`
+- Track usable counts:
+  - `M3`: `24`
+  - `H1`: `31`
+  - `H2`: `30`
+  - `H3`: `23`
+Status: `READY`
 
 ## 3. Weekly/Monthly Mock Audit
 

@@ -70,8 +70,10 @@ document and is defined separately in `docs/adaptive_selection_design.md`.
 
 - starter-pack vocabulary is allowed to remain small
 - starter-pack vocabulary must still carry the frozen metadata fields above
-- backend bootstrap imports starter-pack rows idempotently into
-  `vocab_catalog_entries`
+- backend bootstrap imports starter-pack rows plus backend-curated seed rows
+  idempotently into `vocab_catalog_entries`
+- backend-curated bootstrap source:
+  - `backend/shared/seed/vocab_catalog_seed.json`
 - local custom vocabulary created in the app must default to:
   - `sourceTag = USER_CUSTOM`
   - `targetMinTrack = null`
@@ -100,7 +102,8 @@ Current implication:
 - metadata structure is ready
 - backend canonical source is ready
 - deterministic banding policy is ready
-- live-service depth is still not ready
+- baseline backend seed depth now clears the minimum pre-B3 threshold
+- future work is expansion/refresh, not initial catalog bootstrap
 
 ## Implementation Timing
 

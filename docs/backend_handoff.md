@@ -317,11 +317,19 @@ This document is the backend handoff baseline for the next chat/session.
   - see `docs/vocab_banding_policy.md`
 - Backend vocab catalog bootstrap:
   - backend canonical table: `vocab_catalog_entries`
-  - bootstrap source: `assets/content_packs/starter_pack.json`
+  - bootstrap sources:
+    - `assets/content_packs/starter_pack.json`
+    - `backend/shared/seed/vocab_catalog_seed.json`
   - import command: `cd backend && uv run python tools/seed_vocab_catalog.py --json --execute`
   - audit command: `cd backend && uv run python tools/vocab_catalog_audit.py --json`
   - `USER_CUSTOM` is excluded from backend catalog bootstrap
   - local/front vocab metadata remains compatibility-only until B3.4 delivery switches over
+  - current seeded audit baseline:
+    - `M3`: `24`
+    - `H1`: `31`
+    - `H2`: `30`
+    - `H3`: `23`
+    - service readiness: `READY`
 
 ## K-3. B3.4 Content Sync Readiness Gate
 

@@ -100,6 +100,9 @@ This note captures frontend-backend contracts that must remain stable while form
   - `SCHOOL_CORE`
   - `USER_CUSTOM`
 - Bootstrap seed/import excludes `USER_CUSTOM`.
+- Backend bootstrap currently uses:
+  - `assets/content_packs/starter_pack.json`
+  - `backend/shared/seed/vocab_catalog_seed.json`
 - Frozen progression policy is documented in `docs/vocab_banding_policy.md`.
 - Adaptive/user-specific vocab selection is still post-B3 and must not be treated
   as implemented by this contract.
