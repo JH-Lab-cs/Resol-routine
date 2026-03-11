@@ -279,7 +279,10 @@ This policy is frozen here:
 - Weekly mock: fixed order
 - Monthly mock: fixed order
 
-Implementation is intentionally deferred.
+Implementation status:
+
+- Daily order preference is implemented in the app
+- Weekly/monthly mock ordering remains fixed
 
 Rationale:
 
@@ -359,7 +362,7 @@ Recommended implementation phase:
 
 ### Non-blockers
 
-- Daily order preference can be implemented after policy freeze
+- Daily order preference is already implemented and does not block B3
 - Adaptive selection can remain design-only until sync contracts stabilize
 - B2.5/B2.6 delivery and sync contracts are already good enough to support B3
   integration work once real content depth is present

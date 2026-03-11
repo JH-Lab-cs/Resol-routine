@@ -7,6 +7,7 @@
 resol_routine_src.zip
 /resol_routine_fullsrc_*.zip
 /_a24*.zip
+/*_changed_files_*.zip
 /tmp/
 .atom/
 .build/
@@ -47,3 +48,4 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+/backend/.env

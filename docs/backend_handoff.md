@@ -19,12 +19,15 @@ This document is the backend handoff baseline for the next chat/session.
 
 - Daily routine:
   - LISTENING 3 + READING 3 (fixed total 6)
+  - user may choose `Listening first` or `Reading first` at Daily session start
 - Today vocab quiz:
   - 20 questions, 5 options
 - Weekly mock exam:
   - LISTENING 10 + READING 10 (total 20)
+  - fixed section order
 - Monthly mock exam:
   - LISTENING 17 + READING 28 (total 45)
+  - fixed section order
 
 ## C. Current Frontend Status
 
