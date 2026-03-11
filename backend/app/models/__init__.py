@@ -47,6 +47,8 @@ from app.models.tts_enums import TTSGenerationJobStatus
 from app.models.tts_generation_job import TTSGenerationJob
 from app.models.user import User
 from app.models.user_subscription import UserSubscription
+from app.models.vocab_catalog_entry import VocabCatalogEntry
+from app.models.vocab_enums import VocabSourceTag
 from app.models.weekly_report_aggregate import WeeklyReportAggregate
 
 __all__ = [
@@ -65,10 +67,10 @@ __all__ = [
     "ContentAsset",
     "ContentLifecycleStatus",
     "ContentQuestion",
+    "ContentSourcePolicy",
     "ContentSyncEvent",
     "ContentSyncEventReason",
     "ContentSyncEventType",
-    "ContentSourcePolicy",
     "ContentTypeTag",
     "ContentUnit",
     "ContentUnitRevision",
@@ -97,6 +99,8 @@ __all__ = [
     "UserRole",
     "UserSubscription",
     "UserSubscriptionStatus",
+    "VocabCatalogEntry",
+    "VocabSourceTag",
     "WeeklyReportAggregate",
     "WrongReasonTag",
 ]

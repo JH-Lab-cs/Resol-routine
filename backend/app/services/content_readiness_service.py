@@ -41,6 +41,9 @@ from app.models.content_unit_revision import ContentUnitRevision
 from app.models.enums import AIGenerationJobStatus, MockExamType, Skill, Track
 from app.schemas.mock_assembly import MockAssemblyJobCreateRequest
 from app.services.mock_assembly_service import create_mock_assembly_job
+from app.services.vocab_readiness_service import (
+    build_vocab_readiness_report as build_backend_vocab_readiness_report,
+)
 
 DAILY_MIN_LISTENING_COUNT = 3
 DAILY_MIN_READING_COUNT = 3
@@ -74,13 +77,12 @@ class VocabularySeedItem:
 
 def build_content_readiness_report(db: Session) -> dict[str, object]:
     inventory = load_published_inventory(db)
-    vocab_rows = load_seed_vocabulary_rows()
     return {
         "policyVersion": CONTENT_READINESS_POLICY_VERSION,
         "generatedAt": _utc_now_iso(),
         "daily": build_daily_readiness_report(inventory),
         "mock": build_mock_readiness_report(db, inventory=inventory),
-        "vocab": build_vocab_readiness_report(vocab_rows=vocab_rows),
+        "vocab": build_backend_vocab_readiness_report(db),
     }
 
 
