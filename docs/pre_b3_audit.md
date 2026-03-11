@@ -1,6 +1,6 @@
 # PRE-B3 Audit And Policy Freeze
 
-Last updated: 2026-03-10
+Last updated: 2026-03-11
 
 ## Scope
 
@@ -1090,3 +1090,128 @@ Current conclusion:
   deterministic compiler path is used
 - fallback remains disabled for `L_RESPONSE`
 - a future fallback re-evaluation is only needed if later batches regress
+
+## 15. B2.6.12 Controlled Inventory Backfill Round 3
+
+This round continued real inventory fill under the frozen generation policy:
+
+- default model: `gpt-5-mini`
+- limited fallback:
+  - `L_LONG_TALK -> gpt-4.1-mini`
+  - `R_INSERTION -> gpt-4.1-mini`
+- `L_RESPONSE`
+  - dedicated `gpt-5-mini` generation mode
+  - no fallback added in this round
+
+The intent was to keep the batch small, publish successful candidates
+immediately, and re-run readiness after each controlled step.
+
+### Executed deficits
+
+- `H1 / LISTENING / L_LONG_TALK / difficulty 2`
+- `H2 / READING / R_INSERTION / difficulty 3`
+- `M3 / LISTENING / L_SITUATION / difficulty 1`
+
+### Model routing outcome
+
+- `H1 / L_LONG_TALK`
+  - model used: `gpt-4.1-mini`
+  - `fallbackTriggered = true`
+  - generation job id: `2611b9b4-2d52-47f5-b473-f8b3040276e1`
+  - estimated cost: `0.002488`
+  - publishable item per dollar: `401.92926`
+- `H2 / R_INSERTION`
+  - model used: `gpt-4.1-mini`
+  - `fallbackTriggered = true`
+  - generation job id: `01d4563a-bc2a-4636-acf7-301b0d5ad69a`
+  - estimated cost: `0.001448`
+  - publishable item per dollar: `690.607735`
+- `M3 / L_SITUATION`
+  - model used: `gpt-5-mini`
+  - `fallbackTriggered = false`
+  - generation job ids:
+    - `fc1e807d-9071-4e8c-807a-b0891e3eb226`
+    - `46b300de-df94-492f-958f-91b6b9ae9e1e`
+  - both runs failed with `PROVIDER_TIMEOUT`
+  - no publishable candidate was produced in this round
+
+### Published revisions
+
+Two round-3 candidates were materialized, validated, reviewed, and published:
+
+- `1cc0ec1c-9acf-483a-8dd3-202b378c3e03`
+  - track/skill/typeTag: `H1 / LISTENING / L_LONG_TALK`
+  - source: `content_readiness_backfill`
+  - generation job id: `2611b9b4-2d52-47f5-b473-f8b3040276e1`
+- `3e82471e-7fc4-48b9-8510-ef2b60ecfd22`
+  - track/skill/typeTag: `H2 / READING / R_INSERTION`
+  - source: `content_readiness_backfill`
+  - generation job id: `01d4563a-bc2a-4636-acf7-301b0d5ad69a`
+
+Both published revisions were confirmed in public delivery:
+
+- public detail: `200`
+- public list / sync membership: confirmed
+
+### Before / after readiness summary
+
+- `M3`
+  - Daily: `WARNING -> WARNING`
+  - Weekly: `WARNING -> WARNING`
+  - Monthly: `NOT_READY -> NOT_READY`
+  - published counts:
+    - LISTENING `11 -> 11`
+    - READING `10 -> 10`
+  - practical effect:
+    - no improvement this round because `L_SITUATION` timed out twice
+
+- `H1`
+  - Daily: `WARNING -> WARNING`
+  - Weekly: `NOT_READY -> READY`
+  - Monthly: `NOT_READY -> NOT_READY`
+  - published counts:
+    - LISTENING `9 -> 10`
+    - READING `10 -> 10`
+  - practical effect:
+    - `L_LONG_TALK` is no longer missing
+    - listening missing tags reduced to `L_SITUATION` only
+
+- `H2`
+  - Daily: `WARNING -> WARNING`
+  - Weekly: `READY -> READY`
+  - Monthly: `NOT_READY -> NOT_READY`
+  - published counts:
+    - LISTENING `14 -> 14`
+    - READING `11 -> 12`
+  - practical effect:
+    - `R_INSERTION` inventory deepened
+    - reading-side daily / monthly deficit narrowed
+
+- `H3`
+  - unchanged
+
+### Round 3 conclusion
+
+- the current routing policy again produced real published inventory
+- fallback materially helped on:
+  - `L_LONG_TALK`
+  - `R_INSERTION`
+- `H1 weekly` improved from `NOT_READY` to `READY`
+- `M3 L_SITUATION` remains an unresolved execution problem because of repeated
+  provider timeouts, not schema invalidation
+
+### Remaining deficits after round 3
+
+- `M3`
+  - listening missing: `L_SITUATION`
+  - reading missing: `R_ORDER`, `R_SUMMARY`, `R_VOCAB`
+- `H1`
+  - listening missing: `L_SITUATION`
+  - reading missing: `R_BLANK`, `R_ORDER`, `R_SUMMARY`
+- `H2`
+  - listening missing: `L_SITUATION`
+  - reading missing: `R_ORDER`, `R_SUMMARY`, `R_VOCAB`
+
+Operationally, round 3 confirmed that the remaining blocker is mostly content
+depth and a small number of provider-sensitive deficits, not the general
+generation pipeline.
