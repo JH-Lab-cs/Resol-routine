@@ -41,6 +41,7 @@ from app.models.enums import (
 from app.schemas.ai_content_generation import (
     AIContentGenerationCandidateListResponse,
     AIContentGenerationCandidateResponse,
+    AIContentGenerationFailureCode,
     AIContentGenerationJobCreateRequest,
     AIContentGenerationJobResponse,
     AIContentMaterializeDraftResponse,
@@ -60,6 +61,10 @@ from app.services.ai_content_provider import (
 from app.services.ai_provider import AIProviderError
 from app.services.audit_service import append_audit_log
 from app.services.content_ingest_service import create_content_unit, create_content_unit_revision
+from app.services.l_response_generation_service import (
+    L_RESPONSE_COMPILER_VERSION,
+    L_RESPONSE_GENERATION_MODE,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -402,13 +407,33 @@ def run_ai_content_generation_job(db: Session, *, job_id: UUID) -> AIContentJobE
             content_type="application/json",
         )
 
+        raw_candidate_payloads = provider_result.raw_candidate_payloads or [
+            _candidate_payload_for_artifact(candidate) for candidate in provider_result.candidates
+        ]
+        compiled_candidate_payloads = provider_result.compiled_candidate_payloads or [
+            _candidate_payload_for_artifact(candidate) for candidate in provider_result.candidates
+        ]
+        if len(raw_candidate_payloads) != len(provider_result.candidates):
+            raise AIProviderError(
+                code="OUTPUT_SCHEMA_INVALID",
+                message="Candidate raw payload count must match candidate count.",
+                transient=False,
+            )
+        if len(compiled_candidate_payloads) != len(provider_result.candidates):
+            raise AIProviderError(
+                code="OUTPUT_SCHEMA_INVALID",
+                message="Compiled candidate payload count must match candidate count.",
+                transient=False,
+            )
+
         valid_count = 0
         invalid_count = 0
         snapshot_candidates: list[dict[str, object]] = []
 
         for candidate_index, generated in enumerate(provider_result.candidates, start=1):
+            raw_candidate_payload = raw_candidate_payloads[candidate_index - 1]
+            candidate_payload = compiled_candidate_payloads[candidate_index - 1]
             validation_report = _validate_candidate_payload(generated)
-            candidate_payload = _candidate_payload_for_artifact(generated)
             snapshot_candidates.append(
                 {
                     "candidateIndex": candidate_index,
@@ -418,6 +443,9 @@ def run_ai_content_generation_job(db: Session, *, job_id: UUID) -> AIContentJobE
                     "skill": generated.skill.value,
                     "typeTag": generated.type_tag.value,
                     "difficulty": generated.difficulty,
+                    "generationMode": provider_result.generation_mode,
+                    "compilerVersion": provider_result.compiler_version,
+                    "rawCandidate": raw_candidate_payload,
                     "candidate": candidate_payload,
                     "validation": validation_report,
                 }
@@ -457,6 +485,10 @@ def run_ai_content_generation_job(db: Session, *, job_id: UUID) -> AIContentJobE
                     file_name="validation.json",
                 ),
                 payload={
+                    "generationMode": provider_result.generation_mode,
+                    "compilerVersion": provider_result.compiler_version,
+                    "rawCandidate": raw_candidate_payload,
+                    "compiledCandidate": candidate_payload,
                     "errors": validation_report["errors"],
                     "reviewFlags": validation_report["reviewFlags"],
                 },
@@ -540,6 +572,8 @@ def run_ai_content_generation_job(db: Session, *, job_id: UUID) -> AIContentJobE
                 "providerName": provider_result.provider_name,
                 "modelName": provider_result.model_name,
                 "promptTemplateVersion": provider_result.prompt_template_version,
+                "generationMode": provider_result.generation_mode,
+                "compilerVersion": provider_result.compiler_version,
                 "validCount": valid_count,
                 "invalidCount": invalid_count,
                 "candidates": snapshot_candidates,
@@ -755,7 +789,30 @@ def _validate_candidate_payload(candidate: GeneratedContentCandidate) -> dict[st
                 errors.append("listening_long_talk_sentence_count_insufficient")
         elif candidate.type_tag == ContentTypeTag.L_RESPONSE:
             if len(candidate.turns) != 2:
-                errors.append("listening_response_turn_count_invalid")
+                errors.append("l_response_turn_count_invalid")
+            if len(candidate.evidence_sentence_ids) == 0:
+                errors.append("l_response_evidence_turn_invalid")
+            if len(options := candidate.options) == 5:
+                response_texts = [
+                    options.get("A", ""),
+                    options.get("B", ""),
+                    options.get("C", ""),
+                    options.get("D", ""),
+                    options.get("E", ""),
+                ]
+                normalized_response_texts = [
+                    _normalize_response_option_text(value) for value in response_texts
+                ]
+                if len(set(normalized_response_texts)) != 5:
+                    errors.append("l_response_option_duplicate")
+                if _response_options_have_semantic_overlap(normalized_response_texts):
+                    errors.append("l_response_option_duplicate")
+                if candidate.turns and candidate.sentences:
+                    expected_sentence_ids = {
+                        f"s{index}" for index in range(1, len(candidate.turns) + 1)
+                    }
+                    if set(sentence_ids) != expected_sentence_ids:
+                        errors.append("l_response_sentence_id_mismatch")
         elif candidate.type_tag == ContentTypeTag.L_SITUATION:
             if len(candidate.turns) < 2 or len(candidate.sentences) < 3:
                 errors.append("listening_situation_alignment_invalid")
@@ -833,6 +890,24 @@ def _validate_candidate_payload(candidate: GeneratedContentCandidate) -> dict[st
 
 def _map_candidate_validation_failure_code(errors: list[str]) -> str:
     error_set = set(errors)
+    if "l_response_turn_count_invalid" in error_set:
+        return AIContentGenerationFailureCode.OUTPUT_INVALID_TURN_COUNT.value
+    if any(
+        error in error_set
+        for error in {
+            "l_response_option_duplicate",
+            "answer_distractor_semantic_collision",
+        }
+    ):
+        return AIContentGenerationFailureCode.OUTPUT_INVALID_RESPONSE_OPTIONS.value
+    if any(
+        error in error_set
+        for error in {
+            "l_response_evidence_turn_invalid",
+            "l_response_sentence_id_mismatch",
+        }
+    ):
+        return AIContentGenerationFailureCode.OUTPUT_INVALID_EVIDENCE_TURN.value
     if any(error in error_set for error in {"duplicate_option_text", "invalid_option_keys"}):
         return "OUTPUT_OPTION_DUPLICATE"
     if any(
@@ -859,7 +934,6 @@ def _map_candidate_validation_failure_code(errors: list[str]) -> str:
             "reading_blank_marker_missing",
             "listening_long_talk_turn_count_insufficient",
             "listening_long_talk_sentence_count_insufficient",
-            "listening_response_turn_count_invalid",
             "listening_situation_alignment_invalid",
         }
     ) or any(error.endswith("_required") for error in error_set):
@@ -885,6 +959,22 @@ def _validate_text_field(
         errors.append(f"{field_name}_too_long")
     if _contains_disallowed_text_unicode(stripped):
         errors.append("invalid_hidden_unicode")
+
+
+def _normalize_response_option_text(value: str) -> str:
+    normalized = unicodedata.normalize("NFKC", value).casefold()
+    collapsed = "".join(char if char.isalnum() or char.isspace() else " " for char in normalized)
+    return " ".join(collapsed.split())
+
+
+def _response_options_have_semantic_overlap(normalized_values: list[str]) -> bool:
+    for index, current in enumerate(normalized_values):
+        for other in normalized_values[index + 1 :]:
+            if len(current) < 5 or len(other) < 5:
+                continue
+            if current in other or other in current:
+                return True
+    return False
 
 
 def _contains_disallowed_text_unicode(value: str) -> bool:
@@ -1035,9 +1125,15 @@ def _build_revision_metadata(
         metadata["turns"] = candidate.turns_json
     if candidate.tts_plan_json:
         metadata["ttsPlan"] = candidate.tts_plan_json
+    generation_trace = _extract_generation_trace(job=job, candidate=candidate)
+    if generation_trace is not None:
+        metadata.update(generation_trace)
     source = _extract_generation_source(job=job)
     if source is not None:
         metadata["source"] = source
+    fallback_triggered = _extract_fallback_triggered(job=job)
+    if fallback_triggered is not None:
+        metadata["fallbackTriggered"] = fallback_triggered
 
     return metadata
 
@@ -1063,10 +1159,33 @@ def _build_question_metadata(
         "structureNotesKo": candidate.structure_notes_ko,
         "reviewFlags": candidate.review_flags_json,
     }
+    generation_trace = _extract_generation_trace(job=job, candidate=candidate)
+    if generation_trace is not None:
+        metadata.update(generation_trace)
     source = _extract_generation_source(job=job)
     if source is not None:
         metadata["source"] = source
+    fallback_triggered = _extract_fallback_triggered(job=job)
+    if fallback_triggered is not None:
+        metadata["fallbackTriggered"] = fallback_triggered
     return metadata
+
+
+def _extract_generation_trace(
+    *,
+    job: AIContentGenerationJob,
+    candidate: AIContentGenerationCandidate,
+) -> dict[str, object] | None:
+    if (
+        candidate.type_tag == ContentTypeTag.L_RESPONSE
+        and isinstance(job.prompt_template_version, str)
+        and job.prompt_template_version.endswith("listening-response-skeleton")
+    ):
+        return {
+            "generationMode": L_RESPONSE_GENERATION_MODE,
+            "compilerVersion": L_RESPONSE_COMPILER_VERSION,
+        }
+    return None
 
 
 def _extract_generation_source(*, job: AIContentGenerationJob) -> str | None:
@@ -1076,6 +1195,14 @@ def _extract_generation_source(*, job: AIContentGenerationJob) -> str | None:
         return None
     normalized = raw_source.strip()
     return normalized or None
+
+
+def _extract_fallback_triggered(*, job: AIContentGenerationJob) -> bool | None:
+    metadata = job.metadata_json if isinstance(job.metadata_json, dict) else {}
+    raw_value = metadata.get("fallbackTriggered")
+    if not isinstance(raw_value, bool):
+        return None
+    return raw_value
 
 
 def _extract_generation_model_override(*, job: AIContentGenerationJob) -> str | None:

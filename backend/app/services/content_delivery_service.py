@@ -395,7 +395,7 @@ def _safe_optional_text(value: str | None) -> str | None:
 
 def _assert_no_hidden_unicode_in_value(value: Any) -> None:
     if isinstance(value, str):
-        if contains_hidden_unicode(value):
+        if _contains_disallowed_hidden_unicode(value):
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="published_content_contract_invalid",
@@ -417,6 +417,12 @@ def _coerce_string(value: Any) -> str | None:
     if not isinstance(value, str):
         return None
     return value
+
+
+def _contains_disallowed_hidden_unicode(value: str) -> bool:
+    # Canonical content payloads may legitimately contain line breaks and tabs.
+    sanitized = value.replace("\n", "").replace("\r", "").replace("\t", "")
+    return contains_hidden_unicode(sanitized)
 
 
 def _revision_metadata(revision: ContentUnitRevision) -> dict[str, Any]:

@@ -10,6 +10,15 @@ from urllib import request as urllib_request
 from app.core.config import settings
 from app.models.enums import ContentSourcePolicy, ContentTypeTag, Skill, Track
 from app.services.ai_provider import AIProviderError
+from app.services.l_response_generation_service import (
+    L_RESPONSE_COMPILER_VERSION,
+    L_RESPONSE_GENERATION_MODE,
+    L_RESPONSE_PROMPT_TEMPLATE_SUFFIX,
+    build_deterministic_l_response_skeleton,
+    compile_l_response_skeleton_candidate,
+    parse_l_response_generation_candidates,
+    serialize_l_response_skeleton_candidate,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -62,6 +71,10 @@ class ContentGenerationResult:
     raw_prompt: str
     raw_response: str
     candidates: list[GeneratedContentCandidate]
+    raw_candidate_payloads: list[dict[str, Any]] | None = None
+    compiled_candidate_payloads: list[dict[str, Any]] | None = None
+    generation_mode: str = "CANONICAL"
+    compiler_version: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -70,6 +83,16 @@ class PromptProfile:
     skill_mode: str
     target_type_tags: tuple[str, ...]
     instructions: tuple[str, ...]
+    generation_mode: str = "CANONICAL"
+
+
+@dataclass(frozen=True, slots=True)
+class ParsedGeneratedCandidateBatch:
+    candidates: list[GeneratedContentCandidate]
+    raw_candidate_payloads: list[dict[str, Any]]
+    compiled_candidate_payloads: list[dict[str, Any]]
+    generation_mode: str
+    compiler_version: str | None
 
 
 class AIContentGenerationProvider(Protocol):
@@ -91,20 +114,40 @@ class DeterministicAIContentProvider:
         )
         prompt_payload = _build_prompt_payload(context=context, prompt_profile=prompt_profile)
         candidates: list[GeneratedContentCandidate] = []
+        raw_candidate_payloads: list[dict[str, Any]] = []
+        compiled_candidate_payloads: list[dict[str, Any]] = []
         counter = 1
 
         for target in context.target_matrix:
             for _ in range(target.count * context.candidate_count_per_target):
-                candidates.append(
-                    _build_deterministic_candidate(
+                if (
+                    prompt_profile.generation_mode == L_RESPONSE_GENERATION_MODE
+                    and target.type_tag == ContentTypeTag.L_RESPONSE
+                ):
+                    skeleton = build_deterministic_l_response_skeleton(
+                        track=target.track,
+                        difficulty=target.difficulty,
+                        index=counter,
+                    )
+                    compiled_payload = compile_l_response_skeleton_candidate(skeleton)
+                    raw_candidate_payloads.append(
+                        serialize_l_response_skeleton_candidate(skeleton)
+                    )
+                    compiled_candidate_payloads.append(compiled_payload)
+                    candidates.append(_parse_generated_candidate_payload(compiled_payload))
+                else:
+                    candidate = _build_deterministic_candidate(
                         index=counter,
                         target=target,
                     )
-                )
+                    candidate_payload = _candidate_to_json_payload(candidate)
+                    raw_candidate_payloads.append(candidate_payload)
+                    compiled_candidate_payloads.append(candidate_payload)
+                    candidates.append(candidate)
                 counter += 1
 
         response_payload = {
-            "candidates": [_candidate_to_json_payload(candidate) for candidate in candidates],
+            "candidates": raw_candidate_payloads,
         }
         return ContentGenerationResult(
             provider_name=self._provider_name,
@@ -113,6 +156,14 @@ class DeterministicAIContentProvider:
             raw_prompt=json.dumps(prompt_payload, ensure_ascii=False, separators=(",", ":")),
             raw_response=json.dumps(response_payload, ensure_ascii=False, separators=(",", ":")),
             candidates=candidates,
+            raw_candidate_payloads=raw_candidate_payloads,
+            compiled_candidate_payloads=compiled_candidate_payloads,
+            generation_mode=prompt_profile.generation_mode,
+            compiler_version=(
+                L_RESPONSE_COMPILER_VERSION
+                if prompt_profile.generation_mode == L_RESPONSE_GENERATION_MODE
+                else None
+            ),
         )
 
 
@@ -175,14 +226,18 @@ class OpenAIContentGenerationProvider:
                 transient=False,
             )
 
-        candidates = _parse_generated_candidates(raw_content)
+        parsed_candidates = _parse_generated_candidates(raw_content, prompt_profile=prompt_profile)
         return ContentGenerationResult(
             provider_name="openai",
             model_name=self._model_name,
             prompt_template_version=prompt_profile.template_version,
             raw_prompt=json.dumps(request_payload, ensure_ascii=False, separators=(",", ":")),
             raw_response=response_body,
-            candidates=candidates,
+            candidates=parsed_candidates.candidates,
+            raw_candidate_payloads=parsed_candidates.raw_candidate_payloads,
+            compiled_candidate_payloads=parsed_candidates.compiled_candidate_payloads,
+            generation_mode=parsed_candidates.generation_mode,
+            compiler_version=parsed_candidates.compiler_version,
         )
 
 
@@ -246,14 +301,18 @@ class AnthropicContentGenerationProvider:
                 transient=False,
             )
 
-        candidates = _parse_generated_candidates(raw_content)
+        parsed_candidates = _parse_generated_candidates(raw_content, prompt_profile=prompt_profile)
         return ContentGenerationResult(
             provider_name="anthropic",
             model_name=self._model_name,
             prompt_template_version=prompt_profile.template_version,
             raw_prompt=json.dumps(request_payload, ensure_ascii=False, separators=(",", ":")),
             raw_response=response_body,
-            candidates=candidates,
+            candidates=parsed_candidates.candidates,
+            raw_candidate_payloads=parsed_candidates.raw_candidate_payloads,
+            compiled_candidate_payloads=parsed_candidates.compiled_candidate_payloads,
+            generation_mode=parsed_candidates.generation_mode,
+            compiler_version=parsed_candidates.compiler_version,
         )
 
 
@@ -338,7 +397,7 @@ def build_ai_content_generation_provider(
 
 _HARD_TYPETAG_TEMPLATE_SUFFIX = {
     "L_LONG_TALK": "listening-longtalk",
-    "L_RESPONSE": "listening-response",
+    "L_RESPONSE": L_RESPONSE_PROMPT_TEMPLATE_SUFFIX,
     "L_SITUATION": "listening-situation",
     "R_INSERTION": "reading-insertion",
     "R_BLANK": "reading-blank",
@@ -358,12 +417,13 @@ _HARD_TYPETAG_RULES = {
         "Keep options A..E mutually exclusive and explanation complete enough for human review.",
     ),
     "L_RESPONSE": (
-        "Produce exactly two turns: setup then response prompt.",
+        "Produce exactly two turns only and keep the final turn as the response prompt.",
+        "Return only the response-item skeleton, not the final canonical question payload.",
+        "Use evidenceTurnIndexes with 1-based indexes that point only to the existing turns.",
         (
-            "Make the answer depend on the immediate response that best fits "
-            "the prompt, not on world knowledge."
+            "correctResponseText must be short spoken-style English and "
+            "distractorResponseTexts must contain exactly four distinct replies."
         ),
-        "Keep sentence ids aligned to the turn texts and cite only existing ids.",
     ),
     "L_SITUATION": (
         "Produce at least two turns and at least three sentence rows.",
@@ -534,6 +594,7 @@ def _build_prompt_payload(
         "generatedAt": datetime.now(UTC).isoformat(),
         "requestId": context.request_id,
         "promptTemplateVersion": prompt_profile.template_version,
+        "generationMode": prompt_profile.generation_mode,
         "promptSkillMode": prompt_profile.skill_mode,
         "promptTargetTypeTags": list(prompt_profile.target_type_tags),
         "candidateCountPerTarget": context.candidate_count_per_target,
@@ -555,6 +616,42 @@ def _build_prompt_payload(
 
 
 def _system_instruction(*, prompt_profile: PromptProfile) -> str:
+    if prompt_profile.generation_mode == L_RESPONSE_GENERATION_MODE:
+        joined_type_rules = " ".join(prompt_profile.instructions)
+        return "".join(
+            [
+                "Generate English-learning LISTENING response items and return strict JSON only. ",
+                "Top-level key must be candidates (array). ",
+                (
+                    "Each candidate must include track, difficulty, typeTag, turns, "
+                    "responsePromptSpeaker, correctResponseText, distractorResponseTexts, "
+                    "evidenceTurnIndexes, whyCorrectKo, and whyWrongKoByOption. "
+                ),
+                (
+                    "Do not include question, options, answerKey, explanation, "
+                    "transcriptText, sentences, or ttsPlan. "
+                ),
+                "typeTag must be exactly L_RESPONSE. ",
+                "turns must contain exactly two objects with speaker and text. ",
+                "responsePromptSpeaker must equal the speaker of the final turn. ",
+                (
+                    "correctResponseText must be the best short spoken-style reply to the "
+                    "final turn. "
+                ),
+                (
+                    "distractorResponseTexts must contain exactly four distinct "
+                    "spoken-style replies. "
+                ),
+                (
+                    "whyWrongKoByOption must contain keys B, C, D, and E only, "
+                    "in the same order as distractorResponseTexts. "
+                ),
+                "Use evidenceTurnIndexes as 1-based indexes, and point only to existing turns. ",
+                f"TypeTag-specific requirements: {joined_type_rules} ",
+                "Do not include markdown or any prose outside the JSON object.",
+            ]
+        )
+
     skill_rule = (
         "For READING candidates, bodyText/passage and sentences are required."
         if prompt_profile.skill_mode == "reading"
@@ -610,6 +707,11 @@ def _resolve_prompt_profile(
             skill_mode=skill_mode,
             target_type_tags=type_tags,
             instructions=instructions,
+            generation_mode=(
+                L_RESPONSE_GENERATION_MODE
+                if type_tag == ContentTypeTag.L_RESPONSE.value
+                else "CANONICAL"
+            ),
         )
 
     default_suffix = f"{skill_mode}-default"
@@ -691,7 +793,11 @@ def _parse_json_object(payload: str) -> dict[str, Any]:
     return decoded
 
 
-def _parse_generated_candidates(raw_content: str) -> list[GeneratedContentCandidate]:
+def _parse_generated_candidates(
+    raw_content: str,
+    *,
+    prompt_profile: PromptProfile,
+) -> ParsedGeneratedCandidateBatch:
     payload = _parse_json_object(raw_content)
     raw_candidates = payload.get("candidates")
     if not isinstance(raw_candidates, list) or not raw_candidates:
@@ -701,74 +807,122 @@ def _parse_generated_candidates(raw_content: str) -> list[GeneratedContentCandid
             transient=False,
         )
 
+    if prompt_profile.generation_mode == L_RESPONSE_GENERATION_MODE:
+        return _parse_l_response_candidate_batch(raw_content)
+
+    compiled_payloads: list[dict[str, Any]] = []
     parsed: list[GeneratedContentCandidate] = []
     for raw_candidate in raw_candidates:
         if not isinstance(raw_candidate, dict):
             raise _output_error("OUTPUT_SCHEMA_INVALID", "Candidate item must be an object.")
+        compiled_payloads.append(raw_candidate)
+        parsed.append(_parse_generated_candidate_payload(raw_candidate))
 
-        question = raw_candidate.get("question")
-        if not isinstance(question, dict):
-            raise _output_error("OUTPUT_MISSING_FIELD", "Candidate question must be an object.")
+    return ParsedGeneratedCandidateBatch(
+        candidates=parsed,
+        raw_candidate_payloads=compiled_payloads,
+        compiled_candidate_payloads=compiled_payloads,
+        generation_mode="CANONICAL",
+        compiler_version=None,
+    )
 
-        track = Track(str(raw_candidate.get("track")))
-        skill = Skill(str(raw_candidate.get("skill")))
-        passage = _to_optional_str(
-            raw_candidate.get("passage")
-            or raw_candidate.get("bodyText")
-            or raw_candidate.get("passageText")
-        )
-        transcript = _to_optional_str(
-            raw_candidate.get("transcript")
-            or raw_candidate.get("transcriptText")
-        )
-        turns = _parse_turns(raw_candidate.get("turns"))
-        sentences = _parse_sentences(raw_candidate.get("sentences"))
-        if skill == Skill.LISTENING and turns and not sentences:
-            sentences = _sentences_from_turns(turns)
 
-        options = _parse_options(question.get("options"))
-        why_wrong = _parse_why_wrong_by_option(
-            value=question.get("whyWrongKoByOption"),
-            answer_key=str(question.get("answerKey", "")),
-        )
+def _parse_generated_candidate_payload(raw_candidate: dict[str, Any]) -> GeneratedContentCandidate:
+    question = raw_candidate.get("question")
+    if not isinstance(question, dict):
+        raise _output_error("OUTPUT_MISSING_FIELD", "Candidate question must be an object.")
 
-        parsed.append(
-            GeneratedContentCandidate(
-                track=track,
-                skill=skill,
-                type_tag=ContentTypeTag(str(raw_candidate.get("typeTag"))),
-                difficulty=_required_int(raw_candidate.get("difficulty")),
-                source_policy=_parse_source_policy(raw_candidate.get("sourcePolicy")),
-                title=_to_optional_str(raw_candidate.get("title")),
-                passage=passage,
-                transcript=transcript,
-                turns=turns,
-                sentences=sentences,
-                tts_plan=_parse_tts_plan(raw_candidate.get("ttsPlan"), skill=skill),
-                stem=str(question.get("stem") or question.get("questionStem") or ""),
-                options=options,
-                answer_key=_normalize_answer_key(
-                    question.get("answerKey") or question.get("answer")
-                ),
-                explanation=str(
-                    question.get("explanation")
-                    or question.get("rationale")
-                    or question.get("why")
-                    or ""
-                ),
-                evidence_sentence_ids=_parse_evidence_sentence_ids(
-                    question.get("evidenceSentenceIds") or question.get("evidence"),
-                ),
-                why_correct_ko=str(
-                    question.get("whyCorrectKo") or question.get("whyCorrect") or ""
-                ),
-                why_wrong_ko_by_option=why_wrong,
-                vocab_notes_ko=_to_optional_str(question.get("vocabNotesKo")),
-                structure_notes_ko=_to_optional_str(question.get("structureNotesKo")),
-            )
-        )
+    track = Track(str(raw_candidate.get("track")))
+    skill = Skill(str(raw_candidate.get("skill")))
+    passage = _to_optional_str(
+        raw_candidate.get("passage")
+        or raw_candidate.get("bodyText")
+        or raw_candidate.get("passageText")
+    )
+    transcript = _to_optional_str(
+        raw_candidate.get("transcript")
+        or raw_candidate.get("transcriptText")
+    )
+    turns = _parse_turns(raw_candidate.get("turns"))
+    sentences = _parse_sentences(raw_candidate.get("sentences"))
+    if skill == Skill.LISTENING and turns and not sentences:
+        sentences = _sentences_from_turns(turns)
 
-    return parsed
+    options = _parse_options(question.get("options"))
+    why_wrong = _parse_why_wrong_by_option(
+        value=question.get("whyWrongKoByOption"),
+        answer_key=str(question.get("answerKey", "")),
+    )
+
+    return GeneratedContentCandidate(
+        track=track,
+        skill=skill,
+        type_tag=ContentTypeTag(str(raw_candidate.get("typeTag"))),
+        difficulty=_required_int(raw_candidate.get("difficulty")),
+        source_policy=_parse_source_policy(raw_candidate.get("sourcePolicy")),
+        title=_to_optional_str(raw_candidate.get("title")),
+        passage=passage,
+        transcript=transcript,
+        turns=turns,
+        sentences=sentences,
+        tts_plan=_parse_tts_plan(raw_candidate.get("ttsPlan"), skill=skill),
+        stem=str(question.get("stem") or question.get("questionStem") or ""),
+        options=options,
+        answer_key=_normalize_answer_key(question.get("answerKey") or question.get("answer")),
+        explanation=str(
+            question.get("explanation")
+            or question.get("rationale")
+            or question.get("why")
+            or ""
+        ),
+        evidence_sentence_ids=_parse_evidence_sentence_ids(
+            question.get("evidenceSentenceIds") or question.get("evidence"),
+        ),
+        why_correct_ko=str(question.get("whyCorrectKo") or question.get("whyCorrect") or ""),
+        why_wrong_ko_by_option=why_wrong,
+        vocab_notes_ko=_to_optional_str(question.get("vocabNotesKo")),
+        structure_notes_ko=_to_optional_str(question.get("structureNotesKo")),
+    )
+
+
+def _parse_l_response_candidate_batch(raw_content: str) -> ParsedGeneratedCandidateBatch:
+    try:
+        skeletons = parse_l_response_generation_candidates(raw_content)
+    except Exception as exc:
+        if isinstance(exc, AIProviderError):
+            raise
+        code = getattr(exc, "code", "OUTPUT_SCHEMA_INVALID")
+        message = getattr(exc, "message", str(exc))
+        raise AIProviderError(
+            code=str(code),
+            message=str(message),
+            transient=False,
+        ) from exc
+
+    raw_payloads = [serialize_l_response_skeleton_candidate(candidate) for candidate in skeletons]
+    compiled_payloads: list[dict[str, Any]] = []
+    parsed_candidates: list[GeneratedContentCandidate] = []
+    for skeleton in skeletons:
+        try:
+            compiled_payload = compile_l_response_skeleton_candidate(skeleton)
+        except Exception as exc:
+            code = getattr(exc, "code", "OUTPUT_DETERMINISTIC_COMPILE_FAILED")
+            message = getattr(exc, "message", str(exc))
+            raise AIProviderError(
+                code=str(code),
+                message=str(message),
+                transient=False,
+            ) from exc
+        compiled_payloads.append(compiled_payload)
+        parsed_candidates.append(_parse_generated_candidate_payload(compiled_payload))
+
+    return ParsedGeneratedCandidateBatch(
+        candidates=parsed_candidates,
+        raw_candidate_payloads=raw_payloads,
+        compiled_candidate_payloads=compiled_payloads,
+        generation_mode=L_RESPONSE_GENERATION_MODE,
+        compiler_version=L_RESPONSE_COMPILER_VERSION,
+    )
 
 
 def _to_optional_str(value: object) -> str | None:
