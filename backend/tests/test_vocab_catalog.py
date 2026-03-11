@@ -6,6 +6,7 @@ from app.models.vocab_catalog_entry import VocabCatalogEntry
 from app.services.vocab_catalog_service import (
     VocabCatalogImportRow,
     build_vocab_catalog_key,
+    load_backend_catalog_seed_import_rows,
     seed_vocab_catalog,
 )
 from app.services.vocab_readiness_service import VocabReadinessRow, build_vocab_readiness_report
@@ -37,32 +38,42 @@ def test_vocab_catalog_key_is_deterministic() -> None:
 
 
 def test_seed_vocab_catalog_is_idempotent(db_session_factory) -> None:
+    seed_rows = load_backend_catalog_seed_import_rows()
+    expected_catalog_count = len(
+        {
+            build_vocab_catalog_key(lemma=row.lemma, pos=row.pos, meaning=row.meaning)
+            for row in seed_rows
+            if row.source_tag != "USER_CUSTOM"
+        }
+    )
+
     with db_session_factory() as db:
         dry_run_result = seed_vocab_catalog(db, dry_run=True)
-        assert dry_run_result["inserted"] == 3
+        assert dry_run_result["inserted"] == expected_catalog_count
+        assert dry_run_result["sourceRowCount"] == len(seed_rows)
         assert db.execute(select(VocabCatalogEntry)).scalars().all() == []
 
     with db_session_factory() as db:
         first_result = seed_vocab_catalog(db, dry_run=False)
         db.commit()
 
-    assert first_result["inserted"] == 3
+    assert first_result["inserted"] == expected_catalog_count
     assert first_result["updated"] == 0
     assert first_result["invalid"] == 0
 
     with db_session_factory() as db:
         count = db.execute(select(VocabCatalogEntry)).scalars().all()
-        assert len(count) == 3
+        assert len(count) == expected_catalog_count
         second_result = seed_vocab_catalog(db, dry_run=False)
         db.commit()
 
     assert second_result["inserted"] == 0
     assert second_result["updated"] == 0
-    assert second_result["skipped"] == 3
+    assert second_result["skipped"] == expected_catalog_count
 
     with db_session_factory() as db:
         count = db.execute(select(VocabCatalogEntry)).scalars().all()
-        assert len(count) == 3
+        assert len(count) == expected_catalog_count
 
 
 def test_seed_vocab_catalog_rejects_invalid_rows(db_session_factory) -> None:
@@ -129,11 +140,19 @@ def test_vocab_readiness_report_uses_backend_catalog_when_seeded(db_session_fact
 
     assert report["backendCatalogPresent"] is True
     assert report["sourceOfTruth"] == "BACKEND_CATALOG"
-    assert report["serviceReadiness"] == "WARNING"
-    assert report["tracks"]["M3"]["eligibleCount"] == 2
-    assert report["tracks"]["H1"]["eligibleCount"] == 3
-    assert report["tracks"]["H2"]["eligibleCount"] == 2
-    assert report["tracks"]["H3"]["eligibleCount"] == 1
+    assert report["serviceReadiness"] == "READY"
+    assert report["tracks"]["M3"]["eligibleCount"] == 24
+    assert report["tracks"]["H1"]["eligibleCount"] == 31
+    assert report["tracks"]["H2"]["eligibleCount"] == 30
+    assert report["tracks"]["H3"]["eligibleCount"] == 23
+    assert report["metadataCoverage"]["sourceTagCounts"] == {"CSAT": 15, "SCHOOL_CORE": 16}
+    assert report["metadataCoverage"]["difficultyBandCounts"] == {
+        "1": 7,
+        "2": 10,
+        "3": 9,
+        "4": 4,
+        "5": 1,
+    }
 
 
 def test_vocab_readiness_report_marks_missing_metadata_not_ready(db_session_factory) -> None:
