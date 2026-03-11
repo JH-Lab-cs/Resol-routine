@@ -775,7 +775,7 @@ typeTag-specific fallback policy.
 
 - hard typeTags use dedicated prompt template variants:
   - `content-v1-listening-longtalk`
-  - `content-v1-listening-response`
+  - `content-v1-listening-response-skeleton`
   - `content-v1-listening-situation`
   - `content-v1-reading-insertion`
   - `content-v1-reading-blank`
@@ -856,6 +856,9 @@ typeTag-specific fallback policy.
   - `R_INSERTION`
 - not approved for fallback yet:
   - `L_RESPONSE`
+- follow-up policy:
+  - `L_RESPONSE` must be redesigned around a dedicated skeleton compiler before
+    any fallback is reconsidered
 - decision rule:
   - approve fallback only when the fallback path improves publishable item per
     dollar enough to justify the added model branch
@@ -998,4 +1001,101 @@ Interpretation:
   - `L_LONG_TALK`
   - `R_INSERTION`
 - the default model remains `gpt-5-mini`
-- `L_RESPONSE` remains excluded pending a separate generation redesign
+- `L_RESPONSE` remains excluded from fallback pending a dedicated generation redesign
+
+## 14. B2.6.10 L_RESPONSE Dedicated Generation Redesign
+
+`L_RESPONSE` now uses a dedicated generation mode instead of the generic
+canonical content prompt.
+
+### Dedicated mode
+
+- prompt template: `content-v1-listening-response-skeleton`
+- generation mode: `L_RESPONSE_SKELETON`
+- compiler version: `l-response-compiler-v1`
+- base model remains `gpt-5-mini`
+- fallback remains disabled in this ticket
+
+### Skeleton contract
+
+The model must return only a response skeleton:
+
+- `track`
+- `difficulty`
+- `typeTag = L_RESPONSE`
+- `turns` (exactly 2)
+- `responsePromptSpeaker`
+- `correctResponseText`
+- `distractorResponseTexts` (exactly 4)
+- `evidenceTurnIndexes`
+- `whyCorrectKo`
+- `whyWrongKoByOption`
+
+The model does **not** generate the final canonical stem, answer key, or
+sentence ids.
+
+### Deterministic compiler
+
+The server now compiles the canonical payload deterministically:
+
+- fixed stem:
+  - `What is the most appropriate response to the last speaker?`
+- fixed option placement:
+  - `A = correct`
+  - `B..E = distractors`
+- fixed `answerKey`
+- deterministic transcript text
+- deterministic sentence ids
+- deterministic `evidenceSentenceIds`
+
+### Validation hardening
+
+Additional L_RESPONSE validation now enforces:
+
+- exactly 2 turns
+- exactly 4 distractors
+- all response texts unique
+- evidence turn indexes must stay inside the 2-turn range
+- final compiled payload must keep valid sentence ids and evidence ids
+
+Additional failure codes:
+
+- `OUTPUT_INVALID_TURN_COUNT`
+- `OUTPUT_INVALID_RESPONSE_OPTIONS`
+- `OUTPUT_INVALID_EVIDENCE_TURN`
+- `OUTPUT_DETERMINISTIC_COMPILE_FAILED`
+
+### Operational interpretation
+
+The redesign is intended to make `gpt-5-mini` viable for `L_RESPONSE` without
+introducing a default fallback branch.
+
+### Live smoke outcome
+
+The dedicated `L_RESPONSE` path was re-run with the live OpenAI provider using:
+
+- provider: `openai`
+- model: `gpt-5-mini`
+- template: `content-v1-listening-response-skeleton`
+- track: `M3`
+- skill: `LISTENING`
+- typeTag: `L_RESPONSE`
+- `maxTargetsPerRun = 1`
+- `maxCandidatesPerRun = 2`
+
+Observed outcome:
+
+- job reached `SUCCEEDED`
+- at least one candidate reached `VALID`
+- deterministic materialization produced a `DRAFT` revision
+- reviewer batch validate/review/publish succeeded
+- the published revision appeared in public list/detail/sync delivery
+- M3 listening inventory improved numerically and `L_RESPONSE` stopped being a
+  missing listening typeTag in the published bank
+
+Current conclusion:
+
+- `gpt-5-mini` is sufficient for `L_RESPONSE` when the dedicated skeleton +
+  deterministic compiler path is used
+- fallback remains disabled for `L_RESPONSE`
+- a future fallback re-evaluation is only needed if later batches regress

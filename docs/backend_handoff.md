@@ -270,6 +270,12 @@ This document is the backend handoff baseline for the next chat/session.
   - `R_INSERTION -> gpt-4.1-mini`
 - Current non-approved fallback tags:
   - `L_RESPONSE`
+- `L_RESPONSE` no longer uses the generic canonical generation path.
+  It uses:
+  - prompt template `content-v1-listening-response-skeleton`
+  - generation mode `L_RESPONSE_SKELETON`
+  - compiler version `l-response-compiler-v1`
+  - deterministic server-side compilation for stem/options/answerKey/transcript sentence ids/evidence ids
 - `gpt-5.4` is explicitly out of scope for the current backfill policy.
   - `maxTargetsPerRun` and `maxCandidatesPerRun` cap each AI generation batch
   - `estimatedCostUsd` must stay within `AI_CONTENT_MAX_ESTIMATED_COST_USD`
@@ -299,6 +305,11 @@ This document is the backend handoff baseline for the next chat/session.
   - controlled backfill drafts should be filtered with:
     - `source = content_readiness_backfill`
     - optional `generationJobId`
+- Live smoke status for `L_RESPONSE`:
+  - `gpt-5-mini` succeeded with the dedicated skeleton compiler path
+  - batch validate/review/publish completed successfully
+  - public list/detail/sync delivery exposure was verified
+  - fallback remains disabled unless a later regression reopens the issue
 - Frozen vocabulary banding policy:
   - see `docs/vocab_banding_policy.md`
 

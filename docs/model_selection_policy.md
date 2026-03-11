@@ -22,7 +22,7 @@ The following typeTags use dedicated hardened prompt templates:
 
 - LISTENING
   - `L_LONG_TALK -> content-v1-listening-longtalk`
-  - `L_RESPONSE -> content-v1-listening-response`
+  - `L_RESPONSE -> content-v1-listening-response-skeleton`
   - `L_SITUATION -> content-v1-listening-situation`
 - READING
   - `R_INSERTION -> content-v1-reading-insertion`
@@ -76,14 +76,14 @@ Evaluation label:
 
 - `b2-6-8-ab-20260310125300`
 
-### Observed outcomes
+### Observed outcomes before the L_RESPONSE redesign
 
 | TypeTag | Model | Valid Rate | Materialize Rate | Publishable Rate | Estimated Cost USD | Publishable / Dollar | Decision |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | --- |
 | `L_LONG_TALK` | `gpt-5-mini` | 0.0 | 0.0 | 0.0 | 0.002855 | 0.0 | fail |
 | `L_LONG_TALK` | `gpt-4.1-mini` | 1.0 | 1.0 | 1.0 | 0.002488 | 401.92926 | fallback approved |
-| `L_RESPONSE` | `gpt-5-mini` | 0.0 | 0.0 | 0.0 | 0.004155 | 0.0 | fail |
-| `L_RESPONSE` | `gpt-4.1-mini` | 0.0 | 0.0 | 0.0 | 0.003528 | 0.0 | fallback not approved |
+| `L_RESPONSE` | `gpt-5-mini` | 0.0 | 0.0 | 0.0 | 0.004155 | 0.0 | redesign required |
+| `L_RESPONSE` | `gpt-4.1-mini` | 0.0 | 0.0 | 0.0 | 0.003528 | 0.0 | redesign required |
 | `R_INSERTION` | `gpt-5-mini` | 0.0 | 0.0 | 0.0 | 0.002855 | 0.0 | fail |
 | `R_INSERTION` | `gpt-4.1-mini` | 1.0 | 1.0 | 1.0 | 0.002488 | 401.92926 | fallback approved |
 
@@ -93,8 +93,39 @@ Evaluation label:
 - Allow `gpt-4.1-mini` fallback only for:
   - `L_LONG_TALK`
   - `R_INSERTION`
-- Do not enable fallback yet for:
-  - `L_RESPONSE`
+- `L_RESPONSE` now uses a dedicated generation mode:
+  - prompt template: `content-v1-listening-response-skeleton`
+  - generation mode: `L_RESPONSE_SKELETON`
+  - compiler version: `l-response-compiler-v1`
+- `L_RESPONSE` dedicated mode has now produced a live publishable item with
+  `gpt-5-mini`, so fallback remains disabled
+
+## L_RESPONSE Dedicated Generation Mode
+
+`L_RESPONSE` is no longer generated through the generic canonical content path.
+
+The model now returns a response-item skeleton only:
+
+- exactly 2 turns
+- `responsePromptSpeaker`
+- `correctResponseText`
+- `distractorResponseTexts` (exactly 4)
+- `evidenceTurnIndexes`
+- `whyCorrectKo`
+- `whyWrongKoByOption`
+
+The server then compiles the final canonical payload deterministically:
+
+- fixed stem: `What is the most appropriate response to the last speaker?`
+- deterministic option layout:
+  - `A = correct`
+  - `B..E = distractors`
+- deterministic `answerKey`
+- deterministic transcript sentence ids
+- deterministic `evidenceSentenceIds`
+
+This keeps the default model on `gpt-5-mini` while making the strict JSON
+contract substantially smaller and more validator-friendly.
 
 ## Operational Notes
 
