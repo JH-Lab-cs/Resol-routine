@@ -30,7 +30,7 @@ The frozen minimum gate for `B3.4` content sync is:
 - Vocab
   - metadata must exist
   - each track band must have a non-empty eligible pool
-  - backend vocab catalog may still be absent if the local policy remains aligned
+  - backend vocab catalog must be seeded and treated as the canonical source
 
 ## Audit Inputs
 
@@ -140,35 +140,32 @@ Status: `NOT_READY`
 
 ## 2. Vocabulary Audit
 
-### Current committed vocabulary source
+### Current canonical vocabulary source
 
-The committed local source currently has:
+Backend canonical source:
 
-- 3 vocabulary items total in `starter_pack.json`
+- `vocab_catalog_entries`
+- bootstrap source: `assets/content_packs/starter_pack.json`
+- current starter bootstrap size: `3` curated rows
 
-`vocab_master` supports only:
+Compatibility source that still exists until B3.4:
 
-- `id`
-- `lemma`
-- `pos`
-- `meaning`
-- `example`
-- `ipa`
-- `deleted_at`
-- `created_at`
+- local app `vocab_master`
 
-It does **not** currently store:
+Frozen backend metadata now includes:
 
-- track band
-- target exam level
-- CSAT/Suneung source tag
-- frequency tier
-- difficulty band
-- curriculum year/series
+- `source_tag`
+- `target_min_track`
+- `target_max_track`
+- `difficulty_band`
+- optional `frequency_tier`
+- `catalog_key`
+- `is_active`
+- optional `source_metadata_json`
 
 ### Can the current structure support track-differentiated vocab selection?
 
-Not reliably.
+Partially.
 
 The current repository can support:
 
@@ -176,9 +173,8 @@ The current repository can support:
 - bookmarking
 - deterministic daily quiz ordering
 
-It cannot yet support academically meaningful M3/H1/H2/H3 progression because
-the core metadata required to separate vocab by school level or exam target is
-missing.
+The metadata needed to separate vocab by school level or exam target now exists
+in the backend catalog. The remaining gap is depth, not schema.
 
 ### Proposed selection rule to freeze now
 
@@ -193,22 +189,14 @@ Frozen rule for future implementation:
 
 ### Additional metadata required
 
-At minimum, vocabulary items need:
-
-- `sourceTag` (`CSAT`, `school_core`, `custom`, etc.)
-- `targetMinTrack`
-- `targetMaxTrack`
-- `difficultyBand`
-- optional `frequencyTier`
-
-Without these fields, track-specific vocab selection remains heuristic at best.
+No additional metadata is required for the initial backend bootstrap. The
+remaining requirement is more curated rows per band.
 
 ### Vocabulary readiness verdict
 
-- Current local quiz/demo flow: `Serviceable for development only`
-- Real grade-differentiated service: `Not sufficient`
-
-Status: `NOT_READY`
+- Backend schema/policy: `Ready`
+- Real grade-differentiated service depth: `Warning`
+Status: `WARNING`
 
 ## 3. Weekly/Monthly Mock Audit
 

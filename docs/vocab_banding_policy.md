@@ -1,6 +1,6 @@
 # Vocabulary Banding Policy
 
-Last updated: 2026-03-08
+Last updated: 2026-03-11
 
 ## Scope
 
@@ -10,8 +10,8 @@ It does not implement user-specific adaptive selection. That remains post-B3 wor
 
 ## Required Metadata
 
-`vocab_master` must support the minimum metadata needed to express CSAT-oriented
-progression:
+The backend canonical catalog `vocab_catalog_entries` must support the minimum
+metadata needed to express CSAT-oriented progression:
 
 - `sourceTag`
   - `CSAT`
@@ -28,7 +28,8 @@ progression:
 - `frequencyTier`
   - nullable integer `1..5`
 
-`USER_CUSTOM` remains separate from curated curriculum/CSAT vocabulary.
+`USER_CUSTOM` remains separate from curated curriculum/CSAT vocabulary and is
+excluded from the backend bootstrap seed.
 
 ## Frozen Progression Rule
 
@@ -69,6 +70,8 @@ document and is defined separately in `docs/adaptive_selection_design.md`.
 
 - starter-pack vocabulary is allowed to remain small
 - starter-pack vocabulary must still carry the frozen metadata fields above
+- backend bootstrap imports starter-pack rows idempotently into
+  `vocab_catalog_entries`
 - local custom vocabulary created in the app must default to:
   - `sourceTag = USER_CUSTOM`
   - `targetMinTrack = null`
@@ -86,8 +89,8 @@ Pre-B3 readiness uses a conservative service threshold:
   - `targetMinTrack`
   - `targetMaxTrack`
   - `difficultyBand`
-- the current repository still treats vocabulary as local/front-owned metadata
-  rather than a backend catalog
+- backend catalog is now the canonical source of truth for curated vocabulary
+- local/front metadata remains compatibility-only until B3.4 vocab delivery
 
 That means vocabulary can be audited for readiness, but it is not yet part of
 the backend AI backfill flow.
@@ -95,6 +98,7 @@ the backend AI backfill flow.
 Current implication:
 
 - metadata structure is ready
+- backend canonical source is ready
 - deterministic banding policy is ready
 - live-service depth is still not ready
 

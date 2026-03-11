@@ -85,7 +85,10 @@ This note captures frontend-backend contracts that must remain stable while form
 
 ## Vocabulary Banding Contract
 
-- Pre-B3 vocabulary banding metadata lives in the local app `vocab_master` table.
+- Backend vocabulary banding metadata is now bootstrapped into
+  `vocab_catalog_entries` and is the canonical source of truth.
+- Pre-B3 and pre-B3.4 app flows may still read local `vocab_master` metadata as
+  a compatibility source until backend delivery is wired in.
 - Required metadata fields:
   - `sourceTag`
   - `targetMinTrack`
@@ -96,6 +99,7 @@ This note captures frontend-backend contracts that must remain stable while form
   - `CSAT`
   - `SCHOOL_CORE`
   - `USER_CUSTOM`
+- Bootstrap seed/import excludes `USER_CUSTOM`.
 - Frozen progression policy is documented in `docs/vocab_banding_policy.md`.
 - Adaptive/user-specific vocab selection is still post-B3 and must not be treated
   as implemented by this contract.

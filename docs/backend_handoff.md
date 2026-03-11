@@ -315,6 +315,13 @@ This document is the backend handoff baseline for the next chat/session.
   - fallback remains disabled unless a later regression reopens the issue
 - Frozen vocabulary banding policy:
   - see `docs/vocab_banding_policy.md`
+- Backend vocab catalog bootstrap:
+  - backend canonical table: `vocab_catalog_entries`
+  - bootstrap source: `assets/content_packs/starter_pack.json`
+  - import command: `cd backend && uv run python tools/seed_vocab_catalog.py --json --execute`
+  - audit command: `cd backend && uv run python tools/vocab_catalog_audit.py --json`
+  - `USER_CUSTOM` is excluded from backend catalog bootstrap
+  - local/front vocab metadata remains compatibility-only until B3.4 delivery switches over
 
 ## K-3. B3.4 Content Sync Readiness Gate
 
@@ -331,7 +338,7 @@ This document is the backend handoff baseline for the next chat/session.
   - Vocab:
     - metadata fields exist
     - each track band has a non-empty eligible pool
-    - backend catalog may still be absent if local policy remains the source of truth
+    - backend vocab catalog should be seeded and treated as the canonical source of truth
 - Current audit output exposes this as `b34ContentSyncGate`.
 
 ## L. Mock Exam Assembly Rules
