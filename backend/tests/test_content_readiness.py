@@ -42,8 +42,9 @@ def test_dev_seed_creates_daily_and_mock_readiness_baseline(db_session_factory) 
 
         vocab = report["vocab"]
         assert vocab["backendCatalogPresent"] is False
-        assert vocab["serviceReadiness"] == "NOT_READY"
-        assert vocab["tracks"]["M3"]["readiness"] == "NOT_READY"
+        assert vocab["serviceReadiness"] == "WARNING"
+        assert vocab["tracks"]["M3"]["readiness"] == "WARNING"
+        assert vocab["sourceOfTruth"] == "FRONTEND_COMPATIBILITY_SEED"
 
         gate = build_b34_content_sync_gate(report)
         assert gate["eligibleForB34ContentSync"] is False
