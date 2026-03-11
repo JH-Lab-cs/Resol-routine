@@ -185,6 +185,9 @@ class UserSettings extends Table {
   String get tableName => 'user_settings';
 
   IntColumn get id => integer()();
+  TextColumn get backendUserId => text()
+      .withLength(min: 0, max: DbTextLimits.idMax)
+      .customConstraint("NOT NULL DEFAULT ''")();
   TextColumn get role => text().customConstraint(
     "NOT NULL DEFAULT 'STUDENT' CHECK (role IN ('STUDENT', 'PARENT'))",
   )();

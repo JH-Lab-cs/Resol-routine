@@ -15,7 +15,16 @@ enum _OnboardingStep { login, profile }
 const List<String> _studentGradeOptions = <String>['중3', '고1', '고2', '고3'];
 
 class OnboardingFlowScreen extends ConsumerStatefulWidget {
-  const OnboardingFlowScreen({super.key});
+  const OnboardingFlowScreen({
+    super.key,
+    this.initialRole,
+    this.startAtProfileStep = false,
+    this.roleLocked = false,
+  });
+
+  final String? initialRole;
+  final bool startAtProfileStep;
+  final bool roleLocked;
 
   @override
   ConsumerState<OnboardingFlowScreen> createState() =>
@@ -30,6 +39,16 @@ class _OnboardingFlowScreenState extends ConsumerState<OnboardingFlowScreen> {
   String _selectedGrade = '고1';
   bool _roleLocked = false;
   bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedRole = widget.initialRole;
+    _roleLocked = widget.roleLocked;
+    if (widget.startAtProfileStep) {
+      _step = _OnboardingStep.profile;
+    }
+  }
 
   @override
   void dispose() {

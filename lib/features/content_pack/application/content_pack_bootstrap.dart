@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/database/database_providers.dart';
+import '../../auth/application/auth_session_provider.dart';
 import '../data/content_pack_seeder.dart';
 
 const String _starterPackAssetPath = 'assets/content_packs/starter_pack.json';
@@ -15,5 +16,8 @@ final contentPackSeederProvider = Provider<ContentPackSeeder>((Ref ref) {
 
 final appBootstrapProvider = FutureProvider<void>((Ref ref) async {
   final seeder = ref.watch(contentPackSeederProvider);
-  await seeder.seedOnFirstLaunch();
+  await Future.wait<void>(<Future<void>>[
+    seeder.seedOnFirstLaunch(),
+    ref.watch(authBootstrapProvider.future),
+  ]);
 });

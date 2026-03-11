@@ -36,7 +36,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase({QueryExecutor? executor}) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 14;
+  int get schemaVersion => 15;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -84,6 +84,9 @@ class AppDatabase extends _$AppDatabase {
       }
       if (from < 14) {
         await _migrateToV14(m);
+      }
+      if (from < 15) {
+        await _migrateToV15(m);
       }
       await _createIndexes();
       await _ensureUserSettingsRow();
@@ -344,6 +347,20 @@ class AppDatabase extends _$AppDatabase {
     if (!existingColumnNames.contains('frequency_tier')) {
       await m.addColumn(vocabMaster, vocabMaster.frequencyTier);
     }
+  }
+
+  Future<void> _migrateToV15(Migrator m) async {
+    final columns = await customSelect(
+      "PRAGMA table_info('user_settings')",
+      readsFrom: {userSettings},
+    ).get();
+    final hasBackendUserId = columns.any(
+      (row) => row.read<String>('name') == 'backend_user_id',
+    );
+    if (hasBackendUserId) {
+      return;
+    }
+    await m.addColumn(userSettings, userSettings.backendUserId);
   }
 
   Future<void> _createIndexes() async {

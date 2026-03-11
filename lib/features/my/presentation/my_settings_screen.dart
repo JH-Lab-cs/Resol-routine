@@ -6,6 +6,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import '../../../core/ui/app_copy_ko.dart';
 import '../../../core/ui/app_tokens.dart';
 import '../../../core/ui/components/app_snackbars.dart';
+import '../../auth/application/auth_session_provider.dart';
 import '../application/profile_ui_prefs_provider.dart';
 import '../../settings/application/user_settings_providers.dart';
 import '../../settings/data/user_settings_repository.dart';
@@ -242,7 +243,7 @@ class _MySettingsScreenState extends ConsumerState<MySettingsScreen> {
   }
 
   Future<void> _logout(BuildContext context, WidgetRef ref) async {
-    await ref.read(userSettingsProvider.notifier).logout();
+    await ref.read(authSessionProvider.notifier).signOut();
     _resetProfileUiPrefs(ref);
     ref.invalidate(selectedTrackProvider);
     if (!context.mounted) {
@@ -278,6 +279,7 @@ class _MySettingsScreenState extends ConsumerState<MySettingsScreen> {
     }
 
     await ref.read(userSettingsProvider.notifier).withdraw();
+    await ref.read(authSessionProvider.notifier).clearSessionOnly();
     _resetProfileUiPrefs(ref);
     ref.invalidate(selectedTrackProvider);
     if (!context.mounted) {

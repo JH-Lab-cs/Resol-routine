@@ -5,6 +5,7 @@ import '../../../core/database/db_text_limits.dart';
 
 class UserSettingsModel {
   const UserSettingsModel({
+    required this.backendUserId,
     required this.role,
     required this.displayName,
     required this.birthDate,
@@ -16,6 +17,7 @@ class UserSettingsModel {
     required this.updatedAt,
   });
 
+  final String backendUserId;
   final String role;
   final String displayName;
   final String birthDate;
@@ -115,6 +117,46 @@ class UserSettingsRepository {
     );
   }
 
+  Future<void> syncAuthenticatedUser({
+    required String backendUserId,
+    required String role,
+  }) async {
+    if (backendUserId.trim().isEmpty) {
+      throw const FormatException('backendUserId must not be empty.');
+    }
+    if (!supportedRoles.contains(role)) {
+      throw FormatException('Unsupported role: "$role"');
+    }
+
+    final current = await get();
+    final nowUtc = DateTime.now().toUtc();
+    if (current.backendUserId == backendUserId) {
+      await _update(
+        UserSettingsCompanion(
+          role: Value(role),
+          backendUserId: Value(backendUserId),
+          updatedAt: Value(nowUtc),
+        ),
+      );
+      return;
+    }
+
+    await _update(
+      UserSettingsCompanion(
+        backendUserId: Value(backendUserId),
+        role: Value(role),
+        displayName: const Value(''),
+        birthDate: const Value(''),
+        track: const Value(defaultTrack),
+        notificationsEnabled: const Value(true),
+        studyReminderEnabled: const Value(true),
+        devToolsEnabled: const Value(false),
+        createdAt: Value(nowUtc),
+        updatedAt: Value(nowUtc),
+      ),
+    );
+  }
+
   Future<void> updateNotificationsEnabled(bool enabled) {
     return _update(
       UserSettingsCompanion(
@@ -146,6 +188,7 @@ class UserSettingsRepository {
     final nowUtc = DateTime.now().toUtc();
     return _update(
       UserSettingsCompanion(
+        backendUserId: const Value(''),
         role: const Value(defaultRole),
         displayName: const Value(''),
         birthDate: const Value(''),
@@ -163,6 +206,7 @@ class UserSettingsRepository {
     final nowUtc = DateTime.now().toUtc();
     return _update(
       UserSettingsCompanion(
+        backendUserId: const Value(''),
         role: const Value(defaultRole),
         displayName: const Value(''),
         birthDate: const Value(''),
@@ -191,6 +235,7 @@ class UserSettingsRepository {
 
   UserSettingsModel _toModel(UserSetting row) {
     return UserSettingsModel(
+      backendUserId: row.backendUserId,
       role: row.role,
       displayName: row.displayName,
       birthDate: row.birthDate,

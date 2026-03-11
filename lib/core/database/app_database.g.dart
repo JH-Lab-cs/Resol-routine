@@ -3500,6 +3500,20 @@ class $UserSettingsTable extends UserSettings
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _backendUserIdMeta = const VerificationMeta(
+    'backendUserId',
+  );
+  @override
+  late final GeneratedColumn<String> backendUserId = GeneratedColumn<String>(
+    'backend_user_id',
+    aliasedName,
+    false,
+    additionalChecks: GeneratedColumn.checkTextLength(minTextLength: 0),
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints: 'NOT NULL DEFAULT \'\'',
+    defaultValue: const CustomExpression('\'\''),
+  );
   static const VerificationMeta _roleMeta = const VerificationMeta('role');
   @override
   late final GeneratedColumn<String> role = GeneratedColumn<String>(
@@ -3626,6 +3640,7 @@ class $UserSettingsTable extends UserSettings
   @override
   List<GeneratedColumn> get $columns => [
     id,
+    backendUserId,
     role,
     displayName,
     birthDate,
@@ -3650,6 +3665,15 @@ class $UserSettingsTable extends UserSettings
     final data = instance.toColumns(true);
     if (data.containsKey('id')) {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('backend_user_id')) {
+      context.handle(
+        _backendUserIdMeta,
+        backendUserId.isAcceptableOrUnknown(
+          data['backend_user_id']!,
+          _backendUserIdMeta,
+        ),
+      );
     }
     if (data.containsKey('role')) {
       context.handle(
@@ -3730,6 +3754,10 @@ class $UserSettingsTable extends UserSettings
         DriftSqlType.int,
         data['${effectivePrefix}id'],
       )!,
+      backendUserId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}backend_user_id'],
+      )!,
       role: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}role'],
@@ -3777,6 +3805,7 @@ class $UserSettingsTable extends UserSettings
 
 class UserSetting extends DataClass implements Insertable<UserSetting> {
   final int id;
+  final String backendUserId;
   final String role;
   final String displayName;
   final String birthDate;
@@ -3788,6 +3817,7 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
   final DateTime updatedAt;
   const UserSetting({
     required this.id,
+    required this.backendUserId,
     required this.role,
     required this.displayName,
     required this.birthDate,
@@ -3802,6 +3832,7 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
+    map['backend_user_id'] = Variable<String>(backendUserId);
     map['role'] = Variable<String>(role);
     map['display_name'] = Variable<String>(displayName);
     map['birth_date'] = Variable<String>(birthDate);
@@ -3817,6 +3848,7 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
   UserSettingsCompanion toCompanion(bool nullToAbsent) {
     return UserSettingsCompanion(
       id: Value(id),
+      backendUserId: Value(backendUserId),
       role: Value(role),
       displayName: Value(displayName),
       birthDate: Value(birthDate),
@@ -3836,6 +3868,7 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return UserSetting(
       id: serializer.fromJson<int>(json['id']),
+      backendUserId: serializer.fromJson<String>(json['backendUserId']),
       role: serializer.fromJson<String>(json['role']),
       displayName: serializer.fromJson<String>(json['displayName']),
       birthDate: serializer.fromJson<String>(json['birthDate']),
@@ -3856,6 +3889,7 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
+      'backendUserId': serializer.toJson<String>(backendUserId),
       'role': serializer.toJson<String>(role),
       'displayName': serializer.toJson<String>(displayName),
       'birthDate': serializer.toJson<String>(birthDate),
@@ -3870,6 +3904,7 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
 
   UserSetting copyWith({
     int? id,
+    String? backendUserId,
     String? role,
     String? displayName,
     String? birthDate,
@@ -3881,6 +3916,7 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
     DateTime? updatedAt,
   }) => UserSetting(
     id: id ?? this.id,
+    backendUserId: backendUserId ?? this.backendUserId,
     role: role ?? this.role,
     displayName: displayName ?? this.displayName,
     birthDate: birthDate ?? this.birthDate,
@@ -3894,6 +3930,9 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
   UserSetting copyWithCompanion(UserSettingsCompanion data) {
     return UserSetting(
       id: data.id.present ? data.id.value : this.id,
+      backendUserId: data.backendUserId.present
+          ? data.backendUserId.value
+          : this.backendUserId,
       role: data.role.present ? data.role.value : this.role,
       displayName: data.displayName.present
           ? data.displayName.value
@@ -3918,6 +3957,7 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
   String toString() {
     return (StringBuffer('UserSetting(')
           ..write('id: $id, ')
+          ..write('backendUserId: $backendUserId, ')
           ..write('role: $role, ')
           ..write('displayName: $displayName, ')
           ..write('birthDate: $birthDate, ')
@@ -3934,6 +3974,7 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
   @override
   int get hashCode => Object.hash(
     id,
+    backendUserId,
     role,
     displayName,
     birthDate,
@@ -3949,6 +3990,7 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
       identical(this, other) ||
       (other is UserSetting &&
           other.id == this.id &&
+          other.backendUserId == this.backendUserId &&
           other.role == this.role &&
           other.displayName == this.displayName &&
           other.birthDate == this.birthDate &&
@@ -3962,6 +4004,7 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
 
 class UserSettingsCompanion extends UpdateCompanion<UserSetting> {
   final Value<int> id;
+  final Value<String> backendUserId;
   final Value<String> role;
   final Value<String> displayName;
   final Value<String> birthDate;
@@ -3973,6 +4016,7 @@ class UserSettingsCompanion extends UpdateCompanion<UserSetting> {
   final Value<DateTime> updatedAt;
   const UserSettingsCompanion({
     this.id = const Value.absent(),
+    this.backendUserId = const Value.absent(),
     this.role = const Value.absent(),
     this.displayName = const Value.absent(),
     this.birthDate = const Value.absent(),
@@ -3985,6 +4029,7 @@ class UserSettingsCompanion extends UpdateCompanion<UserSetting> {
   });
   UserSettingsCompanion.insert({
     this.id = const Value.absent(),
+    this.backendUserId = const Value.absent(),
     this.role = const Value.absent(),
     this.displayName = const Value.absent(),
     this.birthDate = const Value.absent(),
@@ -3997,6 +4042,7 @@ class UserSettingsCompanion extends UpdateCompanion<UserSetting> {
   });
   static Insertable<UserSetting> custom({
     Expression<int>? id,
+    Expression<String>? backendUserId,
     Expression<String>? role,
     Expression<String>? displayName,
     Expression<String>? birthDate,
@@ -4009,6 +4055,7 @@ class UserSettingsCompanion extends UpdateCompanion<UserSetting> {
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
+      if (backendUserId != null) 'backend_user_id': backendUserId,
       if (role != null) 'role': role,
       if (displayName != null) 'display_name': displayName,
       if (birthDate != null) 'birth_date': birthDate,
@@ -4025,6 +4072,7 @@ class UserSettingsCompanion extends UpdateCompanion<UserSetting> {
 
   UserSettingsCompanion copyWith({
     Value<int>? id,
+    Value<String>? backendUserId,
     Value<String>? role,
     Value<String>? displayName,
     Value<String>? birthDate,
@@ -4037,6 +4085,7 @@ class UserSettingsCompanion extends UpdateCompanion<UserSetting> {
   }) {
     return UserSettingsCompanion(
       id: id ?? this.id,
+      backendUserId: backendUserId ?? this.backendUserId,
       role: role ?? this.role,
       displayName: displayName ?? this.displayName,
       birthDate: birthDate ?? this.birthDate,
@@ -4054,6 +4103,9 @@ class UserSettingsCompanion extends UpdateCompanion<UserSetting> {
     final map = <String, Expression>{};
     if (id.present) {
       map['id'] = Variable<int>(id.value);
+    }
+    if (backendUserId.present) {
+      map['backend_user_id'] = Variable<String>(backendUserId.value);
     }
     if (role.present) {
       map['role'] = Variable<String>(role.value);
@@ -4091,6 +4143,7 @@ class UserSettingsCompanion extends UpdateCompanion<UserSetting> {
   String toString() {
     return (StringBuffer('UserSettingsCompanion(')
           ..write('id: $id, ')
+          ..write('backendUserId: $backendUserId, ')
           ..write('role: $role, ')
           ..write('displayName: $displayName, ')
           ..write('birthDate: $birthDate, ')
@@ -11874,6 +11927,7 @@ typedef $$DailySessionItemsTableProcessedTableManager =
 typedef $$UserSettingsTableCreateCompanionBuilder =
     UserSettingsCompanion Function({
       Value<int> id,
+      Value<String> backendUserId,
       Value<String> role,
       Value<String> displayName,
       Value<String> birthDate,
@@ -11887,6 +11941,7 @@ typedef $$UserSettingsTableCreateCompanionBuilder =
 typedef $$UserSettingsTableUpdateCompanionBuilder =
     UserSettingsCompanion Function({
       Value<int> id,
+      Value<String> backendUserId,
       Value<String> role,
       Value<String> displayName,
       Value<String> birthDate,
@@ -11909,6 +11964,11 @@ class $$UserSettingsTableFilterComposer
   });
   ColumnFilters<int> get id => $composableBuilder(
     column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get backendUserId => $composableBuilder(
+    column: $table.backendUserId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -11972,6 +12032,11 @@ class $$UserSettingsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get backendUserId => $composableBuilder(
+    column: $table.backendUserId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get role => $composableBuilder(
     column: $table.role,
     builder: (column) => ColumnOrderings(column),
@@ -12029,6 +12094,11 @@ class $$UserSettingsTableAnnotationComposer
   });
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get backendUserId => $composableBuilder(
+    column: $table.backendUserId,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get role =>
       $composableBuilder(column: $table.role, builder: (column) => column);
@@ -12098,6 +12168,7 @@ class $$UserSettingsTableTableManager
           updateCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
+                Value<String> backendUserId = const Value.absent(),
                 Value<String> role = const Value.absent(),
                 Value<String> displayName = const Value.absent(),
                 Value<String> birthDate = const Value.absent(),
@@ -12109,6 +12180,7 @@ class $$UserSettingsTableTableManager
                 Value<DateTime> updatedAt = const Value.absent(),
               }) => UserSettingsCompanion(
                 id: id,
+                backendUserId: backendUserId,
                 role: role,
                 displayName: displayName,
                 birthDate: birthDate,
@@ -12122,6 +12194,7 @@ class $$UserSettingsTableTableManager
           createCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
+                Value<String> backendUserId = const Value.absent(),
                 Value<String> role = const Value.absent(),
                 Value<String> displayName = const Value.absent(),
                 Value<String> birthDate = const Value.absent(),
@@ -12133,6 +12206,7 @@ class $$UserSettingsTableTableManager
                 Value<DateTime> updatedAt = const Value.absent(),
               }) => UserSettingsCompanion.insert(
                 id: id,
+                backendUserId: backendUserId,
                 role: role,
                 displayName: displayName,
                 birthDate: birthDate,

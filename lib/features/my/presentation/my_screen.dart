@@ -15,6 +15,7 @@ import '../../home/application/home_providers.dart';
 import '../../mock_exam/presentation/mock_exam_history_screen.dart';
 import '../../parent/application/parent_ui_providers.dart';
 import '../../parent/presentation/parent_ui_helpers.dart';
+import '../../auth/application/auth_session_provider.dart';
 import '../application/my_stats_providers.dart';
 import '../../settings/application/user_settings_providers.dart';
 import '../../settings/data/user_settings_repository.dart';
@@ -271,7 +272,7 @@ class MyScreen extends ConsumerWidget {
   }
 
   Future<void> _logout(BuildContext context, WidgetRef ref) async {
-    await ref.read(userSettingsProvider.notifier).logout();
+    await ref.read(authSessionProvider.notifier).signOut();
     _resetProfileUiPrefs(ref);
     ref.invalidate(selectedTrackProvider);
     if (!context.mounted) {
@@ -307,6 +308,7 @@ class MyScreen extends ConsumerWidget {
     }
 
     await ref.read(userSettingsProvider.notifier).withdraw();
+    await ref.read(authSessionProvider.notifier).clearSessionOnly();
     _resetProfileUiPrefs(ref);
     ref.invalidate(selectedTrackProvider);
     if (!context.mounted) {
