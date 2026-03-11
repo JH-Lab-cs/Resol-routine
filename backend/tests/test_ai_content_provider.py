@@ -710,3 +710,100 @@ def test_openai_provider_uses_reading_insertion_prompt_template_and_rules(
     assert '"promptTemplateVersion":"content-v1-reading-insertion"' in captured_payload[
         "messages"
     ][1]["content"]
+
+
+def test_openai_provider_uses_l_response_skeleton_template_and_compiles_candidate(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured_payload: dict[str, object] = {}
+
+    class _Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def read(self):
+            payload = {
+                "choices": [
+                    {
+                        "message": {
+                            "content": json.dumps(
+                                {
+                                    "candidates": [
+                                        {
+                                            "track": "M3",
+                                            "difficulty": 1,
+                                            "typeTag": "L_RESPONSE",
+                                            "turns": [
+                                                {
+                                                    "speaker": "A",
+                                                    "text": (
+                                                        "Could you tell me where "
+                                                        "the meeting is?"
+                                                    ),
+                                                },
+                                                {
+                                                    "speaker": "B",
+                                                    "text": (
+                                                        "Yes, but check the board "
+                                                        "near the office first."
+                                                    ),
+                                                },
+                                            ],
+                                            "responsePromptSpeaker": "B",
+                                            "correctResponseText": (
+                                                "Okay, I'll check the board first."
+                                            ),
+                                            "distractorResponseTexts": [
+                                                "I already bought lunch.",
+                                                "The weather was nice yesterday.",
+                                                "My bag is under the desk.",
+                                                "Let's clean the room after class.",
+                                            ],
+                                            "evidenceTurnIndexes": [2],
+                                            "whyCorrectKo": (
+                                                "마지막 화자가 먼저 게시판을 확인하라고 말하므로 "
+                                                "그에 맞는 응답이 정답입니다."
+                                            ),
+                                            "whyWrongKoByOption": {
+                                                "B": "점심 이야기는 대화 맥락과 무관합니다.",
+                                                "C": (
+                                                    "날씨 이야기는 마지막 발화에 대한 "
+                                                    "응답이 아닙니다."
+                                                ),
+                                                "D": "가방 위치는 대화 목적과 관련이 없습니다.",
+                                                "E": (
+                                                    "청소 제안은 마지막 화자의 요청과 "
+                                                    "맞지 않습니다."
+                                                ),
+                                            },
+                                        }
+                                    ]
+                                },
+                                ensure_ascii=False,
+                            ),
+                        }
+                    }
+                ]
+            }
+            return json.dumps(payload, ensure_ascii=False).encode("utf-8")
+
+    def fake_urlopen(request, timeout):
+        captured_payload.update(json.loads(request.data.decode("utf-8")))
+        return _Response()
+
+    monkeypatch.setattr("app.services.ai_content_provider.urllib_request.urlopen", fake_urlopen)
+
+    result = _provider().generate_candidates(context=_listening_context(ContentTypeTag.L_RESPONSE))
+
+    assert result.prompt_template_version == "content-v1-listening-response-skeleton"
+    assert result.generation_mode == "L_RESPONSE_SKELETON"
+    assert result.compiler_version == "l-response-compiler-v1"
+    assert "response-item skeleton" in captured_payload["messages"][0]["content"]
+    assert '"generationMode":"L_RESPONSE_SKELETON"' in captured_payload["messages"][1]["content"]
+    assert result.candidates[0].stem == "What is the most appropriate response to the last speaker?"
+    assert result.candidates[0].answer_key == "A"
+    assert result.candidates[0].options["A"] == "Okay, I'll check the board first."
+    assert result.candidates[0].evidence_sentence_ids == ["s2"]

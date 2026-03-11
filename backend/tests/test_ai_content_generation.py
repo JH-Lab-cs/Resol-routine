@@ -28,6 +28,10 @@ from app.services import ai_artifact_service
 from app.services.ai_content_generation_service import run_ai_content_generation_job
 from app.services.ai_content_provider import ContentGenerationResult, GeneratedContentCandidate
 from app.services.ai_provider import AIProviderError
+from app.services.l_response_generation_service import (
+    L_RESPONSE_COMPILER_VERSION,
+    L_RESPONSE_GENERATION_MODE,
+)
 
 INTERNAL_API_KEY = "unit-test-internal-api-key-value"
 
@@ -796,6 +800,106 @@ def test_materialize_draft_propagates_job_source_metadata(
         assert question.metadata_json["source"] == "content_readiness_backfill"
 
 
+def test_l_response_materialize_records_generation_mode_and_compiler_version(
+    client: TestClient,
+    db_session_factory,
+    monkeypatch: pytest.MonkeyPatch,
+    fake_ai_artifact_store: FakeAIArtifactStore,
+) -> None:
+    candidate = _valid_candidate(
+        skill=Skill.LISTENING,
+        type_tag=ContentTypeTag.L_RESPONSE,
+        track=Track.M3,
+        difficulty=1,
+    )
+
+    class LResponseProvider:
+        def generate_candidates(self, *, context) -> ContentGenerationResult:
+            del context
+            compiled_payload = {
+                "track": candidate.track.value,
+                "skill": candidate.skill.value,
+                "typeTag": candidate.type_tag.value,
+                "difficulty": candidate.difficulty,
+                "question": {
+                    "stem": candidate.stem,
+                },
+            }
+            raw_payload = {
+                "track": candidate.track.value,
+                "difficulty": candidate.difficulty,
+                "typeTag": candidate.type_tag.value,
+                "turns": candidate.turns,
+                "responsePromptSpeaker": candidate.turns[-1]["speaker"],
+                "correctResponseText": candidate.options["A"],
+                "distractorResponseTexts": [
+                    candidate.options["B"],
+                    candidate.options["C"],
+                    candidate.options["D"],
+                    candidate.options["E"],
+                ],
+                "evidenceTurnIndexes": [2],
+                "whyCorrectKo": candidate.why_correct_ko,
+                "whyWrongKoByOption": {
+                    "B": candidate.why_wrong_ko_by_option["B"],
+                    "C": candidate.why_wrong_ko_by_option["C"],
+                    "D": candidate.why_wrong_ko_by_option["D"],
+                    "E": candidate.why_wrong_ko_by_option["E"],
+                },
+            }
+            return ContentGenerationResult(
+                provider_name="fake",
+                model_name="gpt-5-mini",
+                prompt_template_version="content-v1-listening-response-skeleton",
+                raw_prompt=json.dumps({"requestId": "l-response-trace"}),
+                raw_response=json.dumps({"candidates": [raw_payload]}),
+                candidates=[candidate],
+                raw_candidate_payloads=[raw_payload],
+                compiled_candidate_payloads=[compiled_payload],
+                generation_mode=L_RESPONSE_GENERATION_MODE,
+                compiler_version=L_RESPONSE_COMPILER_VERSION,
+            )
+
+    _patch_provider_builder(monkeypatch, LResponseProvider())
+
+    job = _create_job(
+        client,
+        request_id="content-job-l-response-trace",
+        matrix=[
+            {
+                "track": "M3",
+                "skill": "LISTENING",
+                "typeTag": "L_RESPONSE",
+                "difficulty": 1,
+                "count": 1,
+            }
+        ],
+    )
+    result = _run_job_once(db_session_factory, job_id=job["id"])
+    assert result.status == AIGenerationJobStatus.SUCCEEDED
+
+    candidate_id = client.get(
+        f"/internal/ai/content-generation/jobs/{job['id']}/candidates",
+        headers=_internal_headers(),
+    ).json()["items"][0]["id"]
+    materialize = client.post(
+        f"/internal/ai/content-generation/candidates/{candidate_id}/materialize-draft",
+        headers=_internal_headers(),
+    )
+    assert materialize.status_code == 200, materialize.text
+
+    with db_session_factory() as db:
+        revision = db.get(ContentUnitRevision, UUID(materialize.json()["contentRevisionId"]))
+        assert revision is not None
+        assert revision.metadata_json["generationMode"] == L_RESPONSE_GENERATION_MODE
+        assert revision.metadata_json["compilerVersion"] == L_RESPONSE_COMPILER_VERSION
+        question = db.execute(
+            select(ContentQuestion).where(ContentQuestion.content_unit_revision_id == revision.id)
+        ).scalar_one()
+        assert question.metadata_json["generationMode"] == L_RESPONSE_GENERATION_MODE
+        assert question.metadata_json["compilerVersion"] == L_RESPONSE_COMPILER_VERSION
+
+
 def test_artifact_upload_failure_marks_job_failed(
     client: TestClient,
     db_session_factory,
@@ -916,6 +1020,106 @@ def test_traceability_fields_and_artifact_keys_are_saved(
         assert candidate_row.artifact_candidate_json_key is not None
         assert candidate_row.artifact_validation_report_key is not None
         assert candidate_row.status == AIContentGenerationCandidateStatus.VALID
+
+
+def test_l_response_invalid_turn_count_maps_to_new_failure_code(
+    client: TestClient,
+    db_session_factory,
+    fake_ai_artifact_store: FakeAIArtifactStore,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    bad = _valid_candidate(
+        skill=Skill.LISTENING,
+        type_tag=ContentTypeTag.L_RESPONSE,
+        track=Track.M3,
+        difficulty=1,
+    )
+    bad = replace(
+        bad,
+        turns=[
+            {"speaker": "A", "text": "Hello"},
+            {"speaker": "B", "text": "Hi"},
+            {"speaker": "A", "text": "Extra turn"},
+        ],
+        sentences=[
+            {"id": "s1", "text": "Hello"},
+            {"id": "s2", "text": "Hi"},
+            {"id": "s3", "text": "Extra turn"},
+        ],
+        transcript="A: Hello\nB: Hi\nA: Extra turn",
+    )
+    _patch_provider_builder(monkeypatch, StaticProvider([bad]))
+
+    job = _create_job(
+        client,
+        request_id="content-job-l-response-turn-invalid",
+        matrix=[
+            {
+                "track": "M3",
+                "skill": "LISTENING",
+                "typeTag": "L_RESPONSE",
+                "difficulty": 1,
+                "count": 1,
+            }
+        ],
+    )
+    result = _run_job_once(db_session_factory, job_id=job["id"])
+    assert result.status == AIGenerationJobStatus.SUCCEEDED
+
+    listed = client.get(
+        f"/internal/ai/content-generation/jobs/{job['id']}/candidates",
+        headers=_internal_headers(),
+    )
+    assert listed.status_code == 200, listed.text
+    assert listed.json()["items"][0]["failureCode"] == "OUTPUT_INVALID_TURN_COUNT"
+
+
+def test_l_response_duplicate_options_map_to_response_option_failure_code(
+    client: TestClient,
+    db_session_factory,
+    fake_ai_artifact_store: FakeAIArtifactStore,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    bad = _valid_candidate(
+        skill=Skill.LISTENING,
+        type_tag=ContentTypeTag.L_RESPONSE,
+        track=Track.M3,
+        difficulty=1,
+    )
+    bad = replace(
+        bad,
+        options={
+            "A": "Sure, I will.",
+            "B": "Sure, I will.",
+            "C": "Let's ask the teacher.",
+            "D": "I left it at home.",
+            "E": "The bus was late today.",
+        },
+    )
+    _patch_provider_builder(monkeypatch, StaticProvider([bad]))
+
+    job = _create_job(
+        client,
+        request_id="content-job-l-response-option-invalid",
+        matrix=[
+            {
+                "track": "M3",
+                "skill": "LISTENING",
+                "typeTag": "L_RESPONSE",
+                "difficulty": 1,
+                "count": 1,
+            }
+        ],
+    )
+    result = _run_job_once(db_session_factory, job_id=job["id"])
+    assert result.status == AIGenerationJobStatus.SUCCEEDED
+
+    listed = client.get(
+        f"/internal/ai/content-generation/jobs/{job['id']}/candidates",
+        headers=_internal_headers(),
+    )
+    assert listed.status_code == 200, listed.text
+    assert listed.json()["items"][0]["failureCode"] == "OUTPUT_INVALID_RESPONSE_OPTIONS"
 
 
 def test_generated_candidate_materialization_is_not_auto_published_in_current_exam_surfaces(

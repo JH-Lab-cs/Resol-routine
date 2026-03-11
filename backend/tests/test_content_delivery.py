@@ -199,6 +199,23 @@ def _set_revision_metadata(
         db.commit()
 
 
+def _set_revision_text_fields(
+    db_session_factory,
+    *,
+    revision_id: str,
+    body_text: str | None = None,
+    transcript_text: str | None = None,
+) -> None:
+    with db_session_factory() as db:
+        revision = db.get(ContentUnitRevision, UUID(revision_id))
+        assert revision is not None
+        if body_text is not None:
+            revision.body_text = body_text
+        if transcript_text is not None:
+            revision.transcript_text = transcript_text
+        db.commit()
+
+
 def _create_published_revision(
     client: TestClient,
     db_session_factory,
@@ -426,6 +443,39 @@ def test_public_content_detail_returns_listening_signed_url(
     assert body["asset"]["mimeType"] == "audio/mpeg"
     assert body["asset"]["signedUrl"].startswith("https://fake-r2.local/download/")
     assert body["asset"]["expiresInSeconds"] == R2_DOWNLOAD_SIGNED_URL_TTL_SECONDS
+
+
+def test_public_content_detail_allows_multiline_listening_transcript_without_asset(
+    client: TestClient,
+    db_session_factory,
+) -> None:
+    listening = _create_published_revision(
+        client,
+        db_session_factory,
+        external_id="delivery-listening-multiline",
+        skill="LISTENING",
+        track="M3",
+        revision_code="rev-listening-multiline",
+        type_tag="L_RESPONSE",
+        difficulty=1,
+        published_at=datetime(2026, 3, 8, 4, 30, tzinfo=UTC),
+        with_audio=False,
+    )
+    _set_revision_text_fields(
+        db_session_factory,
+        revision_id=listening["revision_id"],
+        transcript_text="Friend: Do you want to try the new cafe?\nYou: Sounds good—let's go.",
+    )
+
+    response = client.get(f"/public/content/units/{listening['revision_id']}")
+    assert response.status_code == 200, response.text
+
+    body = response.json()
+    assert body["skill"] == "LISTENING"
+    assert body["asset"] is None
+    assert body["transcriptText"] == (
+        "Friend: Do you want to try the new cafe?\nYou: Sounds good—let's go."
+    )
 
 
 def test_public_content_detail_rejects_draft_and_archived_revisions(
