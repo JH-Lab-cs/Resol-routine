@@ -7,11 +7,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:resol_routine/app/app.dart';
-import 'package:resol_routine/core/domain/domain_enums.dart';
 import 'package:resol_routine/core/database/app_database.dart';
 import 'package:resol_routine/core/database/converters/json_models.dart';
 import 'package:resol_routine/core/database/database_providers.dart';
+import 'package:resol_routine/core/domain/domain_enums.dart';
 import 'package:resol_routine/core/time/day_key.dart';
+import 'package:resol_routine/features/auth/application/auth_session_provider.dart';
+import 'package:resol_routine/features/auth/data/auth_models.dart';
 import 'package:resol_routine/features/content_pack/application/content_pack_bootstrap.dart';
 import 'package:resol_routine/features/content_pack/data/content_pack_seeder.dart';
 import 'package:resol_routine/features/my/application/my_stats_providers.dart';
@@ -19,13 +21,35 @@ import 'package:resol_routine/features/my/presentation/my_screen.dart';
 import 'package:resol_routine/features/settings/application/user_settings_providers.dart';
 import 'package:resol_routine/features/settings/data/user_settings_repository.dart';
 import 'package:resol_routine/features/today/application/today_quiz_providers.dart';
-import 'package:resol_routine/features/today/application/today_session_providers.dart';
+import 'package:resol_routine/features/today/application/today_session_providers.dart'
+    hide selectedTrackProvider;
 import 'package:resol_routine/features/today/data/attempt_payload.dart';
 import 'package:resol_routine/features/today/data/today_quiz_repository.dart';
 import 'package:resol_routine/features/today/data/today_session_repository.dart';
 import 'package:resol_routine/features/today/presentation/quiz_flow_screen.dart';
 
 void main() {
+  testWidgets('shows sign-in screen when no stored auth session exists', (
+    WidgetTester tester,
+  ) async {
+    final sharedDb = AppDatabase(executor: NativeDatabase.memory());
+    addTearDown(sharedDb.close);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(sharedDb),
+          appBootstrapProvider.overrideWith((ref) async {}),
+        ],
+        child: const ResolRoutineApp(),
+      ),
+    );
+
+    await _pumpUntilVisible(tester, find.text('로그인하기'));
+    expect(find.text('로그인'), findsOneWidget);
+    expect(find.text('학생과 학부모 계정을 모두 지원합니다.'), findsOneWidget);
+  });
+
   testWidgets('opens quiz question from home CTA', (WidgetTester tester) async {
     final sharedDb = AppDatabase(executor: NativeDatabase.memory());
     final fakeSessionRepository = _FakeTodaySessionRepository(sharedDb);
@@ -43,6 +67,7 @@ void main() {
         overrides: [
           appDatabaseProvider.overrideWithValue(sharedDb),
           appBootstrapProvider.overrideWith((ref) async {}),
+          _signedInAuthOverride(),
           todaySessionRepositoryProvider.overrideWithValue(
             fakeSessionRepository,
           ),
@@ -69,7 +94,7 @@ void main() {
     expect(find.text('듣기'), findsAtLeastNWidgets(1));
   });
 
-  testWidgets('shows onboarding first and enters app after profile setup', (
+  testWidgets('shows onboarding profile step first after signed-in bootstrap', (
     WidgetTester tester,
   ) async {
     final sharedDb = AppDatabase(executor: NativeDatabase.memory());
@@ -83,6 +108,7 @@ void main() {
         overrides: [
           appDatabaseProvider.overrideWithValue(sharedDb),
           appBootstrapProvider.overrideWith((ref) async {}),
+          _signedInAuthOverride(),
           todaySessionRepositoryProvider.overrideWithValue(
             fakeSessionRepository,
           ),
@@ -92,15 +118,6 @@ void main() {
       ),
     );
 
-    await _pumpUntilVisible(tester, find.text('카카오톡으로 계속하기'));
-    expect(find.text('카카오톡으로 계속하기'), findsOneWidget);
-
-    await tester.tap(find.text('카카오톡으로 계속하기'));
-    await tester.pumpAndSettle();
-    await _pumpUntilVisible(tester, find.text('누가 사용하나요?'));
-
-    await tester.tap(find.text('학생'));
-    await tester.pumpAndSettle();
     await _pumpUntilVisible(tester, find.text('내 학습 정보 설정'));
     expect(find.text('학습 학년 (추후 변경가능합니다)'), findsOneWidget);
 
@@ -129,6 +146,7 @@ void main() {
         overrides: [
           appDatabaseProvider.overrideWithValue(sharedDb),
           appBootstrapProvider.overrideWith((ref) async {}),
+          _signedInAuthOverride(role: AuthUserRole.parent),
           todaySessionRepositoryProvider.overrideWithValue(
             fakeSessionRepository,
           ),
@@ -138,13 +156,6 @@ void main() {
       ),
     );
 
-    await _pumpUntilVisible(tester, find.text('카카오톡으로 계속하기'));
-    await tester.tap(find.text('카카오톡으로 계속하기'));
-    await tester.pumpAndSettle();
-    await _pumpUntilVisible(tester, find.text('누가 사용하나요?'));
-
-    await tester.tap(find.text('학부모'));
-    await tester.pumpAndSettle();
     await _pumpUntilVisible(tester, find.text('내 학습 정보 설정'));
 
     expect(find.text('학습 학년 (추후 변경가능합니다)'), findsNothing);
@@ -178,6 +189,7 @@ void main() {
         overrides: [
           appDatabaseProvider.overrideWithValue(sharedDb),
           appBootstrapProvider.overrideWith((ref) async {}),
+          _signedInAuthOverride(role: AuthUserRole.parent),
           todaySessionRepositoryProvider.overrideWithValue(
             fakeSessionRepository,
           ),
@@ -216,6 +228,7 @@ void main() {
           overrides: [
             appDatabaseProvider.overrideWithValue(sharedDb),
             appBootstrapProvider.overrideWith((ref) async {}),
+            _signedInAuthOverride(role: AuthUserRole.parent),
             todaySessionRepositoryProvider.overrideWithValue(
               fakeSessionRepository,
             ),
@@ -274,6 +287,7 @@ void main() {
           overrides: [
             appDatabaseProvider.overrideWithValue(sharedDb),
             appBootstrapProvider.overrideWith((ref) async {}),
+            _signedInAuthOverride(),
             todaySessionRepositoryProvider.overrideWithValue(
               fakeSessionRepository,
             ),
@@ -323,6 +337,7 @@ void main() {
         overrides: [
           appDatabaseProvider.overrideWithValue(sharedDb),
           appBootstrapProvider.overrideWith((ref) async {}),
+          _signedInAuthOverride(),
           todaySessionRepositoryProvider.overrideWithValue(
             fakeSessionRepository,
           ),
@@ -337,12 +352,13 @@ void main() {
       tester.element(find.byType(ResolRoutineApp)),
     );
 
-    await container.read(userSettingsProvider.notifier).logout();
+    await container.read(authSessionProvider.notifier).signOut();
     await tester.pumpAndSettle();
 
-    expect(find.text('카카오톡으로 계속하기'), findsOneWidget);
+    expect(find.text('로그인하기'), findsOneWidget);
     final settingsAfterLogout = await settingsRepository.get();
     expect(settingsAfterLogout.displayName, '');
+    expect(settingsAfterLogout.backendUserId, '');
   });
 
   testWidgets('My 탭은 DB 기반 통계만 표시한다', (WidgetTester tester) async {
@@ -457,6 +473,7 @@ void main() {
         overrides: [
           appDatabaseProvider.overrideWithValue(sharedDb),
           appBootstrapProvider.overrideWith((ref) async {}),
+          _signedInAuthOverride(),
           todaySessionRepositoryProvider.overrideWithValue(
             fakeSessionRepository,
           ),
@@ -651,6 +668,59 @@ Future<void> _scrollUntilVisible(WidgetTester tester, Finder finder) async {
     scrollable: find.byType(Scrollable).first,
   );
   await tester.pumpAndSettle();
+}
+
+Override _signedInAuthOverride({
+  AuthUserRole role = AuthUserRole.student,
+  String userId = 'user-1',
+  String email = 'user@example.com',
+}) {
+  final state = AuthSessionState(
+    status: AuthSessionStatus.signedIn,
+    user: AuthUserProfile(
+      id: userId,
+      email: email,
+      role: role,
+      createdAt: DateTime.utc(2026, 3, 1, 12),
+    ),
+  );
+  return authSessionProvider.overrideWith(
+    () => _FakeAuthSessionNotifier(state),
+  );
+}
+
+class _FakeAuthSessionNotifier extends AuthSessionNotifier {
+  _FakeAuthSessionNotifier(this._initialState);
+
+  final AuthSessionState _initialState;
+
+  @override
+  AuthSessionState build() => _initialState;
+
+  @override
+  Future<void> bootstrap() async {}
+
+  @override
+  Future<void> signIn({
+    required String email,
+    required String password,
+  }) async {}
+
+  @override
+  Future<void> refreshCurrentUser() async {}
+
+  @override
+  Future<void> signOut() async {
+    await ref.read(userSettingsRepositoryProvider).resetForLogout();
+    ref.invalidate(userSettingsProvider);
+    ref.invalidate(selectedTrackProvider);
+    state = const AuthSessionState.signedOut();
+  }
+
+  @override
+  Future<void> clearSessionOnly() async {
+    state = const AuthSessionState.signedOut();
+  }
 }
 
 class _FakeTodaySessionRepository extends TodaySessionRepository {
