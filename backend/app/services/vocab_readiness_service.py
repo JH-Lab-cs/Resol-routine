@@ -12,7 +12,10 @@ from app.core.policies import (
 )
 from app.models.enums import Track
 from app.models.vocab_catalog_entry import VocabCatalogEntry
-from app.services.vocab_catalog_service import VocabCatalogImportRow, load_seed_vocab_import_rows
+from app.services.vocab_catalog_service import (
+    VocabCatalogImportRow,
+    load_frontend_compatibility_vocab_import_rows,
+)
 
 _TRACK_SEQUENCE = [Track.M3, Track.H1, Track.H2, Track.H3]
 _TRACK_INDEX = {track.value: index for index, track in enumerate(_TRACK_SEQUENCE)}
@@ -54,7 +57,8 @@ def build_vocab_readiness_report(
         source_of_truth = "BACKEND_CATALOG"
     else:
         rows = compatibility_rows or [
-            _seed_item_to_readiness_row(item) for item in load_seed_vocab_import_rows()
+            _seed_item_to_readiness_row(item)
+            for item in load_frontend_compatibility_vocab_import_rows()
         ]
         source_of_truth = "FRONTEND_COMPATIBILITY_SEED"
 

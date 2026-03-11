@@ -9,7 +9,7 @@ from app.services.vocab_catalog_service import seed_vocab_catalog
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Seed backend vocab catalog from starter-pack data.",
+        description="Seed backend vocab catalog from starter-pack and backend seed data.",
     )
     parser.add_argument("--json", action="store_true", help="Emit machine-readable JSON output.")
     parser.add_argument("--dry-run", action="store_true", help="Preview changes without writing.")

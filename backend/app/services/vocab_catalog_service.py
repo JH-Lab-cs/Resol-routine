@@ -13,8 +13,11 @@ from app.models.enums import Track
 from app.models.vocab_catalog_entry import VocabCatalogEntry
 from app.models.vocab_enums import VocabSourceTag
 
-_CONTENT_PACK_PATH = (
+_STARTER_PACK_PATH = (
     Path(__file__).resolve().parents[3] / "assets" / "content_packs" / "starter_pack.json"
+)
+_BACKEND_CATALOG_SEED_PATH = (
+    Path(__file__).resolve().parents[2] / "shared" / "seed" / "vocab_catalog_seed.json"
 )
 _TRACK_ORDER = {
     Track.M3.value: 0,
@@ -44,8 +47,30 @@ class VocabCatalogImportRow:
     frequency_tier: int | None
 
 
+def load_frontend_compatibility_vocab_import_rows(
+    *,
+    pack_path: Path | None = None,
+) -> list[VocabCatalogImportRow]:
+    resolved_path = pack_path or _STARTER_PACK_PATH
+    return _load_vocab_import_rows_from_path(resolved_path)
+
+
+def load_backend_catalog_seed_import_rows(
+    *,
+    pack_path: Path | None = None,
+    backend_seed_path: Path | None = None,
+) -> list[VocabCatalogImportRow]:
+    frontend_rows = load_frontend_compatibility_vocab_import_rows(pack_path=pack_path)
+    resolved_backend_seed_path = backend_seed_path or _BACKEND_CATALOG_SEED_PATH
+    backend_rows = _load_vocab_import_rows_from_path(resolved_backend_seed_path)
+    return [*frontend_rows, *backend_rows]
+
+
 def load_seed_vocab_import_rows(*, pack_path: Path | None = None) -> list[VocabCatalogImportRow]:
-    resolved_path = pack_path or _CONTENT_PACK_PATH
+    return load_frontend_compatibility_vocab_import_rows(pack_path=pack_path)
+
+
+def _load_vocab_import_rows_from_path(resolved_path: Path) -> list[VocabCatalogImportRow]:
     payload = json.loads(resolved_path.read_text(encoding="utf-8"))
     rows = payload.get("vocabulary", [])
     if not isinstance(rows, list):
@@ -91,7 +116,7 @@ def seed_vocab_catalog(
     pack_path: Path | None = None,
     dry_run: bool = True,
 ) -> dict[str, object]:
-    source_rows = rows or load_seed_vocab_import_rows(pack_path=pack_path)
+    source_rows = rows or load_backend_catalog_seed_import_rows(pack_path=pack_path)
     existing_by_key = {
         entry.catalog_key: entry
         for entry in db.execute(select(VocabCatalogEntry)).scalars().all()
@@ -185,8 +210,15 @@ def seed_vocab_catalog(
                 setattr(existing, key, value)
 
     return {
-        "catalogSource": str(pack_path or _CONTENT_PACK_PATH),
+        "catalogSource": str(pack_path or _STARTER_PACK_PATH),
+        "catalogSources": [
+            str(pack_path or _STARTER_PACK_PATH),
+            str(_BACKEND_CATALOG_SEED_PATH),
+        ]
+        if rows is None
+        else ["explicit_rows"],
         "dryRun": dry_run,
+        "sourceRowCount": len(source_rows),
         "inserted": inserted,
         "updated": updated,
         "skipped": skipped,
