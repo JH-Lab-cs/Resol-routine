@@ -17,8 +17,11 @@
 
 ## 3. 오늘의 6문제 규칙 (Daily Session)
 - 입력: (dayKey=yyyymmdd, track)
-- 출력: 고정 순서 [LISTENING, LISTENING, LISTENING, READING, READING, READING]
-- 결정론: 같은 dayKey+track이면 항상 동일한 문제 세트 (재추첨 금지)
+- 출력: 총 6문제 = LISTENING 3 + READING 3
+- Daily 시작 직전에 사용자는 `Listening first` 또는 `Reading first`를 선택할 수 있다.
+- 선택한 순서는 해당 Daily session metadata에 저장되며 Resume 시 그대로 유지된다.
+- Weekly/Monthly mock은 기존 고정 순서를 유지한다.
+- 결정론: 같은 dayKey+track이면 항상 동일한 문제 세트를 사용하고, 선택한 section order만 세션 내 순서에 반영된다 (재추첨 금지)
 - 세션은 DB에 저장되어 Resume 가능해야 함
 
 ## 4. 오답 이유 태그 (고정 enum)
@@ -39,6 +42,7 @@
 ### 5.2 daily sessions
 - day_key는 yyyymmdd
 - UNIQUE(day_key, track)
+- session metadata는 선택한 Daily section order를 저장해야 한다
 - daily_session_items(또는 동등 구조)로 session 내 문제ID/순서를 저장
 
 ### 5.3 JSON 컬럼
