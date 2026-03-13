@@ -1375,3 +1375,151 @@ Operationally, round 4 improved published listening depth on all three
 non-ready tracks while keeping the routing policy unchanged. The remaining
 blocker is concentrated in a smaller set of provider-sensitive deficits rather
 than the general backfill pipeline.
+
+## 17. B2.6.15 Controlled Inventory Backfill Round 5
+
+Round 5 targeted the remaining `M3/H1/H2` Daily and Mock deficits from the
+latest readiness report, with no model-policy change:
+
+- default model: `gpt-5-mini`
+- limited fallback:
+  - `L_LONG_TALK -> gpt-4.1-mini`
+  - `R_INSERTION -> gpt-4.1-mini`
+- `L_RESPONSE`
+  - dedicated `gpt-5-mini` generation mode
+  - no fallback added
+- `L_SITUATION`
+  - kept on `gpt-5-mini`
+  - no new fallback opened in this round
+
+Execution note:
+
+- the first round-5 attempts used the existing runtime default
+  `AI_PROVIDER_HTTP_TIMEOUT_SECONDS=20`
+- `L_SITUATION`, `R_BLANK`, `R_ORDER`, and `R_VOCAB` all hit repeat
+  `PROVIDER_TIMEOUT` at roughly the same 20 second boundary
+- after verifying that artifact storage was healthy again, API and worker were
+  restarted with `AI_PROVIDER_HTTP_TIMEOUT_SECONDS=60`
+- with the longer runtime timeout, two previously timed-out `gpt-5-mini` jobs
+  completed successfully and were published
+
+### Initial round-5 deficit attempts
+
+- `M3 / LISTENING / L_SITUATION / difficulty 1`
+  - generation job id: `fd2a3e73-be0a-41d0-ae18-5d459b6b548d`
+  - model used: `gpt-5-mini`
+  - `fallbackTriggered = false`
+  - result: `DEAD_LETTER / PROVIDER_TIMEOUT`
+- `H1 / READING / R_BLANK / difficulty 2`
+  - generation job id: `bcbbf23b-54a4-4b0c-a60a-bfe8113e0d27`
+  - model used: `gpt-5-mini`
+  - `fallbackTriggered = false`
+  - result: `DEAD_LETTER / PROVIDER_TIMEOUT`
+- `H2 / READING / R_ORDER / difficulty 3`
+  - generation job id: `05b18ad7-84b3-4d7e-9f7b-80ced62ac43f`
+  - model used: `gpt-5-mini`
+  - `fallbackTriggered = false`
+  - result: `FAILED / PROVIDER_TIMEOUT`
+
+These three attempts did not produce publishable inventory and are recorded as
+provider-timeout failures rather than model-routing failures.
+
+### Successful round-5 publish path
+
+After the timeout increase, two small `gpt-5-mini` batches succeeded and were
+materialized, validated, reviewed, and published:
+
+- `M3 / LISTENING / L_DETAIL / difficulty 1`
+  - generation job id: `31120976-9c6c-4a98-870f-a10f5c0bf74e`
+  - model used: `gpt-5-mini`
+  - `fallbackTriggered = false`
+  - candidate id: `09e99dfd-e0a1-46e5-88d8-c73ef374a665`
+  - published revision id: `b9ed178e-ce0f-4825-87a6-95caf1e82e14`
+  - published unit id: `8f84866f-87da-433d-a5d7-b976d1931477`
+  - estimated cost: `0.001555`
+  - publishable item per dollar: `643.086817`
+- `M3 / READING / R_VOCAB / difficulty 1`
+  - generation job id: `9ea2cdcd-c09c-49e3-8362-b46303662546`
+  - model used: `gpt-5-mini`
+  - `fallbackTriggered = false`
+  - candidate id: `a38d8721-9e29-40fc-8d90-cc1b62b12309`
+  - published revision id: `06837956-1660-4375-893d-132ca611cbb3`
+  - published unit id: `f396bb3f-4fc1-45d6-a50c-431b4c2357f5`
+  - estimated cost: `0.001555`
+  - publishable item per dollar: `643.086817`
+
+Both revisions were confirmed in public delivery:
+
+- public list membership: confirmed
+- public sync upsert membership: confirmed
+- public detail contract: confirmed
+
+### Before / after readiness summary
+
+- `M3`
+  - Daily: `WARNING -> WARNING`
+  - Weekly: `WARNING -> WARNING`
+  - Monthly: `NOT_READY -> NOT_READY`
+  - published counts:
+    - LISTENING `12 -> 13`
+    - READING `10 -> 11`
+  - practical effect:
+    - `R_VOCAB` is no longer missing
+    - missing reading typeTags reduced from `R_ORDER, R_SUMMARY, R_VOCAB`
+      to `R_ORDER, R_SUMMARY`
+    - listening depth increased again even though `L_SITUATION` remains open
+
+- `H1`
+  - Daily: `WARNING -> WARNING`
+  - Weekly: `READY -> READY`
+  - Monthly: `NOT_READY -> NOT_READY`
+  - published counts:
+    - LISTENING `11 -> 11`
+    - READING `10 -> 10`
+  - practical effect:
+    - no net publish increase in this round
+    - `R_BLANK` remains blocked by provider timeout
+
+- `H2`
+  - Daily: `WARNING -> WARNING`
+  - Weekly: `READY -> READY`
+  - Monthly: `NOT_READY -> NOT_READY`
+  - published counts:
+    - LISTENING `15 -> 15`
+    - READING `12 -> 12`
+  - practical effect:
+    - no net publish increase in this round
+    - `R_ORDER` remains blocked by provider timeout
+
+- `H3`
+  - unchanged
+
+### Round 5 conclusion
+
+- round 5 produced real inventory growth again, even though the initially
+  chosen hard deficits timed out under the 20 second runtime limit
+- the actual blocker was the provider timeout setting, not a new model-policy
+  defect
+- with `AI_PROVIDER_HTTP_TIMEOUT_SECONDS=60`, `gpt-5-mini` succeeded on two
+  non-fallback Daily count deficits and produced two additional published
+  revisions
+- `M3` Daily reading inventory improved enough to remove `R_VOCAB` from the
+  missing-type list
+
+### Remaining deficits after round 5
+
+- `M3`
+  - listening missing: `L_SITUATION`
+  - reading missing: `R_ORDER`, `R_SUMMARY`
+- `H1`
+  - listening missing: `L_SITUATION`
+  - reading missing: `R_BLANK`, `R_ORDER`, `R_SUMMARY`
+- `H2`
+  - listening missing: `L_SITUATION`
+  - reading missing: `R_ORDER`, `R_SUMMARY`, `R_VOCAB`
+
+Operationally, round 5 showed that the content-generation routing policy is
+still sound, but some remaining deficits are now constrained by provider
+latency more than by schema validity. The next controlled backfill round should
+either keep the higher runtime timeout or explicitly record timeout-sensitive
+targets as a separate execution class.
