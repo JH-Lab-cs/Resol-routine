@@ -8,7 +8,7 @@ import 'package:path/path.dart' as p;
 import 'package:resol_routine/core/database/app_database.dart';
 
 void main() {
-  test('migrates v1 schema to v15 while preserving rows', () async {
+  test('migrates v1 schema to v16 while preserving rows', () async {
     final tempDir = await Directory.systemTemp.createTemp('resol_migration_');
     final dbFile = File(p.join(tempDir.path, 'migration_v1.sqlite'));
 
@@ -29,7 +29,7 @@ void main() {
     final userVersionRow = await database
         .customSelect('PRAGMA user_version', readsFrom: {})
         .getSingle();
-    expect(userVersionRow.read<int>('user_version'), 15);
+    expect(userVersionRow.read<int>('user_version'), 16);
 
     final attemptsRow = await database
         .customSelect('SELECT COUNT(*) AS count FROM attempts', readsFrom: {})
@@ -191,6 +191,19 @@ void main() {
         .getSingle();
     expect(mockExamSessionItemsCount.read<int>('count'), 0);
 
+    final syncOutboxColumns = await database
+        .customSelect(
+          "PRAGMA table_info('sync_outbox_items')",
+          readsFrom: {database.syncOutboxItems},
+        )
+        .get();
+    expect(
+      syncOutboxColumns.any(
+        (row) => row.read<String>('name') == 'backend_user_id',
+      ),
+      isTrue,
+    );
+
     final attemptsColumns = await database
         .customSelect(
           "PRAGMA table_info('attempts')",
@@ -206,7 +219,7 @@ void main() {
   });
 
   test(
-    'migrates v11 questions table with numeric-only type tag checks to v15',
+    'migrates v11 questions table with numeric-only type tag checks to v16',
     () async {
       final tempDir = await Directory.systemTemp.createTemp(
         'resol_migration_v11_',
@@ -230,7 +243,7 @@ void main() {
       final userVersionRow = await database
           .customSelect('PRAGMA user_version', readsFrom: {})
           .getSingle();
-      expect(userVersionRow.read<int>('user_version'), 15);
+      expect(userVersionRow.read<int>('user_version'), 16);
 
       final migratedQuestion = await (database.select(
         database.questions,
@@ -250,6 +263,16 @@ void main() {
           .get();
       expect(
         userSettingsColumns.any(
+          (row) => row.read<String>('name') == 'backend_user_id',
+        ),
+        isTrue,
+      );
+
+      final syncOutboxColumns = await database
+          .customSelect("PRAGMA table_info('sync_outbox_items')", readsFrom: {})
+          .get();
+      expect(
+        syncOutboxColumns.any(
           (row) => row.read<String>('name') == 'backend_user_id',
         ),
         isTrue,

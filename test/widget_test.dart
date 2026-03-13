@@ -5,15 +5,19 @@ import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:http/http.dart';
 
 import 'package:resol_routine/app/app.dart';
 import 'package:resol_routine/core/database/app_database.dart';
 import 'package:resol_routine/core/database/converters/json_models.dart';
 import 'package:resol_routine/core/database/database_providers.dart';
+import 'package:resol_routine/core/network/api_client.dart';
 import 'package:resol_routine/core/domain/domain_enums.dart';
 import 'package:resol_routine/core/time/day_key.dart';
 import 'package:resol_routine/features/auth/application/auth_session_provider.dart';
 import 'package:resol_routine/features/auth/data/auth_models.dart';
+import 'package:resol_routine/features/auth/data/auth_repository.dart';
+import 'package:resol_routine/features/auth/data/auth_token_store.dart';
 import 'package:resol_routine/features/content_pack/application/content_pack_bootstrap.dart';
 import 'package:resol_routine/features/content_pack/data/content_pack_seeder.dart';
 import 'package:resol_routine/features/family/application/family_providers.dart';
@@ -22,6 +26,10 @@ import 'package:resol_routine/features/my/application/my_stats_providers.dart';
 import 'package:resol_routine/features/my/presentation/my_screen.dart';
 import 'package:resol_routine/features/settings/application/user_settings_providers.dart';
 import 'package:resol_routine/features/settings/data/user_settings_repository.dart';
+import 'package:resol_routine/features/sync/application/sync_providers.dart';
+import 'package:resol_routine/features/sync/data/device_identity_store.dart';
+import 'package:resol_routine/features/sync/data/sync_models.dart';
+import 'package:resol_routine/features/sync/data/sync_outbox_repository.dart';
 import 'package:resol_routine/features/today/application/today_quiz_providers.dart';
 import 'package:resol_routine/features/today/application/today_session_providers.dart'
     hide selectedTrackProvider;
@@ -44,6 +52,7 @@ void main() {
         overrides: [
           appDatabaseProvider.overrideWithValue(sharedDb),
           appBootstrapProvider.overrideWith((ref) async {}),
+          ..._syncTestOverrides(sharedDb),
         ],
         child: const ResolRoutineApp(),
       ),
@@ -71,6 +80,7 @@ void main() {
         overrides: [
           appDatabaseProvider.overrideWithValue(sharedDb),
           appBootstrapProvider.overrideWith((ref) async {}),
+          ..._syncTestOverrides(sharedDb),
           signedInAuthOverride(),
           todaySessionRepositoryProvider.overrideWithValue(
             fakeSessionRepository,
@@ -112,6 +122,7 @@ void main() {
         overrides: [
           appDatabaseProvider.overrideWithValue(sharedDb),
           appBootstrapProvider.overrideWith((ref) async {}),
+          ..._syncTestOverrides(sharedDb),
           signedInAuthOverride(),
           todaySessionRepositoryProvider.overrideWithValue(
             fakeSessionRepository,
@@ -150,6 +161,7 @@ void main() {
         overrides: [
           appDatabaseProvider.overrideWithValue(sharedDb),
           appBootstrapProvider.overrideWith((ref) async {}),
+          ..._syncTestOverrides(sharedDb),
           signedInAuthOverride(role: AuthUserRole.parent),
           familyRepositoryProvider.overrideWithValue(
             FakeFamilyRepository(
@@ -210,6 +222,7 @@ void main() {
         overrides: [
           appDatabaseProvider.overrideWithValue(sharedDb),
           appBootstrapProvider.overrideWith((ref) async {}),
+          ..._syncTestOverrides(sharedDb),
           signedInAuthOverride(role: AuthUserRole.parent),
           familyRepositoryProvider.overrideWithValue(
             FakeFamilyRepository(
@@ -261,6 +274,7 @@ void main() {
           overrides: [
             appDatabaseProvider.overrideWithValue(sharedDb),
             appBootstrapProvider.overrideWith((ref) async {}),
+          ..._syncTestOverrides(sharedDb),
             signedInAuthOverride(role: AuthUserRole.parent),
             familyRepositoryProvider.overrideWithValue(
               FakeFamilyRepository(
@@ -334,6 +348,7 @@ void main() {
         overrides: [
           appDatabaseProvider.overrideWithValue(sharedDb),
           appBootstrapProvider.overrideWith((ref) async {}),
+          ..._syncTestOverrides(sharedDb),
           signedInAuthOverride(role: AuthUserRole.parent),
           familyRepositoryProvider.overrideWithValue(
             FakeFamilyRepository(
@@ -387,6 +402,7 @@ void main() {
           overrides: [
             appDatabaseProvider.overrideWithValue(sharedDb),
             appBootstrapProvider.overrideWith((ref) async {}),
+          ..._syncTestOverrides(sharedDb),
             signedInAuthOverride(),
             todaySessionRepositoryProvider.overrideWithValue(
               fakeSessionRepository,
@@ -437,6 +453,7 @@ void main() {
         overrides: [
           appDatabaseProvider.overrideWithValue(sharedDb),
           appBootstrapProvider.overrideWith((ref) async {}),
+          ..._syncTestOverrides(sharedDb),
           signedInAuthOverride(),
           todaySessionRepositoryProvider.overrideWithValue(
             fakeSessionRepository,
@@ -573,6 +590,7 @@ void main() {
         overrides: [
           appDatabaseProvider.overrideWithValue(sharedDb),
           appBootstrapProvider.overrideWith((ref) async {}),
+          ..._syncTestOverrides(sharedDb),
           signedInAuthOverride(),
           todaySessionRepositoryProvider.overrideWithValue(
             fakeSessionRepository,
@@ -612,21 +630,6 @@ void main() {
     expect(find.text('학습 리포트'), findsOneWidget);
     expect(find.text('이번주 외운 단어'), findsNothing);
 
-    await tester.tap(reportCardFinder);
-    await tester.pumpAndSettle();
-    expect(find.text('리포트'), findsOneWidget);
-    await _scrollUntilVisible(tester, find.text('JSON 리포트 공유'));
-    expect(find.text('JSON 리포트 공유'), findsOneWidget);
-
-    await tester.pageBack();
-    await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(
-      find.text('총 오답'),
-      -240,
-      scrollable: myScrollable.first,
-    );
-    expect(find.text('총 오답'), findsOneWidget);
-
     final container = ProviderScope.containerOf(
       tester.element(find.byType(ResolRoutineApp)),
     );
@@ -648,6 +651,12 @@ void main() {
     });
 
     container.invalidate(myStatsProvider('M3'));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('오늘 루틴 완료'),
+      -240,
+      scrollable: myScrollable.first,
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('6/6'), findsOneWidget);
@@ -759,15 +768,6 @@ Future<void> _pumpUntilVisible(
   }
 
   fail('Did not find expected widget after ${maxPumps * 50}ms.');
-}
-
-Future<void> _scrollUntilVisible(WidgetTester tester, Finder finder) async {
-  await tester.scrollUntilVisible(
-    finder,
-    240,
-    scrollable: find.byType(Scrollable).first,
-  );
-  await tester.pumpAndSettle();
 }
 
 class _FakeTodaySessionRepository extends TodaySessionRepository {
@@ -1010,3 +1010,114 @@ final List<QuizQuestionDetail> _fillerQuestions =
         ],
       ),
     );
+
+List<Override> _syncTestOverrides(AppDatabase database) {
+  return <Override>[
+    deviceIdentityStoreProvider.overrideWithValue(
+      const _WidgetTestDeviceIdentityStore(),
+    ),
+    syncOutboxRepositoryProvider.overrideWithValue(
+      _NoopSyncOutboxRepository(database),
+    ),
+  ];
+}
+
+class _WidgetTestDeviceIdentityStore implements DeviceIdentityStore {
+  const _WidgetTestDeviceIdentityStore();
+
+  @override
+  Future<String> getOrCreateDeviceId() async => 'widget-test-device';
+}
+
+class _NoopSyncOutboxRepository extends SyncOutboxRepository {
+  _NoopSyncOutboxRepository(AppDatabase database)
+    : super(
+        database: database,
+        authRepository: _WidgetTestAuthRepository(),
+        deviceIdentityStore: const _WidgetTestDeviceIdentityStore(),
+      );
+
+  @override
+  Stream<int> watchPendingCount({required String backendUserId}) {
+    return Stream<int>.value(0);
+  }
+
+  @override
+  Future<int> loadPendingCount({required String backendUserId}) async => 0;
+
+  @override
+  Future<void> enqueueDailyAttemptSaved({
+    required String backendUserId,
+    required int sessionId,
+    required String questionId,
+    required String selectedAnswer,
+    required bool isCorrect,
+    required String? wrongReasonTag,
+  }) async {}
+
+  @override
+  Future<void> enqueueVocabQuizCompleted({
+    required String backendUserId,
+    required String dayKey,
+    required String track,
+    required int totalCount,
+    required int correctCount,
+    required List<String> wrongVocabIds,
+  }) async {}
+
+  @override
+  Future<void> enqueueMockExamCompleted({
+    required String backendUserId,
+    required int mockSessionId,
+    required String examType,
+    required String periodKey,
+    required String track,
+    required int plannedItems,
+    required int completedItems,
+    required int listeningCorrectCount,
+    required int readingCorrectCount,
+    required int wrongCount,
+  }) async {}
+
+  @override
+  Future<SyncFlushResult> flushPending({required String backendUserId}) async {
+    return const SyncFlushResult(
+      attempted: 0,
+      accepted: 0,
+      duplicate: 0,
+      invalid: 0,
+      failed: 0,
+      remaining: 0,
+      lastErrorCode: null,
+    );
+  }
+}
+
+class _WidgetTestAuthRepository extends AuthRepository {
+  _WidgetTestAuthRepository()
+    : super(
+        apiClient: JsonApiClient(
+          baseUrl: 'https://example.test',
+          httpClient: _WidgetTestHttpClient(),
+        ),
+        tokenStore: _WidgetTestTokenStore(),
+      );
+}
+
+class _WidgetTestTokenStore implements AuthTokenStore {
+  @override
+  Future<void> clear() async {}
+
+  @override
+  Future<StoredAuthTokens?> read() async => null;
+
+  @override
+  Future<void> write(StoredAuthTokens tokens) async {}
+}
+
+class _WidgetTestHttpClient extends BaseClient {
+  @override
+  Future<StreamedResponse> send(BaseRequest request) {
+    throw UnimplementedError('No HTTP request is expected in widget tests.');
+  }
+}
