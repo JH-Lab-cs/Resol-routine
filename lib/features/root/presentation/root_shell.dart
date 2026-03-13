@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/ui/app_tokens.dart';
 import '../../dev/presentation/dev_reports_screen.dart';
+import '../../sync/application/sync_providers.dart';
 import '../../home/presentation/home_screen.dart';
 import '../../my/presentation/my_screen.dart';
 import '../../mock_exam/presentation/monthly_mock_flow_screen.dart';
@@ -23,8 +26,35 @@ class RootShell extends ConsumerStatefulWidget {
   ConsumerState<RootShell> createState() => _RootShellState();
 }
 
-class _RootShellState extends ConsumerState<RootShell> {
+class _RootShellState extends ConsumerState<RootShell>
+    with WidgetsBindingObserver {
   int _currentIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      _triggerSyncFlush();
+    });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed || !mounted) {
+      return;
+    }
+    _triggerSyncFlush();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -167,6 +197,10 @@ class _RootShellState extends ConsumerState<RootShell> {
     setState(() {
       _currentIndex = index;
     });
+  }
+
+  void _triggerSyncFlush() {
+    unawaited(ref.read(syncFlushControllerProvider.notifier).flushNow());
   }
 
   void _openQuiz() {

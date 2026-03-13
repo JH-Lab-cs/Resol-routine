@@ -12,14 +12,17 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.policies import (
-    SYNC_EVENTS_BATCH_MAX_SIZE,
     SYNC_EVENT_TYPE_MOCK_EXAM_ATTEMPT_SAVED,
+    SYNC_EVENT_TYPE_MOCK_EXAM_COMPLETED,
     SYNC_EVENT_TYPE_TODAY_ATTEMPT_SAVED,
+    SYNC_EVENT_TYPE_VOCAB_QUIZ_COMPLETED,
+    SYNC_EVENTS_BATCH_MAX_SIZE,
 )
 from app.db.session import schedule_student_aggregation_after_commit
 from app.models.study_event import StudyEvent
 from app.schemas.sync import (
     MockExamAttemptSavedPayload,
+    MockExamCompletedPayload,
     SyncBatchSummary,
     SyncEventCommon,
     SyncEventItemResult,
@@ -27,6 +30,7 @@ from app.schemas.sync import (
     SyncEventsBatchResponse,
     SyncItemStatus,
     TodayAttemptSavedPayload,
+    VocabQuizCompletedPayload,
 )
 
 logger = logging.getLogger(__name__)
@@ -190,12 +194,24 @@ def _process_event_item(
 
 def _validate_payload(event_type: str, payload: dict[str, Any]) -> dict[str, Any]:
     if event_type == SYNC_EVENT_TYPE_TODAY_ATTEMPT_SAVED:
-        validated = TodayAttemptSavedPayload.model_validate(payload)
-        return validated.model_dump(by_alias=True)
+        return TodayAttemptSavedPayload.model_validate(payload).model_dump(
+            by_alias=True,
+        )
+
+    if event_type == SYNC_EVENT_TYPE_VOCAB_QUIZ_COMPLETED:
+        return VocabQuizCompletedPayload.model_validate(payload).model_dump(
+            by_alias=True,
+        )
+
+    if event_type == SYNC_EVENT_TYPE_MOCK_EXAM_COMPLETED:
+        return MockExamCompletedPayload.model_validate(payload).model_dump(
+            by_alias=True,
+        )
 
     if event_type == SYNC_EVENT_TYPE_MOCK_EXAM_ATTEMPT_SAVED:
-        validated = MockExamAttemptSavedPayload.model_validate(payload)
-        return validated.model_dump(by_alias=True)
+        return MockExamAttemptSavedPayload.model_validate(payload).model_dump(
+            by_alias=True,
+        )
 
     raise ValueError("invalid_event_type")
 

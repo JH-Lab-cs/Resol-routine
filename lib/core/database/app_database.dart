@@ -24,6 +24,7 @@ part 'app_database.g.dart';
     UserSettings,
     SharedReports,
     VocabQuizResults,
+    SyncOutboxItems,
     MockExamSessions,
     MockExamSessionItems,
     Attempts,
@@ -36,7 +37,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase({QueryExecutor? executor}) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 15;
+  int get schemaVersion => 16;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -87,6 +88,9 @@ class AppDatabase extends _$AppDatabase {
       }
       if (from < 15) {
         await _migrateToV15(m);
+      }
+      if (from < 16) {
+        await _migrateToV16(m);
       }
       await _createIndexes();
       await _ensureUserSettingsRow();
@@ -363,6 +367,10 @@ class AppDatabase extends _$AppDatabase {
     await m.addColumn(userSettings, userSettings.backendUserId);
   }
 
+  Future<void> _migrateToV16(Migrator m) async {
+    await m.createTable(syncOutboxItems);
+  }
+
   Future<void> _createIndexes() async {
     await customStatement(
       'CREATE INDEX IF NOT EXISTS idx_passages_pack_order '
@@ -433,6 +441,14 @@ class AppDatabase extends _$AppDatabase {
     await customStatement(
       'CREATE INDEX IF NOT EXISTS idx_vocab_quiz_results_day_track '
       'ON vocab_quiz_results(day_key, track)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_sync_outbox_items_user_next_retry '
+      'ON sync_outbox_items(backend_user_id, next_retry_at, created_at)',
+    );
+    await customStatement(
+      'CREATE UNIQUE INDEX IF NOT EXISTS ux_sync_outbox_items_user_idempotency '
+      'ON sync_outbox_items(backend_user_id, idempotency_key)',
     );
     await customStatement(
       'CREATE INDEX IF NOT EXISTS idx_mock_exam_sessions_lookup '

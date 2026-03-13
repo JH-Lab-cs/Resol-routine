@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Body, Depends
 from sqlalchemy.orm import Session
@@ -13,6 +13,7 @@ from app.services.sync_service import ingest_events_batch
 router = APIRouter(tags=["sync"])
 
 
+@router.post("/sync/events", response_model=SyncEventsBatchResponse)
 @router.post("/sync/events/batch", response_model=SyncEventsBatchResponse)
 def ingest_sync_event_batch(
     payload: Annotated[dict[str, Any], Body(...)],

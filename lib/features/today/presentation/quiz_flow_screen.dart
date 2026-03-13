@@ -10,6 +10,7 @@ import '../../../core/ui/components/app_snackbars.dart';
 import '../../../core/ui/components/primary_pill_button.dart';
 import '../../../core/ui/label_maps.dart';
 import '../../my/application/my_stats_providers.dart';
+import '../../sync/application/sync_providers.dart';
 import '../../wrong_notes/application/wrong_note_providers.dart';
 import '../application/today_quiz_providers.dart';
 import '../data/attempt_payload.dart';
@@ -717,6 +718,18 @@ class _QuizFlowScreenState extends ConsumerState<QuizFlowScreen> {
           _completionReport = completionReport;
         }
       });
+
+      unawaited(
+        ref
+            .read(syncFlushControllerProvider.notifier)
+            .recordDailyAttemptSaved(
+              sessionId: session.sessionId,
+              questionId: question.questionId,
+              selectedAnswer: _selectedAnswer!,
+              isCorrect: _isCorrect,
+              wrongReasonTag: _selectedWrongReasonTag?.dbValue,
+            ),
+      );
 
       ref.invalidate(todaySessionProvider(widget.track));
       ref.invalidate(myStatsProvider(widget.track));

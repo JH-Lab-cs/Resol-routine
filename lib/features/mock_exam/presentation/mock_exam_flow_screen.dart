@@ -14,6 +14,7 @@ import '../../today/application/today_quiz_providers.dart';
 import '../../today/data/attempt_payload.dart';
 import '../../today/data/today_quiz_repository.dart';
 import '../../today/presentation/quiz_flow_screen.dart';
+import '../../sync/application/sync_providers.dart';
 import '../../wrong_notes/application/wrong_note_providers.dart';
 import '../application/mock_exam_providers.dart';
 import '../data/mock_exam_attempt_repository.dart';
@@ -766,6 +767,24 @@ class _MockExamFlowScreenState extends ConsumerState<MockExamFlowScreen> {
           session.sessionId,
         );
         if (!wasCompletedBeforeSave) {
+          final resultSummary = await attemptRepository.loadResultSummary(
+            sessionId: session.sessionId,
+          );
+          unawaited(
+            ref
+                .read(syncFlushControllerProvider.notifier)
+                .recordMockExamCompleted(
+                  mockSessionId: resultSummary.sessionId,
+                  examType: resultSummary.examType.dbValue,
+                  periodKey: resultSummary.periodKey,
+                  track: resultSummary.track.dbValue,
+                  plannedItems: resultSummary.plannedItems,
+                  completedItems: resultSummary.completedItems,
+                  listeningCorrectCount: resultSummary.listeningCorrectCount,
+                  readingCorrectCount: resultSummary.readingCorrectCount,
+                  wrongCount: resultSummary.wrongCount,
+                ),
+          );
           await _pruneMockHistoryBestEffort();
         }
       }

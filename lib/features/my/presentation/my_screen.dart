@@ -17,6 +17,7 @@ import '../../mock_exam/presentation/mock_exam_history_screen.dart';
 import '../../parent/application/parent_ui_providers.dart';
 import '../../parent/presentation/parent_ui_helpers.dart';
 import '../../auth/application/auth_session_provider.dart';
+import '../../sync/application/sync_providers.dart';
 import '../application/my_stats_providers.dart';
 import '../../settings/application/user_settings_providers.dart';
 import '../../settings/data/user_settings_repository.dart';
@@ -51,11 +52,14 @@ class MyScreen extends ConsumerWidget {
           final devToolsVisible = ref.watch(devToolsVisibleProvider);
           final profilePrefs = ref.watch(profileUiPrefsProvider);
           final statsAsync = ref.watch(myStatsProvider(settings.track));
+          final syncPendingAsync = ref.watch(syncPendingCountProvider);
+          final syncState = ref.watch(syncFlushControllerProvider);
           final stats = statsAsync.valueOrNull;
           final todayCompletedItems = stats?.todayCompletedItems ?? 0;
           final attendanceStreakDays = stats?.attendanceStreakDays ?? 0;
           final totalAttempts = stats?.totalAttempts ?? 0;
           final totalWrongAttempts = stats?.totalWrongAttempts ?? 0;
+          final pendingSyncCount = syncPendingAsync.valueOrNull ?? 0;
 
           if (settings.role == 'PARENT') {
             return _ParentMySettingsContent(
@@ -228,6 +232,60 @@ class MyScreen extends ConsumerWidget {
                   ],
                 ),
               ],
+              const SizedBox(height: AppSpacing.mdLg),
+              const _SectionHeader(title: AppCopyKo.syncSectionTitle),
+              const SizedBox(height: AppSpacing.sm),
+              Card(
+                child: ListTile(
+                  leading: const Icon(Icons.cloud_upload_outlined),
+                  title: const Text(AppCopyKo.syncSectionTitle),
+                  subtitle: Text(
+                    pendingSyncCount > 0
+                        ? '대기 중인 항목 $pendingSyncCount개'
+                        : AppCopyKo.syncSectionSubtitle,
+                  ),
+                  trailing: syncState.status == SyncFlushStatus.syncing
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.chevron_right_rounded),
+                  onTap: syncState.status == SyncFlushStatus.syncing
+                      ? null
+                      : () async {
+                          final result = await ref
+                              .read(syncFlushControllerProvider.notifier)
+                              .flushNow();
+                          if (!context.mounted) {
+                            return;
+                          }
+                          if (result.attempted == 0) {
+                            AppSnackbars.showSuccess(
+                              context,
+                              AppCopyKo.syncNoPending,
+                              haptic: false,
+                            );
+                            return;
+                          }
+                          if (result.failed == 0 && result.invalid == 0) {
+                            AppSnackbars.showSuccess(
+                              context,
+                              AppCopyKo.syncSuccess,
+                            );
+                            return;
+                          }
+                          final latestSyncState = ref.read(
+                            syncFlushControllerProvider,
+                          );
+                          AppSnackbars.showError(
+                            context,
+                            latestSyncState.errorMessage ??
+                                AppCopyKo.syncFailed,
+                          );
+                        },
+                ),
+              ),
               if (!kReleaseMode) ...[
                 const SizedBox(height: AppSpacing.lg),
                 FilledButton.tonal(

@@ -68,6 +68,11 @@ class AppCopyKo {
   static const String familyLinkDuplicate = '이미 연결된 자녀입니다.';
   static const String familyLinkRateLimited = '잠시 후 다시 시도해 주세요.';
   static const String familyLinkSessionExpired = '세션이 만료되었습니다. 다시 로그인해 주세요.';
+  static const String syncNoPending = '업로드할 학습 기록이 없습니다.';
+  static const String syncSuccess = '학습 기록을 서버에 동기화했습니다.';
+  static const String syncFailed = '학습 기록 동기화에 실패했습니다.';
+  static const String syncSectionTitle = '학습 기록 동기화';
+  static const String syncSectionSubtitle = '저장된 학습 기록을 서버로 업로드합니다.';
 
   static String mockHistoryDeleteTitle(String examLabel) {
     return '$examLabel 기록 삭제';

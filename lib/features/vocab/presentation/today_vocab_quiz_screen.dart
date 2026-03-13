@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -8,6 +10,7 @@ import '../../../core/ui/components/app_snackbars.dart';
 import '../../../core/ui/components/primary_pill_button.dart';
 import '../../../core/time/day_key.dart';
 import '../../report/application/report_providers.dart';
+import '../../sync/application/sync_providers.dart';
 import '../../today/application/today_session_providers.dart';
 import '../application/vocab_providers.dart';
 import '../data/vocab_repository.dart';
@@ -221,6 +224,17 @@ class _TodayVocabQuizScreenState extends ConsumerState<TodayVocabQuizScreen> {
           );
       container.invalidate(studentCumulativeReportProvider(track));
       container.invalidate(studentTodayReportProvider(track));
+      unawaited(
+        ref
+            .read(syncFlushControllerProvider.notifier)
+            .recordVocabQuizCompleted(
+              dayKey: dayKey,
+              track: track,
+              totalCount: questions.length,
+              correctCount: _correctCount,
+              wrongVocabIds: _wrongVocabIds.toList(growable: false),
+            ),
+      );
     } catch (error) {
       if (!mounted) {
         return;

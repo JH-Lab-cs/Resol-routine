@@ -5043,6 +5043,854 @@ class VocabQuizResultsCompanion extends UpdateCompanion<VocabQuizResult> {
   }
 }
 
+class $SyncOutboxItemsTable extends SyncOutboxItems
+    with TableInfo<$SyncOutboxItemsTable, SyncOutboxItem> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SyncOutboxItemsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _backendUserIdMeta = const VerificationMeta(
+    'backendUserId',
+  );
+  @override
+  late final GeneratedColumn<String> backendUserId = GeneratedColumn<String>(
+    'backend_user_id',
+    aliasedName,
+    false,
+    additionalChecks: GeneratedColumn.checkTextLength(minTextLength: 1),
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _logicalKeyMeta = const VerificationMeta(
+    'logicalKey',
+  );
+  @override
+  late final GeneratedColumn<String> logicalKey = GeneratedColumn<String>(
+    'logical_key',
+    aliasedName,
+    false,
+    additionalChecks: GeneratedColumn.checkTextLength(
+      minTextLength: 1,
+      maxTextLength: 160,
+    ),
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _eventTypeMeta = const VerificationMeta(
+    'eventType',
+  );
+  @override
+  late final GeneratedColumn<String> eventType = GeneratedColumn<String>(
+    'event_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    $customConstraints:
+        'NOT NULL CHECK (event_type IN (\'DAILY_ATTEMPT_SAVED\', \'VOCAB_QUIZ_COMPLETED\', \'MOCK_EXAM_COMPLETED\'))',
+  );
+  static const VerificationMeta _schemaVersionMeta = const VerificationMeta(
+    'schemaVersion',
+  );
+  @override
+  late final GeneratedColumn<int> schemaVersion = GeneratedColumn<int>(
+    'schema_version',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL CHECK (schema_version = 1)',
+  );
+  static const VerificationMeta _deviceIdMeta = const VerificationMeta(
+    'deviceId',
+  );
+  @override
+  late final GeneratedColumn<String> deviceId = GeneratedColumn<String>(
+    'device_id',
+    aliasedName,
+    false,
+    additionalChecks: GeneratedColumn.checkTextLength(
+      minTextLength: 1,
+      maxTextLength: 128,
+    ),
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _occurredAtClientMeta = const VerificationMeta(
+    'occurredAtClient',
+  );
+  @override
+  late final GeneratedColumn<DateTime> occurredAtClient =
+      GeneratedColumn<DateTime>(
+        'occurred_at_client',
+        aliasedName,
+        false,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: true,
+      );
+  static const VerificationMeta _idempotencyKeyMeta = const VerificationMeta(
+    'idempotencyKey',
+  );
+  @override
+  late final GeneratedColumn<String> idempotencyKey = GeneratedColumn<String>(
+    'idempotency_key',
+    aliasedName,
+    false,
+    additionalChecks: GeneratedColumn.checkTextLength(
+      minTextLength: 1,
+      maxTextLength: 128,
+    ),
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _payloadJsonMeta = const VerificationMeta(
+    'payloadJson',
+  );
+  @override
+  late final GeneratedColumn<String> payloadJson = GeneratedColumn<String>(
+    'payload_json',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _retryCountMeta = const VerificationMeta(
+    'retryCount',
+  );
+  @override
+  late final GeneratedColumn<int> retryCount = GeneratedColumn<int>(
+    'retry_count',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _nextRetryAtMeta = const VerificationMeta(
+    'nextRetryAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> nextRetryAt = GeneratedColumn<DateTime>(
+    'next_retry_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _lastErrorCodeMeta = const VerificationMeta(
+    'lastErrorCode',
+  );
+  @override
+  late final GeneratedColumn<String> lastErrorCode = GeneratedColumn<String>(
+    'last_error_code',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    backendUserId,
+    logicalKey,
+    eventType,
+    schemaVersion,
+    deviceId,
+    occurredAtClient,
+    idempotencyKey,
+    payloadJson,
+    retryCount,
+    nextRetryAt,
+    lastErrorCode,
+    createdAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'sync_outbox_items';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SyncOutboxItem> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('backend_user_id')) {
+      context.handle(
+        _backendUserIdMeta,
+        backendUserId.isAcceptableOrUnknown(
+          data['backend_user_id']!,
+          _backendUserIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_backendUserIdMeta);
+    }
+    if (data.containsKey('logical_key')) {
+      context.handle(
+        _logicalKeyMeta,
+        logicalKey.isAcceptableOrUnknown(data['logical_key']!, _logicalKeyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_logicalKeyMeta);
+    }
+    if (data.containsKey('event_type')) {
+      context.handle(
+        _eventTypeMeta,
+        eventType.isAcceptableOrUnknown(data['event_type']!, _eventTypeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_eventTypeMeta);
+    }
+    if (data.containsKey('schema_version')) {
+      context.handle(
+        _schemaVersionMeta,
+        schemaVersion.isAcceptableOrUnknown(
+          data['schema_version']!,
+          _schemaVersionMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_schemaVersionMeta);
+    }
+    if (data.containsKey('device_id')) {
+      context.handle(
+        _deviceIdMeta,
+        deviceId.isAcceptableOrUnknown(data['device_id']!, _deviceIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_deviceIdMeta);
+    }
+    if (data.containsKey('occurred_at_client')) {
+      context.handle(
+        _occurredAtClientMeta,
+        occurredAtClient.isAcceptableOrUnknown(
+          data['occurred_at_client']!,
+          _occurredAtClientMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_occurredAtClientMeta);
+    }
+    if (data.containsKey('idempotency_key')) {
+      context.handle(
+        _idempotencyKeyMeta,
+        idempotencyKey.isAcceptableOrUnknown(
+          data['idempotency_key']!,
+          _idempotencyKeyMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_idempotencyKeyMeta);
+    }
+    if (data.containsKey('payload_json')) {
+      context.handle(
+        _payloadJsonMeta,
+        payloadJson.isAcceptableOrUnknown(
+          data['payload_json']!,
+          _payloadJsonMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_payloadJsonMeta);
+    }
+    if (data.containsKey('retry_count')) {
+      context.handle(
+        _retryCountMeta,
+        retryCount.isAcceptableOrUnknown(data['retry_count']!, _retryCountMeta),
+      );
+    }
+    if (data.containsKey('next_retry_at')) {
+      context.handle(
+        _nextRetryAtMeta,
+        nextRetryAt.isAcceptableOrUnknown(
+          data['next_retry_at']!,
+          _nextRetryAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_error_code')) {
+      context.handle(
+        _lastErrorCodeMeta,
+        lastErrorCode.isAcceptableOrUnknown(
+          data['last_error_code']!,
+          _lastErrorCodeMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  List<Set<GeneratedColumn>> get uniqueKeys => [
+    {backendUserId, logicalKey},
+  ];
+  @override
+  SyncOutboxItem map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SyncOutboxItem(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      backendUserId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}backend_user_id'],
+      )!,
+      logicalKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}logical_key'],
+      )!,
+      eventType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}event_type'],
+      )!,
+      schemaVersion: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}schema_version'],
+      )!,
+      deviceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}device_id'],
+      )!,
+      occurredAtClient: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}occurred_at_client'],
+      )!,
+      idempotencyKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}idempotency_key'],
+      )!,
+      payloadJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}payload_json'],
+      )!,
+      retryCount: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}retry_count'],
+      )!,
+      nextRetryAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}next_retry_at'],
+      ),
+      lastErrorCode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}last_error_code'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $SyncOutboxItemsTable createAlias(String alias) {
+    return $SyncOutboxItemsTable(attachedDatabase, alias);
+  }
+}
+
+class SyncOutboxItem extends DataClass implements Insertable<SyncOutboxItem> {
+  final int id;
+  final String backendUserId;
+  final String logicalKey;
+  final String eventType;
+  final int schemaVersion;
+  final String deviceId;
+  final DateTime occurredAtClient;
+  final String idempotencyKey;
+  final String payloadJson;
+  final int retryCount;
+  final DateTime? nextRetryAt;
+  final String? lastErrorCode;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const SyncOutboxItem({
+    required this.id,
+    required this.backendUserId,
+    required this.logicalKey,
+    required this.eventType,
+    required this.schemaVersion,
+    required this.deviceId,
+    required this.occurredAtClient,
+    required this.idempotencyKey,
+    required this.payloadJson,
+    required this.retryCount,
+    this.nextRetryAt,
+    this.lastErrorCode,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['backend_user_id'] = Variable<String>(backendUserId);
+    map['logical_key'] = Variable<String>(logicalKey);
+    map['event_type'] = Variable<String>(eventType);
+    map['schema_version'] = Variable<int>(schemaVersion);
+    map['device_id'] = Variable<String>(deviceId);
+    map['occurred_at_client'] = Variable<DateTime>(occurredAtClient);
+    map['idempotency_key'] = Variable<String>(idempotencyKey);
+    map['payload_json'] = Variable<String>(payloadJson);
+    map['retry_count'] = Variable<int>(retryCount);
+    if (!nullToAbsent || nextRetryAt != null) {
+      map['next_retry_at'] = Variable<DateTime>(nextRetryAt);
+    }
+    if (!nullToAbsent || lastErrorCode != null) {
+      map['last_error_code'] = Variable<String>(lastErrorCode);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  SyncOutboxItemsCompanion toCompanion(bool nullToAbsent) {
+    return SyncOutboxItemsCompanion(
+      id: Value(id),
+      backendUserId: Value(backendUserId),
+      logicalKey: Value(logicalKey),
+      eventType: Value(eventType),
+      schemaVersion: Value(schemaVersion),
+      deviceId: Value(deviceId),
+      occurredAtClient: Value(occurredAtClient),
+      idempotencyKey: Value(idempotencyKey),
+      payloadJson: Value(payloadJson),
+      retryCount: Value(retryCount),
+      nextRetryAt: nextRetryAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(nextRetryAt),
+      lastErrorCode: lastErrorCode == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastErrorCode),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory SyncOutboxItem.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SyncOutboxItem(
+      id: serializer.fromJson<int>(json['id']),
+      backendUserId: serializer.fromJson<String>(json['backendUserId']),
+      logicalKey: serializer.fromJson<String>(json['logicalKey']),
+      eventType: serializer.fromJson<String>(json['eventType']),
+      schemaVersion: serializer.fromJson<int>(json['schemaVersion']),
+      deviceId: serializer.fromJson<String>(json['deviceId']),
+      occurredAtClient: serializer.fromJson<DateTime>(json['occurredAtClient']),
+      idempotencyKey: serializer.fromJson<String>(json['idempotencyKey']),
+      payloadJson: serializer.fromJson<String>(json['payloadJson']),
+      retryCount: serializer.fromJson<int>(json['retryCount']),
+      nextRetryAt: serializer.fromJson<DateTime?>(json['nextRetryAt']),
+      lastErrorCode: serializer.fromJson<String?>(json['lastErrorCode']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'backendUserId': serializer.toJson<String>(backendUserId),
+      'logicalKey': serializer.toJson<String>(logicalKey),
+      'eventType': serializer.toJson<String>(eventType),
+      'schemaVersion': serializer.toJson<int>(schemaVersion),
+      'deviceId': serializer.toJson<String>(deviceId),
+      'occurredAtClient': serializer.toJson<DateTime>(occurredAtClient),
+      'idempotencyKey': serializer.toJson<String>(idempotencyKey),
+      'payloadJson': serializer.toJson<String>(payloadJson),
+      'retryCount': serializer.toJson<int>(retryCount),
+      'nextRetryAt': serializer.toJson<DateTime?>(nextRetryAt),
+      'lastErrorCode': serializer.toJson<String?>(lastErrorCode),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  SyncOutboxItem copyWith({
+    int? id,
+    String? backendUserId,
+    String? logicalKey,
+    String? eventType,
+    int? schemaVersion,
+    String? deviceId,
+    DateTime? occurredAtClient,
+    String? idempotencyKey,
+    String? payloadJson,
+    int? retryCount,
+    Value<DateTime?> nextRetryAt = const Value.absent(),
+    Value<String?> lastErrorCode = const Value.absent(),
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) => SyncOutboxItem(
+    id: id ?? this.id,
+    backendUserId: backendUserId ?? this.backendUserId,
+    logicalKey: logicalKey ?? this.logicalKey,
+    eventType: eventType ?? this.eventType,
+    schemaVersion: schemaVersion ?? this.schemaVersion,
+    deviceId: deviceId ?? this.deviceId,
+    occurredAtClient: occurredAtClient ?? this.occurredAtClient,
+    idempotencyKey: idempotencyKey ?? this.idempotencyKey,
+    payloadJson: payloadJson ?? this.payloadJson,
+    retryCount: retryCount ?? this.retryCount,
+    nextRetryAt: nextRetryAt.present ? nextRetryAt.value : this.nextRetryAt,
+    lastErrorCode: lastErrorCode.present
+        ? lastErrorCode.value
+        : this.lastErrorCode,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  SyncOutboxItem copyWithCompanion(SyncOutboxItemsCompanion data) {
+    return SyncOutboxItem(
+      id: data.id.present ? data.id.value : this.id,
+      backendUserId: data.backendUserId.present
+          ? data.backendUserId.value
+          : this.backendUserId,
+      logicalKey: data.logicalKey.present
+          ? data.logicalKey.value
+          : this.logicalKey,
+      eventType: data.eventType.present ? data.eventType.value : this.eventType,
+      schemaVersion: data.schemaVersion.present
+          ? data.schemaVersion.value
+          : this.schemaVersion,
+      deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
+      occurredAtClient: data.occurredAtClient.present
+          ? data.occurredAtClient.value
+          : this.occurredAtClient,
+      idempotencyKey: data.idempotencyKey.present
+          ? data.idempotencyKey.value
+          : this.idempotencyKey,
+      payloadJson: data.payloadJson.present
+          ? data.payloadJson.value
+          : this.payloadJson,
+      retryCount: data.retryCount.present
+          ? data.retryCount.value
+          : this.retryCount,
+      nextRetryAt: data.nextRetryAt.present
+          ? data.nextRetryAt.value
+          : this.nextRetryAt,
+      lastErrorCode: data.lastErrorCode.present
+          ? data.lastErrorCode.value
+          : this.lastErrorCode,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SyncOutboxItem(')
+          ..write('id: $id, ')
+          ..write('backendUserId: $backendUserId, ')
+          ..write('logicalKey: $logicalKey, ')
+          ..write('eventType: $eventType, ')
+          ..write('schemaVersion: $schemaVersion, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('occurredAtClient: $occurredAtClient, ')
+          ..write('idempotencyKey: $idempotencyKey, ')
+          ..write('payloadJson: $payloadJson, ')
+          ..write('retryCount: $retryCount, ')
+          ..write('nextRetryAt: $nextRetryAt, ')
+          ..write('lastErrorCode: $lastErrorCode, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    backendUserId,
+    logicalKey,
+    eventType,
+    schemaVersion,
+    deviceId,
+    occurredAtClient,
+    idempotencyKey,
+    payloadJson,
+    retryCount,
+    nextRetryAt,
+    lastErrorCode,
+    createdAt,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SyncOutboxItem &&
+          other.id == this.id &&
+          other.backendUserId == this.backendUserId &&
+          other.logicalKey == this.logicalKey &&
+          other.eventType == this.eventType &&
+          other.schemaVersion == this.schemaVersion &&
+          other.deviceId == this.deviceId &&
+          other.occurredAtClient == this.occurredAtClient &&
+          other.idempotencyKey == this.idempotencyKey &&
+          other.payloadJson == this.payloadJson &&
+          other.retryCount == this.retryCount &&
+          other.nextRetryAt == this.nextRetryAt &&
+          other.lastErrorCode == this.lastErrorCode &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class SyncOutboxItemsCompanion extends UpdateCompanion<SyncOutboxItem> {
+  final Value<int> id;
+  final Value<String> backendUserId;
+  final Value<String> logicalKey;
+  final Value<String> eventType;
+  final Value<int> schemaVersion;
+  final Value<String> deviceId;
+  final Value<DateTime> occurredAtClient;
+  final Value<String> idempotencyKey;
+  final Value<String> payloadJson;
+  final Value<int> retryCount;
+  final Value<DateTime?> nextRetryAt;
+  final Value<String?> lastErrorCode;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  const SyncOutboxItemsCompanion({
+    this.id = const Value.absent(),
+    this.backendUserId = const Value.absent(),
+    this.logicalKey = const Value.absent(),
+    this.eventType = const Value.absent(),
+    this.schemaVersion = const Value.absent(),
+    this.deviceId = const Value.absent(),
+    this.occurredAtClient = const Value.absent(),
+    this.idempotencyKey = const Value.absent(),
+    this.payloadJson = const Value.absent(),
+    this.retryCount = const Value.absent(),
+    this.nextRetryAt = const Value.absent(),
+    this.lastErrorCode = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  });
+  SyncOutboxItemsCompanion.insert({
+    this.id = const Value.absent(),
+    required String backendUserId,
+    required String logicalKey,
+    required String eventType,
+    required int schemaVersion,
+    required String deviceId,
+    required DateTime occurredAtClient,
+    required String idempotencyKey,
+    required String payloadJson,
+    this.retryCount = const Value.absent(),
+    this.nextRetryAt = const Value.absent(),
+    this.lastErrorCode = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  }) : backendUserId = Value(backendUserId),
+       logicalKey = Value(logicalKey),
+       eventType = Value(eventType),
+       schemaVersion = Value(schemaVersion),
+       deviceId = Value(deviceId),
+       occurredAtClient = Value(occurredAtClient),
+       idempotencyKey = Value(idempotencyKey),
+       payloadJson = Value(payloadJson);
+  static Insertable<SyncOutboxItem> custom({
+    Expression<int>? id,
+    Expression<String>? backendUserId,
+    Expression<String>? logicalKey,
+    Expression<String>? eventType,
+    Expression<int>? schemaVersion,
+    Expression<String>? deviceId,
+    Expression<DateTime>? occurredAtClient,
+    Expression<String>? idempotencyKey,
+    Expression<String>? payloadJson,
+    Expression<int>? retryCount,
+    Expression<DateTime>? nextRetryAt,
+    Expression<String>? lastErrorCode,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (backendUserId != null) 'backend_user_id': backendUserId,
+      if (logicalKey != null) 'logical_key': logicalKey,
+      if (eventType != null) 'event_type': eventType,
+      if (schemaVersion != null) 'schema_version': schemaVersion,
+      if (deviceId != null) 'device_id': deviceId,
+      if (occurredAtClient != null) 'occurred_at_client': occurredAtClient,
+      if (idempotencyKey != null) 'idempotency_key': idempotencyKey,
+      if (payloadJson != null) 'payload_json': payloadJson,
+      if (retryCount != null) 'retry_count': retryCount,
+      if (nextRetryAt != null) 'next_retry_at': nextRetryAt,
+      if (lastErrorCode != null) 'last_error_code': lastErrorCode,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+    });
+  }
+
+  SyncOutboxItemsCompanion copyWith({
+    Value<int>? id,
+    Value<String>? backendUserId,
+    Value<String>? logicalKey,
+    Value<String>? eventType,
+    Value<int>? schemaVersion,
+    Value<String>? deviceId,
+    Value<DateTime>? occurredAtClient,
+    Value<String>? idempotencyKey,
+    Value<String>? payloadJson,
+    Value<int>? retryCount,
+    Value<DateTime?>? nextRetryAt,
+    Value<String?>? lastErrorCode,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+  }) {
+    return SyncOutboxItemsCompanion(
+      id: id ?? this.id,
+      backendUserId: backendUserId ?? this.backendUserId,
+      logicalKey: logicalKey ?? this.logicalKey,
+      eventType: eventType ?? this.eventType,
+      schemaVersion: schemaVersion ?? this.schemaVersion,
+      deviceId: deviceId ?? this.deviceId,
+      occurredAtClient: occurredAtClient ?? this.occurredAtClient,
+      idempotencyKey: idempotencyKey ?? this.idempotencyKey,
+      payloadJson: payloadJson ?? this.payloadJson,
+      retryCount: retryCount ?? this.retryCount,
+      nextRetryAt: nextRetryAt ?? this.nextRetryAt,
+      lastErrorCode: lastErrorCode ?? this.lastErrorCode,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (backendUserId.present) {
+      map['backend_user_id'] = Variable<String>(backendUserId.value);
+    }
+    if (logicalKey.present) {
+      map['logical_key'] = Variable<String>(logicalKey.value);
+    }
+    if (eventType.present) {
+      map['event_type'] = Variable<String>(eventType.value);
+    }
+    if (schemaVersion.present) {
+      map['schema_version'] = Variable<int>(schemaVersion.value);
+    }
+    if (deviceId.present) {
+      map['device_id'] = Variable<String>(deviceId.value);
+    }
+    if (occurredAtClient.present) {
+      map['occurred_at_client'] = Variable<DateTime>(occurredAtClient.value);
+    }
+    if (idempotencyKey.present) {
+      map['idempotency_key'] = Variable<String>(idempotencyKey.value);
+    }
+    if (payloadJson.present) {
+      map['payload_json'] = Variable<String>(payloadJson.value);
+    }
+    if (retryCount.present) {
+      map['retry_count'] = Variable<int>(retryCount.value);
+    }
+    if (nextRetryAt.present) {
+      map['next_retry_at'] = Variable<DateTime>(nextRetryAt.value);
+    }
+    if (lastErrorCode.present) {
+      map['last_error_code'] = Variable<String>(lastErrorCode.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SyncOutboxItemsCompanion(')
+          ..write('id: $id, ')
+          ..write('backendUserId: $backendUserId, ')
+          ..write('logicalKey: $logicalKey, ')
+          ..write('eventType: $eventType, ')
+          ..write('schemaVersion: $schemaVersion, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('occurredAtClient: $occurredAtClient, ')
+          ..write('idempotencyKey: $idempotencyKey, ')
+          ..write('payloadJson: $payloadJson, ')
+          ..write('retryCount: $retryCount, ')
+          ..write('nextRetryAt: $nextRetryAt, ')
+          ..write('lastErrorCode: $lastErrorCode, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $MockExamSessionsTable extends MockExamSessions
     with TableInfo<$MockExamSessionsTable, MockExamSession> {
   @override
@@ -8256,6 +9104,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $VocabQuizResultsTable vocabQuizResults = $VocabQuizResultsTable(
     this,
   );
+  late final $SyncOutboxItemsTable syncOutboxItems = $SyncOutboxItemsTable(
+    this,
+  );
   late final $MockExamSessionsTable mockExamSessions = $MockExamSessionsTable(
     this,
   );
@@ -8280,6 +9131,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     userSettings,
     sharedReports,
     vocabQuizResults,
+    syncOutboxItems,
     mockExamSessions,
     mockExamSessionItems,
     attempts,
@@ -12703,6 +13555,395 @@ typedef $$VocabQuizResultsTableProcessedTableManager =
       VocabQuizResult,
       PrefetchHooks Function()
     >;
+typedef $$SyncOutboxItemsTableCreateCompanionBuilder =
+    SyncOutboxItemsCompanion Function({
+      Value<int> id,
+      required String backendUserId,
+      required String logicalKey,
+      required String eventType,
+      required int schemaVersion,
+      required String deviceId,
+      required DateTime occurredAtClient,
+      required String idempotencyKey,
+      required String payloadJson,
+      Value<int> retryCount,
+      Value<DateTime?> nextRetryAt,
+      Value<String?> lastErrorCode,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+    });
+typedef $$SyncOutboxItemsTableUpdateCompanionBuilder =
+    SyncOutboxItemsCompanion Function({
+      Value<int> id,
+      Value<String> backendUserId,
+      Value<String> logicalKey,
+      Value<String> eventType,
+      Value<int> schemaVersion,
+      Value<String> deviceId,
+      Value<DateTime> occurredAtClient,
+      Value<String> idempotencyKey,
+      Value<String> payloadJson,
+      Value<int> retryCount,
+      Value<DateTime?> nextRetryAt,
+      Value<String?> lastErrorCode,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+    });
+
+class $$SyncOutboxItemsTableFilterComposer
+    extends Composer<_$AppDatabase, $SyncOutboxItemsTable> {
+  $$SyncOutboxItemsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get backendUserId => $composableBuilder(
+    column: $table.backendUserId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get logicalKey => $composableBuilder(
+    column: $table.logicalKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get eventType => $composableBuilder(
+    column: $table.eventType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get schemaVersion => $composableBuilder(
+    column: $table.schemaVersion,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get occurredAtClient => $composableBuilder(
+    column: $table.occurredAtClient,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get payloadJson => $composableBuilder(
+    column: $table.payloadJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get retryCount => $composableBuilder(
+    column: $table.retryCount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get nextRetryAt => $composableBuilder(
+    column: $table.nextRetryAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get lastErrorCode => $composableBuilder(
+    column: $table.lastErrorCode,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$SyncOutboxItemsTableOrderingComposer
+    extends Composer<_$AppDatabase, $SyncOutboxItemsTable> {
+  $$SyncOutboxItemsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get backendUserId => $composableBuilder(
+    column: $table.backendUserId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get logicalKey => $composableBuilder(
+    column: $table.logicalKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get eventType => $composableBuilder(
+    column: $table.eventType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get schemaVersion => $composableBuilder(
+    column: $table.schemaVersion,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get occurredAtClient => $composableBuilder(
+    column: $table.occurredAtClient,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get payloadJson => $composableBuilder(
+    column: $table.payloadJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get retryCount => $composableBuilder(
+    column: $table.retryCount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get nextRetryAt => $composableBuilder(
+    column: $table.nextRetryAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get lastErrorCode => $composableBuilder(
+    column: $table.lastErrorCode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$SyncOutboxItemsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SyncOutboxItemsTable> {
+  $$SyncOutboxItemsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get backendUserId => $composableBuilder(
+    column: $table.backendUserId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get logicalKey => $composableBuilder(
+    column: $table.logicalKey,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get eventType =>
+      $composableBuilder(column: $table.eventType, builder: (column) => column);
+
+  GeneratedColumn<int> get schemaVersion => $composableBuilder(
+    column: $table.schemaVersion,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get deviceId =>
+      $composableBuilder(column: $table.deviceId, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get occurredAtClient => $composableBuilder(
+    column: $table.occurredAtClient,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get payloadJson => $composableBuilder(
+    column: $table.payloadJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get retryCount => $composableBuilder(
+    column: $table.retryCount,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get nextRetryAt => $composableBuilder(
+    column: $table.nextRetryAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get lastErrorCode => $composableBuilder(
+    column: $table.lastErrorCode,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$SyncOutboxItemsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SyncOutboxItemsTable,
+          SyncOutboxItem,
+          $$SyncOutboxItemsTableFilterComposer,
+          $$SyncOutboxItemsTableOrderingComposer,
+          $$SyncOutboxItemsTableAnnotationComposer,
+          $$SyncOutboxItemsTableCreateCompanionBuilder,
+          $$SyncOutboxItemsTableUpdateCompanionBuilder,
+          (
+            SyncOutboxItem,
+            BaseReferences<
+              _$AppDatabase,
+              $SyncOutboxItemsTable,
+              SyncOutboxItem
+            >,
+          ),
+          SyncOutboxItem,
+          PrefetchHooks Function()
+        > {
+  $$SyncOutboxItemsTableTableManager(
+    _$AppDatabase db,
+    $SyncOutboxItemsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SyncOutboxItemsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SyncOutboxItemsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SyncOutboxItemsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> backendUserId = const Value.absent(),
+                Value<String> logicalKey = const Value.absent(),
+                Value<String> eventType = const Value.absent(),
+                Value<int> schemaVersion = const Value.absent(),
+                Value<String> deviceId = const Value.absent(),
+                Value<DateTime> occurredAtClient = const Value.absent(),
+                Value<String> idempotencyKey = const Value.absent(),
+                Value<String> payloadJson = const Value.absent(),
+                Value<int> retryCount = const Value.absent(),
+                Value<DateTime?> nextRetryAt = const Value.absent(),
+                Value<String?> lastErrorCode = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+              }) => SyncOutboxItemsCompanion(
+                id: id,
+                backendUserId: backendUserId,
+                logicalKey: logicalKey,
+                eventType: eventType,
+                schemaVersion: schemaVersion,
+                deviceId: deviceId,
+                occurredAtClient: occurredAtClient,
+                idempotencyKey: idempotencyKey,
+                payloadJson: payloadJson,
+                retryCount: retryCount,
+                nextRetryAt: nextRetryAt,
+                lastErrorCode: lastErrorCode,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String backendUserId,
+                required String logicalKey,
+                required String eventType,
+                required int schemaVersion,
+                required String deviceId,
+                required DateTime occurredAtClient,
+                required String idempotencyKey,
+                required String payloadJson,
+                Value<int> retryCount = const Value.absent(),
+                Value<DateTime?> nextRetryAt = const Value.absent(),
+                Value<String?> lastErrorCode = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+              }) => SyncOutboxItemsCompanion.insert(
+                id: id,
+                backendUserId: backendUserId,
+                logicalKey: logicalKey,
+                eventType: eventType,
+                schemaVersion: schemaVersion,
+                deviceId: deviceId,
+                occurredAtClient: occurredAtClient,
+                idempotencyKey: idempotencyKey,
+                payloadJson: payloadJson,
+                retryCount: retryCount,
+                nextRetryAt: nextRetryAt,
+                lastErrorCode: lastErrorCode,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$SyncOutboxItemsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SyncOutboxItemsTable,
+      SyncOutboxItem,
+      $$SyncOutboxItemsTableFilterComposer,
+      $$SyncOutboxItemsTableOrderingComposer,
+      $$SyncOutboxItemsTableAnnotationComposer,
+      $$SyncOutboxItemsTableCreateCompanionBuilder,
+      $$SyncOutboxItemsTableUpdateCompanionBuilder,
+      (
+        SyncOutboxItem,
+        BaseReferences<_$AppDatabase, $SyncOutboxItemsTable, SyncOutboxItem>,
+      ),
+      SyncOutboxItem,
+      PrefetchHooks Function()
+    >;
 typedef $$MockExamSessionsTableCreateCompanionBuilder =
     MockExamSessionsCompanion Function({
       Value<int> id,
@@ -15493,6 +16734,8 @@ class $AppDatabaseManager {
       $$SharedReportsTableTableManager(_db, _db.sharedReports);
   $$VocabQuizResultsTableTableManager get vocabQuizResults =>
       $$VocabQuizResultsTableTableManager(_db, _db.vocabQuizResults);
+  $$SyncOutboxItemsTableTableManager get syncOutboxItems =>
+      $$SyncOutboxItemsTableTableManager(_db, _db.syncOutboxItems);
   $$MockExamSessionsTableTableManager get mockExamSessions =>
       $$MockExamSessionsTableTableManager(_db, _db.mockExamSessions);
   $$MockExamSessionItemsTableTableManager get mockExamSessionItems =>

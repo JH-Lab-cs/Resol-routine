@@ -266,6 +266,40 @@ class VocabQuizResults extends Table {
   ];
 }
 
+class SyncOutboxItems extends Table {
+  @override
+  String get tableName => 'sync_outbox_items';
+
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get backendUserId =>
+      text().withLength(min: 1, max: DbTextLimits.idMax)();
+  TextColumn get logicalKey => text().withLength(min: 1, max: 160)();
+  TextColumn get eventType => text().customConstraint(
+    "NOT NULL CHECK (event_type IN ('DAILY_ATTEMPT_SAVED', 'VOCAB_QUIZ_COMPLETED', 'MOCK_EXAM_COMPLETED'))",
+  )();
+  IntColumn get schemaVersion =>
+      integer().customConstraint('NOT NULL CHECK (schema_version = 1)')();
+  TextColumn get deviceId => text().withLength(min: 1, max: 128)();
+  DateTimeColumn get occurredAtClient => dateTime()();
+  TextColumn get idempotencyKey => text().withLength(min: 1, max: 128)();
+  TextColumn get payloadJson => text()();
+  IntColumn get retryCount => integer().withDefault(const Constant(0))();
+  DateTimeColumn get nextRetryAt => dateTime().nullable()();
+  TextColumn get lastErrorCode => text().nullable()();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  List<Set<Column<Object>>> get uniqueKeys => [
+    {backendUserId, logicalKey},
+  ];
+
+  @override
+  List<String> get customConstraints => const <String>[
+    'CHECK (retry_count >= 0)',
+  ];
+}
+
 class MockExamSessions extends Table {
   @override
   String get tableName => 'mock_exam_sessions';
