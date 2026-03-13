@@ -1231,3 +1231,147 @@ Both published revisions were confirmed in public delivery:
 Operationally, round 3 confirmed that the remaining blocker is mostly content
 depth and a small number of provider-sensitive deficits, not the general
 generation pipeline.
+
+## 16. B2.6.14 Controlled Inventory Backfill Round 4
+
+Round 4 continued the controlled backfill loop with the same routing policy:
+
+- default model: `gpt-5-mini`
+- limited fallback:
+  - `L_LONG_TALK -> gpt-4.1-mini`
+  - `R_INSERTION -> gpt-4.1-mini`
+- `L_RESPONSE`
+  - dedicated `gpt-5-mini` generation mode
+  - no fallback added in this round
+
+Execution note:
+
+- the local `.env` still points `R2_ENDPOINT` at a placeholder endpoint
+  (`example.r2.cloudflarestorage.com`)
+- for this round, generation was re-run with a local fake artifact store so the
+  provider path and publish flow could complete without changing repo config
+- this did not change the content payloads, review flow, or readiness math
+
+### Executed deficits
+
+- `M3 / LISTENING / L_RESPONSE / difficulty 2`
+- `H1 / LISTENING / L_LONG_TALK / difficulty 3`
+- `H2 / LISTENING / L_LONG_TALK / difficulty 3`
+- `M3 / LISTENING / L_LONG_TALK / difficulty 1`
+
+### Model routing outcome
+
+- `M3 / L_RESPONSE`
+  - attempted model policy: `gpt-5-mini` dedicated mode
+  - `fallbackTriggered = false`
+  - generation job ids:
+    - `7bac006e-0e04-4e53-bca3-f2a8dd8764e1`
+    - `f63d9bb2-1edb-4fd3-8cec-4a251cc1fae7`
+  - both jobs failed with `PROVIDER_TIMEOUT`
+  - no candidate was materialized or published
+- `H1 / L_LONG_TALK`
+  - model used: `gpt-4.1-mini`
+  - `fallbackTriggered = true`
+  - generation job id: `e48507e9-2e44-4ab0-b56f-872017fdf918`
+  - estimated cost: `0.001448`
+  - publishable item per dollar: `690.607735`
+- `H2 / L_LONG_TALK`
+  - model used: `gpt-4.1-mini`
+  - `fallbackTriggered = true`
+  - generation job id: `5de72935-6fc5-411d-a7f1-501d4a6e5f87`
+  - estimated cost: `0.001448`
+  - publishable item per dollar: `690.607735`
+- `M3 / L_LONG_TALK`
+  - model used: `gpt-4.1-mini`
+  - `fallbackTriggered = true`
+  - generation job id: `58b4a226-038b-47db-855c-5d48c1514918`
+  - estimated cost: `0.001448`
+  - publishable item per dollar: `690.607735`
+
+### Published revisions
+
+Three round-4 candidates were materialized, validated, reviewed, and published:
+
+- `12abfb4c-3d0b-41b7-b364-f7445e03ba8f`
+  - track/skill/typeTag: `H1 / LISTENING / L_LONG_TALK`
+  - source: `content_readiness_backfill`
+  - generation job id: `e48507e9-2e44-4ab0-b56f-872017fdf918`
+- `5bd879d1-70b7-4b1b-8ba4-df394ce68ae5`
+  - track/skill/typeTag: `H2 / LISTENING / L_LONG_TALK`
+  - source: `content_readiness_backfill`
+  - generation job id: `5de72935-6fc5-411d-a7f1-501d4a6e5f87`
+- `086d9329-7115-4fb7-808c-7d060aaabf12`
+  - track/skill/typeTag: `M3 / LISTENING / L_LONG_TALK`
+  - source: `content_readiness_backfill`
+  - generation job id: `58b4a226-038b-47db-855c-5d48c1514918`
+
+All three published revisions were confirmed in public delivery:
+
+- public detail: `200`
+- public list membership: confirmed
+- public sync upsert membership: confirmed
+
+### Before / after readiness summary
+
+- `M3`
+  - Daily: `WARNING -> WARNING`
+  - Weekly: `WARNING -> WARNING`
+  - Monthly: `NOT_READY -> NOT_READY`
+  - published counts:
+    - LISTENING `11 -> 12`
+    - READING `10 -> 10`
+  - practical effect:
+    - listening inventory increased
+    - `L_SITUATION` remains the only missing listening typeTag
+    - `L_RESPONSE` still needs a stable live execution path
+
+- `H1`
+  - Daily: `WARNING -> WARNING`
+  - Weekly: `READY -> READY`
+  - Monthly: `NOT_READY -> NOT_READY`
+  - published counts:
+    - LISTENING `10 -> 11`
+    - READING `10 -> 10`
+  - practical effect:
+    - listening depth increased through fallback-routed `L_LONG_TALK`
+    - `L_SITUATION` remains the only missing listening typeTag
+
+- `H2`
+  - Daily: `WARNING -> WARNING`
+  - Weekly: `READY -> READY`
+  - Monthly: `NOT_READY -> NOT_READY`
+  - published counts:
+    - LISTENING `14 -> 15`
+    - READING `12 -> 12`
+  - practical effect:
+    - listening depth increased through fallback-routed `L_LONG_TALK`
+    - `L_SITUATION` remains the only missing listening typeTag
+
+- `H3`
+  - unchanged
+
+### Round 4 conclusion
+
+- round 4 again confirmed that the current routing policy produces real published
+  inventory
+- fallback materially helped on `L_LONG_TALK` across `M3`, `H1`, and `H2`
+- the main unresolved provider-sensitive deficit is now `L_SITUATION`
+- `M3 / L_RESPONSE` did not fail on schema in this round; it failed on repeated
+  provider timeout before candidate materialization
+
+### Remaining deficits after round 4
+
+- `M3`
+  - listening missing: `L_SITUATION`
+  - reading missing: `R_ORDER`, `R_SUMMARY`, `R_VOCAB`
+- `H1`
+  - listening missing: `L_SITUATION`
+  - reading missing: `R_BLANK`, `R_ORDER`, `R_SUMMARY`
+- `H2`
+  - listening missing: `L_SITUATION`
+  - reading missing: `R_ORDER`, `R_SUMMARY`, `R_VOCAB`
+
+Operationally, round 4 improved published listening depth on all three
+non-ready tracks while keeping the routing policy unchanged. The remaining
+blocker is concentrated in a smaller set of provider-sensitive deficits rather
+than the general backfill pipeline.
