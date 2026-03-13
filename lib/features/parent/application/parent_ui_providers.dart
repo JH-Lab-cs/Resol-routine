@@ -1,37 +1,18 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-enum ParentChildLearningState { active, resting }
+import '../../family/application/family_providers.dart';
+import '../../family/data/family_repository.dart';
 
 class ParentLinkedChild {
   const ParentLinkedChild({
     required this.id,
     required this.displayName,
-    required this.inviteCode,
-    required this.state,
-    required this.streakDays,
+    required this.subtitle,
   });
 
   final String id;
   final String displayName;
-  final String inviteCode;
-  final ParentChildLearningState state;
-  final int streakDays;
-
-  ParentLinkedChild copyWith({
-    String? id,
-    String? displayName,
-    String? inviteCode,
-    ParentChildLearningState? state,
-    int? streakDays,
-  }) {
-    return ParentLinkedChild(
-      id: id ?? this.id,
-      displayName: displayName ?? this.displayName,
-      inviteCode: inviteCode ?? this.inviteCode,
-      state: state ?? this.state,
-      streakDays: streakDays ?? this.streakDays,
-    );
-  }
+  final String subtitle;
 }
 
 class ParentNotificationItem {
@@ -50,64 +31,19 @@ class ParentNotificationItem {
   final String emoji;
 }
 
-class ParentLinkedChildrenNotifier extends Notifier<List<ParentLinkedChild>> {
-  static final RegExp _inviteCodePattern = RegExp(r'^\d{6}$');
-
-  @override
-  List<ParentLinkedChild> build() {
-    return const <ParentLinkedChild>[
-      ParentLinkedChild(
-        id: 'child-1',
-        displayName: '김철수',
-        inviteCode: '123456',
-        state: ParentChildLearningState.active,
-        streakDays: 3,
-      ),
-      ParentLinkedChild(
-        id: 'child-2',
-        displayName: '김영희',
-        inviteCode: '222222',
-        state: ParentChildLearningState.resting,
-        streakDays: 0,
-      ),
-    ];
+final parentLinkedChildrenProvider = Provider<List<ParentLinkedChild>>((
+  Ref ref,
+) {
+  final snapshot = ref.watch(familyLinksProvider).valueOrNull;
+  if (snapshot == null) {
+    return const <ParentLinkedChild>[];
   }
-
-  ParentLinkedChild addChildFromInviteCode(String rawInviteCode) {
-    final inviteCode = rawInviteCode.trim();
-    if (!_inviteCodePattern.hasMatch(inviteCode)) {
-      throw const FormatException('inviteCode must be exactly 6 digits.');
-    }
-
-    final duplicate = state.any((child) => child.inviteCode == inviteCode);
-    if (duplicate) {
-      throw const FormatException('inviteCode is already linked.');
-    }
-
-    final child = ParentLinkedChild(
-      id: 'child-${DateTime.now().microsecondsSinceEpoch}',
-      displayName: '자녀 ${state.length + 1}',
-      inviteCode: inviteCode,
-      state: ParentChildLearningState.resting,
-      streakDays: 0,
-    );
-    state = <ParentLinkedChild>[...state, child];
-    return child;
-  }
-}
-
-final parentLinkedChildrenProvider =
-    NotifierProvider<ParentLinkedChildrenNotifier, List<ParentLinkedChild>>(
-      ParentLinkedChildrenNotifier.new,
-    );
-
-final selectedParentChildIdProvider = StateProvider<String?>((Ref ref) {
-  final children = ref.watch(parentLinkedChildrenProvider);
-  if (children.isEmpty) {
-    return null;
-  }
-  return children.first.id;
+  return snapshot.linkedChildren
+      .map(_toParentLinkedChild)
+      .toList(growable: false);
 });
+
+final selectedParentChildIdProvider = StateProvider<String?>((Ref ref) => null);
 
 final parentNotificationItemsProvider = Provider<List<ParentNotificationItem>>((
   Ref ref,
@@ -164,3 +100,13 @@ final studentNotificationItemsProvider = Provider<List<ParentNotificationItem>>(
     ];
   },
 );
+
+ParentLinkedChild _toParentLinkedChild(FamilyLinkedUserSummary child) {
+  final localPart = child.email.split('@').first.trim();
+  final displayName = localPart.isEmpty ? child.email : localPart;
+  return ParentLinkedChild(
+    id: child.id,
+    displayName: displayName,
+    subtitle: child.email,
+  );
+}

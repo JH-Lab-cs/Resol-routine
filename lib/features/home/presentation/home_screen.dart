@@ -10,6 +10,7 @@ import '../../../core/ui/components/routine_card.dart';
 import '../../../core/ui/components/section_title.dart';
 import '../../../core/ui/components/skeleton.dart';
 import '../../dev/application/dev_tools_providers.dart';
+import '../../family/application/family_providers.dart';
 import '../../my/application/profile_ui_prefs_provider.dart';
 import '../../my/application/my_stats_providers.dart';
 import '../../mock_exam/application/mock_exam_providers.dart';
@@ -458,6 +459,7 @@ class _ParentHomeContent extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final familyLinksAsync = ref.watch(familyLinksProvider);
     final children = ref.watch(parentLinkedChildrenProvider);
     final selectedChildId = ref.watch(selectedParentChildIdProvider);
     final showDevButton = ref.watch(devToolsVisibleProvider);
@@ -540,9 +542,28 @@ class _ParentHomeContent extends ConsumerWidget {
           ],
         ),
         const SizedBox(height: AppSpacing.sm),
-        _ParentReportPlaceholderCard(
-          showDevButton: showDevButton && onOpenDevReports != null,
-          onOpenDevReports: onOpenDevReports,
+        familyLinksAsync.when(
+          loading: () => const Card(
+            child: Padding(
+              padding: EdgeInsets.all(AppSpacing.md),
+              child: Center(child: CircularProgressIndicator()),
+            ),
+          ),
+          error: (error, _) => Card(
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              child: Text(
+                '${AppCopyKo.loadFailed('가족 연결 정보')}\n$error',
+                style: AppTypography.body.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ),
+          ),
+          data: (_) => _ParentReportPlaceholderCard(
+            showDevButton: showDevButton && onOpenDevReports != null,
+            onOpenDevReports: onOpenDevReports,
+          ),
         ),
       ],
     );

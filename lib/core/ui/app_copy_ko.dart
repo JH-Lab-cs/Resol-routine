@@ -58,6 +58,16 @@ class AppCopyKo {
   static const String parentInviteCodeInvalid = '초대 코드는 숫자 6자리여야 합니다.';
   static const String parentChildAdded = '자녀를 추가했습니다.';
   static const String parentChildAddFailed = '자녀를 추가하지 못했습니다.';
+  static const String familyLinksLoadFailed = '가족 연결 정보를 불러오지 못했습니다.';
+  static const String studentLinkCodeCopied = '자녀 코드를 복사했어요.';
+  static const String studentLinkCodeRefreshFailed = '자녀 코드를 다시 만들지 못했습니다.';
+  static const String familyLinkInvalid = '코드를 다시 확인해 주세요.';
+  static const String familyLinkExpired = '코드가 만료되었습니다. 학생에게 새 코드를 요청해 주세요.';
+  static const String familyLinkAlreadyUsed = '이미 사용된 코드입니다.';
+  static const String familyLinkMaxParentsReached = '이 학생은 이미 최대 부모 수에 도달했습니다.';
+  static const String familyLinkDuplicate = '이미 연결된 자녀입니다.';
+  static const String familyLinkRateLimited = '잠시 후 다시 시도해 주세요.';
+  static const String familyLinkSessionExpired = '세션이 만료되었습니다. 다시 로그인해 주세요.';
 
   static String mockHistoryDeleteTitle(String examLabel) {
     return '$examLabel 기록 삭제';

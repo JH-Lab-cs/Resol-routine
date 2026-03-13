@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/ui/app_copy_ko.dart';
 import '../../../core/ui/app_tokens.dart';
 import '../../../core/ui/components/app_snackbars.dart';
+import '../../family/application/family_providers.dart';
+import '../../family/data/family_repository.dart';
 import '../application/parent_ui_providers.dart';
 
 Future<void> showNotificationInbox(
@@ -143,15 +145,22 @@ Future<void> showAddChildDialog(BuildContext context, WidgetRef ref) async {
       return;
     }
 
-    final child = ref
-        .read(parentLinkedChildrenProvider.notifier)
-        .addChildFromInviteCode(inviteCodeInput);
-    ref.read(selectedParentChildIdProvider.notifier).state = child.id;
+    await ref
+        .read(familyLinksProvider.notifier)
+        .consumeChildLinkCode(inviteCodeInput);
+    final children = ref.read(parentLinkedChildrenProvider);
+    final lastChild = children.isEmpty ? null : children.last;
+    ref.read(selectedParentChildIdProvider.notifier).state = lastChild?.id;
 
     if (!context.mounted) {
       return;
     }
     AppSnackbars.showSuccess(context, AppCopyKo.parentChildAdded);
+  } on FamilyRepositoryException catch (error) {
+    if (!context.mounted) {
+      return;
+    }
+    AppSnackbars.showWarning(context, _toFamilyLinkErrorMessage(error.code));
   } on FormatException {
     if (!context.mounted) {
       return;
@@ -162,6 +171,29 @@ Future<void> showAddChildDialog(BuildContext context, WidgetRef ref) async {
       return;
     }
     AppSnackbars.showError(context, AppCopyKo.parentChildAddFailed);
+  }
+}
+
+String _toFamilyLinkErrorMessage(String code) {
+  switch (code) {
+    case 'invalid_link_code':
+      return AppCopyKo.familyLinkInvalid;
+    case 'link_code_expired':
+      return AppCopyKo.familyLinkExpired;
+    case 'link_code_already_consumed':
+      return AppCopyKo.familyLinkAlreadyUsed;
+    case 'child_parent_limit_reached':
+      return AppCopyKo.familyLinkMaxParentsReached;
+    case 'duplicate_active_link':
+      return AppCopyKo.familyLinkDuplicate;
+    case 'rate_limit_exceeded':
+      return AppCopyKo.familyLinkRateLimited;
+    case 'invalid_access_token':
+    case 'invalid_refresh_token':
+    case 'refresh_token_reuse_detected':
+      return AppCopyKo.familyLinkSessionExpired;
+    default:
+      return AppCopyKo.parentChildAddFailed;
   }
 }
 

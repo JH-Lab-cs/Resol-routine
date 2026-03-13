@@ -7,9 +7,10 @@ import '../../../core/ui/app_copy_ko.dart';
 import '../../../core/ui/app_tokens.dart';
 import '../../../core/ui/components/app_snackbars.dart';
 import '../../auth/application/auth_session_provider.dart';
+import '../../family/application/family_providers.dart';
+import '../../family/data/family_repository.dart';
 import '../application/profile_ui_prefs_provider.dart';
 import '../../settings/application/user_settings_providers.dart';
-import '../../settings/data/user_settings_repository.dart';
 import 'membership_plan_screen.dart';
 import 'profile_manage_screen.dart';
 
@@ -49,7 +50,12 @@ class _MySettingsScreenState extends ConsumerState<MySettingsScreen> {
           final normalizedName = settings.displayName.trim().isEmpty
               ? '이름 미설정'
               : settings.displayName.trim();
-          final studentCode = _buildStudentCode(settings);
+          final familyLinksAsync = settings.role == 'STUDENT'
+              ? ref.watch(familyLinksProvider)
+              : null;
+          final linkCodeAsync = settings.role == 'STUDENT'
+              ? ref.watch(studentLinkCodeProvider)
+              : null;
           return ListView(
             padding: const EdgeInsets.fromLTRB(
               AppSpacing.mdLg,
@@ -58,11 +64,16 @@ class _MySettingsScreenState extends ConsumerState<MySettingsScreen> {
               AppSpacing.lg,
             ),
             children: [
-              _SettingsProfileCard(
-                displayName: normalizedName,
-                studentCode: studentCode,
-                onCopyCode: () => _copyStudentCode(context, studentCode),
-              ),
+              _SettingsProfileCard(displayName: normalizedName),
+              if (settings.role == 'STUDENT') ...[
+                const SizedBox(height: AppSpacing.md),
+                _StudentLinkCodeCard(
+                  familyLinksAsync: familyLinksAsync!,
+                  linkCodeAsync: linkCodeAsync!,
+                  onCopyCode: (String code) => _copyStudentCode(context, code),
+                  onRegenerate: () => _regenerateStudentCode(context, ref),
+                ),
+              ],
               const SizedBox(height: AppSpacing.mdLg),
               Card(
                 child: _ListTile(
@@ -305,22 +316,34 @@ class _MySettingsScreenState extends ConsumerState<MySettingsScreen> {
     if (!context.mounted) {
       return;
     }
-    AppSnackbars.showSuccess(context, '학생 코드를 복사했어요.');
+    AppSnackbars.showSuccess(context, AppCopyKo.studentLinkCodeCopied);
   }
 
-  String _buildStudentCode(UserSettingsModel settings) {
-    final normalizedName = settings.displayName.trim().isEmpty
-        ? 'USER'
-        : settings.displayName.trim();
-    final seed =
-        '$normalizedName|${settings.createdAt.microsecondsSinceEpoch}|${settings.track}';
-    var hash = 17;
-    for (final codeUnit in seed.codeUnits) {
-      hash = 37 * hash + codeUnit;
-      hash &= 0x7fffffff;
+  Future<void> _regenerateStudentCode(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    try {
+      await ref.read(studentLinkCodeProvider.notifier).regenerate();
+    } on FamilyRepositoryException catch (error) {
+      if (!context.mounted) {
+        return;
+      }
+      final message = switch (error.code) {
+        'child_parent_limit_reached' => AppCopyKo.familyLinkMaxParentsReached,
+        'rate_limit_exceeded' => AppCopyKo.familyLinkRateLimited,
+        'invalid_access_token' ||
+        'invalid_refresh_token' ||
+        'refresh_token_reuse_detected' => AppCopyKo.familyLinkSessionExpired,
+        _ => AppCopyKo.studentLinkCodeRefreshFailed,
+      };
+      AppSnackbars.showWarning(context, message);
+    } catch (_) {
+      if (!context.mounted) {
+        return;
+      }
+      AppSnackbars.showError(context, AppCopyKo.studentLinkCodeRefreshFailed);
     }
-    final main = ((hash % 9000) + 1000).toString().padLeft(4, '0');
-    return 'RSL-$main-${settings.track}';
   }
 
   Future<void> _handleVersionTap() async {
@@ -355,15 +378,9 @@ class _MySettingsScreenState extends ConsumerState<MySettingsScreen> {
 }
 
 class _SettingsProfileCard extends StatelessWidget {
-  const _SettingsProfileCard({
-    required this.displayName,
-    required this.studentCode,
-    required this.onCopyCode,
-  });
+  const _SettingsProfileCard({required this.displayName});
 
   final String displayName;
-  final String studentCode;
-  final VoidCallback onCopyCode;
 
   @override
   Widget build(BuildContext context) {
@@ -399,55 +416,178 @@ class _SettingsProfileCard extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: AppSpacing.sm),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.sm,
-                    vertical: AppSpacing.xs,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF0F1F6),
-                    borderRadius: BorderRadius.circular(AppRadius.md),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Flexible(
-                        child: Text(
-                          '코드: $studentCode',
-                          style: AppTypography.body.copyWith(
-                            color: AppColors.textSecondary,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.xs),
-                      Semantics(
-                        label: '학생 코드 복사',
-                        button: true,
-                        child: IconButton(
-                          key: const ValueKey<String>(
-                            'settings-copy-student-code',
-                          ),
-                          tooltip: '학생 코드 복사',
-                          visualDensity: VisualDensity.compact,
-                          onPressed: onCopyCode,
-                          icon: const Icon(
-                            Icons.content_copy_rounded,
-                            size: 20,
-                            color: Color(0xFF9EA2AD),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
               ],
             ),
           ),
         ],
       ),
+    );
+  }
+}
+
+class _StudentLinkCodeCard extends StatelessWidget {
+  const _StudentLinkCodeCard({
+    required this.familyLinksAsync,
+    required this.linkCodeAsync,
+    required this.onCopyCode,
+    required this.onRegenerate,
+  });
+
+  final AsyncValue<FamilyLinksSnapshot> familyLinksAsync;
+  final AsyncValue<FamilyLinkCode?> linkCodeAsync;
+  final ValueChanged<String> onCopyCode;
+  final VoidCallback onRegenerate;
+
+  @override
+  Widget build(BuildContext context) {
+    final linkedParentCount =
+        familyLinksAsync.valueOrNull?.activeParentCount ?? 0;
+    final maxParentCount =
+        familyLinksAsync.valueOrNull?.maxParentsPerChild ?? 2;
+
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.mdLg),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text('자녀 연동 코드', style: AppTypography.section),
+              const Spacer(),
+              Text(
+                '$linkedParentCount / $maxParentCount 부모 연결',
+                style: AppTypography.label.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            '코드는 10분 동안 유효합니다.',
+            style: AppTypography.body.copyWith(color: AppColors.textSecondary),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          linkCodeAsync.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (_, _) => _StudentLinkCodeErrorState(
+              onRetry: onRegenerate,
+              message: AppCopyKo.familyLinksLoadFailed,
+            ),
+            data: (linkCode) {
+              if (linkCode == null) {
+                return _StudentLinkCodeErrorState(
+                  onRetry: onRegenerate,
+                  message: AppCopyKo.familyLinksLoadFailed,
+                );
+              }
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.md,
+                      vertical: AppSpacing.sm,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF0F1F6),
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            linkCode.code,
+                            style: AppTypography.title.copyWith(
+                              fontSize: 28,
+                              letterSpacing: 1.2,
+                            ),
+                          ),
+                        ),
+                        Semantics(
+                          label: '학생 코드 복사',
+                          button: true,
+                          child: IconButton(
+                            key: const ValueKey<String>(
+                              'settings-copy-student-code',
+                            ),
+                            tooltip: '학생 코드 복사',
+                            visualDensity: VisualDensity.compact,
+                            onPressed: () => onCopyCode(linkCode.code),
+                            icon: const Icon(
+                              Icons.content_copy_rounded,
+                              size: 20,
+                              color: Color(0xFF9EA2AD),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(
+                    '만료 시각: ${_formatExpiry(linkCode.expiresAt)}',
+                    style: AppTypography.body.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: OutlinedButton.icon(
+                      onPressed: onRegenerate,
+                      icon: const Icon(Icons.refresh_rounded),
+                      label: const Text('코드 새로고침'),
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatExpiry(DateTime value) {
+    final local = value.toLocal();
+    final hour = local.hour.toString().padLeft(2, '0');
+    final minute = local.minute.toString().padLeft(2, '0');
+    return '$hour:$minute';
+  }
+}
+
+class _StudentLinkCodeErrorState extends StatelessWidget {
+  const _StudentLinkCodeErrorState({
+    required this.message,
+    required this.onRetry,
+  });
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          message,
+          style: AppTypography.body.copyWith(color: AppColors.textSecondary),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        OutlinedButton.icon(
+          onPressed: onRetry,
+          icon: const Icon(Icons.refresh_rounded),
+          label: const Text('다시 시도'),
+        ),
+      ],
     );
   }
 }

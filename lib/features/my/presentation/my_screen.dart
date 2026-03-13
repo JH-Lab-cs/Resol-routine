@@ -11,6 +11,7 @@ import '../../../core/ui/components/app_snackbars.dart';
 import '../../../core/ui/label_maps.dart';
 import '../../dev/application/dev_tools_providers.dart';
 import '../../dev/presentation/dev_reports_screen.dart';
+import '../../family/application/family_providers.dart';
 import '../../home/application/home_providers.dart';
 import '../../mock_exam/presentation/mock_exam_history_screen.dart';
 import '../../parent/application/parent_ui_providers.dart';
@@ -545,6 +546,7 @@ class _ParentMySettingsContent extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final children = ref.watch(parentLinkedChildrenProvider);
+    final familyLinksAsync = ref.watch(familyLinksProvider);
 
     return ListView(
       children: [
@@ -608,27 +610,51 @@ class _ParentMySettingsContent extends ConsumerWidget {
           ],
         ),
         const SizedBox(height: AppSpacing.sm),
-        if (children.isEmpty)
-          const Card(
+        familyLinksAsync.when(
+          loading: () => const Card(
             child: Padding(
               padding: EdgeInsets.all(AppSpacing.md),
-              child: Text('연결된 자녀가 없습니다.'),
+              child: Center(child: CircularProgressIndicator()),
             ),
-          )
-        else
-          Column(
-            children: [
-              for (final child in children)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                  child: _ParentLinkedChildCard(
-                    child: child,
-                    onManage: () =>
-                        showParentChildManageSheet(context, ref, child: child),
-                  ),
-                ),
-            ],
           ),
+          error: (error, _) => Card(
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              child: Text(
+                '${AppCopyKo.loadFailed('가족 연결 정보')}\n$error',
+                style: AppTypography.body.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ),
+          ),
+          data: (_) {
+            if (children.isEmpty) {
+              return const Card(
+                child: Padding(
+                  padding: EdgeInsets.all(AppSpacing.md),
+                  child: Text('연결된 자녀가 없습니다.'),
+                ),
+              );
+            }
+            return Column(
+              children: [
+                for (final child in children)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                    child: _ParentLinkedChildCard(
+                      child: child,
+                      onManage: () => showParentChildManageSheet(
+                        context,
+                        ref,
+                        child: child,
+                      ),
+                    ),
+                  ),
+              ],
+            );
+          },
+        ),
         const SizedBox(height: AppSpacing.xl),
         const _SectionHeader(title: '설정'),
         const SizedBox(height: AppSpacing.sm),
@@ -823,17 +849,6 @@ class _ParentLinkedChildCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final (statusText, statusColor) = switch (child.state) {
-      ParentChildLearningState.active => (
-        '🔥 ${child.streakDays}일 연속 학습 중',
-        const Color(0xFF44A84F),
-      ),
-      ParentChildLearningState.resting => (
-        '💤 오늘은 쉬고 있어요',
-        const Color(0xFF44A84F),
-      ),
-    };
-
     return InkWell(
       borderRadius: BorderRadius.circular(AppRadius.card),
       onTap: onManage,
@@ -877,9 +892,9 @@ class _ParentLinkedChildCard extends StatelessWidget {
                   ),
                   const SizedBox(height: AppSpacing.xs),
                   Text(
-                    statusText,
+                    child.subtitle,
                     style: AppTypography.section.copyWith(
-                      color: statusColor,
+                      color: const Color(0xFF44A84F),
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
                     ),

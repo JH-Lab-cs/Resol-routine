@@ -90,6 +90,38 @@ class AuthRepository {
     return _parseUser(body);
   }
 
+  Future<JsonApiResponse> authorizedGet(
+    String path, {
+    bool retryOnUnauthorized = true,
+  }) {
+    return _sendAuthorized(
+      retryOnUnauthorized: retryOnUnauthorized,
+      send: (String accessToken) {
+        return _apiClient.get(
+          path,
+          headers: <String, String>{'Authorization': 'Bearer $accessToken'},
+        );
+      },
+    );
+  }
+
+  Future<JsonApiResponse> authorizedPost(
+    String path, {
+    Object? body,
+    bool retryOnUnauthorized = true,
+  }) {
+    return _sendAuthorized(
+      retryOnUnauthorized: retryOnUnauthorized,
+      send: (String accessToken) {
+        return _apiClient.post(
+          path,
+          headers: <String, String>{'Authorization': 'Bearer $accessToken'},
+          body: body,
+        );
+      },
+    );
+  }
+
   Future<JsonApiResponse> _sendAuthorized({
     required Future<JsonApiResponse> Function(String accessToken) send,
     required bool retryOnUnauthorized,

@@ -30,6 +30,7 @@ from app.models.enums import (
     UserSubscriptionStatus,
     WrongReasonTag,
 )
+from app.models.family_link_code import FamilyLinkCode
 from app.models.invite_code import InviteCode
 from app.models.mock_assembly_job import MockAssemblyJob
 from app.models.mock_exam import MockExam
@@ -75,6 +76,7 @@ __all__ = [
     "ContentUnit",
     "ContentUnitRevision",
     "DailyReportAggregate",
+    "FamilyLinkCode",
     "InviteCode",
     "MockAssemblyJob",
     "MockExam",
