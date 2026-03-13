@@ -4,7 +4,7 @@ import unicodedata
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator, model_validator
 
 from app.core.input_validation import INVALID_HIDDEN_UNICODE_DETAIL, validate_user_input_text
 from app.core.policies import (
@@ -151,12 +151,16 @@ class AssetFinalizeRequest(BaseModel):
 
     @field_validator("etag", "bucket")
     @classmethod
-    def validate_optional_identifier(cls, value: str | None, info) -> str | None:
+    def validate_optional_identifier(
+        cls,
+        value: str | None,
+        info: ValidationInfo,
+    ) -> str | None:
         if value is None:
             return None
         return _validate_identifier(
             value,
-            field_name=info.field_name,
+            field_name=info.field_name or "content_asset_identifier",
             max_length=CONTENT_IDENTIFIER_MAX_LENGTH,
         )
 
@@ -258,10 +262,14 @@ class ContentQuestionCreateRequest(BaseModel):
         "choice_e",
     )
     @classmethod
-    def validate_required_text_fields(cls, value: str, info) -> str:
+    def validate_required_text_fields(
+        cls,
+        value: str,
+        info: ValidationInfo,
+    ) -> str:
         return _validate_multiline_text(
             value,
-            field_name=info.field_name,
+            field_name=info.field_name or "content_question_text",
             max_length=CONTENT_TEXT_MAX_LENGTH,
         )
 
@@ -329,12 +337,16 @@ class ContentUnitRevisionCreateRequest(BaseModel):
 
     @field_validator("body_text", "transcript_text", "explanation_text")
     @classmethod
-    def validate_optional_text(cls, value: str | None, info) -> str | None:
+    def validate_optional_text(
+        cls,
+        value: str | None,
+        info: ValidationInfo,
+    ) -> str | None:
         if value is None:
             return None
         return _validate_multiline_text(
             value,
-            field_name=info.field_name,
+            field_name=info.field_name or "content_revision_text",
             max_length=CONTENT_TEXT_MAX_LENGTH,
         )
 
@@ -405,6 +417,12 @@ class ContentUnitRevisionResponse(BaseModel):
     explanation_text: str | None
     asset_id: UUID | None
     metadata_json: dict[str, object]
+    calibration_score: int | None = None
+    calibrated_level: str | None = None
+    calibration_pass: bool | None = None
+    calibration_warnings: list[str] = Field(default_factory=list)
+    calibration_fail_reasons: list[str] = Field(default_factory=list)
+    calibration_rubric_version: str | None = None
     lifecycle_status: ContentLifecycleStatus
     can_publish: bool
     published_at: datetime | None
@@ -428,6 +446,12 @@ class ContentRevisionSummaryResponse(BaseModel):
     validated_at: datetime | None
     reviewer_identity: str | None
     reviewed_at: datetime | None
+    calibration_score: int | None = None
+    calibrated_level: str | None = None
+    calibration_pass: bool | None = None
+    calibration_warnings: list[str] = Field(default_factory=list)
+    calibration_fail_reasons: list[str] = Field(default_factory=list)
+    calibration_rubric_version: str | None = None
     lifecycle_status: ContentLifecycleStatus
     can_publish: bool
     published_at: datetime | None
@@ -585,12 +609,16 @@ class ContentUnitListQuery(BaseModel):
 
     @field_validator("external_id", "slug")
     @classmethod
-    def validate_optional_identifier_field(cls, value: str | None, info) -> str | None:
+    def validate_optional_identifier_field(
+        cls,
+        value: str | None,
+        info: ValidationInfo,
+    ) -> str | None:
         if value is None:
             return None
         return _validate_identifier(
             value,
-            field_name=info.field_name,
+            field_name=info.field_name or "content_revision_identifier",
             max_length=CONTENT_IDENTIFIER_MAX_LENGTH,
         )
 
@@ -641,12 +669,16 @@ class ContentQuestionListQuery(BaseModel):
 
     @field_validator("question_code", "unit_external_id")
     @classmethod
-    def validate_optional_identifier_field(cls, value: str | None, info) -> str | None:
+    def validate_optional_identifier_field(
+        cls,
+        value: str | None,
+        info: ValidationInfo,
+    ) -> str | None:
         if value is None:
             return None
         return _validate_identifier(
             value,
-            field_name=info.field_name,
+            field_name=info.field_name or "content_question_identifier",
             max_length=CONTENT_IDENTIFIER_MAX_LENGTH,
         )
 

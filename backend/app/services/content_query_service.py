@@ -29,6 +29,10 @@ from app.schemas.content import (
     ContentUnitRevisionListResponse,
     ContentUnitRevisionResponse,
 )
+from app.services.content_calibration_service import (
+    evaluate_content_calibration,
+    extract_content_calibration_metadata,
+)
 
 
 def get_content_unit(db: Session, *, unit_id: UUID) -> ContentUnitResponse:
@@ -65,7 +69,7 @@ def get_content_revision(db: Session, *, revision_id: UUID) -> ContentRevisionDe
     return _to_revision_detail_response(
         revision=revision,
         unit=unit,
-        questions=questions,
+        questions=list(questions),
         asset=asset,
     )
 
@@ -347,6 +351,7 @@ def _to_revision_summary_response(
     revision: ContentUnitRevision,
     unit: ContentUnit,
 ) -> ContentRevisionSummaryResponse:
+    calibration = extract_content_calibration_metadata(revision.metadata_json)
     return ContentRevisionSummaryResponse(
         id=revision.id,
         unit_id=unit.id,
@@ -362,6 +367,12 @@ def _to_revision_summary_response(
         validated_at=revision.validated_at,
         reviewer_identity=revision.reviewer_identity,
         reviewed_at=revision.reviewed_at,
+        calibration_score=_as_int_or_none(calibration, "calibrationScore"),
+        calibrated_level=_as_str_or_none(calibration, "calibratedLevel"),
+        calibration_pass=_as_bool_or_none(calibration, "calibrationPass"),
+        calibration_warnings=_as_str_list(calibration, "calibrationWarnings"),
+        calibration_fail_reasons=_as_str_list(calibration, "calibrationFailReasons"),
+        calibration_rubric_version=_as_str_or_none(calibration, "calibrationRubricVersion"),
         lifecycle_status=revision.lifecycle_status,
         can_publish=_can_publish(revision),
         published_at=revision.published_at,
@@ -379,6 +390,22 @@ def _to_revision_detail_response(
     asset: ContentAsset | None,
 ) -> ContentRevisionDetailResponse:
     summary = _to_revision_summary_response(revision=revision, unit=unit)
+    if summary.calibration_score is None:
+        calibration = evaluate_content_calibration(
+            unit=unit,
+            revision=revision,
+            questions=questions,
+        )
+        summary = summary.model_copy(
+            update={
+                "calibration_score": calibration.calibration_score,
+                "calibrated_level": calibration.calibrated_level.value,
+                "calibration_pass": calibration.passed,
+                "calibration_warnings": list(calibration.warnings),
+                "calibration_fail_reasons": list(calibration.fail_reasons),
+                "calibration_rubric_version": calibration.rubric_version,
+            }
+        )
     return ContentRevisionDetailResponse(
         **summary.model_dump(),
         title=revision.title,
@@ -435,6 +462,7 @@ def _to_revision_response(
     revision: ContentUnitRevision,
     questions: list[ContentQuestion],
 ) -> ContentUnitRevisionResponse:
+    calibration = extract_content_calibration_metadata(revision.metadata_json)
     return ContentUnitRevisionResponse(
         id=revision.id,
         content_unit_id=revision.content_unit_id,
@@ -451,6 +479,12 @@ def _to_revision_response(
         explanation_text=revision.explanation_text,
         asset_id=revision.asset_id,
         metadata_json=revision.metadata_json,
+        calibration_score=_as_int_or_none(calibration, "calibrationScore"),
+        calibrated_level=_as_str_or_none(calibration, "calibratedLevel"),
+        calibration_pass=_as_bool_or_none(calibration, "calibrationPass"),
+        calibration_warnings=_as_str_list(calibration, "calibrationWarnings"),
+        calibration_fail_reasons=_as_str_list(calibration, "calibrationFailReasons"),
+        calibration_rubric_version=_as_str_or_none(calibration, "calibrationRubricVersion"),
         lifecycle_status=revision.lifecycle_status,
         can_publish=_can_publish(revision),
         published_at=revision.published_at,
@@ -458,3 +492,40 @@ def _to_revision_response(
         updated_at=revision.updated_at,
         questions=[_to_question_response(question) for question in questions],
     )
+
+
+def _as_int_or_none(metadata: dict[str, object] | None, key: str) -> int | None:
+    if not isinstance(metadata, dict):
+        return None
+    value = metadata.get(key)
+    if isinstance(value, bool) or value is None:
+        return None
+    if not isinstance(value, (int, float, str)):
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _as_str_or_none(metadata: dict[str, object] | None, key: str) -> str | None:
+    if not isinstance(metadata, dict):
+        return None
+    value = metadata.get(key)
+    return value if isinstance(value, str) and value.strip() else None
+
+
+def _as_bool_or_none(metadata: dict[str, object] | None, key: str) -> bool | None:
+    if not isinstance(metadata, dict):
+        return None
+    value = metadata.get(key)
+    return value if isinstance(value, bool) else None
+
+
+def _as_str_list(metadata: dict[str, object] | None, key: str) -> list[str]:
+    if not isinstance(metadata, dict):
+        return []
+    value = metadata.get(key)
+    if not isinstance(value, list):
+        return []
+    return [item for item in value if isinstance(item, str)]

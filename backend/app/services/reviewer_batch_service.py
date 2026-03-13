@@ -19,7 +19,9 @@ from app.schemas.content import (
     ContentRevisionValidateRequest,
     ContentUnitPublishRequest,
 )
+from app.services.content_calibration_service import evaluate_content_calibration
 from app.services.content_publish_service import (
+    _load_revision_questions,
     publish_content_unit_revision,
     review_content_unit_revision,
     validate_content_unit_revision,
@@ -49,6 +51,12 @@ class RevisionBatchTarget:
     source: str | None
     generation_job_id: UUID | None
     can_publish: bool
+    calibration_score: int | None
+    calibrated_level: str | None
+    calibration_pass: bool | None
+    calibration_warnings: tuple[str, ...]
+    calibration_fail_reasons: tuple[str, ...]
+    calibration_rubric_version: str | None
     created_at: Any
 
 
@@ -142,8 +150,38 @@ def _select_revision_batch_targets(
             source=_extract_revision_source(revision),
             generation_job_id=_extract_generation_job_id(revision),
             can_publish=_can_publish(revision),
+            calibration_score=None,
+            calibrated_level=None,
+            calibration_pass=None,
+            calibration_warnings=(),
+            calibration_fail_reasons=(),
+            calibration_rubric_version=None,
             created_at=revision.created_at,
         )
+        if publish_mode:
+            calibration = evaluate_content_calibration(
+                unit=unit,
+                revision=revision,
+                questions=_load_revision_questions(db, revision_id=revision.id),
+            )
+            target = RevisionBatchTarget(
+                revision_id=target.revision_id,
+                unit_id=target.unit_id,
+                track=target.track,
+                skill=target.skill,
+                type_tag=target.type_tag,
+                difficulty=target.difficulty,
+                source=target.source,
+                generation_job_id=target.generation_job_id,
+                can_publish=target.can_publish,
+                calibration_score=calibration.calibration_score,
+                calibrated_level=calibration.calibrated_level.value,
+                calibration_pass=calibration.passed,
+                calibration_warnings=calibration.warnings,
+                calibration_fail_reasons=calibration.fail_reasons,
+                calibration_rubric_version=calibration.rubric_version,
+                created_at=target.created_at,
+            )
         if not _matches_filters(target=target, filters=filters):
             continue
         if publish_mode:
@@ -178,6 +216,12 @@ def _run_batch_action(
                     "difficulty": target.difficulty,
                     "source": target.source,
                     "generationJobId": _serialize_generation_job_id(target.generation_job_id),
+                    "calibrationScore": target.calibration_score,
+                    "calibratedLevel": target.calibrated_level,
+                    "calibrationPass": target.calibration_pass,
+                    "calibrationWarnings": list(target.calibration_warnings),
+                    "calibrationFailReasons": list(target.calibration_fail_reasons),
+                    "calibrationRubricVersion": target.calibration_rubric_version,
                     "result": (
                         response.model_dump(mode="json")
                         if hasattr(response, "model_dump")
@@ -192,6 +236,12 @@ def _run_batch_action(
                     "unitId": str(target.unit_id),
                     "source": target.source,
                     "generationJobId": _serialize_generation_job_id(target.generation_job_id),
+                    "calibrationScore": target.calibration_score,
+                    "calibratedLevel": target.calibrated_level,
+                    "calibrationPass": target.calibration_pass,
+                    "calibrationWarnings": list(target.calibration_warnings),
+                    "calibrationFailReasons": list(target.calibration_fail_reasons),
+                    "calibrationRubricVersion": target.calibration_rubric_version,
                     "statusCode": exc.status_code,
                     "detail": exc.detail,
                 }

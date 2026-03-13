@@ -1,0 +1,82 @@
+[
+  {
+    "gradeBand": "M3",
+    "skill": "LISTENING",
+    "typeTag": "L_RESPONSE",
+    "sourceExam": "2025 middle-school final review set",
+    "intendedScoreBand": "EASY",
+    "notes": "Short two-turn response item with one plausible distractor and direct conversational context."
+  },
+  {
+    "gradeBand": "M3",
+    "skill": "READING",
+    "typeTag": "R_VOCAB",
+    "sourceExam": "2025 middle-school final review set",
+    "intendedScoreBand": "STANDARD",
+    "notes": "Short passage with explicit context clue but more than one plausible vocabulary distractor."
+  },
+  {
+    "gradeBand": "H1",
+    "skill": "LISTENING",
+    "typeTag": "L_SITUATION",
+    "sourceExam": "2025 6월 고1 학력평가",
+    "intendedScoreBand": "STANDARD",
+    "notes": "Situation is inferable from multiple cues, not from a single surface keyword."
+  },
+  {
+    "gradeBand": "H1",
+    "skill": "READING",
+    "typeTag": "R_BLANK",
+    "sourceExam": "2025 9월 고1 학력평가",
+    "intendedScoreBand": "STANDARD",
+    "notes": "Blank requires concession or contrast reading, not one-line paraphrase."
+  },
+  {
+    "gradeBand": "H2",
+    "skill": "LISTENING",
+    "typeTag": "L_LONG_TALK",
+    "sourceExam": "2025 6월 고2 학력평가",
+    "intendedScoreBand": "HARD",
+    "notes": "Talk should sustain multiple details and at least one inference over four or more turns."
+  },
+  {
+    "gradeBand": "H2",
+    "skill": "READING",
+    "typeTag": "R_INSERTION",
+    "sourceExam": "2025 9월 고2 학력평가",
+    "intendedScoreBand": "HARD",
+    "notes": "At least two plausible insertion slots; direct connective clue should not trivially reveal the answer."
+  },
+  {
+    "gradeBand": "H2",
+    "skill": "READING",
+    "typeTag": "R_ORDER",
+    "sourceExam": "2025 10월 고2 학력평가",
+    "intendedScoreBand": "HARD",
+    "notes": "Ordering requires discourse tracking and relation between idea blocks, not just time markers."
+  },
+  {
+    "gradeBand": "H3",
+    "skill": "LISTENING",
+    "typeTag": "L_SITUATION",
+    "sourceExam": "2026학년도 9월 모의평가",
+    "intendedScoreBand": "HARD",
+    "notes": "Intent and implied context should both matter; surface clues alone are insufficient."
+  },
+  {
+    "gradeBand": "H3",
+    "skill": "READING",
+    "typeTag": "R_SUMMARY",
+    "sourceExam": "2026학년도 6월 모의평가",
+    "intendedScoreBand": "KILLER",
+    "notes": "Summary options should demand synthesis over abstract argument structure."
+  },
+  {
+    "gradeBand": "H3",
+    "skill": "READING",
+    "typeTag": "R_VOCAB",
+    "sourceExam": "2026학년도 수능",
+    "intendedScoreBand": "HARD",
+    "notes": "Vocabulary item should rely on semantic field inference, not direct synonym lookup."
+  }
+]

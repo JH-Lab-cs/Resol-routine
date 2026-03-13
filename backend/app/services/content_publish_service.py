@@ -27,6 +27,11 @@ from app.schemas.content import (
     ContentUnitRollbackResponse,
 )
 from app.services.audit_service import append_audit_log
+from app.services.content_calibration_service import (
+    evaluate_content_calibration,
+    is_calibration_publish_blocked,
+    merge_content_calibration_metadata,
+)
 from app.services.content_ingest_service import _to_revision_response
 from app.services.content_sync_service import (
     append_content_delete_event,
@@ -365,6 +370,28 @@ def _publish_revision(
 
     questions = _load_revision_questions(db, revision_id=revision.id)
     _validate_revision_for_publish(unit=unit, revision=revision, questions=questions)
+    calibration_result = evaluate_content_calibration(
+        unit=unit,
+        revision=revision,
+        questions=questions,
+    )
+    revision.metadata_json = merge_content_calibration_metadata(
+        metadata_json=revision.metadata_json,
+        result=calibration_result,
+    )
+    if is_calibration_publish_blocked(track=unit.track, result=calibration_result):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "content_calibration_failed",
+                "calibrationScore": calibration_result.calibration_score,
+                "calibratedLevel": calibration_result.calibrated_level.value,
+                "calibrationPass": calibration_result.passed,
+                "calibrationWarnings": list(calibration_result.warnings),
+                "calibrationFailReasons": list(calibration_result.fail_reasons),
+                "calibrationRubricVersion": calibration_result.rubric_version,
+            },
+        )
 
     now = datetime.now(UTC)
     db.execute(

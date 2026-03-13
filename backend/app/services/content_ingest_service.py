@@ -18,6 +18,7 @@ from app.schemas.content import (
     ContentUnitRevisionCreateRequest,
     ContentUnitRevisionResponse,
 )
+from app.services.content_calibration_service import extract_content_calibration_metadata
 
 
 def create_content_unit(db: Session, *, payload: ContentUnitCreateRequest) -> ContentUnitResponse:
@@ -25,14 +26,18 @@ def create_content_unit(db: Session, *, payload: ContentUnitCreateRequest) -> Co
         select(ContentUnit.id).where(ContentUnit.external_id == payload.external_id)
     ).scalar_one_or_none()
     if existing is not None:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="content_unit_external_id_conflict")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="content_unit_external_id_conflict"
+        )
 
     if payload.slug is not None:
         slug_exists = db.execute(
             select(ContentUnit.id).where(ContentUnit.slug == payload.slug)
         ).scalar_one_or_none()
         if slug_exists is not None:
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="content_unit_slug_conflict")
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT, detail="content_unit_slug_conflict"
+            )
 
     unit = ContentUnit(
         external_id=payload.external_id,
@@ -122,7 +127,9 @@ def create_content_unit_revision(
         question_rows.append(question_row)
     db.flush()
 
-    ordered_questions = sorted(question_rows, key=lambda row: (row.order_index, row.question_code, str(row.id)))
+    ordered_questions = sorted(
+        question_rows, key=lambda row: (row.order_index, row.question_code, str(row.id))
+    )
     return _to_revision_response(revision, ordered_questions)
 
 
@@ -163,6 +170,7 @@ def _to_revision_response(
     revision: ContentUnitRevision,
     questions: list[ContentQuestion],
 ) -> ContentUnitRevisionResponse:
+    calibration = extract_content_calibration_metadata(revision.metadata_json)
     can_publish = (
         revision.lifecycle_status == ContentLifecycleStatus.DRAFT
         and revision.validated_at is not None
@@ -186,6 +194,12 @@ def _to_revision_response(
         explanation_text=revision.explanation_text,
         asset_id=revision.asset_id,
         metadata_json=revision.metadata_json,
+        calibration_score=_as_int_or_none(calibration, "calibrationScore"),
+        calibrated_level=_as_str_or_none(calibration, "calibratedLevel"),
+        calibration_pass=_as_bool_or_none(calibration, "calibrationPass"),
+        calibration_warnings=_as_str_list(calibration, "calibrationWarnings"),
+        calibration_fail_reasons=_as_str_list(calibration, "calibrationFailReasons"),
+        calibration_rubric_version=_as_str_or_none(calibration, "calibrationRubricVersion"),
         lifecycle_status=revision.lifecycle_status,
         can_publish=can_publish,
         published_at=revision.published_at,
@@ -193,3 +207,40 @@ def _to_revision_response(
         updated_at=revision.updated_at,
         questions=[_to_question_response(question) for question in questions],
     )
+
+
+def _as_int_or_none(metadata: dict[str, object] | None, key: str) -> int | None:
+    if not isinstance(metadata, dict):
+        return None
+    value = metadata.get(key)
+    if isinstance(value, bool) or value is None:
+        return None
+    if not isinstance(value, (int, float, str)):
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _as_str_or_none(metadata: dict[str, object] | None, key: str) -> str | None:
+    if not isinstance(metadata, dict):
+        return None
+    value = metadata.get(key)
+    return value if isinstance(value, str) and value.strip() else None
+
+
+def _as_bool_or_none(metadata: dict[str, object] | None, key: str) -> bool | None:
+    if not isinstance(metadata, dict):
+        return None
+    value = metadata.get(key)
+    return value if isinstance(value, bool) else None
+
+
+def _as_str_list(metadata: dict[str, object] | None, key: str) -> list[str]:
+    if not isinstance(metadata, dict):
+        return []
+    value = metadata.get(key)
+    if not isinstance(value, list):
+        return []
+    return [item for item in value if isinstance(item, str)]
