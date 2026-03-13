@@ -16,6 +16,8 @@ import 'package:resol_routine/features/auth/application/auth_session_provider.da
 import 'package:resol_routine/features/auth/data/auth_models.dart';
 import 'package:resol_routine/features/content_pack/application/content_pack_bootstrap.dart';
 import 'package:resol_routine/features/content_pack/data/content_pack_seeder.dart';
+import 'package:resol_routine/features/family/application/family_providers.dart';
+import 'package:resol_routine/features/family/data/family_repository.dart';
 import 'package:resol_routine/features/my/application/my_stats_providers.dart';
 import 'package:resol_routine/features/my/presentation/my_screen.dart';
 import 'package:resol_routine/features/settings/application/user_settings_providers.dart';
@@ -27,6 +29,8 @@ import 'package:resol_routine/features/today/data/attempt_payload.dart';
 import 'package:resol_routine/features/today/data/today_quiz_repository.dart';
 import 'package:resol_routine/features/today/data/today_session_repository.dart';
 import 'package:resol_routine/features/today/presentation/quiz_flow_screen.dart';
+import 'test_helpers/fake_auth_session.dart';
+import 'test_helpers/fake_family_repository.dart';
 
 void main() {
   testWidgets('shows sign-in screen when no stored auth session exists', (
@@ -67,7 +71,7 @@ void main() {
         overrides: [
           appDatabaseProvider.overrideWithValue(sharedDb),
           appBootstrapProvider.overrideWith((ref) async {}),
-          _signedInAuthOverride(),
+          signedInAuthOverride(),
           todaySessionRepositoryProvider.overrideWithValue(
             fakeSessionRepository,
           ),
@@ -108,7 +112,7 @@ void main() {
         overrides: [
           appDatabaseProvider.overrideWithValue(sharedDb),
           appBootstrapProvider.overrideWith((ref) async {}),
-          _signedInAuthOverride(),
+          signedInAuthOverride(),
           todaySessionRepositoryProvider.overrideWithValue(
             fakeSessionRepository,
           ),
@@ -146,7 +150,23 @@ void main() {
         overrides: [
           appDatabaseProvider.overrideWithValue(sharedDb),
           appBootstrapProvider.overrideWith((ref) async {}),
-          _signedInAuthOverride(role: AuthUserRole.parent),
+          signedInAuthOverride(role: AuthUserRole.parent),
+          familyRepositoryProvider.overrideWithValue(
+            FakeFamilyRepository(
+              snapshot: parentFamilySnapshot(
+                linkedChildren: <FamilyLinkedUserSummary>[
+                  fakeLinkedFamilyUser(
+                    id: 'child-1',
+                    email: 'chulsoo@example.com',
+                  ),
+                  fakeLinkedFamilyUser(
+                    id: 'child-2',
+                    email: 'younghee@example.com',
+                  ),
+                ],
+              ),
+            ),
+          ),
           todaySessionRepositoryProvider.overrideWithValue(
             fakeSessionRepository,
           ),
@@ -168,7 +188,8 @@ void main() {
     await _pumpUntilVisible(tester, find.text('자녀 선택'));
     expect(find.text('자녀 선택'), findsOneWidget);
     expect(find.text('학습 리포트'), findsOneWidget);
-    expect(find.text('자녀 연동 후 자동으로 표시됩니다.'), findsOneWidget);
+    expect(find.text('chulsoo'), findsAtLeastNWidgets(1));
+    expect(find.text('younghee'), findsAtLeastNWidgets(1));
     expect(find.text('단어장'), findsNothing);
     expect(find.text('오답 복습'), findsNothing);
   });
@@ -189,7 +210,19 @@ void main() {
         overrides: [
           appDatabaseProvider.overrideWithValue(sharedDb),
           appBootstrapProvider.overrideWith((ref) async {}),
-          _signedInAuthOverride(role: AuthUserRole.parent),
+          signedInAuthOverride(role: AuthUserRole.parent),
+          familyRepositoryProvider.overrideWithValue(
+            FakeFamilyRepository(
+              snapshot: parentFamilySnapshot(
+                linkedChildren: <FamilyLinkedUserSummary>[
+                  fakeLinkedFamilyUser(
+                    id: 'child-1',
+                    email: 'chulsoo@example.com',
+                  ),
+                ],
+              ),
+            ),
+          ),
           todaySessionRepositoryProvider.overrideWithValue(
             fakeSessionRepository,
           ),
@@ -228,7 +261,23 @@ void main() {
           overrides: [
             appDatabaseProvider.overrideWithValue(sharedDb),
             appBootstrapProvider.overrideWith((ref) async {}),
-            _signedInAuthOverride(role: AuthUserRole.parent),
+            signedInAuthOverride(role: AuthUserRole.parent),
+            familyRepositoryProvider.overrideWithValue(
+              FakeFamilyRepository(
+                snapshot: parentFamilySnapshot(
+                  linkedChildren: <FamilyLinkedUserSummary>[
+                    fakeLinkedFamilyUser(
+                      id: 'child-1',
+                      email: 'chulsoo@example.com',
+                    ),
+                    fakeLinkedFamilyUser(
+                      id: 'child-2',
+                      email: 'younghee@example.com',
+                    ),
+                  ],
+                ),
+              ),
+            ),
             todaySessionRepositoryProvider.overrideWithValue(
               fakeSessionRepository,
             ),
@@ -244,8 +293,8 @@ void main() {
       await _pumpUntilVisible(tester, find.text('학부모 설정'));
 
       expect(find.text('연결된 자녀'), findsOneWidget);
-      expect(find.text('김철수'), findsOneWidget);
-      expect(find.text('김영희'), findsOneWidget);
+      expect(find.text('chulsoo'), findsAtLeastNWidgets(1));
+      expect(find.text('younghee'), findsAtLeastNWidgets(1));
 
       await tester.tap(find.widgetWithText(OutlinedButton, '추가').first);
       await tester.pumpAndSettle();
@@ -256,7 +305,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('자녀를 추가했습니다.'), findsOneWidget);
-      expect(find.text('자녀 3'), findsOneWidget);
+      expect(find.text('student654321'), findsOneWidget);
 
       await tester.scrollUntilVisible(
         find.text('학습 알림 설정'),
@@ -267,6 +316,57 @@ void main() {
       expect(find.text('학습 알림 설정'), findsOneWidget);
     },
   );
+
+  testWidgets('parent add child shows structured error on invalid code', (
+    WidgetTester tester,
+  ) async {
+    final sharedDb = AppDatabase(executor: NativeDatabase.memory());
+    final fakeSessionRepository = _FakeTodaySessionRepository(sharedDb);
+    final fakeQuizRepository = _FakeTodayQuizRepository(sharedDb);
+    final settingsRepository = UserSettingsRepository(database: sharedDb);
+
+    await settingsRepository.updateRole('PARENT');
+    await settingsRepository.updateName('보호자');
+    addTearDown(sharedDb.close);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(sharedDb),
+          appBootstrapProvider.overrideWith((ref) async {}),
+          signedInAuthOverride(role: AuthUserRole.parent),
+          familyRepositoryProvider.overrideWithValue(
+            FakeFamilyRepository(
+              snapshot: parentFamilySnapshot(),
+              consumeError: const FamilyRepositoryException(
+                code: 'invalid_link_code',
+                message: 'invalid_link_code',
+                statusCode: 400,
+              ),
+            ),
+          ),
+          todaySessionRepositoryProvider.overrideWithValue(
+            fakeSessionRepository,
+          ),
+          todayQuizRepositoryProvider.overrideWithValue(fakeQuizRepository),
+        ],
+        child: const ResolRoutineApp(),
+      ),
+    );
+
+    await _pumpUntilVisible(tester, find.text('자녀 선택'));
+    await tester.tap(find.text('마이'));
+    await tester.pumpAndSettle();
+    await _pumpUntilVisible(tester, find.text('학부모 설정'));
+
+    await tester.tap(find.widgetWithText(OutlinedButton, '추가').first);
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).first, '654321');
+    await tester.tap(find.widgetWithText(FilledButton, '추가'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('코드를 다시 확인해 주세요.'), findsOneWidget);
+  });
 
   testWidgets(
     'changing settings does not replace app with entry loading gate',
@@ -287,7 +387,7 @@ void main() {
           overrides: [
             appDatabaseProvider.overrideWithValue(sharedDb),
             appBootstrapProvider.overrideWith((ref) async {}),
-            _signedInAuthOverride(),
+            signedInAuthOverride(),
             todaySessionRepositoryProvider.overrideWithValue(
               fakeSessionRepository,
             ),
@@ -337,7 +437,7 @@ void main() {
         overrides: [
           appDatabaseProvider.overrideWithValue(sharedDb),
           appBootstrapProvider.overrideWith((ref) async {}),
-          _signedInAuthOverride(),
+          signedInAuthOverride(),
           todaySessionRepositoryProvider.overrideWithValue(
             fakeSessionRepository,
           ),
@@ -473,7 +573,7 @@ void main() {
         overrides: [
           appDatabaseProvider.overrideWithValue(sharedDb),
           appBootstrapProvider.overrideWith((ref) async {}),
-          _signedInAuthOverride(),
+          signedInAuthOverride(),
           todaySessionRepositoryProvider.overrideWithValue(
             fakeSessionRepository,
           ),
@@ -668,59 +768,6 @@ Future<void> _scrollUntilVisible(WidgetTester tester, Finder finder) async {
     scrollable: find.byType(Scrollable).first,
   );
   await tester.pumpAndSettle();
-}
-
-Override _signedInAuthOverride({
-  AuthUserRole role = AuthUserRole.student,
-  String userId = 'user-1',
-  String email = 'user@example.com',
-}) {
-  final state = AuthSessionState(
-    status: AuthSessionStatus.signedIn,
-    user: AuthUserProfile(
-      id: userId,
-      email: email,
-      role: role,
-      createdAt: DateTime.utc(2026, 3, 1, 12),
-    ),
-  );
-  return authSessionProvider.overrideWith(
-    () => _FakeAuthSessionNotifier(state),
-  );
-}
-
-class _FakeAuthSessionNotifier extends AuthSessionNotifier {
-  _FakeAuthSessionNotifier(this._initialState);
-
-  final AuthSessionState _initialState;
-
-  @override
-  AuthSessionState build() => _initialState;
-
-  @override
-  Future<void> bootstrap() async {}
-
-  @override
-  Future<void> signIn({
-    required String email,
-    required String password,
-  }) async {}
-
-  @override
-  Future<void> refreshCurrentUser() async {}
-
-  @override
-  Future<void> signOut() async {
-    await ref.read(userSettingsRepositoryProvider).resetForLogout();
-    ref.invalidate(userSettingsProvider);
-    ref.invalidate(selectedTrackProvider);
-    state = const AuthSessionState.signedOut();
-  }
-
-  @override
-  Future<void> clearSessionOnly() async {
-    state = const AuthSessionState.signedOut();
-  }
 }
 
 class _FakeTodaySessionRepository extends TodaySessionRepository {

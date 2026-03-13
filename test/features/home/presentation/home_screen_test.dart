@@ -7,7 +7,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:resol_routine/core/database/app_database.dart';
 import 'package:resol_routine/core/database/database_providers.dart';
 import 'package:resol_routine/core/domain/domain_enums.dart';
+import 'package:resol_routine/features/auth/data/auth_models.dart';
 import 'package:resol_routine/features/dev/application/dev_tools_providers.dart';
+import 'package:resol_routine/features/family/application/family_providers.dart';
+import 'package:resol_routine/features/family/data/family_repository.dart';
 import 'package:resol_routine/features/home/application/home_providers.dart';
 import 'package:resol_routine/features/home/presentation/home_screen.dart';
 import 'package:resol_routine/features/mock_exam/application/mock_exam_providers.dart';
@@ -16,6 +19,8 @@ import 'package:resol_routine/features/mock_exam/data/mock_exam_session_reposito
 import 'package:resol_routine/features/settings/data/user_settings_repository.dart';
 import 'package:resol_routine/features/today/data/today_quiz_repository.dart';
 import 'package:resol_routine/features/today/data/today_session_repository.dart';
+import '../../../test_helpers/fake_auth_session.dart';
+import '../../../test_helpers/fake_family_repository.dart';
 
 void main() {
   testWidgets('shows child selector and add action in parent home', (
@@ -33,6 +38,22 @@ void main() {
         overrides: [
           appDatabaseProvider.overrideWithValue(database),
           devToolsVisibleProvider.overrideWith((ref) => false),
+          signedInAuthOverride(
+            role: AuthUserRole.parent,
+            email: 'parent@example.com',
+          ),
+          familyRepositoryProvider.overrideWithValue(
+            FakeFamilyRepository(
+              snapshot: parentFamilySnapshot(
+                linkedChildren: <FamilyLinkedUserSummary>[
+                  fakeLinkedFamilyUser(
+                    id: 'child-1',
+                    email: 'chulsoo@example.com',
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
         child: MaterialApp(
           home: HomeScreen(
@@ -52,7 +73,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('자녀 선택'), findsOneWidget);
     expect(find.text('학습 리포트'), findsOneWidget);
-    expect(find.text('자녀 연동 후 자동으로 표시됩니다.'), findsOneWidget);
+    expect(find.text('chulsoo'), findsAtLeastNWidgets(1));
     expect(find.text('최근 학습 활동'), findsNothing);
     expect(find.text('추가'), findsAtLeastNWidgets(1));
   });
@@ -72,6 +93,22 @@ void main() {
         overrides: [
           appDatabaseProvider.overrideWithValue(database),
           devToolsVisibleProvider.overrideWith((ref) => false),
+          signedInAuthOverride(
+            role: AuthUserRole.parent,
+            email: 'parent@example.com',
+          ),
+          familyRepositoryProvider.overrideWithValue(
+            FakeFamilyRepository(
+              snapshot: parentFamilySnapshot(
+                linkedChildren: <FamilyLinkedUserSummary>[
+                  fakeLinkedFamilyUser(
+                    id: 'child-1',
+                    email: 'chulsoo@example.com',
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
         child: MediaQuery(
           data: const MediaQueryData(textScaler: TextScaler.linear(1.4)),
@@ -93,7 +130,7 @@ void main() {
 
     await tester.pumpAndSettle();
     expect(find.text('자녀 선택'), findsOneWidget);
-    expect(find.text('자녀 연동 후 자동으로 표시됩니다.'), findsOneWidget);
+    expect(find.text('chulsoo'), findsAtLeastNWidgets(1));
     expect(tester.takeException(), isNull);
   });
 
@@ -113,6 +150,22 @@ void main() {
           overrides: [
             appDatabaseProvider.overrideWithValue(database),
             devToolsVisibleProvider.overrideWith((ref) => true),
+            signedInAuthOverride(
+              role: AuthUserRole.parent,
+              email: 'parent@example.com',
+            ),
+            familyRepositoryProvider.overrideWithValue(
+              FakeFamilyRepository(
+                snapshot: parentFamilySnapshot(
+                  linkedChildren: <FamilyLinkedUserSummary>[
+                    fakeLinkedFamilyUser(
+                      id: 'child-1',
+                      email: 'chulsoo@example.com',
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ],
           child: MaterialApp(
             home: HomeScreen(

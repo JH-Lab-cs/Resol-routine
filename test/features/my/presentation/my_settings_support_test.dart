@@ -6,8 +6,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:resol_routine/core/database/app_database.dart';
 import 'package:resol_routine/core/database/database_providers.dart';
+import 'package:resol_routine/features/family/application/family_providers.dart';
 import 'package:resol_routine/features/my/presentation/my_settings_screen.dart';
 import 'package:resol_routine/features/settings/data/user_settings_repository.dart';
+import '../../../test_helpers/fake_auth_session.dart';
+import '../../../test_helpers/fake_family_repository.dart';
 
 void main() {
   testWidgets('support pages open and return without blank placeholders', (
@@ -40,12 +43,13 @@ void main() {
     await tester.pageBack();
     await tester.pumpAndSettle();
 
+    final contactTile = find.widgetWithText(ListTile, '문의하기');
     await tester.scrollUntilVisible(
-      find.text('문의하기'),
+      contactTile,
       200,
       scrollable: find.byType(Scrollable).first,
     );
-    await tester.tap(find.text('문의하기'));
+    tester.widget<ListTile>(contactTile).onTap!.call();
     await tester.pumpAndSettle();
     expect(find.text('문의 채널'), findsOneWidget);
     await tester.pageBack();
@@ -92,7 +96,11 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [appDatabaseProvider.overrideWithValue(database)],
+        overrides: [
+          appDatabaseProvider.overrideWithValue(database),
+          signedInAuthOverride(),
+          familyRepositoryProvider.overrideWithValue(FakeFamilyRepository()),
+        ],
         child: const MaterialApp(home: MySettingsScreen()),
       ),
     );
@@ -107,8 +115,8 @@ void main() {
     await tester.pump();
 
     expect(copiedText, isNotNull);
-    expect(copiedText, startsWith('RSL-'));
-    expect(find.text('학생 코드를 복사했어요.'), findsOneWidget);
+    expect(copiedText, '654321');
+    expect(find.text('자녀 코드를 복사했어요.'), findsOneWidget);
   });
 
   testWidgets('copy email shows snackbar and writes to clipboard channel', (
@@ -138,21 +146,27 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [appDatabaseProvider.overrideWithValue(database)],
+        overrides: [
+          appDatabaseProvider.overrideWithValue(database),
+          signedInAuthOverride(),
+          familyRepositoryProvider.overrideWithValue(FakeFamilyRepository()),
+        ],
         child: const MaterialApp(home: MySettingsScreen()),
       ),
     );
     await tester.pumpAndSettle();
 
+    final contactTile = find.widgetWithText(ListTile, '문의하기');
     await tester.scrollUntilVisible(
-      find.text('문의하기'),
+      contactTile,
       200,
       scrollable: find.byType(Scrollable).first,
     );
-    await tester.tap(find.text('문의하기'));
+    await tester.ensureVisible(contactTile);
+    tester.widget<ListTile>(contactTile).onTap!.call();
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('이메일 복사'));
+    await tester.tap(find.widgetWithText(OutlinedButton, '이메일 복사'));
     await tester.pump();
 
     expect(copiedText, 'support@resolroutine.app');

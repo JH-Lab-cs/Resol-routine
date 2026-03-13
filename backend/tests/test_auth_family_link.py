@@ -7,9 +7,13 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 
 from app.models.audit_log import AuditLog
+from app.models.family_link_code import FamilyLinkCode
 from app.models.invite_code import InviteCode
 from app.models.parent_child_link import ParentChildLink
 from app.models.refresh_token import RefreshToken
+
+TEST_PASSWORD = "SecurePass123!"  # noqa: S105
+TEST_DEVICE_ID = "device-1"
 
 
 def _register_user(
@@ -17,13 +21,16 @@ def _register_user(
     *,
     role: str,
     email: str,
-    password: str = "SecurePass123!",
-    device_id: str = "device-1",
+    password: str = TEST_PASSWORD,
+    device_id: str = TEST_DEVICE_ID,
 ) -> dict[str, object]:
     response = client.post(
         f"/auth/register/{role}",
         json={"email": email, "password": password, "device_id": device_id},
-        headers={"x-forwarded-for": "203.0.113.10", "user-agent": "pytest-agent"},
+        headers={
+            "x-forwarded-for": "203.0.113.10",
+            "user-agent": "pytest-agent",
+        },
     )
     assert response.status_code == 201, response.text
     return response.json()
@@ -35,6 +42,19 @@ def _issue_invite(client: TestClient, parent_token: str) -> dict[str, object]:
         headers={
             "authorization": f"Bearer {parent_token}",
             "x-forwarded-for": "203.0.113.11",
+            "user-agent": "pytest-agent",
+        },
+    )
+    assert response.status_code == 200, response.text
+    return response.json()
+
+
+def _issue_child_link_code(client: TestClient, student_token: str) -> dict[str, object]:
+    response = client.post(
+        "/family/link-codes",
+        headers={
+            "authorization": f"Bearer {student_token}",
+            "x-forwarded-for": "203.0.113.13",
             "user-agent": "pytest-agent",
         },
     )
@@ -65,7 +85,11 @@ def _assert_validation_error_detail(response, expected: str) -> None:
 
 
 def test_register_and_login_success(client: TestClient) -> None:
-    register_payload = _register_user(client, role="student", email="student@example.com")
+    register_payload = _register_user(
+        client,
+        role="student",
+        email="student@example.com",
+    )
     access_token = register_payload["access_token"]
     assert isinstance(access_token, str)
     assert isinstance(register_payload["refresh_token"], str)
@@ -84,8 +108,15 @@ def test_register_and_login_success(client: TestClient) -> None:
 
     login_response = client.post(
         "/auth/login",
-        json={"email": "student@example.com", "password": "SecurePass123!", "device_id": "device-1"},
-        headers={"x-forwarded-for": "203.0.113.10", "user-agent": "pytest-agent"},
+        json={
+            "email": "student@example.com",
+            "password": TEST_PASSWORD,
+            "device_id": TEST_DEVICE_ID,
+        },
+        headers={
+            "x-forwarded-for": "203.0.113.10",
+            "user-agent": "pytest-agent",
+        },
     )
     assert login_response.status_code == 200, login_response.text
     assert login_response.json()["user"]["role"] == "STUDENT"
@@ -97,8 +128,15 @@ def test_login_invalid_credentials_failure(client: TestClient, db_session_factor
 
     response = client.post(
         "/auth/login",
-        json={"email": "parent@example.com", "password": "WrongPassword123!", "device_id": "device-1"},
-        headers={"x-forwarded-for": "203.0.113.10", "user-agent": "pytest-agent"},
+        json={
+            "email": "parent@example.com",
+            "password": "WrongPassword123!",
+            "device_id": TEST_DEVICE_ID,
+        },
+        headers={
+            "x-forwarded-for": "203.0.113.10",
+            "user-agent": "pytest-agent",
+        },
     )
     assert response.status_code == 401
     assert response.json()["detail"] == "invalid_credentials"
@@ -127,11 +165,18 @@ def test_refresh_rotation_success(client: TestClient, db_session_factory) -> Non
     assert new_refresh_token != old_refresh_token
 
     with db_session_factory() as db:
-        tokens = db.execute(select(RefreshToken).where(RefreshToken.user_id == user_id)).scalars().all()
+        tokens = db.execute(
+            select(RefreshToken).where(RefreshToken.user_id == user_id)
+        ).scalars().all()
+
     assert len(tokens) == 2
 
     rotated_token = next(token for token in tokens if token.rotated_at is not None)
-    replacement_token = next(token for token in tokens if token.id == rotated_token.replaced_by_token_id)
+    replacement_token = next(
+        token
+        for token in tokens
+        if token.id == rotated_token.replaced_by_token_id
+    )
 
     assert rotated_token.revoked_at is None
     assert replacement_token.revoked_at is None
@@ -159,7 +204,10 @@ def test_refresh_reuse_detection_revokes_family(client: TestClient, db_session_f
 
     user_id = UUID(registered["user"]["id"])
     with db_session_factory() as db:
-        tokens = db.execute(select(RefreshToken).where(RefreshToken.user_id == user_id)).scalars().all()
+        tokens = db.execute(
+            select(RefreshToken).where(RefreshToken.user_id == user_id)
+        ).scalars().all()
+
         reused_token = next(token for token in tokens if token.rotated_at is not None)
 
     assert all(token.revoked_at is not None for token in tokens)
@@ -420,7 +468,10 @@ def test_unlink_rejects_when_no_active_link(client: TestClient) -> None:
     assert response.json()["detail"] == "active_link_not_found"
 
 
-def test_relink_after_unlink_requires_new_invite_success(client: TestClient, db_session_factory) -> None:
+def test_relink_after_unlink_requires_new_invite_success(
+    client: TestClient,
+    db_session_factory,
+) -> None:
     parent = _register_user(client, role="parent", email="relink-parent@example.com")
     student = _register_user(client, role="student", email="relink-student@example.com")
     parent_id = UUID(parent["user"]["id"])
@@ -429,7 +480,11 @@ def test_relink_after_unlink_requires_new_invite_success(client: TestClient, db_
     first_invite = _issue_invite(client, str(parent["access_token"]))
     first_consume = client.post(
         "/family/invites/consume",
-        json={"parent_id": str(parent_id), "code": first_invite["code"], "device_id": "student-device"},
+        json={
+            "parent_id": str(parent_id),
+            "code": first_invite["code"],
+            "device_id": "student-device",
+        },
         headers=_student_headers(str(student["access_token"])),
     )
     assert first_consume.status_code == 200, first_consume.text
@@ -444,7 +499,11 @@ def test_relink_after_unlink_requires_new_invite_success(client: TestClient, db_
     second_invite = _issue_invite(client, str(parent["access_token"]))
     second_consume = client.post(
         "/family/invites/consume",
-        json={"parent_id": str(parent_id), "code": second_invite["code"], "device_id": "student-device"},
+        json={
+            "parent_id": str(parent_id),
+            "code": second_invite["code"],
+            "device_id": "student-device",
+        },
         headers=_student_headers(str(student["access_token"])),
     )
     assert second_consume.status_code == 200, second_consume.text
@@ -471,7 +530,11 @@ def test_relink_after_unlink_requires_new_invite_success(client: TestClient, db_
 def test_register_rejects_hidden_unicode_in_email(client: TestClient) -> None:
     response = client.post(
         "/auth/register/student",
-        json={"email": "bad\u200bemail@example.com", "password": "SecurePass123!", "device_id": "device-1"},
+        json={
+            "email": "bad\u200bemail@example.com",
+            "password": TEST_PASSWORD,
+            "device_id": TEST_DEVICE_ID,
+        },
     )
     _assert_validation_error_detail(response, "invalid_hidden_unicode")
 
@@ -527,3 +590,145 @@ def test_family_verify_consume_reject_hidden_unicode_device_id_and_code(client: 
         headers=_student_headers(str(student["access_token"])),
     )
     _assert_validation_error_detail(verify_code_response, "invalid_hidden_unicode")
+
+
+def test_student_link_code_issue_parent_consume_and_list_success(
+    client: TestClient,
+    db_session_factory,
+) -> None:
+    student = _register_user(client, role="student", email="child-code-student@example.com")
+    parent = _register_user(client, role="parent", email="child-code-parent@example.com")
+
+    issue_response = _issue_child_link_code(client, str(student["access_token"]))
+    assert issue_response["active_parent_count"] == 0
+    assert issue_response["max_parents_per_child"] == 2
+
+    consume_response = client.post(
+        "/family/link-codes/consume",
+        json={"code": issue_response["code"], "device_id": "parent-device"},
+        headers=_parent_headers(str(parent["access_token"])),
+    )
+    assert consume_response.status_code == 200, consume_response.text
+    assert consume_response.json()["parent_id"] == parent["user"]["id"]
+    assert consume_response.json()["child_id"] == student["user"]["id"]
+
+    parent_links = client.get(
+        "/family/links",
+        headers=_parent_headers(str(parent["access_token"])),
+    )
+    assert parent_links.status_code == 200, parent_links.text
+    assert parent_links.json()["role"] == "PARENT"
+    assert [row["email"] for row in parent_links.json()["linked_children"]] == [
+        "child-code-student@example.com"
+    ]
+
+    student_links = client.get(
+        "/family/links",
+        headers=_student_headers(str(student["access_token"])),
+    )
+    assert student_links.status_code == 200, student_links.text
+    assert student_links.json()["role"] == "STUDENT"
+    assert [row["email"] for row in student_links.json()["linked_parents"]] == [
+        "child-code-parent@example.com"
+    ]
+
+    with db_session_factory() as db:
+        link_code = db.execute(select(FamilyLinkCode)).scalar_one()
+        link_rows = db.execute(select(ParentChildLink)).scalars().all()
+
+    assert link_code.consumed_at is not None
+    assert str(link_code.consumed_by_user_id) == parent["user"]["id"]
+    assert len(link_rows) == 1
+
+
+def test_student_link_code_expired_rejected(client: TestClient, db_session_factory) -> None:
+    student = _register_user(client, role="student", email="expired-link-student@example.com")
+    parent = _register_user(client, role="parent", email="expired-link-parent@example.com")
+
+    issue_response = _issue_child_link_code(client, str(student["access_token"]))
+
+    with db_session_factory() as db:
+        link_code = db.execute(select(FamilyLinkCode)).scalar_one()
+        expired_base = datetime.now(UTC) - timedelta(hours=1)
+        link_code.created_at = expired_base
+        link_code.expires_at = expired_base + timedelta(minutes=1)
+        db.commit()
+
+    consume_response = client.post(
+        "/family/link-codes/consume",
+        json={"code": issue_response["code"], "device_id": "parent-device"},
+        headers=_parent_headers(str(parent["access_token"])),
+    )
+    assert consume_response.status_code == 410
+    assert consume_response.json()["detail"] == "link_code_expired"
+
+
+def test_student_link_code_consumed_rejected(client: TestClient) -> None:
+    student = _register_user(
+        client,
+        role="student",
+        email="consumed-link-student@example.com",
+    )
+    first_parent = _register_user(
+        client,
+        role="parent",
+        email="consumed-link-parent-1@example.com",
+    )
+    second_parent = _register_user(
+        client,
+        role="parent",
+        email="consumed-link-parent-2@example.com",
+    )
+
+    issue_response = _issue_child_link_code(client, str(student["access_token"]))
+
+    first_consume = client.post(
+        "/family/link-codes/consume",
+        json={"code": issue_response["code"], "device_id": "parent-device-1"},
+        headers=_parent_headers(str(first_parent["access_token"])),
+    )
+    assert first_consume.status_code == 200, first_consume.text
+
+    second_consume = client.post(
+        "/family/link-codes/consume",
+        json={"code": issue_response["code"], "device_id": "parent-device-2"},
+        headers=_parent_headers(str(second_parent["access_token"])),
+    )
+    assert second_consume.status_code == 409
+    assert second_consume.json()["detail"] == "link_code_already_consumed"
+
+
+def test_child_link_code_issue_respects_parent_limit(
+    client: TestClient,
+    db_session_factory,
+) -> None:
+    student = _register_user(client, role="student", email="issue-limit-student@example.com")
+    first_parent = _register_user(client, role="parent", email="issue-limit-parent-1@example.com")
+    second_parent = _register_user(client, role="parent", email="issue-limit-parent-2@example.com")
+    child_id = UUID(student["user"]["id"])
+
+    with db_session_factory() as db:
+        db.add(ParentChildLink(parent_id=UUID(first_parent["user"]["id"]), child_id=child_id))
+        db.add(ParentChildLink(parent_id=UUID(second_parent["user"]["id"]), child_id=child_id))
+        db.commit()
+
+    response = client.post(
+        "/family/link-codes",
+        headers=_student_headers(str(student["access_token"])),
+    )
+    assert response.status_code == 409
+    assert response.json()["detail"] == "child_parent_limit_reached"
+
+
+def test_family_link_code_consume_rate_limit_smoke(client: TestClient) -> None:
+    parent = _register_user(client, role="parent", email="link-ratelimit-parent@example.com")
+    payload = {"code": "123456", "device_id": "parent-device"}
+    headers = _parent_headers(str(parent["access_token"]))
+
+    status_codes: list[int] = []
+    for _ in range(6):
+        response = client.post("/family/link-codes/consume", json=payload, headers=headers)
+        status_codes.append(response.status_code)
+
+    assert status_codes[:5] == [400, 400, 400, 400, 400]
+    assert status_codes[5] == 429
