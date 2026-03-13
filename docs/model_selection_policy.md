@@ -99,6 +99,9 @@ Evaluation label:
   - compiler version: `l-response-compiler-v1`
 - `L_RESPONSE` dedicated mode has now produced a live publishable item with
   `gpt-5-mini`, so fallback remains disabled
+- Even when a model path is schema-valid, the item still needs to pass the
+  publish-time track calibration gate. Hard-deficit model routing does not
+  bypass calibration.
 
 ## L_RESPONSE Dedicated Generation Mode
 

@@ -258,6 +258,28 @@ This document is the backend handoff baseline for the next chat/session.
     - listening diversity >= `4`
     - reading diversity >= `6`
 - Backfill planning is CLI-first and cost-capped:
+
+## K-3. Content Calibration Gate
+
+- Publishability now means:
+  - schema valid
+  - lifecycle traceability gate satisfied
+  - calibration gate satisfied
+- Calibration metadata is stored in revision `metadata_json`:
+  - `calibrationScore`
+  - `calibratedLevel`
+  - `calibrationPass`
+  - `calibrationWarnings`
+  - `calibrationFailReasons`
+  - `calibrationRubricVersion`
+- Track policy:
+  - `M3/H1`: warning mode allowed, reviewer may still publish
+  - `H2/H3`: calibration fail blocks publish
+- Reviewer tooling must surface calibration results through:
+  - `GET /internal/content/revisions/{revision_id}`
+  - `batch-publish` failed items
+- Quantity is no longer enough on its own. A generated item only improves
+  inventory when it also passes calibration.
   - default mode is dry-run
   - execution requires `backfill-enqueue --execute`
   - priority order is `Daily -> Weekly -> Monthly`

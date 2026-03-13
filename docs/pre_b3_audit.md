@@ -1,6 +1,6 @@
 # PRE-B3 Audit And Policy Freeze
 
-Last updated: 2026-03-11
+Last updated: 2026-03-13
 
 ## Scope
 
@@ -14,6 +14,19 @@ This document freezes the pre-B3 audit baseline for:
 
 It is intentionally an audit and policy document. It does not change user-facing
 product behavior by itself.
+
+## Calibration Gate Baseline
+
+- `schema valid` is no longer treated as sufficient for publishability
+- every publish attempt now runs a track calibration evaluation
+- `M3/H1`
+  - warning mode allowed
+  - calibration fail is stored and surfaced but does not hard-block publish
+- `H2/H3`
+  - calibration fail hard-blocks publish
+- calibration metadata is stored in revision `metadata_json`
+- after `B2.6.16`, inventory depth matters only when the generated items also
+  clear the calibration gate
 
 ## B3.4 Minimum Gate
 
