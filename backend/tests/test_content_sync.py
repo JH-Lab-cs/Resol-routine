@@ -35,6 +35,174 @@ def _create_unit(
     return response.json()
 
 
+def _build_revision_fixture(
+    *,
+    skill: str,
+    type_tag: str,
+    difficulty: int,
+) -> dict[str, object]:
+    if skill == "LISTENING":
+        turns = [
+            {
+                "speaker": "Coordinator",
+                "text": (
+                    "Please check whether the debate room has enough chairs before the "
+                    "guests arrive."
+                ),
+            },
+            {
+                "speaker": "Volunteer",
+                "text": (
+                    "I counted them already, but the projector near the stage is still "
+                    "disconnected."
+                ),
+            },
+            {
+                "speaker": "Coordinator",
+                "text": (
+                    "Then reconnect it first because the guest speaker will use several "
+                    "slides."
+                ),
+            },
+            {
+                "speaker": "Volunteer",
+                "text": "All right, and I will ask Mina to guide the visitors to the front row.",
+            },
+        ]
+        return {
+            "body_text": None,
+            "transcript_text": " ".join(turn["text"] for turn in turns),
+            "metadata_json": {
+                "typeTag": type_tag,
+                "difficulty": difficulty,
+                "sourcePolicy": "AI_ORIGINAL",
+                "ttsPlan": {"voice": "alloy", "speed": 1.0},
+                "turns": turns,
+                "sentences": [
+                    {"id": f"s{index}", "text": turn["text"]}
+                    for index, turn in enumerate(turns, start=1)
+                ],
+            },
+            "question": {
+                "stem": (
+                    "What does the final response most strongly suggest is the volunteer's "
+                    "next intention?"
+                ),
+                "choice_a": "Reconnect the projector and organize visitor seating.",
+                "choice_b": "Cancel the debate because there are too few chairs.",
+                "choice_c": "Ask the guest speaker to shorten the presentation.",
+                "choice_d": "Move every chair out of the debate room immediately.",
+                "choice_e": "Tell the visitors to wait outside until lunch ends.",
+                "correct_answer": "A",
+                "metadata_json": {
+                    "typeTag": type_tag,
+                    "difficulty": difficulty,
+                    "sourcePolicy": "AI_ORIGINAL",
+                    "evidenceSentenceIds": ["s3", "s4"],
+                    "whyCorrectKo": (
+                        "마지막 두 발화가 다음 행동 계획을 보여 준다."
+                    ),
+                    "whyWrongKoByOption": {"B": "행사를 취소하는 내용이 아니다."},
+                },
+            },
+        }
+
+    body_text = (
+        "Many students assume that academic success depends mainly on innate talent. "
+        "However, experienced teachers often observe that consistent revision and timely "
+        "feedback are equally consequential. "
+        "When learners revisit earlier drafts, they begin to detect recurring weaknesses "
+        "and refine imprecise reasoning. "
+        "Although the process can feel inefficient at first, it cultivates durable habits "
+        "that extend beyond a single exam. "
+        "Students who practice this routine often become more confident when they meet "
+        "unfamiliar questions. "
+        "In that sense, the passage suggests that feedback serves a broader purpose than "
+        "simple correction. "
+        "Instead, it trains students to judge evidence carefully before choosing an answer."
+    )
+    return {
+        "body_text": body_text,
+        "transcript_text": None,
+        "metadata_json": {
+            "typeTag": type_tag,
+            "difficulty": difficulty,
+            "sourcePolicy": "AI_ORIGINAL",
+            "sentences": [
+                {
+                    "id": "s1",
+                    "text": (
+                        "Many students assume that academic success depends mainly on "
+                        "innate talent."
+                    ),
+                },
+                {
+                    "id": "s2",
+                    "text": (
+                        "However, experienced teachers often observe that consistent "
+                        "revision and timely feedback are equally consequential."
+                    ),
+                },
+                {
+                    "id": "s3",
+                    "text": (
+                        "When learners revisit earlier drafts, they begin to detect "
+                        "recurring weaknesses and refine imprecise reasoning."
+                    ),
+                },
+                {
+                    "id": "s4",
+                    "text": (
+                        "Although the process can feel inefficient at first, it "
+                        "cultivates durable habits that extend beyond a single exam."
+                    ),
+                },
+                {
+                    "id": "s5",
+                    "text": (
+                        "Students who practice this routine often become more confident "
+                        "when they meet unfamiliar questions."
+                    ),
+                },
+                {
+                    "id": "s6",
+                    "text": (
+                        "In that sense, the passage suggests that feedback serves a "
+                        "broader purpose than simple correction."
+                    ),
+                },
+                {
+                    "id": "s7",
+                    "text": (
+                        "Instead, it trains students to judge evidence carefully before "
+                        "choosing an answer."
+                    ),
+                },
+            ],
+        },
+        "question": {
+            "stem": "What does the passage suggest is the main purpose of effective feedback?",
+            "choice_a": "It helps students build reflective reasoning habits.",
+            "choice_b": "It removes the need to revise earlier drafts.",
+            "choice_c": "It proves that natural talent matters more than effort.",
+            "choice_d": "It encourages students to memorize answers more quickly.",
+            "choice_e": "It shows that unfamiliar questions should be avoided.",
+            "correct_answer": "A",
+            "metadata_json": {
+                "typeTag": type_tag,
+                "difficulty": difficulty,
+                "sourcePolicy": "AI_ORIGINAL",
+                "evidenceSentenceIds": ["s6", "s7"],
+                "whyCorrectKo": (
+                    "피드백의 목적이 반성적 사고 습관을 기르는 데 있다고 "
+                    "요약한다."
+                ),
+                "whyWrongKoByOption": {"B": "오히려 초안을 다시 보게 한다."},
+            },
+        },
+    }
+
+
 def _create_revision(
     client: TestClient,
     *,
@@ -44,42 +212,31 @@ def _create_revision(
     type_tag: str,
     difficulty: int,
 ) -> dict[str, object]:
-    is_listening = skill == "LISTENING"
+    fixture = _build_revision_fixture(skill=skill, type_tag=type_tag, difficulty=difficulty)
+    question = fixture["question"]
     response = client.post(
         f"/internal/content/units/{unit_id}/revisions",
         json={
             "revision_code": revision_code,
             "generator_version": "generator-v1",
             "title": f"{skill.title()} title",
-            "body_text": None if is_listening else "Reading body text for sync.",
-            "transcript_text": "Listening transcript text for sync." if is_listening else None,
+            "body_text": fixture["body_text"],
+            "transcript_text": fixture["transcript_text"],
             "explanation_text": "Detailed explanation text.",
-            "metadata_json": {
-                "typeTag": type_tag,
-                "difficulty": difficulty,
-                "sourcePolicy": "AI_ORIGINAL",
-                "ttsPlan": {"voice": "alloy", "speed": 1.0} if is_listening else None,
-            },
+            "metadata_json": fixture["metadata_json"],
             "questions": [
                 {
                     "question_code": f"{revision_code}-q1",
                     "order_index": 1,
-                    "stem": "What is the best answer?",
-                    "choice_a": "Option A",
-                    "choice_b": "Option B",
-                    "choice_c": "Option C",
-                    "choice_d": "Option D",
-                    "choice_e": "Option E",
-                    "correct_answer": "A",
+                    "stem": question["stem"],
+                    "choice_a": question["choice_a"],
+                    "choice_b": question["choice_b"],
+                    "choice_c": question["choice_c"],
+                    "choice_d": question["choice_d"],
+                    "choice_e": question["choice_e"],
+                    "correct_answer": question["correct_answer"],
                     "explanation": "Option A is correct.",
-                    "metadata_json": {
-                        "typeTag": type_tag,
-                        "difficulty": difficulty,
-                        "sourcePolicy": "AI_ORIGINAL",
-                        "evidenceSentenceIds": ["s1"],
-                        "whyCorrectKo": "정답 근거입니다.",
-                        "whyWrongKoByOption": {"B": "오답 이유 B"},
-                    },
+                    "metadata_json": question["metadata_json"],
                 }
             ],
         },
@@ -185,9 +342,7 @@ def test_sync_returns_upsert_and_detail_fetches_revision(client: TestClient) -> 
     assert sync_body["upserts"][0]["revisionId"] == published["revision_id"]
     assert sync_body["deletes"] == []
 
-    detail_response = client.get(
-        f"/public/content/units/{sync_body['upserts'][0]['revisionId']}"
-    )
+    detail_response = client.get(f"/public/content/units/{sync_body['upserts'][0]['revisionId']}")
     assert detail_response.status_code == 200, detail_response.text
 
 

@@ -93,8 +93,23 @@ def _create_revision(
     question_items: Iterable[dict[str, object]],
     generator_version: str = "generator-v1",
     title: str | None = None,
-    body_text: str | None = "Reading body text",
-    transcript_text: str | None = "Listening transcript text",
+    body_text: str | None = (
+        "The passage suggests that consistent revision serves a broader academic purpose than "
+        "a single test score. However, students often overlook feedback because they expect "
+        "quick correction instead of reflective learning. When teachers require learners to "
+        "revisit earlier drafts, they begin to notice patterns in weak reasoning and imprecise "
+        "evidence. Although the routine feels inefficient at first, it gradually develops "
+        "durable habits of analysis and self-monitoring. Students who follow this routine "
+        "usually respond more calmly when they face unfamiliar questions. For that reason, "
+        "the passage suggests that feedback should prompt reflection rather than provide "
+        "effortless correction."
+    ),
+    transcript_text: str | None = (
+        "Teacher: The museum tour starts in ten minutes, and the main hall is crowded today. "
+        "Student: Then we should meet by the side entrance so everyone can hear the guide. "
+        "Teacher: Good idea, and please remind the others to bring their notebooks. "
+        "Student: Sure, I will tell them before they leave the classroom."
+    ),
     explanation_text: str | None = "English explanation text",
     metadata_json: dict[str, object] | None = None,
 ) -> dict[str, object]:
@@ -105,7 +120,57 @@ def _create_revision(
         "body_text": body_text,
         "transcript_text": transcript_text,
         "explanation_text": explanation_text,
-        "metadata_json": metadata_json if metadata_json is not None else {"source": "pytest"},
+        "metadata_json": metadata_json
+        if metadata_json is not None
+        else {
+            "source": "pytest",
+            "typeTag": "R_MAIN_IDEA",
+            "difficulty": 2,
+            "sentences": [
+                {
+                    "id": "s1",
+                    "text": (
+                        "The passage suggests that consistent revision serves a broader academic "
+                        "purpose than a single test score."
+                    ),
+                },
+                {
+                    "id": "s2",
+                    "text": (
+                        "However, students often overlook feedback because they expect quick "
+                        "correction instead of reflective learning."
+                    ),
+                },
+                {
+                    "id": "s3",
+                    "text": (
+                        "When teachers require learners to revisit earlier drafts, they begin to "
+                        "notice patterns in weak reasoning and imprecise evidence."
+                    ),
+                },
+                {
+                    "id": "s4",
+                    "text": (
+                        "Although the routine feels inefficient at first, it gradually develops "
+                        "durable habits of analysis and self-monitoring."
+                    ),
+                },
+                {
+                    "id": "s5",
+                    "text": (
+                        "Students who follow this routine usually respond more calmly when "
+                        "they face unfamiliar questions."
+                    ),
+                },
+                {
+                    "id": "s6",
+                    "text": (
+                        "For that reason, the passage suggests that feedback should prompt "
+                        "reflection rather than provide effortless correction."
+                    ),
+                },
+            ],
+        },
         "questions": list(question_items),
     }
     response = client.post(
@@ -172,14 +237,29 @@ def _question_item(
         "question_code": question_code,
         "order_index": order_index,
         "stem": stem,
-        "choice_a": "Option A",
-        "choice_b": "Option B",
-        "choice_c": "Option C",
-        "choice_d": "Option D",
-        "choice_e": "Option E",
+        "choice_a": "It argues that reflective revision builds durable academic judgment.",
+        "choice_b": "It claims students improve most when teachers remove all difficulty.",
+        "choice_c": "It suggests that speed matters more than careful evidence review.",
+        "choice_d": "It says feedback is useful only when exams are already completed.",
+        "choice_e": "It insists that natural talent makes deliberate revision unnecessary.",
         "correct_answer": correct_answer,
         "explanation": explanation,
-        "metadata_json": metadata_json if metadata_json is not None else {"difficulty": "medium"},
+        "metadata_json": metadata_json
+        if metadata_json is not None
+        else {
+            "typeTag": "R_MAIN_IDEA",
+            "difficulty": 2,
+            "evidenceSentenceIds": ["s5", "s6"],
+            "whyCorrectKo": (
+                "지문은 피드백이 반성적 수정 습관을 길러 준다고 설명한다."
+            ),
+            "whyWrongKoByOption": {
+                "B": "교사는 어려움을 제거해야 한다고 말하지 않는다.",
+                "C": "속도보다 반성적 수정이 중요하다고 한다.",
+                "D": "피드백은 시험 후에만 유효하다고 하지 않는다.",
+                "E": "타고난 재능만으로 충분하다고 하지 않는다.",
+            },
+        },
     }
 
 
@@ -976,6 +1056,127 @@ def test_archive_revision_already_archived_rejected(client: TestClient) -> None:
     assert second.status_code == 409
     assert second.json()["detail"] == "REVISION_ALREADY_ARCHIVED"
     assert second.json()["errorCode"] == "REVISION_ALREADY_ARCHIVED"
+
+
+def test_h2_publish_is_blocked_when_calibration_fails(client: TestClient) -> None:
+    unit = _create_unit(
+        client,
+        external_id="calibration-h2-unit-001",
+        skill="READING",
+        track="H2",
+    )
+    revision = _create_revision(
+        client,
+        unit_id=str(unit["id"]),
+        revision_code="calibration-h2-r1",
+        body_text=(
+            "Many people enjoy hiking because it offers physical exercise and time in nature. [1] "
+            "The trails can vary from easy forest paths to steep mountain climbs. [2] "
+            "Hiking also gives people a chance to observe wildlife in natural habitats. [3] "
+            "However, hikers should prepare carefully by bringing enough water and proper gear. [4]"
+        ),
+        transcript_text=None,
+        metadata_json={"typeTag": "R_INSERTION", "difficulty": 3},
+        question_items=[
+            _question_item(
+                question_code="Q001",
+                order_index=1,
+                stem=(
+                    "Where is the best place to insert the sentence "
+                    "'Beyond these physical advantages, hiking can improve mental well-being'?"
+                ),
+                metadata_json={"typeTag": "R_INSERTION", "difficulty": 3},
+            )
+        ],
+    )
+    _validate_revision(
+        client,
+        unit_id=str(unit["id"]),
+        revision_id=str(revision["id"]),
+        validator_version="validator-calibration-h2",
+    )
+    _review_revision(
+        client,
+        unit_id=str(unit["id"]),
+        revision_id=str(revision["id"]),
+        reviewer_identity="reviewer-calibration-h2",
+    )
+
+    response = client.post(
+        f"/internal/content/units/{unit['id']}/publish",
+        json={"revision_id": revision["id"]},
+        headers=_internal_headers(),
+    )
+
+    assert response.status_code == 409, response.text
+    body = response.json()
+    assert body["errorCode"] == "content_calibration_failed"
+    assert body["detail"]["calibrationPass"] is False
+    assert body["detail"]["calibrationFailReasons"]
+    assert any(
+        reason.startswith("track_level_mismatch:H2")
+        or reason == "inference_load_below_track_baseline"
+        or reason == "reading_insertion_direct_clue"
+        for reason in body["detail"]["calibrationFailReasons"]
+    )
+
+
+def test_h1_publish_allows_warning_mode_and_stores_calibration_trace(client: TestClient) -> None:
+    unit = _create_unit(
+        client,
+        external_id="calibration-h1-unit-001",
+        skill="READING",
+        track="H1",
+    )
+    revision = _create_revision(
+        client,
+        unit_id=str(unit["id"]),
+        revision_code="calibration-h1-r1",
+        body_text=(
+            "Students should sleep early before an exam. "
+            "Rest helps them feel better the next morning."
+        ),
+        transcript_text=None,
+        metadata_json={"typeTag": "R_MAIN_IDEA", "difficulty": 2},
+        question_items=[
+            _question_item(
+                question_code="Q001",
+                order_index=1,
+                stem="What is the main idea of the passage?",
+                metadata_json={"typeTag": "R_MAIN_IDEA", "difficulty": 2},
+            )
+        ],
+    )
+    _validate_revision(
+        client,
+        unit_id=str(unit["id"]),
+        revision_id=str(revision["id"]),
+        validator_version="validator-calibration-h1",
+    )
+    _review_revision(
+        client,
+        unit_id=str(unit["id"]),
+        revision_id=str(revision["id"]),
+        reviewer_identity="reviewer-calibration-h1",
+    )
+
+    publish = client.post(
+        f"/internal/content/units/{unit['id']}/publish",
+        json={"revision_id": revision["id"]},
+        headers=_internal_headers(),
+    )
+    assert publish.status_code == 200, publish.text
+
+    lookup = client.get(
+        f"/internal/content/revisions/{revision['id']}",
+        headers=_internal_headers(),
+    )
+    assert lookup.status_code == 200, lookup.text
+    body = lookup.json()
+    assert body["calibration_score"] is not None
+    assert body["calibration_pass"] is False
+    assert body["calibration_fail_reasons"]
+    assert body["calibration_rubric_version"] is not None
 
 
 def test_revision_list_filters_pagination_and_invalid_filter_value(client: TestClient) -> None:

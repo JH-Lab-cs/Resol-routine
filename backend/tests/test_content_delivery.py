@@ -76,58 +76,354 @@ def _create_asset(
         return str(asset.id)
 
 
+def _build_revision_fixture(
+    *,
+    skill: str,
+    track: str,
+    type_tag: str,
+    difficulty: int,
+) -> dict[str, object]:
+    if skill == "LISTENING":
+        if type_tag == "L_RESPONSE":
+            turns = [
+                {"speaker": "Student", "text": "Do you want to review the poster before lunch?"},
+                {"speaker": "Friend", "text": "Yes, let's check it together in the library."},
+            ]
+            transcript_text = " ".join(turn["text"] for turn in turns)
+            return {
+                "body_text": None,
+                "transcript_text": transcript_text,
+                "metadata_json": {
+                    "typeTag": type_tag,
+                    "difficulty": difficulty,
+                    "sourcePolicy": "AI_ORIGINAL",
+                    "ttsPlan": {"voice": "alloy", "speed": 1.0},
+                    "turns": turns,
+                    "sentences": [
+                        {"id": "s1", "text": turns[0]["text"]},
+                        {"id": "s2", "text": turns[1]["text"]},
+                    ],
+                },
+                "question": {
+                    "stem": "What is the most appropriate response to the last speaker?",
+                    "choices": {
+                        "A": "Yes, let's check it together in the library.",
+                        "B": "I forgot to print the science poster yesterday.",
+                        "C": "The cafeteria closes earlier on Fridays.",
+                        "D": "My brother already borrowed the history book.",
+                        "E": "We should ask the coach about tomorrow's game.",
+                    },
+                    "correct_answer": "A",
+                    "explanation": (
+                        "The final response agrees with the suggestion and proposes a "
+                        "place."
+                    ),
+                    "metadata_json": {
+                        "typeTag": type_tag,
+                        "difficulty": difficulty,
+                        "sourcePolicy": "AI_ORIGINAL",
+                        "evidenceSentenceIds": ["s1", "s2"],
+                        "whyCorrectKo": (
+                            "마지막 제안에 동의하면서 장소를 "
+                            "구체적으로 정해 주는 "
+                            "응답이다."
+                        ),
+                        "whyWrongKoByOption": {
+                            "B": (
+                                "포스터를 검토하자는 제안에 직접 반응하지 "
+                                "않는다."
+                            ),
+                            "C": "식당 운영 시간은 대화 맥락과 관련이 약하다.",
+                            "D": "가족 이야기로 대화 흐름이 벗어난다.",
+                            "E": "운동 경기 언급은 현재 과제와 맞지 않는다.",
+                        },
+                    },
+                },
+            }
+
+        turns = [
+            {
+                "speaker": "Guide",
+                "text": (
+                    "Before the science fair opens, please check whether each display "
+                    "has a clear title card."
+                ),
+            },
+            {
+                "speaker": "Volunteer",
+                "text": (
+                    "I already replaced two cards, but the robotics table still needs a "
+                    "brighter lamp."
+                ),
+            },
+            {
+                "speaker": "Guide",
+                "text": (
+                    "Good, because judges often begin there and they need to read the "
+                    "explanations quickly."
+                ),
+            },
+            {
+                "speaker": "Volunteer",
+                "text": (
+                    "Then I'll bring an extra lamp and ask Mina to organize the student "
+                    "line near the entrance."
+                ),
+            },
+        ]
+        transcript_text = " ".join(turn["text"] for turn in turns)
+        return {
+            "body_text": None,
+            "transcript_text": transcript_text,
+            "metadata_json": {
+                "typeTag": type_tag,
+                "difficulty": difficulty,
+                "sourcePolicy": "AI_ORIGINAL",
+                "ttsPlan": {"voice": "alloy", "speed": 1.0},
+                "turns": turns,
+                "sentences": [
+                    {"id": f"s{index}", "text": turn["text"]}
+                    for index, turn in enumerate(turns, start=1)
+                ],
+            },
+            "question": {
+                "stem": (
+                    "What does the volunteer most strongly suggest is the next intention?"
+                ),
+                "choices": {
+                    "A": "Bring more light and organize the entrance line.",
+                    "B": "Close the robotics table before the judges arrive.",
+                    "C": "Ask the judges to skip the first display in the hall.",
+                    "D": "Move every title card to the back of the room.",
+                    "E": "Cancel the fair because the entrance is too crowded.",
+                },
+                "correct_answer": "A",
+                "explanation": (
+                    "The volunteer says they will bring an extra lamp and ask Mina to "
+                    "manage the line."
+                ),
+                "metadata_json": {
+                    "typeTag": type_tag,
+                    "difficulty": difficulty,
+                    "sourcePolicy": "AI_ORIGINAL",
+                    "evidenceSentenceIds": ["s3", "s4"],
+                    "whyCorrectKo": (
+                        "마지막 두 발화에서 다음 행동 계획이 직접 드러난다."
+                    ),
+                    "whyWrongKoByOption": {
+                        "B": "행사를 닫는다는 말은 없다.",
+                        "C": "심사 순서를 바꾸자는 내용이 아니다.",
+                        "D": "제목 카드를 뒤로 옮기라는 말은 없다.",
+                        "E": "행사를 취소하자는 의미가 아니다.",
+                    },
+                },
+            },
+        }
+
+    if type_tag == "R_VOCAB":
+        body_text = (
+            "Although the workshop looked chaotic at first, the director followed a "
+            "deliberate plan. "
+            "She assigned each volunteer a narrow task so that the team would not "
+            "duplicate work. "
+            "By the afternoon, the once-crowded room felt orderly because everyone "
+            "understood their role. "
+            "The principal later praised the director's methodical approach and said it "
+            "prevented confusion. "
+            "For that reason, the staff decided to use the same plan for future school events."
+        )
+        return {
+            "body_text": body_text,
+            "transcript_text": None,
+            "metadata_json": {
+                "typeTag": type_tag,
+                "difficulty": difficulty,
+                "sourcePolicy": "AI_ORIGINAL",
+                "sentences": [
+                    {"id": f"s{index}", "text": sentence}
+                    for index, sentence in enumerate(body_text.split(". "), start=1)
+                    if sentence
+                ],
+            },
+            "question": {
+                "stem": 'Which meaning best fits the word "methodical" as used in the passage?',
+                "choices": {
+                    "A": "carefully organized",
+                    "B": "easily forgotten",
+                    "C": "strangely decorated",
+                    "D": "highly expensive",
+                    "E": "publicly criticized",
+                },
+                "correct_answer": "A",
+                "explanation": "The surrounding sentences describe a careful step-by-step plan.",
+                "metadata_json": {
+                    "typeTag": type_tag,
+                    "difficulty": difficulty,
+                    "sourcePolicy": "AI_ORIGINAL",
+                    "evidenceSentenceIds": ["s3", "s4"],
+                    "whyCorrectKo": (
+                        "질서 있게 역할을 배분한 맥락에서 methodical은 "
+                        "체계적이라는 "
+                        "뜻이다."
+                    ),
+                    "whyWrongKoByOption": {
+                        "B": "기억과 관련된 의미는 문맥에 없다.",
+                        "C": "장식과 관련된 의미가 아니다.",
+                        "D": "비용에 대한 단서는 없다.",
+                        "E": "비판이 아니라 칭찬이 나온다.",
+                    },
+                },
+            },
+        }
+
+    body_text = (
+        "Many students assume that academic success depends mainly on innate talent. "
+        "However, experienced teachers often observe that consistent revision and timely "
+        "feedback are equally consequential. "
+        "When learners revisit earlier drafts, they begin to detect recurring weaknesses "
+        "and refine imprecise reasoning. "
+        "Although the process can feel inefficient at first, it cultivates durable habits "
+        "that extend beyond a single exam. "
+        "Students who practice this routine often become more confident when they meet "
+        "unfamiliar questions. "
+        "In that sense, the passage suggests that feedback serves a broader purpose than "
+        "simple correction. "
+        "Instead, it trains students to judge evidence carefully before choosing an answer."
+    )
+    return {
+        "body_text": body_text,
+        "transcript_text": None,
+        "metadata_json": {
+            "typeTag": type_tag,
+            "difficulty": difficulty,
+            "sourcePolicy": "AI_ORIGINAL",
+            "sentences": [
+                {
+                    "id": "s1",
+                    "text": (
+                        "Many students assume that academic success depends mainly on "
+                        "innate talent."
+                    ),
+                },
+                {
+                    "id": "s2",
+                    "text": (
+                        "However, experienced teachers often observe that consistent "
+                        "revision and timely feedback are equally consequential."
+                    ),
+                },
+                {
+                    "id": "s3",
+                    "text": (
+                        "When learners revisit earlier drafts, they begin to detect "
+                        "recurring weaknesses and refine imprecise reasoning."
+                    ),
+                },
+                {
+                    "id": "s4",
+                    "text": (
+                        "Although the process can feel inefficient at first, it "
+                        "cultivates durable habits that extend beyond a single exam."
+                    ),
+                },
+                {
+                    "id": "s5",
+                    "text": (
+                        "Students who practice this routine often become more confident "
+                        "when they meet unfamiliar questions."
+                    ),
+                },
+                {
+                    "id": "s6",
+                    "text": (
+                        "In that sense, the passage suggests that feedback serves a "
+                        "broader purpose than simple correction."
+                    ),
+                },
+                {
+                    "id": "s7",
+                    "text": (
+                        "Instead, it trains students to judge evidence carefully before "
+                        "choosing an answer."
+                    ),
+                },
+            ],
+        },
+        "question": {
+            "stem": "What does the passage suggest is the main purpose of effective feedback?",
+            "choices": {
+                "A": "It helps students build reflective reasoning habits.",
+                "B": "It removes the need to revise earlier drafts.",
+                "C": "It proves that natural talent matters more than effort.",
+                "D": "It encourages students to memorize answers more quickly.",
+                "E": "It shows that unfamiliar questions should be avoided.",
+            },
+            "correct_answer": "A",
+            "explanation": (
+                "The passage argues that feedback develops reflective and durable "
+                "thinking habits."
+            ),
+            "metadata_json": {
+                "typeTag": type_tag,
+                "difficulty": difficulty,
+                "sourcePolicy": "AI_ORIGINAL",
+                "evidenceSentenceIds": ["s6", "s7"],
+                "whyCorrectKo": (
+                    "마지막 두 문장이 피드백의 핵심 목적을 직접 요약한다."
+                ),
+                "whyWrongKoByOption": {
+                    "B": "이전 초안을 다시 보는 과정이 중요하다고 설명한다.",
+                    "C": "타고난 재능만이 핵심이라는 주장과 반대다.",
+                    "D": "암기 속도를 높이는 목적은 아니다.",
+                    "E": "낯선 문제를 피하라는 메시지가 아니다.",
+                },
+            },
+        },
+    }
+
+
 def _create_revision(
     client: TestClient,
     *,
     unit_id: str,
     revision_code: str,
     skill: str,
+    track: str,
     type_tag: str,
     difficulty: int,
     asset_id: str | None = None,
 ) -> dict[str, object]:
-    is_listening = skill == "LISTENING"
+    fixture = _build_revision_fixture(
+        skill=skill,
+        track=track,
+        type_tag=type_tag,
+        difficulty=difficulty,
+    )
+    question = fixture["question"]
     response = client.post(
         f"/internal/content/units/{unit_id}/revisions",
         json={
             "revision_code": revision_code,
             "generator_version": "generator-v1",
             "title": f"{skill.title()} title",
-            "body_text": None if is_listening else "Reading body text for delivery.",
-            "transcript_text": "Listening transcript text for delivery." if is_listening else None,
+            "body_text": fixture["body_text"],
+            "transcript_text": fixture["transcript_text"],
             "explanation_text": "Detailed explanation text.",
             "asset_id": asset_id,
-            "metadata_json": {
-                "typeTag": type_tag,
-                "difficulty": difficulty,
-                "sourcePolicy": "AI_ORIGINAL",
-                "ttsPlan": {"voice": "alloy", "speed": 1.0} if is_listening else None,
-            },
+            "metadata_json": fixture["metadata_json"],
             "questions": [
                 {
                     "question_code": f"{revision_code}-q1",
                     "order_index": 1,
-                    "stem": "What is the best answer?",
-                    "choice_a": "Option A",
-                    "choice_b": "Option B",
-                    "choice_c": "Option C",
-                    "choice_d": "Option D",
-                    "choice_e": "Option E",
-                    "correct_answer": "A",
-                    "explanation": "Option A is correct.",
-                    "metadata_json": {
-                        "typeTag": type_tag,
-                        "difficulty": difficulty,
-                        "sourcePolicy": "AI_ORIGINAL",
-                        "evidenceSentenceIds": ["s1"],
-                        "whyCorrectKo": "정답 근거입니다.",
-                        "whyWrongKoByOption": {
-                            "B": "오답 이유 B",
-                            "C": "오답 이유 C",
-                        },
-                        "vocabNotesKo": "어휘 메모",
-                        "structureNotesKo": "구조 메모",
-                    },
+                    "stem": question["stem"],
+                    "choice_a": question["choices"]["A"],
+                    "choice_b": question["choices"]["B"],
+                    "choice_c": question["choices"]["C"],
+                    "choice_d": question["choices"]["D"],
+                    "choice_e": question["choices"]["E"],
+                    "correct_answer": question["correct_answer"],
+                    "explanation": question["explanation"],
+                    "metadata_json": question["metadata_json"],
                 }
             ],
         },
@@ -236,6 +532,7 @@ def _create_published_revision(
         unit_id=str(unit["id"]),
         revision_code=revision_code,
         skill=skill,
+        track=track,
         type_tag=type_tag,
         difficulty=difficulty,
         asset_id=asset_id,
@@ -288,6 +585,7 @@ def test_public_content_list_filters_track_and_excludes_non_published(
         unit_id=str(draft_unit["id"]),
         revision_code="rev-m3-draft",
         skill="READING",
+        track="M3",
         type_tag="R_DETAIL",
         difficulty=2,
     )
@@ -372,9 +670,7 @@ def test_public_content_list_supports_delta_sync_and_deterministic_ordering(
     assert delta_response.status_code == 200, delta_response.text
     delta_body = delta_response.json()
     assert [item["revisionId"] for item in delta_body["items"]] == [third["revision_id"]]
-    assert _parse_iso8601(delta_body["nextChangedSince"]) == datetime(
-        2026, 3, 8, 2, 0, tzinfo=UTC
-    )
+    assert _parse_iso8601(delta_body["nextChangedSince"]) == datetime(2026, 3, 8, 2, 0, tzinfo=UTC)
 
 
 def test_public_content_detail_returns_reading_canonical_payload(
@@ -404,13 +700,13 @@ def test_public_content_detail_returns_reading_canonical_payload(
     assert body["typeTag"] == "R_MAIN_IDEA"
     assert body["difficulty"] == 4
     assert body["contentSourcePolicy"] == "AI_ORIGINAL"
-    assert body["bodyText"] == "Reading body text for delivery."
+    assert "academic success depends mainly on innate talent" in body["bodyText"]
     assert body["transcriptText"] is None
     assert body["asset"] is None
     assert body["question"]["answerKey"] == "A"
-    assert body["question"]["evidenceSentenceIds"] == ["s1"]
-    assert body["question"]["whyCorrectKo"] == "정답 근거입니다."
-    assert body["question"]["whyWrongKoByOption"]["B"] == "오답 이유 B"
+    assert body["question"]["evidenceSentenceIds"] == ["s6", "s7"]
+    assert body["question"]["whyCorrectKo"]
+    assert body["question"]["whyWrongKoByOption"]["B"]
 
 
 def test_public_content_detail_returns_listening_signed_url(
@@ -437,7 +733,7 @@ def test_public_content_detail_returns_listening_signed_url(
 
     body = response.json()
     assert body["skill"] == "LISTENING"
-    assert body["transcriptText"] == "Listening transcript text for delivery."
+    assert "Before the science fair opens" in body["transcriptText"]
     assert body["ttsPlan"] == {"voice": "alloy", "speed": 1.0}
     assert body["asset"]["assetId"] == listening["asset_id"]
     assert body["asset"]["mimeType"] == "audio/mpeg"
@@ -493,6 +789,7 @@ def test_public_content_detail_rejects_draft_and_archived_revisions(
         unit_id=str(draft_unit["id"]),
         revision_code="rev-private-draft",
         skill="READING",
+        track="M3",
         type_tag="R_DETAIL",
         difficulty=2,
     )

@@ -43,44 +43,45 @@ from tools.content_readiness_audit import _build_parser as build_content_readine
 
 @pytest.fixture()
 def configured_content_backfill_settings(monkeypatch: pytest.MonkeyPatch) -> None:
+    settings_path = "app.services.content_backfill_service.settings."
     monkeypatch.setattr(
-        "app.services.content_backfill_service.settings.ai_content_provider",
+        f"{settings_path}ai_content_provider",
         "fake",
     )
     monkeypatch.setattr(
-        "app.services.content_backfill_service.settings.ai_content_model",
+        f"{settings_path}ai_content_model",
         "unit-test-content-model",
     )
     monkeypatch.setattr(
-        "app.services.content_backfill_service.settings.ai_content_fallback_model",
+        f"{settings_path}ai_content_fallback_model",
         None,
     )
     monkeypatch.setattr(
-        "app.services.content_backfill_service.settings.ai_content_prompt_template_version",
+        f"{settings_path}ai_content_prompt_template_version",
         "content-v1",
     )
     monkeypatch.setattr(
-        "app.services.content_backfill_service.settings.ai_content_max_targets_per_run",
+        f"{settings_path}ai_content_max_targets_per_run",
         12,
     )
     monkeypatch.setattr(
-        "app.services.content_backfill_service.settings.ai_content_max_candidates_per_run",
+        f"{settings_path}ai_content_max_candidates_per_run",
         40,
     )
     monkeypatch.setattr(
-        "app.services.content_backfill_service.settings.ai_content_max_estimated_cost_usd",
+        f"{settings_path}ai_content_max_estimated_cost_usd",
         5.0,
     )
     monkeypatch.setattr(
-        "app.services.content_backfill_service.settings.ai_content_default_dry_run",
+        f"{settings_path}ai_content_default_dry_run",
         True,
     )
     monkeypatch.setattr(
-        "app.services.content_backfill_service.settings.ai_content_estimated_input_cost_per_million_tokens",
+        f"{settings_path}ai_content_estimated_input_cost_per_million_tokens",
         0.5,
     )
     monkeypatch.setattr(
-        "app.services.content_backfill_service.settings.ai_content_estimated_output_cost_per_million_tokens",
+        f"{settings_path}ai_content_estimated_output_cost_per_million_tokens",
         1.5,
     )
 
@@ -357,8 +358,7 @@ def test_backfill_evaluation_report_summarizes_publishable_item_rates(
             source_policy=ContentSourcePolicy.AI_ORIGINAL,
             title="Eval candidate",
             passage_text=(
-                "Sentence one. [1] Sentence two. [2] Sentence three. "
-                "[3] Sentence four. [4]"
+                "Sentence one. [1] Sentence two. [2] Sentence three. [3] Sentence four. [4]"
             ),
             transcript_text=None,
             sentences_json=[
@@ -618,7 +618,7 @@ def test_batch_validate_review_publish_filters_backfill_source_and_generation_jo
             external_id="backfill-source-target",
             track=Track.H3,
             skill=Skill.LISTENING,
-            type_tag="L_RESPONSE",
+            type_tag="L_LONG_TALK",
             difficulty=4,
             lifecycle_status=ContentLifecycleStatus.DRAFT,
             metadata_extra={
@@ -631,7 +631,7 @@ def test_batch_validate_review_publish_filters_backfill_source_and_generation_jo
             external_id="backfill-source-other",
             track=Track.H3,
             skill=Skill.LISTENING,
-            type_tag="L_RESPONSE",
+            type_tag="L_LONG_TALK",
             difficulty=4,
             lifecycle_status=ContentLifecycleStatus.DRAFT,
             metadata_extra={
@@ -723,6 +723,176 @@ def test_batch_publish_reports_non_publishable_backfill_draft_as_failure(
     assert result["failedItems"][0]["generationJobId"] == str(backfill_job_id)
 
 
+def test_batch_publish_blocks_h2_calibration_fail_and_reports_reasons(
+    db_session_factory,
+) -> None:
+    backfill_job_id = UUID("66666666-6666-6666-6666-666666666666")
+    with db_session_factory() as db:
+        _create_content_revision(
+            db,
+            external_id="backfill-calibration-block",
+            track=Track.H2,
+            skill=Skill.READING,
+            type_tag="R_INSERTION",
+            difficulty=3,
+            lifecycle_status=ContentLifecycleStatus.DRAFT,
+            metadata_extra={
+                "source": "content_readiness_backfill",
+                "generationJobId": str(backfill_job_id),
+            },
+        )
+        db.commit()
+
+    filters = ReviewerBatchFilter(
+        track=Track.H2,
+        skill=Skill.READING,
+        source="content_readiness_backfill",
+        generation_job_id=backfill_job_id,
+        limit=1,
+    )
+    with db_session_factory() as db:
+        batch_validate_content_revisions(
+            db,
+            filters=filters,
+            validator_version="ops-validator-v4",
+        )
+        batch_review_content_revisions(
+            db,
+            filters=filters,
+            reviewer_identity="ops:calibration",
+        )
+        result = batch_publish_content_revisions(
+            db,
+            filters=filters,
+            confirm=True,
+        )
+
+    assert result["matchedCount"] == 1
+    assert result["processedCount"] == 0
+    assert result["failedCount"] == 1
+    failed_item = result["failedItems"][0]
+    assert failed_item["calibrationPass"] is False
+    assert failed_item["calibrationScore"] is not None
+    assert failed_item["calibratedLevel"] is not None
+    assert failed_item["calibrationFailReasons"]
+    assert failed_item["detail"]["code"] == "content_calibration_failed"
+
+
+def test_batch_publish_keeps_h1_warning_mode_and_surfaces_calibration_trace(
+    db_session_factory,
+) -> None:
+    backfill_job_id = UUID("77777777-7777-7777-7777-777777777777")
+    with db_session_factory() as db:
+        _, revision_id = _create_content_revision(
+            db,
+            external_id="backfill-calibration-warning",
+            track=Track.H1,
+            skill=Skill.READING,
+            type_tag="R_INSERTION",
+            difficulty=2,
+            lifecycle_status=ContentLifecycleStatus.DRAFT,
+            metadata_extra={
+                "source": "content_readiness_backfill",
+                "generationJobId": str(backfill_job_id),
+            },
+        )
+        revision = db.get(ContentUnitRevision, revision_id)
+        assert revision is not None
+        revision.body_text = (
+            "Many students join debate club because it improves confidence.[1] "
+            "In addition, they learn to organize evidence before speaking in front of "
+            "others.[2] "
+            "For example, teachers say this habit helps students respond more carefully "
+            "in class.[3] "
+            "As a result, many students continue debate activities for several years.[4]"
+        )
+        revision.metadata_json = {
+            **revision.metadata_json,
+            "sentences": [
+                {
+                    "id": "s1",
+                    "text": "Many students join debate club because it improves confidence.",
+                },
+                {
+                    "id": "s2",
+                    "text": (
+                        "In addition, they learn to organize evidence before speaking in "
+                        "front of others."
+                    ),
+                },
+                {
+                    "id": "s3",
+                    "text": (
+                        "For example, teachers say this habit helps students respond more "
+                        "carefully in class."
+                    ),
+                },
+                {
+                    "id": "s4",
+                    "text": (
+                        "As a result, many students continue debate activities for several "
+                        "years."
+                    ),
+                },
+            ],
+        }
+        question = (
+            db.query(ContentQuestion)
+            .filter(ContentQuestion.content_unit_revision_id == revision_id)
+            .one()
+        )
+        question.stem = "Where is the best place to insert the following sentence?"
+        question.choice_a = "Before sentence [1]"
+        question.choice_b = "Between sentence [1] and [2]"
+        question.choice_c = "Between sentence [2] and [3]"
+        question.choice_d = "Between sentence [3] and [4]"
+        question.choice_e = "The sentence does not fit anywhere in the paragraph."
+        question.metadata_json = {
+            **question.metadata_json,
+            "insertedSentence": (
+                "Beyond these advantages, debate club can also strengthen leadership "
+                "skills."
+            ),
+            "evidenceSentenceIds": ["s1", "s2"],
+        }
+        db.commit()
+
+    filters = ReviewerBatchFilter(
+        track=Track.H1,
+        skill=Skill.READING,
+        source="content_readiness_backfill",
+        generation_job_id=backfill_job_id,
+        limit=1,
+    )
+    with db_session_factory() as db:
+        batch_validate_content_revisions(
+            db,
+            filters=filters,
+            validator_version="ops-validator-v5",
+        )
+        batch_review_content_revisions(
+            db,
+            filters=filters,
+            reviewer_identity="ops:warning-mode",
+        )
+        result = batch_publish_content_revisions(
+            db,
+            filters=filters,
+            confirm=True,
+        )
+        db.commit()
+        revision = db.get(ContentUnitRevision, revision_id)
+
+    assert result["processedCount"] == 1
+    assert result["failedCount"] == 0
+    item = result["items"][0]
+    assert item["calibrationPass"] is False
+    assert item["calibrationFailReasons"]
+    assert revision is not None
+    assert revision.lifecycle_status == ContentLifecycleStatus.PUBLISHED
+    assert revision.metadata_json["calibrationPass"] is False
+
+
 def test_b34_content_sync_gate_uses_backfill_plan_to_evaluate_entry(db_session_factory) -> None:
     with db_session_factory() as db:
         seed_dev_content_and_mock_samples(db)
@@ -750,7 +920,7 @@ def test_batch_publish_promotes_backfill_draft_into_public_delivery_contract(
         _, revision_id = _create_content_revision(
             db,
             external_id="backfill-public-delivery",
-            track=Track.H2,
+            track=Track.H1,
             skill=Skill.LISTENING,
             type_tag="L_RESPONSE",
             difficulty=3,
@@ -763,7 +933,7 @@ def test_batch_publish_promotes_backfill_draft_into_public_delivery_contract(
         db.commit()
 
     filters = ReviewerBatchFilter(
-        track=Track.H2,
+        track=Track.H1,
         skill=Skill.LISTENING,
         source="content_readiness_backfill",
         generation_job_id=backfill_job_id,
@@ -791,7 +961,7 @@ def test_batch_publish_promotes_backfill_draft_into_public_delivery_contract(
     assert review_result["processedCount"] == 1
     assert publish_result["processedCount"] == 1
 
-    list_response = client.get("/public/content/units", params={"track": "H2"})
+    list_response = client.get("/public/content/units", params={"track": "H1"})
     assert list_response.status_code == 200, list_response.text
     list_body = list_response.json()
     assert any(item["revisionId"] == str(revision_id) for item in list_body["items"])
@@ -802,14 +972,14 @@ def test_batch_publish_promotes_backfill_draft_into_public_delivery_contract(
     assert detail_body["revisionId"] == str(revision_id)
     assert detail_body["typeTag"] == "L_RESPONSE"
 
-    sync_response = client.get("/public/content/sync", params={"track": "H2"})
+    sync_response = client.get("/public/content/sync", params={"track": "H1"})
     assert sync_response.status_code == 200, sync_response.text
     sync_body = sync_response.json()
     assert any(item["revisionId"] == str(revision_id) for item in sync_body["upserts"])
 
 
 def _seed_near_ready_daily_bank(db) -> None:
-    listening_types = ["L_GIST", "L_DETAIL", "L_INTENT", "L_RESPONSE"]
+    listening_types = ["L_GIST", "L_DETAIL", "L_INTENT", "L_LONG_TALK"]
     reading_types = [
         "R_MAIN_IDEA",
         "R_DETAIL",
@@ -843,10 +1013,342 @@ def _seed_near_ready_daily_bank(db) -> None:
         external_id="ready-h3-listening-draft",
         track=Track.H3,
         skill=Skill.LISTENING,
-        type_tag="L_RESPONSE",
+        type_tag="L_LONG_TALK",
         difficulty=4,
         lifecycle_status=ContentLifecycleStatus.DRAFT,
     )
+
+
+def _build_backfill_fixture(
+    *,
+    track: Track,
+    skill: Skill,
+    type_tag: str,
+    difficulty: int,
+) -> dict[str, object]:
+    if skill == Skill.LISTENING:
+        if type_tag == "L_RESPONSE":
+            turns = [
+                {
+                    "speaker": "Student",
+                    "text": "Do you want to check the schedule before practice?",
+                },
+                {"speaker": "Friend", "text": "Sure, let's look at it by the gym entrance."},
+            ]
+            return {
+                "body_text": None,
+                "transcript_text": " ".join(turn["text"] for turn in turns),
+                "title": "Listening response fixture",
+                "metadata_json": {
+                    "typeTag": type_tag,
+                    "difficulty": difficulty,
+                    "turns": turns,
+                    "sentences": [
+                        {"id": "s1", "text": turns[0]["text"]},
+                        {"id": "s2", "text": turns[1]["text"]},
+                    ],
+                },
+                "question": {
+                    "stem": "What is the most appropriate response to the last speaker?",
+                    "choices": {
+                        "A": "Sure, let's look at it by the gym entrance.",
+                        "B": "The concert starts after the lunch break.",
+                        "C": "I borrowed your notebook yesterday.",
+                        "D": "The hallway looks quiet this morning.",
+                        "E": "Our teacher likes the blue poster.",
+                    },
+                    "correct_answer": "A",
+                    "explanation": (
+                        "The second speaker accepts the suggestion and proposes a place."
+                    ),
+                    "metadata_json": {
+                        "typeTag": type_tag,
+                        "difficulty": difficulty,
+                        "evidenceSentenceIds": ["s1", "s2"],
+                        "whyCorrectKo": (
+                            "제안에 동의하면서 구체적인 행동을 덧붙인 "
+                            "응답이다."
+                        ),
+                        "whyWrongKoByOption": {
+                            "B": "일정 확인 제안에 직접 반응하지 않는다.",
+                            "C": "노트 언급은 대화 흐름과 무관하다.",
+                            "D": "복도 상황은 맥락상 적절한 응답이 아니다.",
+                            "E": "포스터 언급은 현재 상황과 관련이 없다.",
+                        },
+                    },
+                },
+            }
+
+        turns = [
+            {
+                "speaker": "Director",
+                "text": (
+                    "Before the visitors arrive, please confirm that every display panel "
+                    "has a readable title card."
+                ),
+            },
+            {
+                "speaker": "Volunteer",
+                "text": (
+                    "I already replaced two cards, but the robotics table still needs "
+                    "brighter lighting near the back wall."
+                ),
+            },
+            {
+                "speaker": "Director",
+                "text": (
+                    "Good, because the judges begin there and they need to follow the "
+                    "explanation quickly during the first round."
+                ),
+            },
+            {
+                "speaker": "Volunteer",
+                "text": (
+                    "Then I will bring an extra lamp and ask Mina to guide the guests "
+                    "toward the entrance line."
+                ),
+            },
+        ]
+        return {
+            "body_text": None,
+            "transcript_text": " ".join(turn["text"] for turn in turns),
+            "title": "Listening calibration fixture",
+            "metadata_json": {
+                "typeTag": type_tag,
+                "difficulty": difficulty,
+                "turns": turns,
+                "sentences": [
+                    {"id": f"s{index}", "text": turn["text"]}
+                    for index, turn in enumerate(turns, start=1)
+                ],
+            },
+            "question": {
+                "stem": (
+                    "What does the final response most strongly suggest is the volunteer's "
+                    "next intention?"
+                ),
+                "choices": {
+                    "A": "Bring more light and organize the entrance line.",
+                    "B": "Cancel the exhibition before the judges enter.",
+                    "C": "Move the robotics table to a different classroom.",
+                    "D": "Ask the judges to skip the first display entirely.",
+                    "E": "Replace every title card with handwritten notes.",
+                },
+                "correct_answer": "A",
+                "explanation": (
+                    "The final response explains the volunteer's next actions."
+                ),
+                "metadata_json": {
+                    "typeTag": type_tag,
+                    "difficulty": difficulty,
+                    "evidenceSentenceIds": ["s3", "s4"],
+                    "whyCorrectKo": (
+                        "마지막 발화에서 추가 조명과 안내 동선 계획을 밝힌다."
+                    ),
+                    "whyWrongKoByOption": {
+                        "B": "행사를 취소하자는 의미가 아니다.",
+                        "C": "장소를 옮긴다는 말은 없다.",
+                        "D": "심사 순서를 바꾸자는 내용이 아니다.",
+                        "E": "제목 카드를 모두 바꾸자는 계획이 아니다.",
+                    },
+                },
+            },
+        }
+
+    if type_tag == "R_INSERTION":
+        body_text = (
+            "Many students assume that academic success depends mainly on innate talent.[1] "
+            "However, experienced teachers often observe that consistent revision and "
+            "timely feedback are equally consequential.[2] "
+            "When learners revisit earlier drafts, they begin to detect recurring "
+            "weaknesses and refine imprecise reasoning.[3] "
+            "Although the process can feel inefficient at first, it cultivates durable "
+            "habits that extend beyond a single exam.[4]"
+        )
+        return {
+            "body_text": body_text,
+            "transcript_text": None,
+            "title": "Reading insertion fixture",
+            "metadata_json": {
+                "typeTag": type_tag,
+                "difficulty": difficulty,
+                "sentences": [
+                    {
+                        "id": "s1",
+                        "text": (
+                            "Many students assume that academic success depends mainly on "
+                            "innate talent."
+                        ),
+                    },
+                    {
+                        "id": "s2",
+                        "text": (
+                            "However, experienced teachers often observe that consistent "
+                            "revision and timely feedback are equally consequential."
+                        ),
+                    },
+                    {
+                        "id": "s3",
+                        "text": (
+                            "When learners revisit earlier drafts, they begin to detect "
+                            "recurring weaknesses and refine imprecise reasoning."
+                        ),
+                    },
+                    {
+                        "id": "s4",
+                        "text": (
+                            "Although the process can feel inefficient at first, it "
+                            "cultivates durable habits that extend beyond a single exam."
+                        ),
+                    },
+                ],
+            },
+            "question": {
+                "stem": "Where is the best place to insert the following sentence?",
+                "choices": {
+                    "A": "Before sentence [1]",
+                    "B": "Between sentence [1] and [2]",
+                    "C": "Between sentence [2] and [3]",
+                    "D": "Between sentence [3] and [4]",
+                    "E": "The sentence does not fit anywhere in the paragraph.",
+                },
+                "correct_answer": "B",
+                "explanation": (
+                    "The inserted sentence expands the contrast between talent and "
+                    "revision."
+                ),
+                "metadata_json": {
+                    "typeTag": type_tag,
+                    "difficulty": difficulty,
+                    "insertedSentence": (
+                        "Beyond initial confidence, deliberate revision also strengthens "
+                        "students' long-term judgment."
+                    ),
+                    "evidenceSentenceIds": ["s1", "s2"],
+                    "whyCorrectKo": (
+                        "첫 문장의 재능 강조 뒤에 수정 학습의 추가 효과를 "
+                        "제시하는 자리가 가장 자연스럽다."
+                    ),
+                    "whyWrongKoByOption": {
+                        "A": (
+                            "지시어와 연결이 생기기 전에 나오면 흐름이 "
+                            "약하다."
+                        ),
+                        "C": (
+                            "이미 수정의 구체적 효과가 전개된 뒤라 "
+                            "확장 문장으로 "
+                            "늦다."
+                        ),
+                        "D": "결론 직전에 넣기엔 주제 확장 시점이 지나 있다.",
+                        "E": "문단 주제와 분명히 연결된다.",
+                    },
+                },
+            },
+        }
+
+    body_text = (
+        "Many students assume that academic success depends mainly on innate talent. "
+        "However, experienced teachers often observe that consistent revision and timely "
+        "feedback are equally consequential. "
+        "When learners revisit earlier drafts, they begin to detect recurring weaknesses "
+        "and refine imprecise reasoning. "
+        "Although the process can feel inefficient at first, it cultivates durable habits "
+        "that extend beyond a single exam. "
+        "Students who practice this routine often become more confident when they meet "
+        "unfamiliar questions. "
+        "In that sense, the passage suggests that feedback serves a broader purpose than "
+        "simple correction. "
+        "Instead, it trains students to judge evidence carefully before choosing an answer."
+    )
+    return {
+        "body_text": body_text,
+        "transcript_text": None,
+        "title": "Reading calibration fixture",
+        "metadata_json": {
+            "typeTag": type_tag,
+            "difficulty": difficulty,
+            "sentences": [
+                {
+                    "id": "s1",
+                    "text": (
+                        "Many students assume that academic success depends mainly on "
+                        "innate talent."
+                    ),
+                },
+                {
+                    "id": "s2",
+                    "text": (
+                        "However, experienced teachers often observe that consistent "
+                        "revision and timely feedback are equally consequential."
+                    ),
+                },
+                {
+                    "id": "s3",
+                    "text": (
+                        "When learners revisit earlier drafts, they begin to detect "
+                        "recurring weaknesses and refine imprecise reasoning."
+                    ),
+                },
+                {
+                    "id": "s4",
+                    "text": (
+                        "Although the process can feel inefficient at first, it "
+                        "cultivates durable habits that extend beyond a single exam."
+                    ),
+                },
+                {
+                    "id": "s5",
+                    "text": (
+                        "Students who practice this routine often become more confident "
+                        "when they meet unfamiliar questions."
+                    ),
+                },
+                {
+                    "id": "s6",
+                    "text": (
+                        "In that sense, the passage suggests that feedback serves a "
+                        "broader purpose than simple correction."
+                    ),
+                },
+                {
+                    "id": "s7",
+                    "text": (
+                        "Instead, it trains students to judge evidence carefully before "
+                        "choosing an answer."
+                    ),
+                },
+            ],
+        },
+        "question": {
+            "stem": "What does the passage suggest is the main purpose of effective feedback?",
+            "choices": {
+                "A": "It helps students build reflective reasoning habits.",
+                "B": "It removes the need to revise earlier drafts.",
+                "C": "It proves that natural talent matters more than effort.",
+                "D": "It encourages students to memorize answers more quickly.",
+                "E": "It shows that unfamiliar questions should be avoided.",
+            },
+            "correct_answer": "A",
+                "explanation": (
+                    "The passage argues that feedback develops reflective and durable "
+                    "thinking habits."
+                ),
+            "metadata_json": {
+                "typeTag": type_tag,
+                "difficulty": difficulty,
+                "evidenceSentenceIds": ["s6", "s7"],
+                "whyCorrectKo": (
+                    "마지막 두 문장이 피드백의 핵심 목적을 요약한다."
+                ),
+                "whyWrongKoByOption": {
+                    "B": "초안을 다시 보는 과정이 중요하다고 설명한다.",
+                    "C": "타고난 재능만을 강조하는 글이 아니다.",
+                    "D": "암기 속도 향상은 핵심 목적이 아니다.",
+                    "E": "낯선 문제를 피하라는 내용이 아니다.",
+                },
+            },
+        },
+    }
 
 
 def _create_content_revision(
@@ -862,6 +1364,12 @@ def _create_content_revision(
 ) -> tuple[UUID, UUID]:
     now = datetime.now(UTC)
     is_published = lifecycle_status == ContentLifecycleStatus.PUBLISHED
+    fixture = _build_backfill_fixture(
+        track=track,
+        skill=skill,
+        type_tag=type_tag,
+        difficulty=difficulty,
+    )
     unit = ContentUnit(
         external_id=external_id,
         slug=external_id,
@@ -883,13 +1391,12 @@ def _create_content_revision(
         validated_at=now if is_published else None,
         reviewer_identity="seed-reviewer" if is_published else None,
         reviewed_at=now if is_published else None,
-        title=f"Title {external_id}",
-        body_text=(f"Passage {external_id}" if skill == Skill.READING else None),
-        transcript_text=(f"Transcript {external_id}" if skill == Skill.LISTENING else None),
-        explanation_text="Explanation",
+        title=fixture["title"],
+        body_text=fixture["body_text"],
+        transcript_text=fixture["transcript_text"],
+        explanation_text=fixture["question"]["explanation"],
         metadata_json={
-            "typeTag": type_tag,
-            "difficulty": difficulty,
+            **fixture["metadata_json"],
             **(metadata_extra or {}),
         },
         lifecycle_status=lifecycle_status,
@@ -902,17 +1409,16 @@ def _create_content_revision(
         content_unit_revision_id=revision.id,
         question_code=f"q-{external_id}"[:64],
         order_index=1,
-        stem="Question stem",
-        choice_a="A",
-        choice_b="B",
-        choice_c="C",
-        choice_d="D",
-        choice_e="E",
-        correct_answer="A",
-        explanation="Question explanation",
+        stem=fixture["question"]["stem"],
+        choice_a=fixture["question"]["choices"]["A"],
+        choice_b=fixture["question"]["choices"]["B"],
+        choice_c=fixture["question"]["choices"]["C"],
+        choice_d=fixture["question"]["choices"]["D"],
+        choice_e=fixture["question"]["choices"]["E"],
+        correct_answer=fixture["question"]["correct_answer"],
+        explanation=fixture["question"]["explanation"],
         metadata_json={
-            "typeTag": type_tag,
-            "difficulty": difficulty,
+            **fixture["question"]["metadata_json"],
             **(metadata_extra or {}),
         },
     )
