@@ -106,6 +106,13 @@ from app.schemas.mock_exam import (
 from app.schemas.reports import (
     DailyReportResponse,
     MonthlyReportResponse,
+    ParentReportActivityResponse,
+    ParentReportChildResponse,
+    ParentReportDetailResponse,
+    ParentReportMockSummaryResponse,
+    ParentReportSummaryResponse,
+    ParentReportTrendPointResponse,
+    ParentReportVocabSummaryResponse,
     WeeklyReportResponse,
 )
 from app.schemas.subscriptions import (
@@ -211,6 +218,13 @@ __all__ = [
     "MockExamSessionItemResponse",
     "MockExamSessionStartResponse",
     "MonthlyReportResponse",
+    "ParentReportActivityResponse",
+    "ParentReportChildResponse",
+    "ParentReportDetailResponse",
+    "ParentReportMockSummaryResponse",
+    "ParentReportSummaryResponse",
+    "ParentReportTrendPointResponse",
+    "ParentReportVocabSummaryResponse",
     "PublicContentSyncCursorPayload",
     "PublicContentSyncDeleteItem",
     "PublicContentSyncQuery",

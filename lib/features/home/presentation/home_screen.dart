@@ -18,6 +18,9 @@ import '../../mock_exam/data/mock_exam_session_repository.dart';
 import '../../mock_exam/presentation/mock_exam_result_screen.dart';
 import '../../parent/application/parent_ui_providers.dart';
 import '../../parent/presentation/parent_ui_helpers.dart';
+import '../../report/application/parent_report_providers.dart';
+import '../../report/data/parent_report_models.dart';
+import '../../report/presentation/parent_report_screen.dart';
 import '../../settings/application/user_settings_providers.dart' as settings;
 import '../../today/application/today_session_providers.dart';
 import '../application/home_providers.dart';
@@ -560,7 +563,8 @@ class _ParentHomeContent extends ConsumerWidget {
               ),
             ),
           ),
-          data: (_) => _ParentReportPlaceholderCard(
+          data: (_) => _ParentReportCard(
+            activeChild: activeChild,
             showDevButton: showDevButton && onOpenDevReports != null,
             onOpenDevReports: onOpenDevReports,
           ),
@@ -677,14 +681,183 @@ class _ParentAddChildSelector extends StatelessWidget {
   }
 }
 
-class _ParentReportPlaceholderCard extends StatelessWidget {
-  const _ParentReportPlaceholderCard({
+class _ParentReportCard extends ConsumerWidget {
+  const _ParentReportCard({
+    required this.activeChild,
     required this.showDevButton,
     required this.onOpenDevReports,
   });
 
+  final ParentLinkedChild? activeChild;
   final bool showDevButton;
   final VoidCallback? onOpenDevReports;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final summaryAsync = ref.watch(parentReportSummaryProvider);
+
+    return summaryAsync.when(
+      loading: () => const Card(
+        child: Padding(
+          padding: EdgeInsets.all(AppSpacing.md),
+          child: Center(child: CircularProgressIndicator()),
+        ),
+      ),
+      error: (error, _) => _ParentReportMessageCard(
+        message: parentReportErrorMessage(error),
+        trailing: _buildDevButton(),
+      ),
+      data: (state) {
+        if (state.emptyReason == ParentReportEmptyReason.noLinkedChild) {
+          return _ParentReportMessageCard(
+            message: AppCopyKo.parentReportNoLinkedChild,
+            trailing: _buildDevButton(),
+          );
+        }
+        if (state.emptyReason == ParentReportEmptyReason.noData) {
+          return _ParentReportMessageCard(
+            message: AppCopyKo.parentReportNoData,
+            trailing: _buildDevButton(),
+          );
+        }
+
+        final summary = state.summary!;
+        final child = activeChild;
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(AppSpacing.mdLg),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(AppRadius.card),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('최근 학습 활동', style: AppTypography.section),
+              const SizedBox(height: AppSpacing.sm),
+              Wrap(
+                spacing: AppSpacing.sm,
+                runSpacing: AppSpacing.sm,
+                children: [
+                  if (summary.dailySummary case final daily?)
+                    _ParentSummaryChip(
+                      label: '일간 ${daily.correctCount}/${daily.answeredCount}',
+                      icon: Icons.today_rounded,
+                    ),
+                  if (summary.vocabSummary case final vocab?)
+                    _ParentSummaryChip(
+                      label: '단어 ${vocab.correctCount}/${vocab.totalCount}',
+                      icon: Icons.spellcheck_rounded,
+                    ),
+                  if (summary.weeklyMockSummary case final weekly?)
+                    _ParentSummaryChip(
+                      label:
+                          '주간 모의 ${weekly.listeningCorrectCount + weekly.readingCorrectCount}/${weekly.completedItems}',
+                      icon: Icons.quiz_rounded,
+                    ),
+                  if (summary.monthlyMockSummary case final monthly?)
+                    _ParentSummaryChip(
+                      label:
+                          '월간 모의 ${monthly.listeningCorrectCount + monthly.readingCorrectCount}/${monthly.completedItems}',
+                      icon: Icons.fact_check_rounded,
+                    ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.md),
+              if (summary.recentActivity.isEmpty)
+                Text(
+                  AppCopyKo.parentReportNoActivity,
+                  style: AppTypography.body.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                )
+              else
+                Column(
+                  children: [
+                    for (final activity in summary.recentActivity.take(3))
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.history_rounded,
+                              size: 18,
+                              color: AppColors.textSecondary,
+                            ),
+                            const SizedBox(width: AppSpacing.xs),
+                            Expanded(
+                              child: Text(
+                                _parentActivityLabel(activity),
+                                style: AppTypography.body,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+              const SizedBox(height: AppSpacing.md),
+              Row(
+                children: [
+                  Expanded(
+                    child: FilledButton(
+                      key: const ValueKey<String>(
+                        'parent-home-report-detail-button',
+                      ),
+                      onPressed: child == null
+                          ? null
+                          : () {
+                              Navigator.of(context).push<void>(
+                                MaterialPageRoute<void>(
+                                  builder: (_) => ParentReportDetailScreen(
+                                    childId: child.id,
+                                    childDisplayName: child.displayName,
+                                  ),
+                                ),
+                              );
+                            },
+                      child: const Text('리포트 상세 보기'),
+                    ),
+                  ),
+                  if (showDevButton && onOpenDevReports != null) ...[
+                    const SizedBox(width: AppSpacing.sm),
+                    IconButton(
+                      key: const ValueKey<String>(
+                        'parent-home-dev-reports-button',
+                      ),
+                      onPressed: onOpenDevReports,
+                      icon: const Icon(Icons.developer_mode_rounded),
+                      tooltip: '개발자 리포트 테스트',
+                    ),
+                  ],
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget? _buildDevButton() {
+    if (!showDevButton || onOpenDevReports == null) {
+      return null;
+    }
+    return OutlinedButton.icon(
+      key: const ValueKey<String>('parent-home-dev-reports-button'),
+      onPressed: onOpenDevReports,
+      icon: const Icon(Icons.developer_mode_rounded),
+      label: const Text('개발자 리포트 테스트'),
+    );
+  }
+}
+
+class _ParentReportMessageCard extends StatelessWidget {
+  const _ParentReportMessageCard({required this.message, this.trailing});
+
+  final String message;
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -700,22 +873,64 @@ class _ParentReportPlaceholderCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '자녀 연동 후 자동으로 표시됩니다.',
+            message,
             style: AppTypography.body.copyWith(color: AppColors.textSecondary),
           ),
-          if (showDevButton && onOpenDevReports != null) ...[
+          if (trailing != null) ...[
             const SizedBox(height: AppSpacing.md),
-            OutlinedButton.icon(
-              key: const ValueKey<String>('parent-home-dev-reports-button'),
-              onPressed: onOpenDevReports,
-              icon: const Icon(Icons.developer_mode_rounded),
-              label: const Text('개발자 리포트 테스트'),
-            ),
+            trailing!,
           ],
         ],
       ),
     );
   }
+}
+
+class _ParentSummaryChip extends StatelessWidget {
+  const _ParentSummaryChip({required this.label, required this.icon});
+
+  final String label;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.xs,
+      ),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF4F7FB),
+        borderRadius: BorderRadius.circular(AppRadius.buttonPill),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: AppColors.primary),
+          const SizedBox(width: AppSpacing.xxs),
+          Text(label, style: AppTypography.label),
+        ],
+      ),
+    );
+  }
+}
+
+String _parentActivityLabel(ParentReportActivity activity) {
+  switch (activity.activityType) {
+    case 'DAILY':
+      return '${activity.dayKey ?? ''} 일간 학습 · 정답 ${activity.correctCount ?? 0} · 오답 ${activity.wrongCount ?? 0}';
+    case 'VOCAB':
+      return '${activity.dayKey ?? ''} 단어 퀴즈 · 정답 ${activity.correctCount ?? 0} · 오답 ${activity.wrongCount ?? 0}';
+    case 'WEEKLY_MOCK':
+      return '${activity.periodKey ?? ''} 주간 모의고사 · 오답 ${activity.wrongCount ?? 0}';
+    case 'MONTHLY_MOCK':
+      return '${activity.periodKey ?? ''} 월간 모의고사 · 오답 ${activity.wrongCount ?? 0}';
+    case 'WEEKLY_REPORT':
+      return '${activity.periodKey ?? ''} 주간 리포트 · 정답 ${activity.correctCount ?? 0}';
+    case 'MONTHLY_REPORT':
+      return '${activity.periodKey ?? ''} 월간 리포트 · 정답 ${activity.correctCount ?? 0}';
+  }
+  return activity.activityType;
 }
 
 class _HomeLoadingSkeleton extends StatelessWidget {

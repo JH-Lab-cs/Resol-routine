@@ -9,8 +9,18 @@ from sqlalchemy.orm import Session
 from app.api.dependencies import get_current_parent_user, get_current_student_user, get_db
 from app.models.enums import SubscriptionFeatureCode
 from app.models.user import User
-from app.schemas.reports import DailyReportResponse, MonthlyReportResponse, WeeklyReportResponse
+from app.schemas.reports import (
+    DailyReportResponse,
+    MonthlyReportResponse,
+    ParentReportDetailResponse,
+    ParentReportSummaryResponse,
+    WeeklyReportResponse,
+)
 from app.services.entitlement_service import ensure_parent_has_feature
+from app.services.parent_report_service import (
+    build_parent_report_detail,
+    build_parent_report_summary,
+)
 from app.services.report_query_service import (
     ensure_parent_has_active_child_link,
     get_daily_report_for_student,
@@ -84,6 +94,38 @@ def get_child_weekly_report(
         denial_detail="child_reports_subscription_required",
     )
     return get_weekly_report_for_student(db, student_id=child_id, week_key_value=week_key)
+
+
+@router.get("/children/{child_id}/summary", response_model=ParentReportSummaryResponse)
+def get_child_report_summary(
+    child_id: UUID,
+    db: Annotated[Session, Depends(get_db)],
+    current_parent: Annotated[User, Depends(get_current_parent_user)],
+) -> ParentReportSummaryResponse:
+    ensure_parent_has_active_child_link(db, parent_id=current_parent.id, child_id=child_id)
+    ensure_parent_has_feature(
+        db,
+        parent_id=current_parent.id,
+        feature_code=SubscriptionFeatureCode.CHILD_REPORTS,
+        denial_detail="child_reports_subscription_required",
+    )
+    return build_parent_report_summary(db, parent_id=current_parent.id, child_id=child_id)
+
+
+@router.get("/children/{child_id}/detail", response_model=ParentReportDetailResponse)
+def get_child_report_detail(
+    child_id: UUID,
+    db: Annotated[Session, Depends(get_db)],
+    current_parent: Annotated[User, Depends(get_current_parent_user)],
+) -> ParentReportDetailResponse:
+    ensure_parent_has_active_child_link(db, parent_id=current_parent.id, child_id=child_id)
+    ensure_parent_has_feature(
+        db,
+        parent_id=current_parent.id,
+        feature_code=SubscriptionFeatureCode.CHILD_REPORTS,
+        denial_detail="child_reports_subscription_required",
+    )
+    return build_parent_report_detail(db, parent_id=current_parent.id, child_id=child_id)
 
 
 @router.get("/children/{child_id}/monthly/{period_key}", response_model=MonthlyReportResponse)

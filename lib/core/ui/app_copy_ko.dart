@@ -73,6 +73,19 @@ class AppCopyKo {
   static const String syncFailed = '학습 기록 동기화에 실패했습니다.';
   static const String syncSectionTitle = '학습 기록 동기화';
   static const String syncSectionSubtitle = '저장된 학습 기록을 서버로 업로드합니다.';
+  static const String parentReportLoadFailed = '학부모 리포트를 불러오지 못했습니다.';
+  static const String parentReportNoLinkedChild =
+      '연결된 자녀가 없어 학습 리포트를 표시할 수 없습니다.';
+  static const String parentReportNoData = '아직 자녀의 학습 리포트 데이터가 없습니다.';
+  static const String parentReportNoTrend = '최근 학습 추이가 아직 없습니다.';
+  static const String parentReportNoActivity = '최근 학습 활동이 아직 없습니다.';
+  static const String parentReportRecentActivity = '최근 학습 활동';
+  static const String parentReportAccessDenied = '이 자녀의 리포트를 볼 수 없습니다.';
+  static const String parentReportSubscriptionRequired =
+      '학부모 리포트 이용 권한을 확인해 주세요.';
+  static const String parentReportServerUnavailable =
+      '서버 응답이 지연되고 있습니다. 잠시 후 다시 시도해 주세요.';
+  static const String parentReportMalformedResponse = '리포트 형식이 올바르지 않습니다.';
 
   static String mockHistoryDeleteTitle(String examLabel) {
     return '$examLabel 기록 삭제';
