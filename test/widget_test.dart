@@ -24,6 +24,7 @@ import 'package:resol_routine/features/family/application/family_providers.dart'
 import 'package:resol_routine/features/family/data/family_repository.dart';
 import 'package:resol_routine/features/my/application/my_stats_providers.dart';
 import 'package:resol_routine/features/my/presentation/my_screen.dart';
+import 'package:resol_routine/features/report/application/parent_report_providers.dart';
 import 'package:resol_routine/features/settings/application/user_settings_providers.dart';
 import 'package:resol_routine/features/settings/data/user_settings_repository.dart';
 import 'package:resol_routine/features/sync/application/sync_providers.dart';
@@ -39,6 +40,7 @@ import 'package:resol_routine/features/today/data/today_session_repository.dart'
 import 'package:resol_routine/features/today/presentation/quiz_flow_screen.dart';
 import 'test_helpers/fake_auth_session.dart';
 import 'test_helpers/fake_family_repository.dart';
+import 'test_helpers/fake_parent_report_repository.dart';
 
 void main() {
   testWidgets('shows sign-in screen when no stored auth session exists', (
@@ -179,6 +181,9 @@ void main() {
               ),
             ),
           ),
+          parentReportRepositoryProvider.overrideWithValue(
+            FakeParentReportRepository(),
+          ),
           todaySessionRepositoryProvider.overrideWithValue(
             fakeSessionRepository,
           ),
@@ -236,6 +241,9 @@ void main() {
               ),
             ),
           ),
+          parentReportRepositoryProvider.overrideWithValue(
+            FakeParentReportRepository(),
+          ),
           todaySessionRepositoryProvider.overrideWithValue(
             fakeSessionRepository,
           ),
@@ -274,7 +282,7 @@ void main() {
           overrides: [
             appDatabaseProvider.overrideWithValue(sharedDb),
             appBootstrapProvider.overrideWith((ref) async {}),
-          ..._syncTestOverrides(sharedDb),
+            ..._syncTestOverrides(sharedDb),
             signedInAuthOverride(role: AuthUserRole.parent),
             familyRepositoryProvider.overrideWithValue(
               FakeFamilyRepository(
@@ -291,6 +299,9 @@ void main() {
                   ],
                 ),
               ),
+            ),
+            parentReportRepositoryProvider.overrideWithValue(
+              FakeParentReportRepository(),
             ),
             todaySessionRepositoryProvider.overrideWithValue(
               fakeSessionRepository,
@@ -402,7 +413,7 @@ void main() {
           overrides: [
             appDatabaseProvider.overrideWithValue(sharedDb),
             appBootstrapProvider.overrideWith((ref) async {}),
-          ..._syncTestOverrides(sharedDb),
+            ..._syncTestOverrides(sharedDb),
             signedInAuthOverride(),
             todaySessionRepositoryProvider.overrideWithValue(
               fakeSessionRepository,

@@ -16,11 +16,14 @@ import 'package:resol_routine/features/home/presentation/home_screen.dart';
 import 'package:resol_routine/features/mock_exam/application/mock_exam_providers.dart';
 import 'package:resol_routine/features/mock_exam/data/mock_exam_period_key.dart';
 import 'package:resol_routine/features/mock_exam/data/mock_exam_session_repository.dart';
+import 'package:resol_routine/features/report/application/parent_report_providers.dart';
+import 'package:resol_routine/features/report/data/parent_report_models.dart';
 import 'package:resol_routine/features/settings/data/user_settings_repository.dart';
 import 'package:resol_routine/features/today/data/today_quiz_repository.dart';
 import 'package:resol_routine/features/today/data/today_session_repository.dart';
 import '../../../test_helpers/fake_auth_session.dart';
 import '../../../test_helpers/fake_family_repository.dart';
+import '../../../test_helpers/fake_parent_report_repository.dart';
 
 void main() {
   testWidgets('shows child selector and add action in parent home', (
@@ -54,6 +57,9 @@ void main() {
               ),
             ),
           ),
+          parentReportRepositoryProvider.overrideWithValue(
+            FakeParentReportRepository(),
+          ),
         ],
         child: MaterialApp(
           home: HomeScreen(
@@ -74,7 +80,8 @@ void main() {
     expect(find.text('자녀 선택'), findsOneWidget);
     expect(find.text('학습 리포트'), findsOneWidget);
     expect(find.text('chulsoo'), findsAtLeastNWidgets(1));
-    expect(find.text('최근 학습 활동'), findsNothing);
+    expect(find.text('최근 학습 활동'), findsOneWidget);
+    expect(find.text('일간 5/6'), findsOneWidget);
     expect(find.text('추가'), findsAtLeastNWidgets(1));
   });
 
@@ -109,6 +116,9 @@ void main() {
               ),
             ),
           ),
+          parentReportRepositoryProvider.overrideWithValue(
+            FakeParentReportRepository(),
+          ),
         ],
         child: MediaQuery(
           data: const MediaQueryData(textScaler: TextScaler.linear(1.4)),
@@ -131,6 +141,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('자녀 선택'), findsOneWidget);
     expect(find.text('chulsoo'), findsAtLeastNWidgets(1));
+    expect(find.text('최근 학습 활동'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -166,6 +177,9 @@ void main() {
                 ),
               ),
             ),
+            parentReportRepositoryProvider.overrideWithValue(
+              FakeParentReportRepository(),
+            ),
           ],
           child: MaterialApp(
             home: HomeScreen(
@@ -194,6 +208,179 @@ void main() {
       expect(openDevReportsCount, 1);
     },
   );
+
+  testWidgets('parent home renders empty state when no linked child exists', (
+    WidgetTester tester,
+  ) async {
+    final database = AppDatabase(executor: NativeDatabase.memory());
+    addTearDown(database.close);
+
+    final settingsRepository = UserSettingsRepository(database: database);
+    await settingsRepository.updateRole('PARENT');
+    await settingsRepository.updateName('보호자');
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(database),
+          devToolsVisibleProvider.overrideWith((ref) => false),
+          signedInAuthOverride(
+            role: AuthUserRole.parent,
+            email: 'parent@example.com',
+          ),
+          familyRepositoryProvider.overrideWithValue(
+            FakeFamilyRepository(snapshot: parentFamilySnapshot()),
+          ),
+          parentReportRepositoryProvider.overrideWithValue(
+            FakeParentReportRepository(),
+          ),
+        ],
+        child: MaterialApp(
+          home: HomeScreen(
+            onOpenQuiz: () {},
+            onOpenWeeklyMockExam: () {},
+            onOpenMonthlyMockExam: () {},
+            onOpenVocab: () {},
+            onOpenTodayVocabQuiz: () {},
+            onOpenWrongNotes: () {},
+            onOpenWrongReview: () {},
+            onOpenMy: () {},
+          ),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+    expect(find.text('연결된 자녀가 없어 학습 리포트를 표시할 수 없습니다.'), findsOneWidget);
+  });
+
+  testWidgets('parent home renders backend report error state', (
+    WidgetTester tester,
+  ) async {
+    final database = AppDatabase(executor: NativeDatabase.memory());
+    addTearDown(database.close);
+
+    final settingsRepository = UserSettingsRepository(database: database);
+    await settingsRepository.updateRole('PARENT');
+    await settingsRepository.updateName('보호자');
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(database),
+          devToolsVisibleProvider.overrideWith((ref) => false),
+          signedInAuthOverride(
+            role: AuthUserRole.parent,
+            email: 'parent@example.com',
+          ),
+          familyRepositoryProvider.overrideWithValue(
+            FakeFamilyRepository(
+              snapshot: parentFamilySnapshot(
+                linkedChildren: <FamilyLinkedUserSummary>[
+                  fakeLinkedFamilyUser(
+                    id: 'child-1',
+                    email: 'chulsoo@example.com',
+                  ),
+                ],
+              ),
+            ),
+          ),
+          parentReportRepositoryProvider.overrideWithValue(
+            FakeParentReportRepository(
+              summaryError: const ParentReportRepositoryException(
+                code: 'service_unavailable',
+                message: 'server down',
+                statusCode: 503,
+              ),
+            ),
+          ),
+        ],
+        child: MaterialApp(
+          home: HomeScreen(
+            onOpenQuiz: () {},
+            onOpenWeeklyMockExam: () {},
+            onOpenMonthlyMockExam: () {},
+            onOpenVocab: () {},
+            onOpenTodayVocabQuiz: () {},
+            onOpenWrongNotes: () {},
+            onOpenWrongReview: () {},
+            onOpenMy: () {},
+          ),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+    expect(find.text('서버 응답이 지연되고 있습니다. 잠시 후 다시 시도해 주세요.'), findsOneWidget);
+  });
+
+  testWidgets('parent home opens backend report detail screen', (
+    WidgetTester tester,
+  ) async {
+    final database = AppDatabase(executor: NativeDatabase.memory());
+    addTearDown(database.close);
+
+    final settingsRepository = UserSettingsRepository(database: database);
+    await settingsRepository.updateRole('PARENT');
+    await settingsRepository.updateName('보호자');
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(database),
+          devToolsVisibleProvider.overrideWith((ref) => false),
+          signedInAuthOverride(
+            role: AuthUserRole.parent,
+            email: 'parent@example.com',
+          ),
+          familyRepositoryProvider.overrideWithValue(
+            FakeFamilyRepository(
+              snapshot: parentFamilySnapshot(
+                linkedChildren: <FamilyLinkedUserSummary>[
+                  fakeLinkedFamilyUser(
+                    id: 'child-1',
+                    email: 'chulsoo@example.com',
+                  ),
+                ],
+              ),
+            ),
+          ),
+          parentReportRepositoryProvider.overrideWithValue(
+            FakeParentReportRepository(),
+          ),
+        ],
+        child: MaterialApp(
+          home: HomeScreen(
+            onOpenQuiz: () {},
+            onOpenWeeklyMockExam: () {},
+            onOpenMonthlyMockExam: () {},
+            onOpenVocab: () {},
+            onOpenTodayVocabQuiz: () {},
+            onOpenWrongNotes: () {},
+            onOpenWrongReview: () {},
+            onOpenMy: () {},
+          ),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const ValueKey<String>('parent-home-report-detail-button')),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(
+      find.text('최근 7일 추이'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('chulsoo 리포트'), findsOneWidget);
+    expect(find.text('최근 7일 추이'), findsOneWidget);
+    expect(find.text('최근 학습 활동'), findsOneWidget);
+  });
 
   testWidgets('student mock cards show start, continue, and result states', (
     WidgetTester tester,

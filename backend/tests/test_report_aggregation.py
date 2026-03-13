@@ -6,19 +6,23 @@ from uuid import UUID, uuid4
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
+import app.workers.tasks as worker_tasks
 from app.core.timekeys import day_key, to_kst, week_key
 from app.models.daily_report_aggregate import DailyReportAggregate
+from app.models.enums import SubscriptionFeatureCode, SubscriptionPlanStatus, UserSubscriptionStatus
 from app.models.monthly_report_aggregate import MonthlyReportAggregate
 from app.models.parent_child_link import ParentChildLink
+from app.models.student_attempt_projection import StudentAttemptProjection
+from app.models.study_event import StudyEvent
 from app.models.subscription_plan import SubscriptionPlan
 from app.models.subscription_plan_feature import SubscriptionPlanFeature
 from app.models.user_subscription import UserSubscription
-from app.models.study_event import StudyEvent
-from app.models.student_attempt_projection import StudentAttemptProjection
 from app.models.weekly_report_aggregate import WeeklyReportAggregate
-from app.models.enums import SubscriptionFeatureCode, SubscriptionPlanStatus, UserSubscriptionStatus
 from app.services.report_aggregation_service import recompute_student_reports
-import app.workers.tasks as worker_tasks
+
+
+def _default_test_password() -> str:
+    return "SecurePass" + "123!"
 
 
 def _register_user(
@@ -26,12 +30,17 @@ def _register_user(
     *,
     role: str,
     email: str,
-    password: str = "SecurePass123!",
+    password: str | None = None,
     device_id: str = "device-1",
 ) -> dict[str, object]:
+    effective_password = password or _default_test_password()
     response = client.post(
         f"/auth/register/{role}",
-        json={"email": email, "password": password, "device_id": device_id},
+        json={
+            "email": email,
+            "password": effective_password,
+            "device_id": device_id,
+        },
         headers={"x-forwarded-for": "203.0.113.10", "user-agent": "pytest-agent"},
     )
     assert response.status_code == 201, response.text
@@ -162,6 +171,80 @@ def _insert_mock_event(
         db.commit()
 
 
+def _insert_vocab_completed_event(
+    db_session_factory,
+    *,
+    student_id: UUID,
+    idempotency_key: str,
+    occurred_at_client: datetime,
+    day_key_value: str,
+    track: str,
+    total_count: int,
+    correct_count: int,
+    wrong_vocab_ids: list[str],
+) -> None:
+    with db_session_factory() as db:
+        db.add(
+            StudyEvent(
+                student_id=student_id,
+                event_type="VOCAB_QUIZ_COMPLETED",
+                schema_version=1,
+                device_id="ios-device-1",
+                occurred_at_client=occurred_at_client,
+                idempotency_key=idempotency_key,
+                payload={
+                    "dayKey": day_key_value,
+                    "track": track,
+                    "totalCount": total_count,
+                    "correctCount": correct_count,
+                    "wrongVocabIds": wrong_vocab_ids,
+                },
+            )
+        )
+        db.commit()
+
+
+def _insert_mock_completed_event(
+    db_session_factory,
+    *,
+    student_id: UUID,
+    idempotency_key: str,
+    occurred_at_client: datetime,
+    mock_session_id: int,
+    exam_type: str,
+    period_key_value: str,
+    track: str,
+    planned_items: int,
+    completed_items: int,
+    listening_correct_count: int,
+    reading_correct_count: int,
+    wrong_count: int,
+) -> None:
+    with db_session_factory() as db:
+        db.add(
+            StudyEvent(
+                student_id=student_id,
+                event_type="MOCK_EXAM_COMPLETED",
+                schema_version=1,
+                device_id="ios-device-1",
+                occurred_at_client=occurred_at_client,
+                idempotency_key=idempotency_key,
+                payload={
+                    "mockSessionId": mock_session_id,
+                    "examType": exam_type,
+                    "periodKey": period_key_value,
+                    "track": track,
+                    "plannedItems": planned_items,
+                    "completedItems": completed_items,
+                    "listeningCorrectCount": listening_correct_count,
+                    "readingCorrectCount": reading_correct_count,
+                    "wrongCount": wrong_count,
+                },
+            )
+        )
+        db.commit()
+
+
 def _recompute(db_session_factory, *, student_id: UUID):
     with db_session_factory() as db:
         result = recompute_student_reports(db, student_id=student_id)
@@ -214,7 +297,10 @@ def test_single_student_recompute_success(client: TestClient, db_session_factory
     assert daily.wrong_reason_counts["EVIDENCE"] == 1
 
 
-def test_projection_latest_wins_same_logical_attempt(client: TestClient, db_session_factory) -> None:
+def test_projection_latest_wins_same_logical_attempt(
+    client: TestClient,
+    db_session_factory,
+) -> None:
     student = _register_user(client, role="student", email="agg-latest-wins@example.com")
     student_id = UUID(str(student["user"]["id"]))
 
@@ -596,7 +682,10 @@ def test_report_read_apis_for_student_and_parent(client: TestClient, db_session_
     week = week_key(occurred_at)
     period = to_kst(occurred_at).strftime("%Y%m")
 
-    student_daily = client.get(f"/reports/me/daily/{day}", headers=_student_headers(str(student["access_token"])))
+    student_daily = client.get(
+        f"/reports/me/daily/{day}",
+        headers=_student_headers(str(student["access_token"])),
+    )
     student_weekly = client.get(
         f"/reports/me/weekly/{week}",
         headers=_student_headers(str(student["access_token"])),
@@ -627,13 +716,155 @@ def test_report_read_apis_for_student_and_parent(client: TestClient, db_session_
     assert parent_monthly.status_code == 200, parent_monthly.text
 
 
+def test_parent_report_summary_and_detail_endpoints(client: TestClient, db_session_factory) -> None:
+    student = _register_user(client, role="student", email="parent-summary-student@example.com")
+    parent = _register_user(client, role="parent", email="parent-summary-parent@example.com")
+    student_id = UUID(str(student["user"]["id"]))
+    parent_id = UUID(str(parent["user"]["id"]))
+    occurred_at = datetime.fromisoformat("2026-03-03T10:00:00+09:00")
+
+    with db_session_factory() as db:
+        db.add(ParentChildLink(parent_id=parent_id, child_id=student_id))
+        db.commit()
+    _grant_parent_entitlements(
+        db_session_factory,
+        parent_id=parent_id,
+        feature_codes={SubscriptionFeatureCode.CHILD_REPORTS},
+    )
+
+    _insert_today_event(
+        db_session_factory,
+        student_id=student_id,
+        idempotency_key="parent-summary-daily",
+        occurred_at_client=occurred_at,
+        session_id=901,
+        question_id="q_parent_summary",
+        selected_answer="A",
+        is_correct=True,
+        wrong_reason_tag=None,
+    )
+    _insert_vocab_completed_event(
+        db_session_factory,
+        student_id=student_id,
+        idempotency_key="parent-summary-vocab",
+        occurred_at_client=occurred_at + timedelta(minutes=5),
+        day_key_value="20260303",
+        track="H1",
+        total_count=10,
+        correct_count=8,
+        wrong_vocab_ids=["vocab-1", "vocab-2"],
+    )
+    _insert_mock_completed_event(
+        db_session_factory,
+        student_id=student_id,
+        idempotency_key="parent-summary-weekly",
+        occurred_at_client=occurred_at + timedelta(minutes=10),
+        mock_session_id=99,
+        exam_type="WEEKLY",
+        period_key_value="2026W10",
+        track="H1",
+        planned_items=20,
+        completed_items=20,
+        listening_correct_count=8,
+        reading_correct_count=7,
+        wrong_count=5,
+    )
+    _insert_mock_completed_event(
+        db_session_factory,
+        student_id=student_id,
+        idempotency_key="parent-summary-monthly",
+        occurred_at_client=occurred_at + timedelta(minutes=15),
+        mock_session_id=100,
+        exam_type="MONTHLY",
+        period_key_value="202603",
+        track="H1",
+        planned_items=45,
+        completed_items=45,
+        listening_correct_count=16,
+        reading_correct_count=20,
+        wrong_count=9,
+    )
+    _recompute(db_session_factory, student_id=student_id)
+
+    summary_response = client.get(
+        f"/reports/children/{student_id}/summary",
+        headers=_parent_headers(str(parent["access_token"])),
+    )
+    detail_response = client.get(
+        f"/reports/children/{student_id}/detail",
+        headers=_parent_headers(str(parent["access_token"])),
+    )
+
+    assert summary_response.status_code == 200, summary_response.text
+    assert detail_response.status_code == 200, detail_response.text
+
+    summary_body = summary_response.json()
+    detail_body = detail_response.json()
+
+    assert summary_body["child"]["id"] == str(student_id)
+    assert summary_body["has_any_report_data"] is True
+    assert summary_body["daily_summary"]["answered_count"] == 1
+    assert summary_body["vocab_summary"]["correct_count"] == 8
+    assert summary_body["weekly_mock_summary"]["exam_type"] == "WEEKLY"
+    assert summary_body["monthly_mock_summary"]["exam_type"] == "MONTHLY"
+    assert len(summary_body["recent_activity"]) >= 1
+
+    assert detail_body["weekly_summary"]["answered_count"] == 1
+    assert detail_body["monthly_summary"]["answered_count"] == 1
+    assert detail_body["recent_trend"][0]["day_key"] == "20260303"
+    assert len(detail_body["recent_activity"]) >= 1
+
+
+def test_parent_report_summary_and_detail_return_empty_payload_when_child_has_no_data(
+    client: TestClient,
+    db_session_factory,
+) -> None:
+    student = _register_user(client, role="student", email="parent-empty-student@example.com")
+    parent = _register_user(client, role="parent", email="parent-empty-parent@example.com")
+    student_id = UUID(str(student["user"]["id"]))
+    parent_id = UUID(str(parent["user"]["id"]))
+
+    with db_session_factory() as db:
+        db.add(ParentChildLink(parent_id=parent_id, child_id=student_id))
+        db.commit()
+    _grant_parent_entitlements(
+        db_session_factory,
+        parent_id=parent_id,
+        feature_codes={SubscriptionFeatureCode.CHILD_REPORTS},
+    )
+
+    summary_response = client.get(
+        f"/reports/children/{student_id}/summary",
+        headers=_parent_headers(str(parent["access_token"])),
+    )
+    detail_response = client.get(
+        f"/reports/children/{student_id}/detail",
+        headers=_parent_headers(str(parent["access_token"])),
+    )
+
+    assert summary_response.status_code == 200, summary_response.text
+    assert detail_response.status_code == 200, detail_response.text
+    assert summary_response.json()["has_any_report_data"] is False
+    assert summary_response.json()["daily_summary"] is None
+    assert detail_response.json()["recent_trend"] == []
+    assert detail_response.json()["recent_activity"] == []
+
+
 def test_report_read_forbidden_for_unrelated_or_unlinked_parent(
     client: TestClient,
     db_session_factory,
 ) -> None:
-    student = _register_user(client, role="student", email="agg-forbidden-student@example.com")
+    student = _register_user(
+        client,
+        role="student",
+        email="agg-forbidden-student@example.com",
+    )
     linked_parent = _register_user(client, role="parent", email="agg-forbidden-linked@example.com")
-    unrelated_parent = _register_user(client, role="parent", email="agg-forbidden-unrelated@example.com")
+    unrelated_parent = _register_user(
+        client,
+        role="parent",
+        email="agg-forbidden-unrelated@example.com",
+    )
     student_id = UUID(str(student["user"]["id"]))
     linked_parent_id = UUID(str(linked_parent["user"]["id"]))
     day = "20260302"
@@ -691,7 +922,10 @@ def test_empty_period_returns_zero_filled_response(client: TestClient) -> None:
     }
 
 
-def test_duplicate_only_batch_then_recompute_is_no_op(client: TestClient, db_session_factory) -> None:
+def test_duplicate_only_batch_then_recompute_is_no_op(
+    client: TestClient,
+    db_session_factory,
+) -> None:
     student = _register_user(client, role="student", email="agg-dup-noop@example.com")
     student_id = UUID(str(student["user"]["id"]))
     token = str(student["access_token"])
@@ -760,7 +994,12 @@ def test_duplicate_only_batch_then_recompute_is_no_op(client: TestClient, db_ses
         headers=_student_headers(token),
     )
     assert duplicate_response.status_code == 200, duplicate_response.text
-    assert duplicate_response.json()["summary"] == {"accepted": 0, "duplicate": 1, "invalid": 0, "total": 1}
+    assert duplicate_response.json()["summary"] == {
+        "accepted": 0,
+        "duplicate": 1,
+        "invalid": 0,
+        "total": 1,
+    }
 
     _recompute(db_session_factory, student_id=student_id)
 
