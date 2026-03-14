@@ -8,7 +8,7 @@ import 'package:path/path.dart' as p;
 import 'package:resol_routine/core/database/app_database.dart';
 
 void main() {
-  test('migrates v1 schema to v16 while preserving rows', () async {
+  test('migrates v1 schema to v17 while preserving rows', () async {
     final tempDir = await Directory.systemTemp.createTemp('resol_migration_');
     final dbFile = File(p.join(tempDir.path, 'migration_v1.sqlite'));
 
@@ -29,7 +29,7 @@ void main() {
     final userVersionRow = await database
         .customSelect('PRAGMA user_version', readsFrom: {})
         .getSingle();
-    expect(userVersionRow.read<int>('user_version'), 16);
+    expect(userVersionRow.read<int>('user_version'), 17);
 
     final attemptsRow = await database
         .customSelect('SELECT COUNT(*) AS count FROM attempts', readsFrom: {})
@@ -204,6 +204,38 @@ void main() {
       isTrue,
     );
 
+    final publishedContentSyncStateColumns = await database
+        .customSelect(
+          "PRAGMA table_info('published_content_sync_states')",
+          readsFrom: {database.publishedContentSyncStates},
+        )
+        .get();
+    expect(
+      publishedContentSyncStateColumns.any(
+        (row) => row.read<String>('name') == 'last_sync_cursor',
+      ),
+      isTrue,
+    );
+
+    final publishedContentCacheColumns = await database
+        .customSelect(
+          "PRAGMA table_info('published_content_cache_entries')",
+          readsFrom: {database.publishedContentCacheEntries},
+        )
+        .get();
+    expect(
+      publishedContentCacheColumns.any(
+        (row) => row.read<String>('name') == 'revision_id',
+      ),
+      isTrue,
+    );
+    expect(
+      publishedContentCacheColumns.any(
+        (row) => row.read<String>('name') == 'is_active',
+      ),
+      isTrue,
+    );
+
     final attemptsColumns = await database
         .customSelect(
           "PRAGMA table_info('attempts')",
@@ -219,7 +251,7 @@ void main() {
   });
 
   test(
-    'migrates v11 questions table with numeric-only type tag checks to v16',
+    'migrates v11 questions table with numeric-only type tag checks to v17',
     () async {
       final tempDir = await Directory.systemTemp.createTemp(
         'resol_migration_v11_',
@@ -243,7 +275,7 @@ void main() {
       final userVersionRow = await database
           .customSelect('PRAGMA user_version', readsFrom: {})
           .getSingle();
-      expect(userVersionRow.read<int>('user_version'), 16);
+      expect(userVersionRow.read<int>('user_version'), 17);
 
       final migratedQuestion = await (database.select(
         database.questions,
