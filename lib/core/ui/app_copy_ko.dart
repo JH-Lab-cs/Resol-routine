@@ -73,6 +73,11 @@ class AppCopyKo {
   static const String syncFailed = '학습 기록 동기화에 실패했습니다.';
   static const String syncSectionTitle = '학습 기록 동기화';
   static const String syncSectionSubtitle = '저장된 학습 기록을 서버로 업로드합니다.';
+  static const String contentSyncSuccess = '콘텐츠를 최신 상태로 동기화했습니다.';
+  static const String contentSyncFailed = '콘텐츠 동기화에 실패했습니다.';
+  static const String contentSyncSectionTitle = '콘텐츠 동기화';
+  static const String contentSyncSectionSubtitle =
+      '서버의 최신 공개 문제를 기기에 내려받습니다.';
   static const String parentReportLoadFailed = '학부모 리포트를 불러오지 못했습니다.';
   static const String parentReportNoLinkedChild =
       '연결된 자녀가 없어 학습 리포트를 표시할 수 없습니다.';

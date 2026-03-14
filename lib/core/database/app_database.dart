@@ -25,6 +25,8 @@ part 'app_database.g.dart';
     SharedReports,
     VocabQuizResults,
     SyncOutboxItems,
+    PublishedContentSyncStates,
+    PublishedContentCacheEntries,
     MockExamSessions,
     MockExamSessionItems,
     Attempts,
@@ -37,7 +39,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase({QueryExecutor? executor}) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 16;
+  int get schemaVersion => 17;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -91,6 +93,9 @@ class AppDatabase extends _$AppDatabase {
       }
       if (from < 16) {
         await _migrateToV16(m);
+      }
+      if (from < 17) {
+        await _migrateToV17(m);
       }
       await _createIndexes();
       await _ensureUserSettingsRow();
@@ -371,6 +376,11 @@ class AppDatabase extends _$AppDatabase {
     await m.createTable(syncOutboxItems);
   }
 
+  Future<void> _migrateToV17(Migrator m) async {
+    await m.createTable(publishedContentSyncStates);
+    await m.createTable(publishedContentCacheEntries);
+  }
+
   Future<void> _createIndexes() async {
     await customStatement(
       'CREATE INDEX IF NOT EXISTS idx_passages_pack_order '
@@ -451,6 +461,22 @@ class AppDatabase extends _$AppDatabase {
       'ON sync_outbox_items(backend_user_id, idempotency_key)',
     );
     await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_published_content_sync_states_updated_at '
+      'ON published_content_sync_states(updated_at DESC)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_published_content_cache_unit_active '
+      'ON published_content_cache_entries(unit_id, is_active)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_published_content_cache_track_skill_active '
+      'ON published_content_cache_entries(track, skill, is_active, published_at DESC)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_published_content_cache_question '
+      'ON published_content_cache_entries(question_id)',
+    );
+    await customStatement(
       'CREATE INDEX IF NOT EXISTS idx_mock_exam_sessions_lookup '
       'ON mock_exam_sessions(exam_type, period_key, track)',
     );
@@ -488,6 +514,9 @@ class AppDatabase extends _$AppDatabase {
   Future<int> countVocabMaster() => _countRows('vocab_master');
 
   Future<int> countVocabSrsState() => _countRows('vocab_srs_state');
+
+  Future<int> countPublishedContentCacheEntries() =>
+      _countRows('published_content_cache_entries');
 
   Future<int> _countRows(String tableName) async {
     final row = await customSelect(

@@ -269,13 +269,15 @@ class MockExamSessionRepository {
 
       final seed = '$examTypeDb|$periodKey|$track';
       final listeningIds = _pickQuestionIds(
-        questionIds: listeningPool,
+        remoteQuestionIds: listeningPool.remoteIds,
+        fallbackQuestionIds: listeningPool.fallbackIds,
         count: plan.listeningCount,
         seed: '$seed|LISTENING',
         skill: Skill.listening,
       );
       final readingIds = _pickQuestionIds(
-        questionIds: readingPool,
+        remoteQuestionIds: readingPool.remoteIds,
+        fallbackQuestionIds: readingPool.fallbackIds,
         count: plan.readingCount,
         seed: '$seed|READING',
         skill: Skill.reading,
@@ -371,21 +373,47 @@ class MockExamSessionRepository {
     )..where((tbl) => tbl.id.equals(sessionId))).go();
   }
 
-  Future<List<String>> _loadQuestionPool({
+  Future<_QuestionPool> _loadQuestionPool({
     required String track,
     required Skill skill,
   }) async {
-    final rows =
-        await (_database.select(_database.questions)..where(
-              (tbl) =>
-                  tbl.track.equals(track) & tbl.skill.equals(skill.dbValue),
-            ))
-            .get();
-    return rows.map((row) => row.id).toList(growable: false);
+    final remoteRows = await _database.customSelect(
+      'SELECT p.question_id AS question_id '
+      'FROM published_content_cache_entries p '
+      'WHERE p.track = ? AND p.skill = ? AND p.is_active = 1 '
+      'ORDER BY p.published_at DESC, p.revision_id DESC',
+      variables: <Variable<Object>>[
+        Variable<String>(track),
+        Variable<String>(skill.dbValue),
+      ],
+      readsFrom: {_database.publishedContentCacheEntries},
+    ).get();
+    final remoteIds = remoteRows
+        .map((QueryRow row) => row.read<String>('question_id'))
+        .toList(growable: false);
+
+    final fallbackRows = await _database.customSelect(
+      'SELECT q.id AS question_id '
+      'FROM questions q '
+      'LEFT JOIN published_content_cache_entries p ON p.question_id = q.id '
+      'WHERE q.track = ? AND q.skill = ? AND p.question_id IS NULL '
+      'ORDER BY q.id ASC',
+      variables: <Variable<Object>>[
+        Variable<String>(track),
+        Variable<String>(skill.dbValue),
+      ],
+      readsFrom: {_database.questions, _database.publishedContentCacheEntries},
+    ).get();
+    final fallbackIds = fallbackRows
+        .map((QueryRow row) => row.read<String>('question_id'))
+        .toList(growable: false);
+
+    return _QuestionPool(remoteIds: remoteIds, fallbackIds: fallbackIds);
   }
 
   List<String> _pickQuestionIds({
-    required List<String> questionIds,
+    required List<String> remoteQuestionIds,
+    required List<String> fallbackQuestionIds,
     required int count,
     required String seed,
     required Skill skill,
@@ -393,12 +421,36 @@ class MockExamSessionRepository {
     if (count == 0) {
       return const <String>[];
     }
-    if (questionIds.length < count) {
+    final totalAvailable = remoteQuestionIds.length + fallbackQuestionIds.length;
+    if (totalAvailable < count) {
       throw StateError(
-        'INSUFFICIENT_QUESTIONS: skill=${skill.dbValue}, required=$count, actual=${questionIds.length}',
+        'INSUFFICIENT_QUESTIONS: skill=${skill.dbValue}, required=$count, actual=$totalAvailable',
       );
     }
 
+    final picked = <String>[
+      ..._rankQuestionIds(
+        questionIds: remoteQuestionIds,
+        seed: seed,
+      ).take(count),
+    ];
+    if (picked.length >= count) {
+      return picked;
+    }
+
+    picked.addAll(
+      _rankQuestionIds(
+        questionIds: fallbackQuestionIds,
+        seed: '$seed|fallback',
+      ).take(count - picked.length),
+    );
+    return picked;
+  }
+
+  List<String> _rankQuestionIds({
+    required List<String> questionIds,
+    required String seed,
+  }) {
     final scored =
         <_ScoredQuestion>[
           for (final questionId in questionIds)
@@ -413,9 +465,7 @@ class MockExamSessionRepository {
           }
           return a.questionId.compareTo(b.questionId);
         });
-
     return scored
-        .take(count)
         .map((entry) => entry.questionId)
         .toList(growable: false);
   }
@@ -496,4 +546,11 @@ class _ScoredQuestion {
 
   final String questionId;
   final String score;
+}
+
+class _QuestionPool {
+  const _QuestionPool({required this.remoteIds, required this.fallbackIds});
+
+  final List<String> remoteIds;
+  final List<String> fallbackIds;
 }

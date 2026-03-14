@@ -206,30 +206,98 @@ class TodaySessionRepository {
       dayKey: dayKey,
       track: track,
       skill: 'LISTENING',
-      questionIds: listeningPool,
+      remoteQuestionIds: listeningPool.remoteIds,
+      fallbackQuestionIds: listeningPool.fallbackIds,
     );
     final readingIds = _pickQuestionIds(
       dayKey: dayKey,
       track: track,
       skill: 'READING',
-      questionIds: readingPool,
+      remoteQuestionIds: readingPool.remoteIds,
+      fallbackQuestionIds: readingPool.fallbackIds,
     );
 
     return <String>[...listeningIds, ...readingIds];
   }
 
-  Future<List<String>> _loadQuestionPool({
+  Future<_QuestionPool> _loadQuestionPool({
     required String skill,
     required String track,
   }) async {
-    final rows = await (_database.select(
-      _database.questions,
-    )..where((tbl) => tbl.skill.equals(skill) & tbl.track.equals(track))).get();
+    final remoteRows = await _database.customSelect(
+      'SELECT p.question_id AS question_id '
+      'FROM published_content_cache_entries p '
+      'WHERE p.track = ? AND p.skill = ? AND p.is_active = 1 '
+      'ORDER BY p.published_at DESC, p.revision_id DESC',
+      variables: <Variable<Object>>[
+        Variable<String>(track),
+        Variable<String>(skill),
+      ],
+      readsFrom: {_database.publishedContentCacheEntries},
+    ).get();
 
-    return rows.map((Question row) => row.id).toList(growable: false);
+    final remoteIds = remoteRows
+        .map((QueryRow row) => row.read<String>('question_id'))
+        .toList(growable: false);
+
+    final fallbackRows = await _database.customSelect(
+      'SELECT q.id AS question_id '
+      'FROM questions q '
+      'LEFT JOIN published_content_cache_entries p ON p.question_id = q.id '
+      'WHERE q.track = ? AND q.skill = ? AND p.question_id IS NULL '
+      'ORDER BY q.id ASC',
+      variables: <Variable<Object>>[
+        Variable<String>(track),
+        Variable<String>(skill),
+      ],
+      readsFrom: {_database.questions, _database.publishedContentCacheEntries},
+    ).get();
+
+    final fallbackIds = fallbackRows
+        .map((QueryRow row) => row.read<String>('question_id'))
+        .toList(growable: false);
+
+    return _QuestionPool(remoteIds: remoteIds, fallbackIds: fallbackIds);
   }
 
   List<String> _pickQuestionIds({
+    required String dayKey,
+    required String track,
+    required String skill,
+    required List<String> remoteQuestionIds,
+    required List<String> fallbackQuestionIds,
+  }) {
+    final totalCount = remoteQuestionIds.length + fallbackQuestionIds.length;
+    if (totalCount == 0) {
+      throw StateError('No $skill questions available for track "$track".');
+    }
+
+    final picked = <String>[
+      ..._rankQuestionIds(
+        dayKey: dayKey,
+        track: track,
+        skill: skill,
+        questionIds: remoteQuestionIds,
+      ).take(_questionsPerSkill),
+    ];
+    if (picked.length >= _questionsPerSkill) {
+      return picked;
+    }
+
+    final fallbackRanked = _rankQuestionIds(
+      dayKey: dayKey,
+      track: track,
+      skill: '$skill|fallback',
+      questionIds: fallbackQuestionIds,
+    );
+    if (picked.length + fallbackRanked.length < _questionsPerSkill) {
+      throw StateError('No $skill questions available for track "$track".');
+    }
+    picked.addAll(fallbackRanked.take(_questionsPerSkill - picked.length));
+    return picked;
+  }
+
+  List<String> _rankQuestionIds({
     required String dayKey,
     required String track,
     required String skill,
@@ -249,23 +317,7 @@ class TodaySessionRepository {
           }
           return a.questionId.compareTo(b.questionId);
         });
-
-    if (scored.isEmpty) {
-      throw StateError('No $skill questions available for track "$track".');
-    }
-
-    if (scored.length >= _questionsPerSkill) {
-      return scored
-          .take(_questionsPerSkill)
-          .map((q) => q.questionId)
-          .toList(growable: false);
-    }
-
-    return List<String>.generate(
-      _questionsPerSkill,
-      (index) => scored[index % scored.length].questionId,
-      growable: false,
-    );
+    return scored.map((q) => q.questionId).toList(growable: false);
   }
 
   Future<List<DailySessionItemBundle>> _loadSessionItems(int sessionId) async {
@@ -393,6 +445,13 @@ class _ScoredQuestion {
 
   final String questionId;
   final int score;
+}
+
+class _QuestionPool {
+  const _QuestionPool({required this.remoteIds, required this.fallbackIds});
+
+  final List<String> remoteIds;
+  final List<String> fallbackIds;
 }
 
 int _fnv1a32(String input) {

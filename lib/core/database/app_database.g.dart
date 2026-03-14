@@ -5891,6 +5891,1499 @@ class SyncOutboxItemsCompanion extends UpdateCompanion<SyncOutboxItem> {
   }
 }
 
+class $PublishedContentSyncStatesTable extends PublishedContentSyncStates
+    with
+        TableInfo<$PublishedContentSyncStatesTable, PublishedContentSyncState> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $PublishedContentSyncStatesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _trackMeta = const VerificationMeta('track');
+  @override
+  late final GeneratedColumn<String> track = GeneratedColumn<String>(
+    'track',
+    aliasedName,
+    false,
+    additionalChecks: GeneratedColumn.checkTextLength(
+      minTextLength: 2,
+      maxTextLength: 2,
+    ),
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    $customConstraints:
+        'NOT NULL CHECK (track IN (\'M3\', \'H1\', \'H2\', \'H3\'))',
+  );
+  static const VerificationMeta _lastSyncCursorMeta = const VerificationMeta(
+    'lastSyncCursor',
+  );
+  @override
+  late final GeneratedColumn<String> lastSyncCursor = GeneratedColumn<String>(
+    'last_sync_cursor',
+    aliasedName,
+    true,
+    additionalChecks: GeneratedColumn.checkTextLength(
+      minTextLength: 0,
+      maxTextLength: 512,
+    ),
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _lastSyncAtUtcMeta = const VerificationMeta(
+    'lastSyncAtUtc',
+  );
+  @override
+  late final GeneratedColumn<DateTime> lastSyncAtUtc =
+      GeneratedColumn<DateTime>(
+        'last_sync_at_utc',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _syncInProgressMeta = const VerificationMeta(
+    'syncInProgress',
+  );
+  @override
+  late final GeneratedColumn<bool> syncInProgress = GeneratedColumn<bool>(
+    'sync_in_progress',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("sync_in_progress" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _lastSyncErrorCodeMeta = const VerificationMeta(
+    'lastSyncErrorCode',
+  );
+  @override
+  late final GeneratedColumn<String> lastSyncErrorCode =
+      GeneratedColumn<String>(
+        'last_sync_error_code',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    track,
+    lastSyncCursor,
+    lastSyncAtUtc,
+    syncInProgress,
+    lastSyncErrorCode,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'published_content_sync_states';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<PublishedContentSyncState> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('track')) {
+      context.handle(
+        _trackMeta,
+        track.isAcceptableOrUnknown(data['track']!, _trackMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_trackMeta);
+    }
+    if (data.containsKey('last_sync_cursor')) {
+      context.handle(
+        _lastSyncCursorMeta,
+        lastSyncCursor.isAcceptableOrUnknown(
+          data['last_sync_cursor']!,
+          _lastSyncCursorMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_sync_at_utc')) {
+      context.handle(
+        _lastSyncAtUtcMeta,
+        lastSyncAtUtc.isAcceptableOrUnknown(
+          data['last_sync_at_utc']!,
+          _lastSyncAtUtcMeta,
+        ),
+      );
+    }
+    if (data.containsKey('sync_in_progress')) {
+      context.handle(
+        _syncInProgressMeta,
+        syncInProgress.isAcceptableOrUnknown(
+          data['sync_in_progress']!,
+          _syncInProgressMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_sync_error_code')) {
+      context.handle(
+        _lastSyncErrorCodeMeta,
+        lastSyncErrorCode.isAcceptableOrUnknown(
+          data['last_sync_error_code']!,
+          _lastSyncErrorCodeMeta,
+        ),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {track};
+  @override
+  PublishedContentSyncState map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return PublishedContentSyncState(
+      track: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}track'],
+      )!,
+      lastSyncCursor: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}last_sync_cursor'],
+      ),
+      lastSyncAtUtc: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}last_sync_at_utc'],
+      ),
+      syncInProgress: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}sync_in_progress'],
+      )!,
+      lastSyncErrorCode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}last_sync_error_code'],
+      ),
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $PublishedContentSyncStatesTable createAlias(String alias) {
+    return $PublishedContentSyncStatesTable(attachedDatabase, alias);
+  }
+}
+
+class PublishedContentSyncState extends DataClass
+    implements Insertable<PublishedContentSyncState> {
+  final String track;
+  final String? lastSyncCursor;
+  final DateTime? lastSyncAtUtc;
+  final bool syncInProgress;
+  final String? lastSyncErrorCode;
+  final DateTime updatedAt;
+  const PublishedContentSyncState({
+    required this.track,
+    this.lastSyncCursor,
+    this.lastSyncAtUtc,
+    required this.syncInProgress,
+    this.lastSyncErrorCode,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['track'] = Variable<String>(track);
+    if (!nullToAbsent || lastSyncCursor != null) {
+      map['last_sync_cursor'] = Variable<String>(lastSyncCursor);
+    }
+    if (!nullToAbsent || lastSyncAtUtc != null) {
+      map['last_sync_at_utc'] = Variable<DateTime>(lastSyncAtUtc);
+    }
+    map['sync_in_progress'] = Variable<bool>(syncInProgress);
+    if (!nullToAbsent || lastSyncErrorCode != null) {
+      map['last_sync_error_code'] = Variable<String>(lastSyncErrorCode);
+    }
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  PublishedContentSyncStatesCompanion toCompanion(bool nullToAbsent) {
+    return PublishedContentSyncStatesCompanion(
+      track: Value(track),
+      lastSyncCursor: lastSyncCursor == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastSyncCursor),
+      lastSyncAtUtc: lastSyncAtUtc == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastSyncAtUtc),
+      syncInProgress: Value(syncInProgress),
+      lastSyncErrorCode: lastSyncErrorCode == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastSyncErrorCode),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory PublishedContentSyncState.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return PublishedContentSyncState(
+      track: serializer.fromJson<String>(json['track']),
+      lastSyncCursor: serializer.fromJson<String?>(json['lastSyncCursor']),
+      lastSyncAtUtc: serializer.fromJson<DateTime?>(json['lastSyncAtUtc']),
+      syncInProgress: serializer.fromJson<bool>(json['syncInProgress']),
+      lastSyncErrorCode: serializer.fromJson<String?>(
+        json['lastSyncErrorCode'],
+      ),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'track': serializer.toJson<String>(track),
+      'lastSyncCursor': serializer.toJson<String?>(lastSyncCursor),
+      'lastSyncAtUtc': serializer.toJson<DateTime?>(lastSyncAtUtc),
+      'syncInProgress': serializer.toJson<bool>(syncInProgress),
+      'lastSyncErrorCode': serializer.toJson<String?>(lastSyncErrorCode),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  PublishedContentSyncState copyWith({
+    String? track,
+    Value<String?> lastSyncCursor = const Value.absent(),
+    Value<DateTime?> lastSyncAtUtc = const Value.absent(),
+    bool? syncInProgress,
+    Value<String?> lastSyncErrorCode = const Value.absent(),
+    DateTime? updatedAt,
+  }) => PublishedContentSyncState(
+    track: track ?? this.track,
+    lastSyncCursor: lastSyncCursor.present
+        ? lastSyncCursor.value
+        : this.lastSyncCursor,
+    lastSyncAtUtc: lastSyncAtUtc.present
+        ? lastSyncAtUtc.value
+        : this.lastSyncAtUtc,
+    syncInProgress: syncInProgress ?? this.syncInProgress,
+    lastSyncErrorCode: lastSyncErrorCode.present
+        ? lastSyncErrorCode.value
+        : this.lastSyncErrorCode,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  PublishedContentSyncState copyWithCompanion(
+    PublishedContentSyncStatesCompanion data,
+  ) {
+    return PublishedContentSyncState(
+      track: data.track.present ? data.track.value : this.track,
+      lastSyncCursor: data.lastSyncCursor.present
+          ? data.lastSyncCursor.value
+          : this.lastSyncCursor,
+      lastSyncAtUtc: data.lastSyncAtUtc.present
+          ? data.lastSyncAtUtc.value
+          : this.lastSyncAtUtc,
+      syncInProgress: data.syncInProgress.present
+          ? data.syncInProgress.value
+          : this.syncInProgress,
+      lastSyncErrorCode: data.lastSyncErrorCode.present
+          ? data.lastSyncErrorCode.value
+          : this.lastSyncErrorCode,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PublishedContentSyncState(')
+          ..write('track: $track, ')
+          ..write('lastSyncCursor: $lastSyncCursor, ')
+          ..write('lastSyncAtUtc: $lastSyncAtUtc, ')
+          ..write('syncInProgress: $syncInProgress, ')
+          ..write('lastSyncErrorCode: $lastSyncErrorCode, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    track,
+    lastSyncCursor,
+    lastSyncAtUtc,
+    syncInProgress,
+    lastSyncErrorCode,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is PublishedContentSyncState &&
+          other.track == this.track &&
+          other.lastSyncCursor == this.lastSyncCursor &&
+          other.lastSyncAtUtc == this.lastSyncAtUtc &&
+          other.syncInProgress == this.syncInProgress &&
+          other.lastSyncErrorCode == this.lastSyncErrorCode &&
+          other.updatedAt == this.updatedAt);
+}
+
+class PublishedContentSyncStatesCompanion
+    extends UpdateCompanion<PublishedContentSyncState> {
+  final Value<String> track;
+  final Value<String?> lastSyncCursor;
+  final Value<DateTime?> lastSyncAtUtc;
+  final Value<bool> syncInProgress;
+  final Value<String?> lastSyncErrorCode;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const PublishedContentSyncStatesCompanion({
+    this.track = const Value.absent(),
+    this.lastSyncCursor = const Value.absent(),
+    this.lastSyncAtUtc = const Value.absent(),
+    this.syncInProgress = const Value.absent(),
+    this.lastSyncErrorCode = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  PublishedContentSyncStatesCompanion.insert({
+    required String track,
+    this.lastSyncCursor = const Value.absent(),
+    this.lastSyncAtUtc = const Value.absent(),
+    this.syncInProgress = const Value.absent(),
+    this.lastSyncErrorCode = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : track = Value(track);
+  static Insertable<PublishedContentSyncState> custom({
+    Expression<String>? track,
+    Expression<String>? lastSyncCursor,
+    Expression<DateTime>? lastSyncAtUtc,
+    Expression<bool>? syncInProgress,
+    Expression<String>? lastSyncErrorCode,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (track != null) 'track': track,
+      if (lastSyncCursor != null) 'last_sync_cursor': lastSyncCursor,
+      if (lastSyncAtUtc != null) 'last_sync_at_utc': lastSyncAtUtc,
+      if (syncInProgress != null) 'sync_in_progress': syncInProgress,
+      if (lastSyncErrorCode != null) 'last_sync_error_code': lastSyncErrorCode,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  PublishedContentSyncStatesCompanion copyWith({
+    Value<String>? track,
+    Value<String?>? lastSyncCursor,
+    Value<DateTime?>? lastSyncAtUtc,
+    Value<bool>? syncInProgress,
+    Value<String?>? lastSyncErrorCode,
+    Value<DateTime>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return PublishedContentSyncStatesCompanion(
+      track: track ?? this.track,
+      lastSyncCursor: lastSyncCursor ?? this.lastSyncCursor,
+      lastSyncAtUtc: lastSyncAtUtc ?? this.lastSyncAtUtc,
+      syncInProgress: syncInProgress ?? this.syncInProgress,
+      lastSyncErrorCode: lastSyncErrorCode ?? this.lastSyncErrorCode,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (track.present) {
+      map['track'] = Variable<String>(track.value);
+    }
+    if (lastSyncCursor.present) {
+      map['last_sync_cursor'] = Variable<String>(lastSyncCursor.value);
+    }
+    if (lastSyncAtUtc.present) {
+      map['last_sync_at_utc'] = Variable<DateTime>(lastSyncAtUtc.value);
+    }
+    if (syncInProgress.present) {
+      map['sync_in_progress'] = Variable<bool>(syncInProgress.value);
+    }
+    if (lastSyncErrorCode.present) {
+      map['last_sync_error_code'] = Variable<String>(lastSyncErrorCode.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PublishedContentSyncStatesCompanion(')
+          ..write('track: $track, ')
+          ..write('lastSyncCursor: $lastSyncCursor, ')
+          ..write('lastSyncAtUtc: $lastSyncAtUtc, ')
+          ..write('syncInProgress: $syncInProgress, ')
+          ..write('lastSyncErrorCode: $lastSyncErrorCode, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $PublishedContentCacheEntriesTable extends PublishedContentCacheEntries
+    with
+        TableInfo<
+          $PublishedContentCacheEntriesTable,
+          PublishedContentCacheEntry
+        > {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $PublishedContentCacheEntriesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _revisionIdMeta = const VerificationMeta(
+    'revisionId',
+  );
+  @override
+  late final GeneratedColumn<String> revisionId = GeneratedColumn<String>(
+    'revision_id',
+    aliasedName,
+    false,
+    additionalChecks: GeneratedColumn.checkTextLength(minTextLength: 1),
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _unitIdMeta = const VerificationMeta('unitId');
+  @override
+  late final GeneratedColumn<String> unitId = GeneratedColumn<String>(
+    'unit_id',
+    aliasedName,
+    false,
+    additionalChecks: GeneratedColumn.checkTextLength(minTextLength: 1),
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _questionIdMeta = const VerificationMeta(
+    'questionId',
+  );
+  @override
+  late final GeneratedColumn<String> questionId = GeneratedColumn<String>(
+    'question_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES questions (id) ON DELETE RESTRICT',
+    ),
+  );
+  static const VerificationMeta _explanationIdMeta = const VerificationMeta(
+    'explanationId',
+  );
+  @override
+  late final GeneratedColumn<String> explanationId = GeneratedColumn<String>(
+    'explanation_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES explanations (id) ON DELETE RESTRICT',
+    ),
+  );
+  static const VerificationMeta _passageIdMeta = const VerificationMeta(
+    'passageId',
+  );
+  @override
+  late final GeneratedColumn<String> passageId = GeneratedColumn<String>(
+    'passage_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES passages (id) ON DELETE RESTRICT',
+    ),
+  );
+  static const VerificationMeta _scriptIdMeta = const VerificationMeta(
+    'scriptId',
+  );
+  @override
+  late final GeneratedColumn<String> scriptId = GeneratedColumn<String>(
+    'script_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES scripts (id) ON DELETE RESTRICT',
+    ),
+  );
+  static const VerificationMeta _trackMeta = const VerificationMeta('track');
+  @override
+  late final GeneratedColumn<String> track = GeneratedColumn<String>(
+    'track',
+    aliasedName,
+    false,
+    additionalChecks: GeneratedColumn.checkTextLength(
+      minTextLength: 2,
+      maxTextLength: 2,
+    ),
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    $customConstraints:
+        'NOT NULL CHECK (track IN (\'M3\', \'H1\', \'H2\', \'H3\'))',
+  );
+  static const VerificationMeta _skillMeta = const VerificationMeta('skill');
+  @override
+  late final GeneratedColumn<String> skill = GeneratedColumn<String>(
+    'skill',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    $customConstraints:
+        'NOT NULL CHECK (skill IN (\'LISTENING\', \'READING\'))',
+  );
+  static const VerificationMeta _typeTagMeta = const VerificationMeta(
+    'typeTag',
+  );
+  @override
+  late final GeneratedColumn<String> typeTag = GeneratedColumn<String>(
+    'type_tag',
+    aliasedName,
+    false,
+    additionalChecks: GeneratedColumn.checkTextLength(minTextLength: 2),
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _difficultyMeta = const VerificationMeta(
+    'difficulty',
+  );
+  @override
+  late final GeneratedColumn<int> difficulty = GeneratedColumn<int>(
+    'difficulty',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL CHECK (difficulty BETWEEN 1 AND 5)',
+  );
+  static const VerificationMeta _contentSourcePolicyMeta =
+      const VerificationMeta('contentSourcePolicy');
+  @override
+  late final GeneratedColumn<String> contentSourcePolicy =
+      GeneratedColumn<String>(
+        'content_source_policy',
+        aliasedName,
+        false,
+        additionalChecks: GeneratedColumn.checkTextLength(
+          minTextLength: 1,
+          maxTextLength: 40,
+        ),
+        type: DriftSqlType.string,
+        requiredDuringInsert: true,
+      );
+  static const VerificationMeta _hasAudioMeta = const VerificationMeta(
+    'hasAudio',
+  );
+  @override
+  late final GeneratedColumn<bool> hasAudio = GeneratedColumn<bool>(
+    'has_audio',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("has_audio" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _assetIdMeta = const VerificationMeta(
+    'assetId',
+  );
+  @override
+  late final GeneratedColumn<String> assetId = GeneratedColumn<String>(
+    'asset_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _assetMimeTypeMeta = const VerificationMeta(
+    'assetMimeType',
+  );
+  @override
+  late final GeneratedColumn<String> assetMimeType = GeneratedColumn<String>(
+    'asset_mime_type',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _isActiveMeta = const VerificationMeta(
+    'isActive',
+  );
+  @override
+  late final GeneratedColumn<bool> isActive = GeneratedColumn<bool>(
+    'is_active',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_active" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _publishedAtMeta = const VerificationMeta(
+    'publishedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> publishedAt = GeneratedColumn<DateTime>(
+    'published_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _syncedAtMeta = const VerificationMeta(
+    'syncedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> syncedAt = GeneratedColumn<DateTime>(
+    'synced_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    revisionId,
+    unitId,
+    questionId,
+    explanationId,
+    passageId,
+    scriptId,
+    track,
+    skill,
+    typeTag,
+    difficulty,
+    contentSourcePolicy,
+    hasAudio,
+    assetId,
+    assetMimeType,
+    isActive,
+    publishedAt,
+    syncedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'published_content_cache_entries';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<PublishedContentCacheEntry> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('revision_id')) {
+      context.handle(
+        _revisionIdMeta,
+        revisionId.isAcceptableOrUnknown(data['revision_id']!, _revisionIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_revisionIdMeta);
+    }
+    if (data.containsKey('unit_id')) {
+      context.handle(
+        _unitIdMeta,
+        unitId.isAcceptableOrUnknown(data['unit_id']!, _unitIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_unitIdMeta);
+    }
+    if (data.containsKey('question_id')) {
+      context.handle(
+        _questionIdMeta,
+        questionId.isAcceptableOrUnknown(data['question_id']!, _questionIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_questionIdMeta);
+    }
+    if (data.containsKey('explanation_id')) {
+      context.handle(
+        _explanationIdMeta,
+        explanationId.isAcceptableOrUnknown(
+          data['explanation_id']!,
+          _explanationIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_explanationIdMeta);
+    }
+    if (data.containsKey('passage_id')) {
+      context.handle(
+        _passageIdMeta,
+        passageId.isAcceptableOrUnknown(data['passage_id']!, _passageIdMeta),
+      );
+    }
+    if (data.containsKey('script_id')) {
+      context.handle(
+        _scriptIdMeta,
+        scriptId.isAcceptableOrUnknown(data['script_id']!, _scriptIdMeta),
+      );
+    }
+    if (data.containsKey('track')) {
+      context.handle(
+        _trackMeta,
+        track.isAcceptableOrUnknown(data['track']!, _trackMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_trackMeta);
+    }
+    if (data.containsKey('skill')) {
+      context.handle(
+        _skillMeta,
+        skill.isAcceptableOrUnknown(data['skill']!, _skillMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_skillMeta);
+    }
+    if (data.containsKey('type_tag')) {
+      context.handle(
+        _typeTagMeta,
+        typeTag.isAcceptableOrUnknown(data['type_tag']!, _typeTagMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_typeTagMeta);
+    }
+    if (data.containsKey('difficulty')) {
+      context.handle(
+        _difficultyMeta,
+        difficulty.isAcceptableOrUnknown(data['difficulty']!, _difficultyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_difficultyMeta);
+    }
+    if (data.containsKey('content_source_policy')) {
+      context.handle(
+        _contentSourcePolicyMeta,
+        contentSourcePolicy.isAcceptableOrUnknown(
+          data['content_source_policy']!,
+          _contentSourcePolicyMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_contentSourcePolicyMeta);
+    }
+    if (data.containsKey('has_audio')) {
+      context.handle(
+        _hasAudioMeta,
+        hasAudio.isAcceptableOrUnknown(data['has_audio']!, _hasAudioMeta),
+      );
+    }
+    if (data.containsKey('asset_id')) {
+      context.handle(
+        _assetIdMeta,
+        assetId.isAcceptableOrUnknown(data['asset_id']!, _assetIdMeta),
+      );
+    }
+    if (data.containsKey('asset_mime_type')) {
+      context.handle(
+        _assetMimeTypeMeta,
+        assetMimeType.isAcceptableOrUnknown(
+          data['asset_mime_type']!,
+          _assetMimeTypeMeta,
+        ),
+      );
+    }
+    if (data.containsKey('is_active')) {
+      context.handle(
+        _isActiveMeta,
+        isActive.isAcceptableOrUnknown(data['is_active']!, _isActiveMeta),
+      );
+    }
+    if (data.containsKey('published_at')) {
+      context.handle(
+        _publishedAtMeta,
+        publishedAt.isAcceptableOrUnknown(
+          data['published_at']!,
+          _publishedAtMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_publishedAtMeta);
+    }
+    if (data.containsKey('synced_at')) {
+      context.handle(
+        _syncedAtMeta,
+        syncedAt.isAcceptableOrUnknown(data['synced_at']!, _syncedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {revisionId};
+  @override
+  List<Set<GeneratedColumn>> get uniqueKeys => [
+    {questionId},
+    {explanationId},
+  ];
+  @override
+  PublishedContentCacheEntry map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return PublishedContentCacheEntry(
+      revisionId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}revision_id'],
+      )!,
+      unitId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}unit_id'],
+      )!,
+      questionId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}question_id'],
+      )!,
+      explanationId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}explanation_id'],
+      )!,
+      passageId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}passage_id'],
+      ),
+      scriptId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}script_id'],
+      ),
+      track: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}track'],
+      )!,
+      skill: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}skill'],
+      )!,
+      typeTag: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}type_tag'],
+      )!,
+      difficulty: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}difficulty'],
+      )!,
+      contentSourcePolicy: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}content_source_policy'],
+      )!,
+      hasAudio: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}has_audio'],
+      )!,
+      assetId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}asset_id'],
+      ),
+      assetMimeType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}asset_mime_type'],
+      ),
+      isActive: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_active'],
+      )!,
+      publishedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}published_at'],
+      )!,
+      syncedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}synced_at'],
+      )!,
+    );
+  }
+
+  @override
+  $PublishedContentCacheEntriesTable createAlias(String alias) {
+    return $PublishedContentCacheEntriesTable(attachedDatabase, alias);
+  }
+}
+
+class PublishedContentCacheEntry extends DataClass
+    implements Insertable<PublishedContentCacheEntry> {
+  final String revisionId;
+  final String unitId;
+  final String questionId;
+  final String explanationId;
+  final String? passageId;
+  final String? scriptId;
+  final String track;
+  final String skill;
+  final String typeTag;
+  final int difficulty;
+  final String contentSourcePolicy;
+  final bool hasAudio;
+  final String? assetId;
+  final String? assetMimeType;
+  final bool isActive;
+  final DateTime publishedAt;
+  final DateTime syncedAt;
+  const PublishedContentCacheEntry({
+    required this.revisionId,
+    required this.unitId,
+    required this.questionId,
+    required this.explanationId,
+    this.passageId,
+    this.scriptId,
+    required this.track,
+    required this.skill,
+    required this.typeTag,
+    required this.difficulty,
+    required this.contentSourcePolicy,
+    required this.hasAudio,
+    this.assetId,
+    this.assetMimeType,
+    required this.isActive,
+    required this.publishedAt,
+    required this.syncedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['revision_id'] = Variable<String>(revisionId);
+    map['unit_id'] = Variable<String>(unitId);
+    map['question_id'] = Variable<String>(questionId);
+    map['explanation_id'] = Variable<String>(explanationId);
+    if (!nullToAbsent || passageId != null) {
+      map['passage_id'] = Variable<String>(passageId);
+    }
+    if (!nullToAbsent || scriptId != null) {
+      map['script_id'] = Variable<String>(scriptId);
+    }
+    map['track'] = Variable<String>(track);
+    map['skill'] = Variable<String>(skill);
+    map['type_tag'] = Variable<String>(typeTag);
+    map['difficulty'] = Variable<int>(difficulty);
+    map['content_source_policy'] = Variable<String>(contentSourcePolicy);
+    map['has_audio'] = Variable<bool>(hasAudio);
+    if (!nullToAbsent || assetId != null) {
+      map['asset_id'] = Variable<String>(assetId);
+    }
+    if (!nullToAbsent || assetMimeType != null) {
+      map['asset_mime_type'] = Variable<String>(assetMimeType);
+    }
+    map['is_active'] = Variable<bool>(isActive);
+    map['published_at'] = Variable<DateTime>(publishedAt);
+    map['synced_at'] = Variable<DateTime>(syncedAt);
+    return map;
+  }
+
+  PublishedContentCacheEntriesCompanion toCompanion(bool nullToAbsent) {
+    return PublishedContentCacheEntriesCompanion(
+      revisionId: Value(revisionId),
+      unitId: Value(unitId),
+      questionId: Value(questionId),
+      explanationId: Value(explanationId),
+      passageId: passageId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(passageId),
+      scriptId: scriptId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(scriptId),
+      track: Value(track),
+      skill: Value(skill),
+      typeTag: Value(typeTag),
+      difficulty: Value(difficulty),
+      contentSourcePolicy: Value(contentSourcePolicy),
+      hasAudio: Value(hasAudio),
+      assetId: assetId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(assetId),
+      assetMimeType: assetMimeType == null && nullToAbsent
+          ? const Value.absent()
+          : Value(assetMimeType),
+      isActive: Value(isActive),
+      publishedAt: Value(publishedAt),
+      syncedAt: Value(syncedAt),
+    );
+  }
+
+  factory PublishedContentCacheEntry.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return PublishedContentCacheEntry(
+      revisionId: serializer.fromJson<String>(json['revisionId']),
+      unitId: serializer.fromJson<String>(json['unitId']),
+      questionId: serializer.fromJson<String>(json['questionId']),
+      explanationId: serializer.fromJson<String>(json['explanationId']),
+      passageId: serializer.fromJson<String?>(json['passageId']),
+      scriptId: serializer.fromJson<String?>(json['scriptId']),
+      track: serializer.fromJson<String>(json['track']),
+      skill: serializer.fromJson<String>(json['skill']),
+      typeTag: serializer.fromJson<String>(json['typeTag']),
+      difficulty: serializer.fromJson<int>(json['difficulty']),
+      contentSourcePolicy: serializer.fromJson<String>(
+        json['contentSourcePolicy'],
+      ),
+      hasAudio: serializer.fromJson<bool>(json['hasAudio']),
+      assetId: serializer.fromJson<String?>(json['assetId']),
+      assetMimeType: serializer.fromJson<String?>(json['assetMimeType']),
+      isActive: serializer.fromJson<bool>(json['isActive']),
+      publishedAt: serializer.fromJson<DateTime>(json['publishedAt']),
+      syncedAt: serializer.fromJson<DateTime>(json['syncedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'revisionId': serializer.toJson<String>(revisionId),
+      'unitId': serializer.toJson<String>(unitId),
+      'questionId': serializer.toJson<String>(questionId),
+      'explanationId': serializer.toJson<String>(explanationId),
+      'passageId': serializer.toJson<String?>(passageId),
+      'scriptId': serializer.toJson<String?>(scriptId),
+      'track': serializer.toJson<String>(track),
+      'skill': serializer.toJson<String>(skill),
+      'typeTag': serializer.toJson<String>(typeTag),
+      'difficulty': serializer.toJson<int>(difficulty),
+      'contentSourcePolicy': serializer.toJson<String>(contentSourcePolicy),
+      'hasAudio': serializer.toJson<bool>(hasAudio),
+      'assetId': serializer.toJson<String?>(assetId),
+      'assetMimeType': serializer.toJson<String?>(assetMimeType),
+      'isActive': serializer.toJson<bool>(isActive),
+      'publishedAt': serializer.toJson<DateTime>(publishedAt),
+      'syncedAt': serializer.toJson<DateTime>(syncedAt),
+    };
+  }
+
+  PublishedContentCacheEntry copyWith({
+    String? revisionId,
+    String? unitId,
+    String? questionId,
+    String? explanationId,
+    Value<String?> passageId = const Value.absent(),
+    Value<String?> scriptId = const Value.absent(),
+    String? track,
+    String? skill,
+    String? typeTag,
+    int? difficulty,
+    String? contentSourcePolicy,
+    bool? hasAudio,
+    Value<String?> assetId = const Value.absent(),
+    Value<String?> assetMimeType = const Value.absent(),
+    bool? isActive,
+    DateTime? publishedAt,
+    DateTime? syncedAt,
+  }) => PublishedContentCacheEntry(
+    revisionId: revisionId ?? this.revisionId,
+    unitId: unitId ?? this.unitId,
+    questionId: questionId ?? this.questionId,
+    explanationId: explanationId ?? this.explanationId,
+    passageId: passageId.present ? passageId.value : this.passageId,
+    scriptId: scriptId.present ? scriptId.value : this.scriptId,
+    track: track ?? this.track,
+    skill: skill ?? this.skill,
+    typeTag: typeTag ?? this.typeTag,
+    difficulty: difficulty ?? this.difficulty,
+    contentSourcePolicy: contentSourcePolicy ?? this.contentSourcePolicy,
+    hasAudio: hasAudio ?? this.hasAudio,
+    assetId: assetId.present ? assetId.value : this.assetId,
+    assetMimeType: assetMimeType.present
+        ? assetMimeType.value
+        : this.assetMimeType,
+    isActive: isActive ?? this.isActive,
+    publishedAt: publishedAt ?? this.publishedAt,
+    syncedAt: syncedAt ?? this.syncedAt,
+  );
+  PublishedContentCacheEntry copyWithCompanion(
+    PublishedContentCacheEntriesCompanion data,
+  ) {
+    return PublishedContentCacheEntry(
+      revisionId: data.revisionId.present
+          ? data.revisionId.value
+          : this.revisionId,
+      unitId: data.unitId.present ? data.unitId.value : this.unitId,
+      questionId: data.questionId.present
+          ? data.questionId.value
+          : this.questionId,
+      explanationId: data.explanationId.present
+          ? data.explanationId.value
+          : this.explanationId,
+      passageId: data.passageId.present ? data.passageId.value : this.passageId,
+      scriptId: data.scriptId.present ? data.scriptId.value : this.scriptId,
+      track: data.track.present ? data.track.value : this.track,
+      skill: data.skill.present ? data.skill.value : this.skill,
+      typeTag: data.typeTag.present ? data.typeTag.value : this.typeTag,
+      difficulty: data.difficulty.present
+          ? data.difficulty.value
+          : this.difficulty,
+      contentSourcePolicy: data.contentSourcePolicy.present
+          ? data.contentSourcePolicy.value
+          : this.contentSourcePolicy,
+      hasAudio: data.hasAudio.present ? data.hasAudio.value : this.hasAudio,
+      assetId: data.assetId.present ? data.assetId.value : this.assetId,
+      assetMimeType: data.assetMimeType.present
+          ? data.assetMimeType.value
+          : this.assetMimeType,
+      isActive: data.isActive.present ? data.isActive.value : this.isActive,
+      publishedAt: data.publishedAt.present
+          ? data.publishedAt.value
+          : this.publishedAt,
+      syncedAt: data.syncedAt.present ? data.syncedAt.value : this.syncedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PublishedContentCacheEntry(')
+          ..write('revisionId: $revisionId, ')
+          ..write('unitId: $unitId, ')
+          ..write('questionId: $questionId, ')
+          ..write('explanationId: $explanationId, ')
+          ..write('passageId: $passageId, ')
+          ..write('scriptId: $scriptId, ')
+          ..write('track: $track, ')
+          ..write('skill: $skill, ')
+          ..write('typeTag: $typeTag, ')
+          ..write('difficulty: $difficulty, ')
+          ..write('contentSourcePolicy: $contentSourcePolicy, ')
+          ..write('hasAudio: $hasAudio, ')
+          ..write('assetId: $assetId, ')
+          ..write('assetMimeType: $assetMimeType, ')
+          ..write('isActive: $isActive, ')
+          ..write('publishedAt: $publishedAt, ')
+          ..write('syncedAt: $syncedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    revisionId,
+    unitId,
+    questionId,
+    explanationId,
+    passageId,
+    scriptId,
+    track,
+    skill,
+    typeTag,
+    difficulty,
+    contentSourcePolicy,
+    hasAudio,
+    assetId,
+    assetMimeType,
+    isActive,
+    publishedAt,
+    syncedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is PublishedContentCacheEntry &&
+          other.revisionId == this.revisionId &&
+          other.unitId == this.unitId &&
+          other.questionId == this.questionId &&
+          other.explanationId == this.explanationId &&
+          other.passageId == this.passageId &&
+          other.scriptId == this.scriptId &&
+          other.track == this.track &&
+          other.skill == this.skill &&
+          other.typeTag == this.typeTag &&
+          other.difficulty == this.difficulty &&
+          other.contentSourcePolicy == this.contentSourcePolicy &&
+          other.hasAudio == this.hasAudio &&
+          other.assetId == this.assetId &&
+          other.assetMimeType == this.assetMimeType &&
+          other.isActive == this.isActive &&
+          other.publishedAt == this.publishedAt &&
+          other.syncedAt == this.syncedAt);
+}
+
+class PublishedContentCacheEntriesCompanion
+    extends UpdateCompanion<PublishedContentCacheEntry> {
+  final Value<String> revisionId;
+  final Value<String> unitId;
+  final Value<String> questionId;
+  final Value<String> explanationId;
+  final Value<String?> passageId;
+  final Value<String?> scriptId;
+  final Value<String> track;
+  final Value<String> skill;
+  final Value<String> typeTag;
+  final Value<int> difficulty;
+  final Value<String> contentSourcePolicy;
+  final Value<bool> hasAudio;
+  final Value<String?> assetId;
+  final Value<String?> assetMimeType;
+  final Value<bool> isActive;
+  final Value<DateTime> publishedAt;
+  final Value<DateTime> syncedAt;
+  final Value<int> rowid;
+  const PublishedContentCacheEntriesCompanion({
+    this.revisionId = const Value.absent(),
+    this.unitId = const Value.absent(),
+    this.questionId = const Value.absent(),
+    this.explanationId = const Value.absent(),
+    this.passageId = const Value.absent(),
+    this.scriptId = const Value.absent(),
+    this.track = const Value.absent(),
+    this.skill = const Value.absent(),
+    this.typeTag = const Value.absent(),
+    this.difficulty = const Value.absent(),
+    this.contentSourcePolicy = const Value.absent(),
+    this.hasAudio = const Value.absent(),
+    this.assetId = const Value.absent(),
+    this.assetMimeType = const Value.absent(),
+    this.isActive = const Value.absent(),
+    this.publishedAt = const Value.absent(),
+    this.syncedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  PublishedContentCacheEntriesCompanion.insert({
+    required String revisionId,
+    required String unitId,
+    required String questionId,
+    required String explanationId,
+    this.passageId = const Value.absent(),
+    this.scriptId = const Value.absent(),
+    required String track,
+    required String skill,
+    required String typeTag,
+    required int difficulty,
+    required String contentSourcePolicy,
+    this.hasAudio = const Value.absent(),
+    this.assetId = const Value.absent(),
+    this.assetMimeType = const Value.absent(),
+    this.isActive = const Value.absent(),
+    required DateTime publishedAt,
+    this.syncedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : revisionId = Value(revisionId),
+       unitId = Value(unitId),
+       questionId = Value(questionId),
+       explanationId = Value(explanationId),
+       track = Value(track),
+       skill = Value(skill),
+       typeTag = Value(typeTag),
+       difficulty = Value(difficulty),
+       contentSourcePolicy = Value(contentSourcePolicy),
+       publishedAt = Value(publishedAt);
+  static Insertable<PublishedContentCacheEntry> custom({
+    Expression<String>? revisionId,
+    Expression<String>? unitId,
+    Expression<String>? questionId,
+    Expression<String>? explanationId,
+    Expression<String>? passageId,
+    Expression<String>? scriptId,
+    Expression<String>? track,
+    Expression<String>? skill,
+    Expression<String>? typeTag,
+    Expression<int>? difficulty,
+    Expression<String>? contentSourcePolicy,
+    Expression<bool>? hasAudio,
+    Expression<String>? assetId,
+    Expression<String>? assetMimeType,
+    Expression<bool>? isActive,
+    Expression<DateTime>? publishedAt,
+    Expression<DateTime>? syncedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (revisionId != null) 'revision_id': revisionId,
+      if (unitId != null) 'unit_id': unitId,
+      if (questionId != null) 'question_id': questionId,
+      if (explanationId != null) 'explanation_id': explanationId,
+      if (passageId != null) 'passage_id': passageId,
+      if (scriptId != null) 'script_id': scriptId,
+      if (track != null) 'track': track,
+      if (skill != null) 'skill': skill,
+      if (typeTag != null) 'type_tag': typeTag,
+      if (difficulty != null) 'difficulty': difficulty,
+      if (contentSourcePolicy != null)
+        'content_source_policy': contentSourcePolicy,
+      if (hasAudio != null) 'has_audio': hasAudio,
+      if (assetId != null) 'asset_id': assetId,
+      if (assetMimeType != null) 'asset_mime_type': assetMimeType,
+      if (isActive != null) 'is_active': isActive,
+      if (publishedAt != null) 'published_at': publishedAt,
+      if (syncedAt != null) 'synced_at': syncedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  PublishedContentCacheEntriesCompanion copyWith({
+    Value<String>? revisionId,
+    Value<String>? unitId,
+    Value<String>? questionId,
+    Value<String>? explanationId,
+    Value<String?>? passageId,
+    Value<String?>? scriptId,
+    Value<String>? track,
+    Value<String>? skill,
+    Value<String>? typeTag,
+    Value<int>? difficulty,
+    Value<String>? contentSourcePolicy,
+    Value<bool>? hasAudio,
+    Value<String?>? assetId,
+    Value<String?>? assetMimeType,
+    Value<bool>? isActive,
+    Value<DateTime>? publishedAt,
+    Value<DateTime>? syncedAt,
+    Value<int>? rowid,
+  }) {
+    return PublishedContentCacheEntriesCompanion(
+      revisionId: revisionId ?? this.revisionId,
+      unitId: unitId ?? this.unitId,
+      questionId: questionId ?? this.questionId,
+      explanationId: explanationId ?? this.explanationId,
+      passageId: passageId ?? this.passageId,
+      scriptId: scriptId ?? this.scriptId,
+      track: track ?? this.track,
+      skill: skill ?? this.skill,
+      typeTag: typeTag ?? this.typeTag,
+      difficulty: difficulty ?? this.difficulty,
+      contentSourcePolicy: contentSourcePolicy ?? this.contentSourcePolicy,
+      hasAudio: hasAudio ?? this.hasAudio,
+      assetId: assetId ?? this.assetId,
+      assetMimeType: assetMimeType ?? this.assetMimeType,
+      isActive: isActive ?? this.isActive,
+      publishedAt: publishedAt ?? this.publishedAt,
+      syncedAt: syncedAt ?? this.syncedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (revisionId.present) {
+      map['revision_id'] = Variable<String>(revisionId.value);
+    }
+    if (unitId.present) {
+      map['unit_id'] = Variable<String>(unitId.value);
+    }
+    if (questionId.present) {
+      map['question_id'] = Variable<String>(questionId.value);
+    }
+    if (explanationId.present) {
+      map['explanation_id'] = Variable<String>(explanationId.value);
+    }
+    if (passageId.present) {
+      map['passage_id'] = Variable<String>(passageId.value);
+    }
+    if (scriptId.present) {
+      map['script_id'] = Variable<String>(scriptId.value);
+    }
+    if (track.present) {
+      map['track'] = Variable<String>(track.value);
+    }
+    if (skill.present) {
+      map['skill'] = Variable<String>(skill.value);
+    }
+    if (typeTag.present) {
+      map['type_tag'] = Variable<String>(typeTag.value);
+    }
+    if (difficulty.present) {
+      map['difficulty'] = Variable<int>(difficulty.value);
+    }
+    if (contentSourcePolicy.present) {
+      map['content_source_policy'] = Variable<String>(
+        contentSourcePolicy.value,
+      );
+    }
+    if (hasAudio.present) {
+      map['has_audio'] = Variable<bool>(hasAudio.value);
+    }
+    if (assetId.present) {
+      map['asset_id'] = Variable<String>(assetId.value);
+    }
+    if (assetMimeType.present) {
+      map['asset_mime_type'] = Variable<String>(assetMimeType.value);
+    }
+    if (isActive.present) {
+      map['is_active'] = Variable<bool>(isActive.value);
+    }
+    if (publishedAt.present) {
+      map['published_at'] = Variable<DateTime>(publishedAt.value);
+    }
+    if (syncedAt.present) {
+      map['synced_at'] = Variable<DateTime>(syncedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PublishedContentCacheEntriesCompanion(')
+          ..write('revisionId: $revisionId, ')
+          ..write('unitId: $unitId, ')
+          ..write('questionId: $questionId, ')
+          ..write('explanationId: $explanationId, ')
+          ..write('passageId: $passageId, ')
+          ..write('scriptId: $scriptId, ')
+          ..write('track: $track, ')
+          ..write('skill: $skill, ')
+          ..write('typeTag: $typeTag, ')
+          ..write('difficulty: $difficulty, ')
+          ..write('contentSourcePolicy: $contentSourcePolicy, ')
+          ..write('hasAudio: $hasAudio, ')
+          ..write('assetId: $assetId, ')
+          ..write('assetMimeType: $assetMimeType, ')
+          ..write('isActive: $isActive, ')
+          ..write('publishedAt: $publishedAt, ')
+          ..write('syncedAt: $syncedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $MockExamSessionsTable extends MockExamSessions
     with TableInfo<$MockExamSessionsTable, MockExamSession> {
   @override
@@ -9107,6 +10600,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $SyncOutboxItemsTable syncOutboxItems = $SyncOutboxItemsTable(
     this,
   );
+  late final $PublishedContentSyncStatesTable publishedContentSyncStates =
+      $PublishedContentSyncStatesTable(this);
+  late final $PublishedContentCacheEntriesTable publishedContentCacheEntries =
+      $PublishedContentCacheEntriesTable(this);
   late final $MockExamSessionsTable mockExamSessions = $MockExamSessionsTable(
     this,
   );
@@ -9132,6 +10629,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     sharedReports,
     vocabQuizResults,
     syncOutboxItems,
+    publishedContentSyncStates,
+    publishedContentCacheEntries,
     mockExamSessions,
     mockExamSessionItems,
     attempts,
@@ -9755,6 +11254,34 @@ final class $$PassagesTableReferences
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
+
+  static MultiTypedResultKey<
+    $PublishedContentCacheEntriesTable,
+    List<PublishedContentCacheEntry>
+  >
+  _publishedContentCacheEntriesRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.publishedContentCacheEntries,
+        aliasName: $_aliasNameGenerator(
+          db.passages.id,
+          db.publishedContentCacheEntries.passageId,
+        ),
+      );
+
+  $$PublishedContentCacheEntriesTableProcessedTableManager
+  get publishedContentCacheEntriesRefs {
+    final manager = $$PublishedContentCacheEntriesTableTableManager(
+      $_db,
+      $_db.publishedContentCacheEntries,
+    ).filter((f) => f.passageId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _publishedContentCacheEntriesRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 }
 
 class $$PassagesTableFilterComposer
@@ -9837,6 +11364,35 @@ class $$PassagesTableFilterComposer
                 $removeJoinBuilderFromRootComposer,
           ),
     );
+    return f(composer);
+  }
+
+  Expression<bool> publishedContentCacheEntriesRefs(
+    Expression<bool> Function(
+      $$PublishedContentCacheEntriesTableFilterComposer f,
+    )
+    f,
+  ) {
+    final $$PublishedContentCacheEntriesTableFilterComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.publishedContentCacheEntries,
+          getReferencedColumn: (t) => t.passageId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$PublishedContentCacheEntriesTableFilterComposer(
+                $db: $db,
+                $table: $db.publishedContentCacheEntries,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
     return f(composer);
   }
 }
@@ -9975,6 +11531,35 @@ class $$PassagesTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> publishedContentCacheEntriesRefs<T extends Object>(
+    Expression<T> Function(
+      $$PublishedContentCacheEntriesTableAnnotationComposer a,
+    )
+    f,
+  ) {
+    final $$PublishedContentCacheEntriesTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.publishedContentCacheEntries,
+          getReferencedColumn: (t) => t.passageId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$PublishedContentCacheEntriesTableAnnotationComposer(
+                $db: $db,
+                $table: $db.publishedContentCacheEntries,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
 }
 
 class $$PassagesTableTableManager
@@ -9990,7 +11575,11 @@ class $$PassagesTableTableManager
           $$PassagesTableUpdateCompanionBuilder,
           (Passage, $$PassagesTableReferences),
           Passage,
-          PrefetchHooks Function({bool packId, bool questionsRefs})
+          PrefetchHooks Function({
+            bool packId,
+            bool questionsRefs,
+            bool publishedContentCacheEntriesRefs,
+          })
         > {
   $$PassagesTableTableManager(_$AppDatabase db, $PassagesTable table)
     : super(
@@ -10047,66 +11636,99 @@ class $$PassagesTableTableManager
                 ),
               )
               .toList(),
-          prefetchHooksCallback: ({packId = false, questionsRefs = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [if (questionsRefs) db.questions],
-              addJoins:
-                  <
-                    T extends TableManagerState<
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic
-                    >
-                  >(state) {
-                    if (packId) {
-                      state =
-                          state.withJoin(
-                                currentTable: table,
-                                currentColumn: table.packId,
-                                referencedTable: $$PassagesTableReferences
-                                    ._packIdTable(db),
-                                referencedColumn: $$PassagesTableReferences
-                                    ._packIdTable(db)
-                                    .id,
-                              )
-                              as T;
-                    }
+          prefetchHooksCallback:
+              ({
+                packId = false,
+                questionsRefs = false,
+                publishedContentCacheEntriesRefs = false,
+              }) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (questionsRefs) db.questions,
+                    if (publishedContentCacheEntriesRefs)
+                      db.publishedContentCacheEntries,
+                  ],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (packId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.packId,
+                                    referencedTable: $$PassagesTableReferences
+                                        ._packIdTable(db),
+                                    referencedColumn: $$PassagesTableReferences
+                                        ._packIdTable(db)
+                                        .id,
+                                  )
+                                  as T;
+                        }
 
-                    return state;
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (questionsRefs)
+                        await $_getPrefetchedData<
+                          Passage,
+                          $PassagesTable,
+                          Question
+                        >(
+                          currentTable: table,
+                          referencedTable: $$PassagesTableReferences
+                              ._questionsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$PassagesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).questionsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.passageId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (publishedContentCacheEntriesRefs)
+                        await $_getPrefetchedData<
+                          Passage,
+                          $PassagesTable,
+                          PublishedContentCacheEntry
+                        >(
+                          currentTable: table,
+                          referencedTable: $$PassagesTableReferences
+                              ._publishedContentCacheEntriesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$PassagesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).publishedContentCacheEntriesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.passageId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
                   },
-              getPrefetchedDataCallback: (items) async {
-                return [
-                  if (questionsRefs)
-                    await $_getPrefetchedData<
-                      Passage,
-                      $PassagesTable,
-                      Question
-                    >(
-                      currentTable: table,
-                      referencedTable: $$PassagesTableReferences
-                          ._questionsRefsTable(db),
-                      managerFromTypedResult: (p0) => $$PassagesTableReferences(
-                        db,
-                        table,
-                        p0,
-                      ).questionsRefs,
-                      referencedItemsForCurrentItem: (item, referencedItems) =>
-                          referencedItems.where((e) => e.passageId == item.id),
-                      typedResults: items,
-                    ),
-                ];
+                );
               },
-            );
-          },
         ),
       );
 }
@@ -10123,7 +11745,11 @@ typedef $$PassagesTableProcessedTableManager =
       $$PassagesTableUpdateCompanionBuilder,
       (Passage, $$PassagesTableReferences),
       Passage,
-      PrefetchHooks Function({bool packId, bool questionsRefs})
+      PrefetchHooks Function({
+        bool packId,
+        bool questionsRefs,
+        bool publishedContentCacheEntriesRefs,
+      })
     >;
 typedef $$ScriptsTableCreateCompanionBuilder =
     ScriptsCompanion Function({
@@ -10182,6 +11808,34 @@ final class $$ScriptsTableReferences
     ).filter((f) => f.scriptId.id.sqlEquals($_itemColumn<String>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_questionsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<
+    $PublishedContentCacheEntriesTable,
+    List<PublishedContentCacheEntry>
+  >
+  _publishedContentCacheEntriesRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.publishedContentCacheEntries,
+        aliasName: $_aliasNameGenerator(
+          db.scripts.id,
+          db.publishedContentCacheEntries.scriptId,
+        ),
+      );
+
+  $$PublishedContentCacheEntriesTableProcessedTableManager
+  get publishedContentCacheEntriesRefs {
+    final manager = $$PublishedContentCacheEntriesTableTableManager(
+      $_db,
+      $_db.publishedContentCacheEntries,
+    ).filter((f) => f.scriptId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _publishedContentCacheEntriesRefsTable($_db),
+    );
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
@@ -10275,6 +11929,35 @@ class $$ScriptsTableFilterComposer
                 $removeJoinBuilderFromRootComposer,
           ),
     );
+    return f(composer);
+  }
+
+  Expression<bool> publishedContentCacheEntriesRefs(
+    Expression<bool> Function(
+      $$PublishedContentCacheEntriesTableFilterComposer f,
+    )
+    f,
+  ) {
+    final $$PublishedContentCacheEntriesTableFilterComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.publishedContentCacheEntries,
+          getReferencedColumn: (t) => t.scriptId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$PublishedContentCacheEntriesTableFilterComposer(
+                $db: $db,
+                $table: $db.publishedContentCacheEntries,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
     return f(composer);
   }
 }
@@ -10424,6 +12107,35 @@ class $$ScriptsTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> publishedContentCacheEntriesRefs<T extends Object>(
+    Expression<T> Function(
+      $$PublishedContentCacheEntriesTableAnnotationComposer a,
+    )
+    f,
+  ) {
+    final $$PublishedContentCacheEntriesTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.publishedContentCacheEntries,
+          getReferencedColumn: (t) => t.scriptId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$PublishedContentCacheEntriesTableAnnotationComposer(
+                $db: $db,
+                $table: $db.publishedContentCacheEntries,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
 }
 
 class $$ScriptsTableTableManager
@@ -10439,7 +12151,11 @@ class $$ScriptsTableTableManager
           $$ScriptsTableUpdateCompanionBuilder,
           (Script, $$ScriptsTableReferences),
           Script,
-          PrefetchHooks Function({bool packId, bool questionsRefs})
+          PrefetchHooks Function({
+            bool packId,
+            bool questionsRefs,
+            bool publishedContentCacheEntriesRefs,
+          })
         > {
   $$ScriptsTableTableManager(_$AppDatabase db, $ScriptsTable table)
     : super(
@@ -10500,59 +12216,99 @@ class $$ScriptsTableTableManager
                 ),
               )
               .toList(),
-          prefetchHooksCallback: ({packId = false, questionsRefs = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [if (questionsRefs) db.questions],
-              addJoins:
-                  <
-                    T extends TableManagerState<
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic
-                    >
-                  >(state) {
-                    if (packId) {
-                      state =
-                          state.withJoin(
-                                currentTable: table,
-                                currentColumn: table.packId,
-                                referencedTable: $$ScriptsTableReferences
-                                    ._packIdTable(db),
-                                referencedColumn: $$ScriptsTableReferences
-                                    ._packIdTable(db)
-                                    .id,
-                              )
-                              as T;
-                    }
+          prefetchHooksCallback:
+              ({
+                packId = false,
+                questionsRefs = false,
+                publishedContentCacheEntriesRefs = false,
+              }) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (questionsRefs) db.questions,
+                    if (publishedContentCacheEntriesRefs)
+                      db.publishedContentCacheEntries,
+                  ],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (packId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.packId,
+                                    referencedTable: $$ScriptsTableReferences
+                                        ._packIdTable(db),
+                                    referencedColumn: $$ScriptsTableReferences
+                                        ._packIdTable(db)
+                                        .id,
+                                  )
+                                  as T;
+                        }
 
-                    return state;
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (questionsRefs)
+                        await $_getPrefetchedData<
+                          Script,
+                          $ScriptsTable,
+                          Question
+                        >(
+                          currentTable: table,
+                          referencedTable: $$ScriptsTableReferences
+                              ._questionsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$ScriptsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).questionsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.scriptId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (publishedContentCacheEntriesRefs)
+                        await $_getPrefetchedData<
+                          Script,
+                          $ScriptsTable,
+                          PublishedContentCacheEntry
+                        >(
+                          currentTable: table,
+                          referencedTable: $$ScriptsTableReferences
+                              ._publishedContentCacheEntriesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$ScriptsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).publishedContentCacheEntriesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.scriptId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
                   },
-              getPrefetchedDataCallback: (items) async {
-                return [
-                  if (questionsRefs)
-                    await $_getPrefetchedData<Script, $ScriptsTable, Question>(
-                      currentTable: table,
-                      referencedTable: $$ScriptsTableReferences
-                          ._questionsRefsTable(db),
-                      managerFromTypedResult: (p0) =>
-                          $$ScriptsTableReferences(db, table, p0).questionsRefs,
-                      referencedItemsForCurrentItem: (item, referencedItems) =>
-                          referencedItems.where((e) => e.scriptId == item.id),
-                      typedResults: items,
-                    ),
-                ];
+                );
               },
-            );
-          },
         ),
       );
 }
@@ -10569,7 +12325,11 @@ typedef $$ScriptsTableProcessedTableManager =
       $$ScriptsTableUpdateCompanionBuilder,
       (Script, $$ScriptsTableReferences),
       Script,
-      PrefetchHooks Function({bool packId, bool questionsRefs})
+      PrefetchHooks Function({
+        bool packId,
+        bool questionsRefs,
+        bool publishedContentCacheEntriesRefs,
+      })
     >;
 typedef $$QuestionsTableCreateCompanionBuilder =
     QuestionsCompanion Function({
@@ -10681,6 +12441,34 @@ final class $$QuestionsTableReferences
 
     final cache = $_typedResult.readTableOrNull(
       _dailySessionItemsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<
+    $PublishedContentCacheEntriesTable,
+    List<PublishedContentCacheEntry>
+  >
+  _publishedContentCacheEntriesRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.publishedContentCacheEntries,
+        aliasName: $_aliasNameGenerator(
+          db.questions.id,
+          db.publishedContentCacheEntries.questionId,
+        ),
+      );
+
+  $$PublishedContentCacheEntriesTableProcessedTableManager
+  get publishedContentCacheEntriesRefs {
+    final manager = $$PublishedContentCacheEntriesTableTableManager(
+      $_db,
+      $_db.publishedContentCacheEntries,
+    ).filter((f) => f.questionId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _publishedContentCacheEntriesRefsTable($_db),
     );
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
@@ -10883,6 +12671,35 @@ class $$QuestionsTableFilterComposer
                 $removeJoinBuilderFromRootComposer,
           ),
     );
+    return f(composer);
+  }
+
+  Expression<bool> publishedContentCacheEntriesRefs(
+    Expression<bool> Function(
+      $$PublishedContentCacheEntriesTableFilterComposer f,
+    )
+    f,
+  ) {
+    final $$PublishedContentCacheEntriesTableFilterComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.publishedContentCacheEntries,
+          getReferencedColumn: (t) => t.questionId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$PublishedContentCacheEntriesTableFilterComposer(
+                $db: $db,
+                $table: $db.publishedContentCacheEntries,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
     return f(composer);
   }
 
@@ -11178,6 +12995,35 @@ class $$QuestionsTableAnnotationComposer
     return f(composer);
   }
 
+  Expression<T> publishedContentCacheEntriesRefs<T extends Object>(
+    Expression<T> Function(
+      $$PublishedContentCacheEntriesTableAnnotationComposer a,
+    )
+    f,
+  ) {
+    final $$PublishedContentCacheEntriesTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.publishedContentCacheEntries,
+          getReferencedColumn: (t) => t.questionId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$PublishedContentCacheEntriesTableAnnotationComposer(
+                $db: $db,
+                $table: $db.publishedContentCacheEntries,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+
   Expression<T> mockExamSessionItemsRefs<T extends Object>(
     Expression<T> Function($$MockExamSessionItemsTableAnnotationComposer a) f,
   ) {
@@ -11248,6 +13094,7 @@ class $$QuestionsTableTableManager
             bool scriptId,
             bool explanationsRefs,
             bool dailySessionItemsRefs,
+            bool publishedContentCacheEntriesRefs,
             bool mockExamSessionItemsRefs,
             bool attemptsRefs,
           })
@@ -11333,6 +13180,7 @@ class $$QuestionsTableTableManager
                 scriptId = false,
                 explanationsRefs = false,
                 dailySessionItemsRefs = false,
+                publishedContentCacheEntriesRefs = false,
                 mockExamSessionItemsRefs = false,
                 attemptsRefs = false,
               }) {
@@ -11341,6 +13189,8 @@ class $$QuestionsTableTableManager
                   explicitlyWatchedTables: [
                     if (explanationsRefs) db.explanations,
                     if (dailySessionItemsRefs) db.dailySessionItems,
+                    if (publishedContentCacheEntriesRefs)
+                      db.publishedContentCacheEntries,
                     if (mockExamSessionItemsRefs) db.mockExamSessionItems,
                     if (attemptsRefs) db.attempts,
                   ],
@@ -11433,6 +13283,27 @@ class $$QuestionsTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (publishedContentCacheEntriesRefs)
+                        await $_getPrefetchedData<
+                          Question,
+                          $QuestionsTable,
+                          PublishedContentCacheEntry
+                        >(
+                          currentTable: table,
+                          referencedTable: $$QuestionsTableReferences
+                              ._publishedContentCacheEntriesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$QuestionsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).publishedContentCacheEntriesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.questionId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                       if (mockExamSessionItemsRefs)
                         await $_getPrefetchedData<
                           Question,
@@ -11500,6 +13371,7 @@ typedef $$QuestionsTableProcessedTableManager =
         bool scriptId,
         bool explanationsRefs,
         bool dailySessionItemsRefs,
+        bool publishedContentCacheEntriesRefs,
         bool mockExamSessionItemsRefs,
         bool attemptsRefs,
       })
@@ -11551,6 +13423,34 @@ final class $$ExplanationsTableReferences
     if (item == null) return manager;
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static MultiTypedResultKey<
+    $PublishedContentCacheEntriesTable,
+    List<PublishedContentCacheEntry>
+  >
+  _publishedContentCacheEntriesRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.publishedContentCacheEntries,
+        aliasName: $_aliasNameGenerator(
+          db.explanations.id,
+          db.publishedContentCacheEntries.explanationId,
+        ),
+      );
+
+  $$PublishedContentCacheEntriesTableProcessedTableManager
+  get publishedContentCacheEntriesRefs {
+    final manager = $$PublishedContentCacheEntriesTableTableManager(
+      $_db,
+      $_db.publishedContentCacheEntries,
+    ).filter((f) => f.explanationId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _publishedContentCacheEntriesRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
     );
   }
 }
@@ -11627,6 +13527,35 @@ class $$ExplanationsTableFilterComposer
           ),
     );
     return composer;
+  }
+
+  Expression<bool> publishedContentCacheEntriesRefs(
+    Expression<bool> Function(
+      $$PublishedContentCacheEntriesTableFilterComposer f,
+    )
+    f,
+  ) {
+    final $$PublishedContentCacheEntriesTableFilterComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.publishedContentCacheEntries,
+          getReferencedColumn: (t) => t.explanationId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$PublishedContentCacheEntriesTableFilterComposer(
+                $db: $db,
+                $table: $db.publishedContentCacheEntries,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
   }
 }
 
@@ -11772,6 +13701,35 @@ class $$ExplanationsTableAnnotationComposer
     );
     return composer;
   }
+
+  Expression<T> publishedContentCacheEntriesRefs<T extends Object>(
+    Expression<T> Function(
+      $$PublishedContentCacheEntriesTableAnnotationComposer a,
+    )
+    f,
+  ) {
+    final $$PublishedContentCacheEntriesTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.publishedContentCacheEntries,
+          getReferencedColumn: (t) => t.explanationId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$PublishedContentCacheEntriesTableAnnotationComposer(
+                $db: $db,
+                $table: $db.publishedContentCacheEntries,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
 }
 
 class $$ExplanationsTableTableManager
@@ -11787,7 +13745,10 @@ class $$ExplanationsTableTableManager
           $$ExplanationsTableUpdateCompanionBuilder,
           (Explanation, $$ExplanationsTableReferences),
           Explanation,
-          PrefetchHooks Function({bool questionId})
+          PrefetchHooks Function({
+            bool questionId,
+            bool publishedContentCacheEntriesRefs,
+          })
         > {
   $$ExplanationsTableTableManager(_$AppDatabase db, $ExplanationsTable table)
     : super(
@@ -11857,47 +13818,75 @@ class $$ExplanationsTableTableManager
                 ),
               )
               .toList(),
-          prefetchHooksCallback: ({questionId = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [],
-              addJoins:
-                  <
-                    T extends TableManagerState<
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic
-                    >
-                  >(state) {
-                    if (questionId) {
-                      state =
-                          state.withJoin(
-                                currentTable: table,
-                                currentColumn: table.questionId,
-                                referencedTable: $$ExplanationsTableReferences
-                                    ._questionIdTable(db),
-                                referencedColumn: $$ExplanationsTableReferences
-                                    ._questionIdTable(db)
-                                    .id,
-                              )
-                              as T;
-                    }
+          prefetchHooksCallback:
+              ({questionId = false, publishedContentCacheEntriesRefs = false}) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (publishedContentCacheEntriesRefs)
+                      db.publishedContentCacheEntries,
+                  ],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (questionId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.questionId,
+                                    referencedTable:
+                                        $$ExplanationsTableReferences
+                                            ._questionIdTable(db),
+                                    referencedColumn:
+                                        $$ExplanationsTableReferences
+                                            ._questionIdTable(db)
+                                            .id,
+                                  )
+                                  as T;
+                        }
 
-                    return state;
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (publishedContentCacheEntriesRefs)
+                        await $_getPrefetchedData<
+                          Explanation,
+                          $ExplanationsTable,
+                          PublishedContentCacheEntry
+                        >(
+                          currentTable: table,
+                          referencedTable: $$ExplanationsTableReferences
+                              ._publishedContentCacheEntriesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$ExplanationsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).publishedContentCacheEntriesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.explanationId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
                   },
-              getPrefetchedDataCallback: (items) async {
-                return [];
+                );
               },
-            );
-          },
         ),
       );
 }
@@ -11914,7 +13903,10 @@ typedef $$ExplanationsTableProcessedTableManager =
       $$ExplanationsTableUpdateCompanionBuilder,
       (Explanation, $$ExplanationsTableReferences),
       Explanation,
-      PrefetchHooks Function({bool questionId})
+      PrefetchHooks Function({
+        bool questionId,
+        bool publishedContentCacheEntriesRefs,
+      })
     >;
 typedef $$DailySessionsTableCreateCompanionBuilder =
     DailySessionsCompanion Function({
@@ -13943,6 +15935,1135 @@ typedef $$SyncOutboxItemsTableProcessedTableManager =
       ),
       SyncOutboxItem,
       PrefetchHooks Function()
+    >;
+typedef $$PublishedContentSyncStatesTableCreateCompanionBuilder =
+    PublishedContentSyncStatesCompanion Function({
+      required String track,
+      Value<String?> lastSyncCursor,
+      Value<DateTime?> lastSyncAtUtc,
+      Value<bool> syncInProgress,
+      Value<String?> lastSyncErrorCode,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
+typedef $$PublishedContentSyncStatesTableUpdateCompanionBuilder =
+    PublishedContentSyncStatesCompanion Function({
+      Value<String> track,
+      Value<String?> lastSyncCursor,
+      Value<DateTime?> lastSyncAtUtc,
+      Value<bool> syncInProgress,
+      Value<String?> lastSyncErrorCode,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
+
+class $$PublishedContentSyncStatesTableFilterComposer
+    extends Composer<_$AppDatabase, $PublishedContentSyncStatesTable> {
+  $$PublishedContentSyncStatesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get track => $composableBuilder(
+    column: $table.track,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get lastSyncCursor => $composableBuilder(
+    column: $table.lastSyncCursor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get lastSyncAtUtc => $composableBuilder(
+    column: $table.lastSyncAtUtc,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get syncInProgress => $composableBuilder(
+    column: $table.syncInProgress,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get lastSyncErrorCode => $composableBuilder(
+    column: $table.lastSyncErrorCode,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$PublishedContentSyncStatesTableOrderingComposer
+    extends Composer<_$AppDatabase, $PublishedContentSyncStatesTable> {
+  $$PublishedContentSyncStatesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get track => $composableBuilder(
+    column: $table.track,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get lastSyncCursor => $composableBuilder(
+    column: $table.lastSyncCursor,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get lastSyncAtUtc => $composableBuilder(
+    column: $table.lastSyncAtUtc,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get syncInProgress => $composableBuilder(
+    column: $table.syncInProgress,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get lastSyncErrorCode => $composableBuilder(
+    column: $table.lastSyncErrorCode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$PublishedContentSyncStatesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $PublishedContentSyncStatesTable> {
+  $$PublishedContentSyncStatesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get track =>
+      $composableBuilder(column: $table.track, builder: (column) => column);
+
+  GeneratedColumn<String> get lastSyncCursor => $composableBuilder(
+    column: $table.lastSyncCursor,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get lastSyncAtUtc => $composableBuilder(
+    column: $table.lastSyncAtUtc,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get syncInProgress => $composableBuilder(
+    column: $table.syncInProgress,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get lastSyncErrorCode => $composableBuilder(
+    column: $table.lastSyncErrorCode,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$PublishedContentSyncStatesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $PublishedContentSyncStatesTable,
+          PublishedContentSyncState,
+          $$PublishedContentSyncStatesTableFilterComposer,
+          $$PublishedContentSyncStatesTableOrderingComposer,
+          $$PublishedContentSyncStatesTableAnnotationComposer,
+          $$PublishedContentSyncStatesTableCreateCompanionBuilder,
+          $$PublishedContentSyncStatesTableUpdateCompanionBuilder,
+          (
+            PublishedContentSyncState,
+            BaseReferences<
+              _$AppDatabase,
+              $PublishedContentSyncStatesTable,
+              PublishedContentSyncState
+            >,
+          ),
+          PublishedContentSyncState,
+          PrefetchHooks Function()
+        > {
+  $$PublishedContentSyncStatesTableTableManager(
+    _$AppDatabase db,
+    $PublishedContentSyncStatesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$PublishedContentSyncStatesTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$PublishedContentSyncStatesTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$PublishedContentSyncStatesTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> track = const Value.absent(),
+                Value<String?> lastSyncCursor = const Value.absent(),
+                Value<DateTime?> lastSyncAtUtc = const Value.absent(),
+                Value<bool> syncInProgress = const Value.absent(),
+                Value<String?> lastSyncErrorCode = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => PublishedContentSyncStatesCompanion(
+                track: track,
+                lastSyncCursor: lastSyncCursor,
+                lastSyncAtUtc: lastSyncAtUtc,
+                syncInProgress: syncInProgress,
+                lastSyncErrorCode: lastSyncErrorCode,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String track,
+                Value<String?> lastSyncCursor = const Value.absent(),
+                Value<DateTime?> lastSyncAtUtc = const Value.absent(),
+                Value<bool> syncInProgress = const Value.absent(),
+                Value<String?> lastSyncErrorCode = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => PublishedContentSyncStatesCompanion.insert(
+                track: track,
+                lastSyncCursor: lastSyncCursor,
+                lastSyncAtUtc: lastSyncAtUtc,
+                syncInProgress: syncInProgress,
+                lastSyncErrorCode: lastSyncErrorCode,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$PublishedContentSyncStatesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $PublishedContentSyncStatesTable,
+      PublishedContentSyncState,
+      $$PublishedContentSyncStatesTableFilterComposer,
+      $$PublishedContentSyncStatesTableOrderingComposer,
+      $$PublishedContentSyncStatesTableAnnotationComposer,
+      $$PublishedContentSyncStatesTableCreateCompanionBuilder,
+      $$PublishedContentSyncStatesTableUpdateCompanionBuilder,
+      (
+        PublishedContentSyncState,
+        BaseReferences<
+          _$AppDatabase,
+          $PublishedContentSyncStatesTable,
+          PublishedContentSyncState
+        >,
+      ),
+      PublishedContentSyncState,
+      PrefetchHooks Function()
+    >;
+typedef $$PublishedContentCacheEntriesTableCreateCompanionBuilder =
+    PublishedContentCacheEntriesCompanion Function({
+      required String revisionId,
+      required String unitId,
+      required String questionId,
+      required String explanationId,
+      Value<String?> passageId,
+      Value<String?> scriptId,
+      required String track,
+      required String skill,
+      required String typeTag,
+      required int difficulty,
+      required String contentSourcePolicy,
+      Value<bool> hasAudio,
+      Value<String?> assetId,
+      Value<String?> assetMimeType,
+      Value<bool> isActive,
+      required DateTime publishedAt,
+      Value<DateTime> syncedAt,
+      Value<int> rowid,
+    });
+typedef $$PublishedContentCacheEntriesTableUpdateCompanionBuilder =
+    PublishedContentCacheEntriesCompanion Function({
+      Value<String> revisionId,
+      Value<String> unitId,
+      Value<String> questionId,
+      Value<String> explanationId,
+      Value<String?> passageId,
+      Value<String?> scriptId,
+      Value<String> track,
+      Value<String> skill,
+      Value<String> typeTag,
+      Value<int> difficulty,
+      Value<String> contentSourcePolicy,
+      Value<bool> hasAudio,
+      Value<String?> assetId,
+      Value<String?> assetMimeType,
+      Value<bool> isActive,
+      Value<DateTime> publishedAt,
+      Value<DateTime> syncedAt,
+      Value<int> rowid,
+    });
+
+final class $$PublishedContentCacheEntriesTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $PublishedContentCacheEntriesTable,
+          PublishedContentCacheEntry
+        > {
+  $$PublishedContentCacheEntriesTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $QuestionsTable _questionIdTable(_$AppDatabase db) =>
+      db.questions.createAlias(
+        $_aliasNameGenerator(
+          db.publishedContentCacheEntries.questionId,
+          db.questions.id,
+        ),
+      );
+
+  $$QuestionsTableProcessedTableManager get questionId {
+    final $_column = $_itemColumn<String>('question_id')!;
+
+    final manager = $$QuestionsTableTableManager(
+      $_db,
+      $_db.questions,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_questionIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $ExplanationsTable _explanationIdTable(_$AppDatabase db) =>
+      db.explanations.createAlias(
+        $_aliasNameGenerator(
+          db.publishedContentCacheEntries.explanationId,
+          db.explanations.id,
+        ),
+      );
+
+  $$ExplanationsTableProcessedTableManager get explanationId {
+    final $_column = $_itemColumn<String>('explanation_id')!;
+
+    final manager = $$ExplanationsTableTableManager(
+      $_db,
+      $_db.explanations,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_explanationIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $PassagesTable _passageIdTable(_$AppDatabase db) =>
+      db.passages.createAlias(
+        $_aliasNameGenerator(
+          db.publishedContentCacheEntries.passageId,
+          db.passages.id,
+        ),
+      );
+
+  $$PassagesTableProcessedTableManager? get passageId {
+    final $_column = $_itemColumn<String>('passage_id');
+    if ($_column == null) return null;
+    final manager = $$PassagesTableTableManager(
+      $_db,
+      $_db.passages,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_passageIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $ScriptsTable _scriptIdTable(_$AppDatabase db) =>
+      db.scripts.createAlias(
+        $_aliasNameGenerator(
+          db.publishedContentCacheEntries.scriptId,
+          db.scripts.id,
+        ),
+      );
+
+  $$ScriptsTableProcessedTableManager? get scriptId {
+    final $_column = $_itemColumn<String>('script_id');
+    if ($_column == null) return null;
+    final manager = $$ScriptsTableTableManager(
+      $_db,
+      $_db.scripts,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_scriptIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$PublishedContentCacheEntriesTableFilterComposer
+    extends Composer<_$AppDatabase, $PublishedContentCacheEntriesTable> {
+  $$PublishedContentCacheEntriesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get revisionId => $composableBuilder(
+    column: $table.revisionId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get unitId => $composableBuilder(
+    column: $table.unitId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get track => $composableBuilder(
+    column: $table.track,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get skill => $composableBuilder(
+    column: $table.skill,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get typeTag => $composableBuilder(
+    column: $table.typeTag,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get difficulty => $composableBuilder(
+    column: $table.difficulty,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get contentSourcePolicy => $composableBuilder(
+    column: $table.contentSourcePolicy,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get hasAudio => $composableBuilder(
+    column: $table.hasAudio,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get assetId => $composableBuilder(
+    column: $table.assetId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get assetMimeType => $composableBuilder(
+    column: $table.assetMimeType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isActive => $composableBuilder(
+    column: $table.isActive,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get publishedAt => $composableBuilder(
+    column: $table.publishedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get syncedAt => $composableBuilder(
+    column: $table.syncedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$QuestionsTableFilterComposer get questionId {
+    final $$QuestionsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.questionId,
+      referencedTable: $db.questions,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$QuestionsTableFilterComposer(
+            $db: $db,
+            $table: $db.questions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ExplanationsTableFilterComposer get explanationId {
+    final $$ExplanationsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.explanationId,
+      referencedTable: $db.explanations,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ExplanationsTableFilterComposer(
+            $db: $db,
+            $table: $db.explanations,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$PassagesTableFilterComposer get passageId {
+    final $$PassagesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.passageId,
+      referencedTable: $db.passages,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PassagesTableFilterComposer(
+            $db: $db,
+            $table: $db.passages,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ScriptsTableFilterComposer get scriptId {
+    final $$ScriptsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.scriptId,
+      referencedTable: $db.scripts,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ScriptsTableFilterComposer(
+            $db: $db,
+            $table: $db.scripts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$PublishedContentCacheEntriesTableOrderingComposer
+    extends Composer<_$AppDatabase, $PublishedContentCacheEntriesTable> {
+  $$PublishedContentCacheEntriesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get revisionId => $composableBuilder(
+    column: $table.revisionId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get unitId => $composableBuilder(
+    column: $table.unitId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get track => $composableBuilder(
+    column: $table.track,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get skill => $composableBuilder(
+    column: $table.skill,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get typeTag => $composableBuilder(
+    column: $table.typeTag,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get difficulty => $composableBuilder(
+    column: $table.difficulty,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get contentSourcePolicy => $composableBuilder(
+    column: $table.contentSourcePolicy,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get hasAudio => $composableBuilder(
+    column: $table.hasAudio,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get assetId => $composableBuilder(
+    column: $table.assetId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get assetMimeType => $composableBuilder(
+    column: $table.assetMimeType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isActive => $composableBuilder(
+    column: $table.isActive,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get publishedAt => $composableBuilder(
+    column: $table.publishedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get syncedAt => $composableBuilder(
+    column: $table.syncedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$QuestionsTableOrderingComposer get questionId {
+    final $$QuestionsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.questionId,
+      referencedTable: $db.questions,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$QuestionsTableOrderingComposer(
+            $db: $db,
+            $table: $db.questions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ExplanationsTableOrderingComposer get explanationId {
+    final $$ExplanationsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.explanationId,
+      referencedTable: $db.explanations,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ExplanationsTableOrderingComposer(
+            $db: $db,
+            $table: $db.explanations,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$PassagesTableOrderingComposer get passageId {
+    final $$PassagesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.passageId,
+      referencedTable: $db.passages,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PassagesTableOrderingComposer(
+            $db: $db,
+            $table: $db.passages,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ScriptsTableOrderingComposer get scriptId {
+    final $$ScriptsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.scriptId,
+      referencedTable: $db.scripts,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ScriptsTableOrderingComposer(
+            $db: $db,
+            $table: $db.scripts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$PublishedContentCacheEntriesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $PublishedContentCacheEntriesTable> {
+  $$PublishedContentCacheEntriesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get revisionId => $composableBuilder(
+    column: $table.revisionId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get unitId =>
+      $composableBuilder(column: $table.unitId, builder: (column) => column);
+
+  GeneratedColumn<String> get track =>
+      $composableBuilder(column: $table.track, builder: (column) => column);
+
+  GeneratedColumn<String> get skill =>
+      $composableBuilder(column: $table.skill, builder: (column) => column);
+
+  GeneratedColumn<String> get typeTag =>
+      $composableBuilder(column: $table.typeTag, builder: (column) => column);
+
+  GeneratedColumn<int> get difficulty => $composableBuilder(
+    column: $table.difficulty,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get contentSourcePolicy => $composableBuilder(
+    column: $table.contentSourcePolicy,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get hasAudio =>
+      $composableBuilder(column: $table.hasAudio, builder: (column) => column);
+
+  GeneratedColumn<String> get assetId =>
+      $composableBuilder(column: $table.assetId, builder: (column) => column);
+
+  GeneratedColumn<String> get assetMimeType => $composableBuilder(
+    column: $table.assetMimeType,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get isActive =>
+      $composableBuilder(column: $table.isActive, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get publishedAt => $composableBuilder(
+    column: $table.publishedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get syncedAt =>
+      $composableBuilder(column: $table.syncedAt, builder: (column) => column);
+
+  $$QuestionsTableAnnotationComposer get questionId {
+    final $$QuestionsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.questionId,
+      referencedTable: $db.questions,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$QuestionsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.questions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ExplanationsTableAnnotationComposer get explanationId {
+    final $$ExplanationsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.explanationId,
+      referencedTable: $db.explanations,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ExplanationsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.explanations,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$PassagesTableAnnotationComposer get passageId {
+    final $$PassagesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.passageId,
+      referencedTable: $db.passages,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PassagesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.passages,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ScriptsTableAnnotationComposer get scriptId {
+    final $$ScriptsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.scriptId,
+      referencedTable: $db.scripts,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ScriptsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.scripts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$PublishedContentCacheEntriesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $PublishedContentCacheEntriesTable,
+          PublishedContentCacheEntry,
+          $$PublishedContentCacheEntriesTableFilterComposer,
+          $$PublishedContentCacheEntriesTableOrderingComposer,
+          $$PublishedContentCacheEntriesTableAnnotationComposer,
+          $$PublishedContentCacheEntriesTableCreateCompanionBuilder,
+          $$PublishedContentCacheEntriesTableUpdateCompanionBuilder,
+          (
+            PublishedContentCacheEntry,
+            $$PublishedContentCacheEntriesTableReferences,
+          ),
+          PublishedContentCacheEntry,
+          PrefetchHooks Function({
+            bool questionId,
+            bool explanationId,
+            bool passageId,
+            bool scriptId,
+          })
+        > {
+  $$PublishedContentCacheEntriesTableTableManager(
+    _$AppDatabase db,
+    $PublishedContentCacheEntriesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$PublishedContentCacheEntriesTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$PublishedContentCacheEntriesTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$PublishedContentCacheEntriesTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> revisionId = const Value.absent(),
+                Value<String> unitId = const Value.absent(),
+                Value<String> questionId = const Value.absent(),
+                Value<String> explanationId = const Value.absent(),
+                Value<String?> passageId = const Value.absent(),
+                Value<String?> scriptId = const Value.absent(),
+                Value<String> track = const Value.absent(),
+                Value<String> skill = const Value.absent(),
+                Value<String> typeTag = const Value.absent(),
+                Value<int> difficulty = const Value.absent(),
+                Value<String> contentSourcePolicy = const Value.absent(),
+                Value<bool> hasAudio = const Value.absent(),
+                Value<String?> assetId = const Value.absent(),
+                Value<String?> assetMimeType = const Value.absent(),
+                Value<bool> isActive = const Value.absent(),
+                Value<DateTime> publishedAt = const Value.absent(),
+                Value<DateTime> syncedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => PublishedContentCacheEntriesCompanion(
+                revisionId: revisionId,
+                unitId: unitId,
+                questionId: questionId,
+                explanationId: explanationId,
+                passageId: passageId,
+                scriptId: scriptId,
+                track: track,
+                skill: skill,
+                typeTag: typeTag,
+                difficulty: difficulty,
+                contentSourcePolicy: contentSourcePolicy,
+                hasAudio: hasAudio,
+                assetId: assetId,
+                assetMimeType: assetMimeType,
+                isActive: isActive,
+                publishedAt: publishedAt,
+                syncedAt: syncedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String revisionId,
+                required String unitId,
+                required String questionId,
+                required String explanationId,
+                Value<String?> passageId = const Value.absent(),
+                Value<String?> scriptId = const Value.absent(),
+                required String track,
+                required String skill,
+                required String typeTag,
+                required int difficulty,
+                required String contentSourcePolicy,
+                Value<bool> hasAudio = const Value.absent(),
+                Value<String?> assetId = const Value.absent(),
+                Value<String?> assetMimeType = const Value.absent(),
+                Value<bool> isActive = const Value.absent(),
+                required DateTime publishedAt,
+                Value<DateTime> syncedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => PublishedContentCacheEntriesCompanion.insert(
+                revisionId: revisionId,
+                unitId: unitId,
+                questionId: questionId,
+                explanationId: explanationId,
+                passageId: passageId,
+                scriptId: scriptId,
+                track: track,
+                skill: skill,
+                typeTag: typeTag,
+                difficulty: difficulty,
+                contentSourcePolicy: contentSourcePolicy,
+                hasAudio: hasAudio,
+                assetId: assetId,
+                assetMimeType: assetMimeType,
+                isActive: isActive,
+                publishedAt: publishedAt,
+                syncedAt: syncedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$PublishedContentCacheEntriesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback:
+              ({
+                questionId = false,
+                explanationId = false,
+                passageId = false,
+                scriptId = false,
+              }) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (questionId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.questionId,
+                                    referencedTable:
+                                        $$PublishedContentCacheEntriesTableReferences
+                                            ._questionIdTable(db),
+                                    referencedColumn:
+                                        $$PublishedContentCacheEntriesTableReferences
+                                            ._questionIdTable(db)
+                                            .id,
+                                  )
+                                  as T;
+                        }
+                        if (explanationId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.explanationId,
+                                    referencedTable:
+                                        $$PublishedContentCacheEntriesTableReferences
+                                            ._explanationIdTable(db),
+                                    referencedColumn:
+                                        $$PublishedContentCacheEntriesTableReferences
+                                            ._explanationIdTable(db)
+                                            .id,
+                                  )
+                                  as T;
+                        }
+                        if (passageId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.passageId,
+                                    referencedTable:
+                                        $$PublishedContentCacheEntriesTableReferences
+                                            ._passageIdTable(db),
+                                    referencedColumn:
+                                        $$PublishedContentCacheEntriesTableReferences
+                                            ._passageIdTable(db)
+                                            .id,
+                                  )
+                                  as T;
+                        }
+                        if (scriptId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.scriptId,
+                                    referencedTable:
+                                        $$PublishedContentCacheEntriesTableReferences
+                                            ._scriptIdTable(db),
+                                    referencedColumn:
+                                        $$PublishedContentCacheEntriesTableReferences
+                                            ._scriptIdTable(db)
+                                            .id,
+                                  )
+                                  as T;
+                        }
+
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [];
+                  },
+                );
+              },
+        ),
+      );
+}
+
+typedef $$PublishedContentCacheEntriesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $PublishedContentCacheEntriesTable,
+      PublishedContentCacheEntry,
+      $$PublishedContentCacheEntriesTableFilterComposer,
+      $$PublishedContentCacheEntriesTableOrderingComposer,
+      $$PublishedContentCacheEntriesTableAnnotationComposer,
+      $$PublishedContentCacheEntriesTableCreateCompanionBuilder,
+      $$PublishedContentCacheEntriesTableUpdateCompanionBuilder,
+      (
+        PublishedContentCacheEntry,
+        $$PublishedContentCacheEntriesTableReferences,
+      ),
+      PublishedContentCacheEntry,
+      PrefetchHooks Function({
+        bool questionId,
+        bool explanationId,
+        bool passageId,
+        bool scriptId,
+      })
     >;
 typedef $$MockExamSessionsTableCreateCompanionBuilder =
     MockExamSessionsCompanion Function({
@@ -16736,6 +19857,18 @@ class $AppDatabaseManager {
       $$VocabQuizResultsTableTableManager(_db, _db.vocabQuizResults);
   $$SyncOutboxItemsTableTableManager get syncOutboxItems =>
       $$SyncOutboxItemsTableTableManager(_db, _db.syncOutboxItems);
+  $$PublishedContentSyncStatesTableTableManager
+  get publishedContentSyncStates =>
+      $$PublishedContentSyncStatesTableTableManager(
+        _db,
+        _db.publishedContentSyncStates,
+      );
+  $$PublishedContentCacheEntriesTableTableManager
+  get publishedContentCacheEntries =>
+      $$PublishedContentCacheEntriesTableTableManager(
+        _db,
+        _db.publishedContentCacheEntries,
+      );
   $$MockExamSessionsTableTableManager get mockExamSessions =>
       $$MockExamSessionsTableTableManager(_db, _db.mockExamSessions);
   $$MockExamSessionItemsTableTableManager get mockExamSessionItems =>

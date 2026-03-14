@@ -300,6 +300,80 @@ class SyncOutboxItems extends Table {
   ];
 }
 
+class PublishedContentSyncStates extends Table {
+  @override
+  String get tableName => 'published_content_sync_states';
+
+  TextColumn get track => text()
+      .withLength(min: 2, max: 2)
+      .customConstraint("NOT NULL CHECK (track IN ('M3', 'H1', 'H2', 'H3'))")();
+  TextColumn get lastSyncCursor => text().withLength(min: 0, max: 512).nullable()();
+  DateTimeColumn get lastSyncAtUtc => dateTime().nullable()();
+  BoolColumn get syncInProgress => boolean().withDefault(const Constant(false))();
+  TextColumn get lastSyncErrorCode => text().nullable()();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  Set<Column<Object>> get primaryKey => {track};
+}
+
+class PublishedContentCacheEntries extends Table {
+  @override
+  String get tableName => 'published_content_cache_entries';
+
+  TextColumn get revisionId => text().withLength(min: 1, max: DbTextLimits.idMax)();
+  TextColumn get unitId => text().withLength(min: 1, max: DbTextLimits.idMax)();
+  TextColumn get questionId =>
+      text().references(Questions, #id, onDelete: KeyAction.restrict)();
+  TextColumn get explanationId =>
+      text().references(Explanations, #id, onDelete: KeyAction.restrict)();
+  TextColumn get passageId => text().nullable().references(
+    Passages,
+    #id,
+    onDelete: KeyAction.restrict,
+  )();
+  TextColumn get scriptId => text().nullable().references(
+    Scripts,
+    #id,
+    onDelete: KeyAction.restrict,
+  )();
+  TextColumn get track => text()
+      .withLength(min: 2, max: 2)
+      .customConstraint("NOT NULL CHECK (track IN ('M3', 'H1', 'H2', 'H3'))")();
+  TextColumn get skill => text().customConstraint(
+    "NOT NULL CHECK (skill IN ('LISTENING', 'READING'))",
+  )();
+  TextColumn get typeTag =>
+      text().withLength(min: 2, max: DbTextLimits.typeTagMax)();
+  IntColumn get difficulty => integer().customConstraint(
+    'NOT NULL CHECK (difficulty BETWEEN 1 AND 5)',
+  )();
+  TextColumn get contentSourcePolicy => text().withLength(min: 1, max: 40)();
+  BoolColumn get hasAudio => boolean().withDefault(const Constant(false))();
+  TextColumn get assetId => text().nullable()();
+  TextColumn get assetMimeType => text().nullable()();
+  BoolColumn get isActive => boolean().withDefault(const Constant(true))();
+  DateTimeColumn get publishedAt => dateTime()();
+  DateTimeColumn get syncedAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  Set<Column<Object>> get primaryKey => {revisionId};
+
+  @override
+  List<Set<Column<Object>>> get uniqueKeys => [
+    {questionId},
+    {explanationId},
+  ];
+
+  @override
+  List<String> get customConstraints => [
+    "CHECK ("
+        "(skill = 'LISTENING' AND script_id IS NOT NULL AND passage_id IS NULL) OR "
+        "(skill = 'READING' AND passage_id IS NOT NULL AND script_id IS NULL)"
+        ")",
+  ];
+}
+
 class MockExamSessions extends Table {
   @override
   String get tableName => 'mock_exam_sessions';

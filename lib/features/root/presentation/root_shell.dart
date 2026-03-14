@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/ui/app_tokens.dart';
 import '../../dev/presentation/dev_reports_screen.dart';
+import '../../content_sync/application/content_sync_providers.dart';
 import '../../sync/application/sync_providers.dart';
 import '../../home/presentation/home_screen.dart';
 import '../../my/presentation/my_screen.dart';
@@ -29,17 +30,12 @@ class RootShell extends ConsumerStatefulWidget {
 class _RootShellState extends ConsumerState<RootShell>
     with WidgetsBindingObserver {
   int _currentIndex = 0;
+  String? _lastAutoSyncedTrack;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) {
-        return;
-      }
-      _triggerSyncFlush();
-    });
   }
 
   @override
@@ -53,11 +49,18 @@ class _RootShellState extends ConsumerState<RootShell>
     if (state != AppLifecycleState.resumed || !mounted) {
       return;
     }
-    _triggerSyncFlush();
+    _triggerBackgroundSyncs();
   }
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<String>(settings.selectedTrackProvider, (previous, next) {
+      if (previous == next || !mounted) {
+        return;
+      }
+      _lastAutoSyncedTrack = next;
+      _triggerBackgroundSyncs(trackOverride: next);
+    });
     final settingsAsync = ref.watch(settings.userSettingsProvider);
 
     return settingsAsync.when(
@@ -72,6 +75,15 @@ class _RootShellState extends ConsumerState<RootShell>
         body: Center(child: Text('설정을 불러오지 못했습니다.\n$error')),
       ),
       data: (settings) {
+        if (_lastAutoSyncedTrack != settings.track) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) {
+              return;
+            }
+            _lastAutoSyncedTrack = settings.track;
+            _triggerBackgroundSyncs(trackOverride: settings.track);
+          });
+        }
         final isParent = settings.role == 'PARENT';
         final tabs = _buildTabs(isParent);
         final destinations = _buildDestinations(isParent);
@@ -199,8 +211,15 @@ class _RootShellState extends ConsumerState<RootShell>
     });
   }
 
-  void _triggerSyncFlush() {
+  void _triggerBackgroundSyncs({String? trackOverride}) {
     unawaited(ref.read(syncFlushControllerProvider.notifier).flushNow());
+    final String track =
+        trackOverride ?? ref.read(settings.selectedTrackProvider);
+    unawaited(
+      ref.read(publishedContentSyncControllerProvider.notifier).syncTrack(
+            track: track,
+          ),
+    );
   }
 
   void _openQuiz() {

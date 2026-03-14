@@ -12,6 +12,7 @@ import '../../../core/ui/label_maps.dart';
 import '../../dev/application/dev_tools_providers.dart';
 import '../../dev/presentation/dev_reports_screen.dart';
 import '../../family/application/family_providers.dart';
+import '../../content_sync/application/content_sync_providers.dart';
 import '../../home/application/home_providers.dart';
 import '../../mock_exam/presentation/mock_exam_history_screen.dart';
 import '../../parent/application/parent_ui_providers.dart';
@@ -54,12 +55,20 @@ class MyScreen extends ConsumerWidget {
           final statsAsync = ref.watch(myStatsProvider(settings.track));
           final syncPendingAsync = ref.watch(syncPendingCountProvider);
           final syncState = ref.watch(syncFlushControllerProvider);
+          final contentSyncState = ref.watch(
+            publishedContentSyncControllerProvider,
+          );
+          final contentSyncSnapshotAsync = ref.watch(
+            publishedContentSyncSnapshotProvider(settings.track),
+          );
           final stats = statsAsync.valueOrNull;
           final todayCompletedItems = stats?.todayCompletedItems ?? 0;
           final attendanceStreakDays = stats?.attendanceStreakDays ?? 0;
           final totalAttempts = stats?.totalAttempts ?? 0;
           final totalWrongAttempts = stats?.totalWrongAttempts ?? 0;
           final pendingSyncCount = syncPendingAsync.valueOrNull ?? 0;
+          final contentSyncSnapshot = contentSyncSnapshotAsync.valueOrNull;
+          final syncedContentCount = contentSyncSnapshot?.activeItemCount ?? 0;
 
           if (settings.role == 'PARENT') {
             return _ParentMySettingsContent(
@@ -282,6 +291,54 @@ class MyScreen extends ConsumerWidget {
                             context,
                             latestSyncState.errorMessage ??
                                 AppCopyKo.syncFailed,
+                          );
+                        },
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Card(
+                child: ListTile(
+                  leading: const Icon(Icons.cloud_download_outlined),
+                  title: const Text(AppCopyKo.contentSyncSectionTitle),
+                  subtitle: Text(
+                    syncedContentCount > 0
+                        ? '동기화된 문제 $syncedContentCount개'
+                        : AppCopyKo.contentSyncSectionSubtitle,
+                  ),
+                  trailing:
+                      contentSyncState.status == PublishedContentSyncStatus.syncing
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.chevron_right_rounded),
+                  onTap:
+                      contentSyncState.status == PublishedContentSyncStatus.syncing
+                      ? null
+                      : () async {
+                          final result = await ref
+                              .read(
+                                publishedContentSyncControllerProvider.notifier,
+                              )
+                              .syncTrack(track: settings.track);
+                          if (!context.mounted) {
+                            return;
+                          }
+                          if (result != null) {
+                            AppSnackbars.showSuccess(
+                              context,
+                              AppCopyKo.contentSyncSuccess,
+                            );
+                            return;
+                          }
+                          final latestState = ref.read(
+                            publishedContentSyncControllerProvider,
+                          );
+                          AppSnackbars.showError(
+                            context,
+                            latestState.errorMessage ??
+                                AppCopyKo.contentSyncFailed,
                           );
                         },
                 ),
