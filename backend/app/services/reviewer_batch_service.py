@@ -57,6 +57,8 @@ class RevisionBatchTarget:
     calibration_warnings: tuple[str, ...]
     calibration_fail_reasons: tuple[str, ...]
     calibration_rubric_version: str | None
+    quality_gate_version: str | None
+    override_required: bool | None
     created_at: Any
 
 
@@ -156,6 +158,8 @@ def _select_revision_batch_targets(
             calibration_warnings=(),
             calibration_fail_reasons=(),
             calibration_rubric_version=None,
+            quality_gate_version=None,
+            override_required=None,
             created_at=revision.created_at,
         )
         if publish_mode:
@@ -180,6 +184,8 @@ def _select_revision_batch_targets(
                 calibration_warnings=calibration.warnings,
                 calibration_fail_reasons=calibration.fail_reasons,
                 calibration_rubric_version=calibration.rubric_version,
+                quality_gate_version=calibration.quality_gate_version,
+                override_required=calibration.override_required,
                 created_at=target.created_at,
             )
         if not _matches_filters(target=target, filters=filters):
@@ -222,6 +228,8 @@ def _run_batch_action(
                     "calibrationWarnings": list(target.calibration_warnings),
                     "calibrationFailReasons": list(target.calibration_fail_reasons),
                     "calibrationRubricVersion": target.calibration_rubric_version,
+                    "qualityGateVersion": target.quality_gate_version,
+                    "overrideRequired": target.override_required,
                     "result": (
                         response.model_dump(mode="json")
                         if hasattr(response, "model_dump")
@@ -242,6 +250,8 @@ def _run_batch_action(
                     "calibrationWarnings": list(target.calibration_warnings),
                     "calibrationFailReasons": list(target.calibration_fail_reasons),
                     "calibrationRubricVersion": target.calibration_rubric_version,
+                    "qualityGateVersion": target.quality_gate_version,
+                    "overrideRequired": target.override_required,
                     "statusCode": exc.status_code,
                     "detail": exc.detail,
                 }

@@ -7,6 +7,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
+from app.core.content_type_taxonomy import normalize_type_tag_alias_or_canonical
 from app.core.input_validation import validate_user_input_text
 from app.core.policies import CONTENT_IDENTIFIER_MAX_LENGTH
 from app.models.content_enums import ContentLifecycleStatus
@@ -14,7 +15,7 @@ from app.models.content_question import ContentQuestion
 from app.models.content_sync_enums import ContentSyncEventReason
 from app.models.content_unit import ContentUnit
 from app.models.content_unit_revision import ContentUnitRevision
-from app.models.enums import Skill
+from app.models.enums import ContentTypeTag, Skill
 from app.schemas.content import (
     ContentRevisionArchiveResponse,
     ContentRevisionReviewRequest,
@@ -375,11 +376,17 @@ def _publish_revision(
         revision=revision,
         questions=questions,
     )
-    revision.metadata_json = merge_content_calibration_metadata(
+    calibration_metadata = merge_content_calibration_metadata(
         metadata_json=revision.metadata_json,
         result=calibration_result,
     )
-    if is_calibration_publish_blocked(track=unit.track, result=calibration_result):
+    revision.metadata_json = calibration_metadata
+    type_tag = _extract_revision_type_tag(revision)
+    if is_calibration_publish_blocked(
+        track=unit.track,
+        type_tag=type_tag,
+        result=calibration_result,
+    ):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail={
@@ -390,6 +397,8 @@ def _publish_revision(
                 "calibrationWarnings": list(calibration_result.warnings),
                 "calibrationFailReasons": list(calibration_result.fail_reasons),
                 "calibrationRubricVersion": calibration_result.rubric_version,
+                "qualityGateVersion": calibration_result.quality_gate_version,
+                "overrideRequired": calibration_result.override_required,
             },
         )
 
@@ -454,6 +463,19 @@ def _load_revision_questions(db: Session, *, revision_id: UUID) -> list[ContentQ
         )
         .all()
     )
+
+
+def _extract_revision_type_tag(revision: ContentUnitRevision) -> ContentTypeTag | None:
+    metadata = revision.metadata_json if isinstance(revision.metadata_json, dict) else {}
+    raw_type_tag = metadata.get("typeTag")
+    if not isinstance(raw_type_tag, str) or not raw_type_tag.strip():
+        return None
+
+    normalized = normalize_type_tag_alias_or_canonical(type_tag=raw_type_tag)
+    try:
+        return ContentTypeTag(normalized)
+    except ValueError:
+        return None
 
 
 def _get_unit_for_update(db: Session, *, unit_id: UUID) -> ContentUnit:

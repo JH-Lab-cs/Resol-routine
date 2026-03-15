@@ -423,6 +423,8 @@ class ContentUnitRevisionResponse(BaseModel):
     calibration_warnings: list[str] = Field(default_factory=list)
     calibration_fail_reasons: list[str] = Field(default_factory=list)
     calibration_rubric_version: str | None = None
+    quality_gate_version: str | None = None
+    override_required: bool | None = None
     lifecycle_status: ContentLifecycleStatus
     can_publish: bool
     published_at: datetime | None
@@ -452,6 +454,8 @@ class ContentRevisionSummaryResponse(BaseModel):
     calibration_warnings: list[str] = Field(default_factory=list)
     calibration_fail_reasons: list[str] = Field(default_factory=list)
     calibration_rubric_version: str | None = None
+    quality_gate_version: str | None = None
+    override_required: bool | None = None
     lifecycle_status: ContentLifecycleStatus
     can_publish: bool
     published_at: datetime | None

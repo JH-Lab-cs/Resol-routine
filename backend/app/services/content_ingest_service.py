@@ -200,6 +200,8 @@ def _to_revision_response(
         calibration_warnings=_as_str_list(calibration, "calibrationWarnings"),
         calibration_fail_reasons=_as_str_list(calibration, "calibrationFailReasons"),
         calibration_rubric_version=_as_str_or_none(calibration, "calibrationRubricVersion"),
+        quality_gate_version=_as_str_or_none(calibration, "qualityGateVersion"),
+        override_required=_as_bool_or_none(calibration, "overrideRequired"),
         lifecycle_status=revision.lifecycle_status,
         can_publish=can_publish,
         published_at=revision.published_at,
