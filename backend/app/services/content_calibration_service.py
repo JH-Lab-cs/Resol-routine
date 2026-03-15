@@ -397,8 +397,7 @@ def is_calibration_publish_blocked(
     result: ContentCalibrationResult,
 ) -> bool:
     if any(
-        reason in CONTENT_CALIBRATION_IMMEDIATE_BLOCK_FAIL_REASONS
-        for reason in result.fail_reasons
+        reason in CONTENT_CALIBRATION_IMMEDIATE_BLOCK_FAIL_REASONS for reason in result.fail_reasons
     ):
         return True
     if result.override_required:
@@ -727,9 +726,7 @@ def _compute_redundancy_penalty(
     body_tokens = _tokenize(canonical_text.body)
     unique_ratio = len(set(body_tokens)) / len(body_tokens) if body_tokens else 1.0
     score = (
-        duplicate_sentences * 18
-        + prefix_penalty * 7
-        + max(0, round((0.55 - unique_ratio) * 80))
+        duplicate_sentences * 18 + prefix_penalty * 7 + max(0, round((0.55 - unique_ratio) * 80))
     )
     return max(0, min(100, score))
 
@@ -771,10 +768,16 @@ def _apply_type_tag_specific_rules(
     elif type_tag == ContentTypeTag.R_BLANK:
         if track in {Track.H2, Track.H3} and inference < 45:
             fail_reasons.append("reading_blank_inference_load_too_low")
+        if track == Track.H1 and inference < 34:
+            fail_reasons.append("reading_blank_inference_load_too_low")
+        if track == Track.H1 and structure < 40:
+            fail_reasons.append("reading_blank_structure_too_simple")
         if (
             "although" not in body_lower
             and "however" not in body_lower
             and "while" not in body_lower
+            and "therefore" not in body_lower
+            and "instead" not in body_lower
         ):
             warnings.append("reading_blank_discourse_marker_sparse")
     elif type_tag in {ContentTypeTag.R_ORDER, ContentTypeTag.R_SUMMARY, ContentTypeTag.R_VOCAB}:
@@ -782,6 +785,10 @@ def _apply_type_tag_specific_rules(
             fail_reasons.append("reading_discourse_inference_too_low")
         if track in {Track.H2, Track.H3} and lexical < 42:
             fail_reasons.append("reading_lexical_density_too_low")
+        if type_tag == ContentTypeTag.R_ORDER and track == Track.H1 and inference < 34:
+            fail_reasons.append("reading_discourse_inference_too_low")
+        if type_tag == ContentTypeTag.R_ORDER and track == Track.H1 and structure < 42:
+            fail_reasons.append("reading_order_structure_too_simple")
     elif type_tag == ContentTypeTag.L_RESPONSE:
         if turn_count != 2:
             fail_reasons.append("listening_response_turn_count_invalid")
@@ -797,13 +804,15 @@ def _apply_type_tag_specific_rules(
     elif type_tag == ContentTypeTag.L_SITUATION:
         situation_inference_minimum = {
             Track.H1: 28,
-            Track.H2: 30,
+            Track.H2: 34,
             Track.H3: 34,
         }.get(track, 24)
         if track in {Track.H1, Track.H2, Track.H3} and inference < situation_inference_minimum:
             fail_reasons.append("listening_situation_context_inference_too_low")
         if clue_penalty >= 20:
             fail_reasons.append("listening_situation_surface_clue_too_high")
+        if track == Track.H2 and turn_count < 3:
+            fail_reasons.append("listening_situation_density_too_low")
 
     if track == Track.H3 and skill == Skill.READING and lexical < 50:
         fail_reasons.append("h3_reading_lexical_density_too_low")
@@ -878,13 +887,21 @@ def _quality_hard_gate_profile(
             min_distractor_plausibility=44,
             max_direct_clue_penalty=18,
         ),
+        (Track.H1, ContentTypeTag.R_BLANK): _QualityHardGateProfile(
+            min_sentences=4,
+            min_words=130,
+            min_discourse_density=46,
+            min_transition_complexity=34,
+            min_distractor_plausibility=46,
+            max_direct_clue_penalty=17,
+        ),
         (Track.H1, ContentTypeTag.R_ORDER): _QualityHardGateProfile(
             min_sentences=4,
-            min_words=62,
-            min_discourse_density=44,
-            min_transition_complexity=32,
-            min_distractor_plausibility=44,
-            max_direct_clue_penalty=18,
+            min_words=130,
+            min_discourse_density=46,
+            min_transition_complexity=36,
+            min_distractor_plausibility=46,
+            max_direct_clue_penalty=17,
         ),
         (Track.H1, ContentTypeTag.R_SUMMARY): _QualityHardGateProfile(
             min_sentences=4,
@@ -961,13 +978,13 @@ def _quality_hard_gate_profile(
             max_direct_clue_penalty=18,
         ),
         (Track.H2, ContentTypeTag.L_SITUATION): _QualityHardGateProfile(
-            min_sentences=2,
-            min_words=24,
-            min_turns=2,
-            min_discourse_density=42,
-            min_transition_complexity=32,
-            min_distractor_plausibility=52,
-            max_direct_clue_penalty=17,
+            min_sentences=3,
+            min_words=42,
+            min_turns=3,
+            min_discourse_density=50,
+            min_transition_complexity=38,
+            min_distractor_plausibility=56,
+            max_direct_clue_penalty=16,
         ),
         (Track.H3, ContentTypeTag.L_SITUATION): _QualityHardGateProfile(
             min_sentences=2,

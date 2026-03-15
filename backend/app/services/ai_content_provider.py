@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 from urllib import error as urllib_error
 from urllib import request as urllib_request
 
@@ -18,6 +18,33 @@ from app.services.l_response_generation_service import (
     compile_l_response_skeleton_candidate,
     parse_l_response_generation_candidates,
     serialize_l_response_skeleton_candidate,
+)
+from app.services.type_specific_generation_quality_service import (
+    HARD_QUALITY_PROFILE_TIMEOUT_SECONDS,
+    L_SITUATION_CONTEXTUAL_COMPILER_VERSION,
+    L_SITUATION_CONTEXTUAL_GENERATION_MODE,
+    L_SITUATION_CONTEXTUAL_GENERATION_PROFILE,
+    L_SITUATION_CONTEXTUAL_PROMPT_TEMPLATE_SUFFIX,
+    R_BLANK_OUTLINE_COMPILER_VERSION,
+    R_BLANK_OUTLINE_GENERATION_MODE,
+    R_BLANK_OUTLINE_GENERATION_PROFILE,
+    R_BLANK_OUTLINE_PROMPT_TEMPLATE_SUFFIX,
+    R_ORDER_OUTLINE_COMPILER_VERSION,
+    R_ORDER_OUTLINE_GENERATION_MODE,
+    R_ORDER_OUTLINE_GENERATION_PROFILE,
+    R_ORDER_OUTLINE_PROMPT_TEMPLATE_SUFFIX,
+    build_deterministic_l_situation_contextual_candidate,
+    build_deterministic_r_blank_discourse_candidate,
+    build_deterministic_r_order_discourse_candidate,
+    compile_l_situation_contextual_candidate,
+    compile_r_blank_discourse_candidate,
+    compile_r_order_discourse_candidate,
+    parse_l_situation_contextual_candidates,
+    parse_r_blank_outline_candidates,
+    parse_r_order_outline_candidates,
+    serialize_l_situation_contextual_candidate,
+    serialize_r_blank_discourse_candidate,
+    serialize_r_order_discourse_candidate,
 )
 
 
@@ -75,6 +102,8 @@ class ContentGenerationResult:
     compiled_candidate_payloads: list[dict[str, Any]] | None = None
     generation_mode: str = "CANONICAL"
     compiler_version: str | None = None
+    generation_profile: str | None = None
+    timeout_seconds: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -84,6 +113,8 @@ class PromptProfile:
     target_type_tags: tuple[str, ...]
     instructions: tuple[str, ...]
     generation_mode: str = "CANONICAL"
+    generation_profile: str | None = None
+    timeout_seconds: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -93,6 +124,7 @@ class ParsedGeneratedCandidateBatch:
     compiled_candidate_payloads: list[dict[str, Any]]
     generation_mode: str
     compiler_version: str | None
+    generation_profile: str | None
 
 
 class AIContentGenerationProvider(Protocol):
@@ -124,14 +156,62 @@ class DeterministicAIContentProvider:
                     prompt_profile.generation_mode == L_RESPONSE_GENERATION_MODE
                     and target.type_tag == ContentTypeTag.L_RESPONSE
                 ):
-                    skeleton = build_deterministic_l_response_skeleton(
+                    response_skeleton = build_deterministic_l_response_skeleton(
                         track=target.track,
                         difficulty=target.difficulty,
                         index=counter,
                     )
-                    compiled_payload = compile_l_response_skeleton_candidate(skeleton)
+                    compiled_payload = compile_l_response_skeleton_candidate(response_skeleton)
                     raw_candidate_payloads.append(
-                        serialize_l_response_skeleton_candidate(skeleton)
+                        serialize_l_response_skeleton_candidate(response_skeleton)
+                    )
+                    compiled_candidate_payloads.append(compiled_payload)
+                    candidates.append(_parse_generated_candidate_payload(compiled_payload))
+                elif (
+                    prompt_profile.generation_mode == L_SITUATION_CONTEXTUAL_GENERATION_MODE
+                    and target.track == Track.H2
+                    and target.type_tag == ContentTypeTag.L_SITUATION
+                ):
+                    contextual_skeleton = build_deterministic_l_situation_contextual_candidate(
+                        track=target.track,
+                        difficulty=target.difficulty,
+                        index=counter,
+                    )
+                    compiled_payload = compile_l_situation_contextual_candidate(contextual_skeleton)
+                    raw_candidate_payloads.append(
+                        serialize_l_situation_contextual_candidate(contextual_skeleton)
+                    )
+                    compiled_candidate_payloads.append(compiled_payload)
+                    candidates.append(_parse_generated_candidate_payload(compiled_payload))
+                elif (
+                    prompt_profile.generation_mode == R_BLANK_OUTLINE_GENERATION_MODE
+                    and target.track == Track.H1
+                    and target.type_tag == ContentTypeTag.R_BLANK
+                ):
+                    blank_outline = build_deterministic_r_blank_discourse_candidate(
+                        track=target.track,
+                        difficulty=target.difficulty,
+                        index=counter,
+                    )
+                    compiled_payload = compile_r_blank_discourse_candidate(blank_outline)
+                    raw_candidate_payloads.append(
+                        serialize_r_blank_discourse_candidate(blank_outline)
+                    )
+                    compiled_candidate_payloads.append(compiled_payload)
+                    candidates.append(_parse_generated_candidate_payload(compiled_payload))
+                elif (
+                    prompt_profile.generation_mode == R_ORDER_OUTLINE_GENERATION_MODE
+                    and target.track == Track.H1
+                    and target.type_tag == ContentTypeTag.R_ORDER
+                ):
+                    order_outline = build_deterministic_r_order_discourse_candidate(
+                        track=target.track,
+                        difficulty=target.difficulty,
+                        index=counter,
+                    )
+                    compiled_payload = compile_r_order_discourse_candidate(order_outline)
+                    raw_candidate_payloads.append(
+                        serialize_r_order_discourse_candidate(order_outline)
                     )
                     compiled_candidate_payloads.append(compiled_payload)
                     candidates.append(_parse_generated_candidate_payload(compiled_payload))
@@ -160,10 +240,10 @@ class DeterministicAIContentProvider:
             compiled_candidate_payloads=compiled_candidate_payloads,
             generation_mode=prompt_profile.generation_mode,
             compiler_version=(
-                L_RESPONSE_COMPILER_VERSION
-                if prompt_profile.generation_mode == L_RESPONSE_GENERATION_MODE
-                else None
+                _compiler_version_for_generation_mode(prompt_profile.generation_mode)
             ),
+            generation_profile=prompt_profile.generation_profile,
+            timeout_seconds=prompt_profile.timeout_seconds,
         )
 
 
@@ -207,6 +287,7 @@ class OpenAIContentGenerationProvider:
                 "Content-Type": "application/json",
             },
             payload=request_payload,
+            timeout_seconds=prompt_profile.timeout_seconds,
         )
         response_data = _parse_json_object(response_body)
 
@@ -238,6 +319,8 @@ class OpenAIContentGenerationProvider:
             compiled_candidate_payloads=parsed_candidates.compiled_candidate_payloads,
             generation_mode=parsed_candidates.generation_mode,
             compiler_version=parsed_candidates.compiler_version,
+            generation_profile=parsed_candidates.generation_profile,
+            timeout_seconds=prompt_profile.timeout_seconds,
         )
 
 
@@ -282,6 +365,7 @@ class AnthropicContentGenerationProvider:
                 "content-type": "application/json",
             },
             payload=request_payload,
+            timeout_seconds=prompt_profile.timeout_seconds,
         )
         response_data = _parse_json_object(response_body)
 
@@ -313,6 +397,8 @@ class AnthropicContentGenerationProvider:
             compiled_candidate_payloads=parsed_candidates.compiled_candidate_payloads,
             generation_mode=parsed_candidates.generation_mode,
             compiler_version=parsed_candidates.compiler_version,
+            generation_profile=parsed_candidates.generation_profile,
+            timeout_seconds=prompt_profile.timeout_seconds,
         )
 
 
@@ -335,9 +421,7 @@ def build_ai_content_generation_provider(
         )
 
     model_name = (
-        model_override.strip()
-        if model_override is not None
-        else settings.ai_content_model.strip()
+        model_override.strip() if model_override is not None else settings.ai_content_model.strip()
     )
     if model_name in {"", "not-configured"}:
         raise AIProviderError(
@@ -469,6 +553,91 @@ _DEFAULT_PROMPT_RULES = (
     "whyCorrectKo and whyWrongKoByOption must be complete and reviewer-friendly.",
 )
 
+_TYPE_SPECIFIC_PROMPT_CONFIG = {
+    (Track.H2, ContentTypeTag.L_SITUATION): {
+        "template_suffix": L_SITUATION_CONTEXTUAL_PROMPT_TEMPLATE_SUFFIX,
+        "generation_mode": L_SITUATION_CONTEXTUAL_GENERATION_MODE,
+        "generation_profile": L_SITUATION_CONTEXTUAL_GENERATION_PROFILE,
+        "timeout_seconds": HARD_QUALITY_PROFILE_TIMEOUT_SECONDS,
+        "instructions": (
+            "Return only the contextual situation skeleton, not the final canonical payload.",
+            (
+                "Include settingSummary, turns, impliedSituationLabel, contextElements, "
+                "correctOptionText, distractorOptionTexts, plausibleDistractorLabels, "
+                "evidenceTurnIndexes, contextInferenceScore, directCluePenalty, "
+                "finalTurnOnlySolvable, whyCorrectKo, and whyWrongKoByOption."
+            ),
+            (
+                "turns must contain at least three objects and the first turn must "
+                "establish the situation context."
+            ),
+            "contextElements must include at least two of request, offer, problem, or constraint.",
+            (
+                "At least two distractors must remain plausible in context, and "
+                "finalTurnOnlySolvable must be false."
+            ),
+        ),
+    },
+    (Track.H1, ContentTypeTag.R_BLANK): {
+        "template_suffix": R_BLANK_OUTLINE_PROMPT_TEMPLATE_SUFFIX,
+        "generation_mode": R_BLANK_OUTLINE_GENERATION_MODE,
+        "generation_profile": R_BLANK_OUTLINE_GENERATION_PROFILE,
+        "timeout_seconds": HARD_QUALITY_PROFILE_TIMEOUT_SECONDS,
+        "instructions": (
+            "Return only the reading-blank discourse outline, not the final canonical payload.",
+            (
+                "Include contextBeforeBlank, contextAfterBlank, keyIdeaMap, "
+                "blankTargetProposition, correctBlankText, distractorBlankTexts, "
+                "discourseShiftLabel, paraphraseOnlyRisk, "
+                "requiresInferenceAcrossSentences, structureComplexityScore, "
+                "directCluePenalty, inferenceLoadScore, whyCorrectKo, and "
+                "whyWrongKoByOption."
+            ),
+            (
+                "Use at least four context sentences total and enough detail for a "
+                "130-plus-word passage after compilation."
+            ),
+            (
+                "The blank must require discourse or meaning inference across "
+                "sentences, not a one-line paraphrase."
+            ),
+            (
+                "At least one discourse shift must be explicit: contrast, "
+                "cause-result, concession, qualification, consequence, or "
+                "elaboration."
+            ),
+        ),
+    },
+    (Track.H1, ContentTypeTag.R_ORDER): {
+        "template_suffix": R_ORDER_OUTLINE_PROMPT_TEMPLATE_SUFFIX,
+        "generation_mode": R_ORDER_OUTLINE_GENERATION_MODE,
+        "generation_profile": R_ORDER_OUTLINE_GENERATION_PROFILE,
+        "timeout_seconds": HARD_QUALITY_PROFILE_TIMEOUT_SECONDS,
+        "instructions": (
+            "Return only the reading-order discourse outline, not the final canonical payload.",
+            (
+                "Include introductionSentences, segmentTexts, correctOrder, "
+                "plausibleDistractorOrders, discourseRelationLabels, "
+                "cueWordOnlySolvable, transitionComplexityScore, "
+                "structureComplexityScore, directCluePenalty, whyCorrectKo, and "
+                "whyWrongKoByOption."
+            ),
+            (
+                "The compiled passage must exceed 130 words, use at least four "
+                "sentences, and avoid simple list-like chronology."
+            ),
+            (
+                "At least one discourse relation must drive the order: contrast, "
+                "concession, consequence, or elaboration."
+            ),
+            (
+                "At least two distractor orders must remain plausible, and "
+                "cueWordOnlySolvable must be false."
+            ),
+        ),
+    },
+}
+
 
 def _build_deterministic_candidate(
     *, index: int, target: ContentGenerationTarget
@@ -595,6 +764,8 @@ def _build_prompt_payload(
         "requestId": context.request_id,
         "promptTemplateVersion": prompt_profile.template_version,
         "generationMode": prompt_profile.generation_mode,
+        "generationProfile": prompt_profile.generation_profile,
+        "timeoutSeconds": prompt_profile.timeout_seconds,
         "promptSkillMode": prompt_profile.skill_mode,
         "promptTargetTypeTags": list(prompt_profile.target_type_tags),
         "candidateCountPerTarget": context.candidate_count_per_target,
@@ -617,40 +788,13 @@ def _build_prompt_payload(
 
 def _system_instruction(*, prompt_profile: PromptProfile) -> str:
     if prompt_profile.generation_mode == L_RESPONSE_GENERATION_MODE:
-        joined_type_rules = " ".join(prompt_profile.instructions)
-        return "".join(
-            [
-                "Generate English-learning LISTENING response items and return strict JSON only. ",
-                "Top-level key must be candidates (array). ",
-                (
-                    "Each candidate must include track, difficulty, typeTag, turns, "
-                    "responsePromptSpeaker, correctResponseText, distractorResponseTexts, "
-                    "evidenceTurnIndexes, whyCorrectKo, and whyWrongKoByOption. "
-                ),
-                (
-                    "Do not include question, options, answerKey, explanation, "
-                    "transcriptText, sentences, or ttsPlan. "
-                ),
-                "typeTag must be exactly L_RESPONSE. ",
-                "turns must contain exactly two objects with speaker and text. ",
-                "responsePromptSpeaker must equal the speaker of the final turn. ",
-                (
-                    "correctResponseText must be the best short spoken-style reply to the "
-                    "final turn. "
-                ),
-                (
-                    "distractorResponseTexts must contain exactly four distinct "
-                    "spoken-style replies. "
-                ),
-                (
-                    "whyWrongKoByOption must contain keys B, C, D, and E only, "
-                    "in the same order as distractorResponseTexts. "
-                ),
-                "Use evidenceTurnIndexes as 1-based indexes, and point only to existing turns. ",
-                f"TypeTag-specific requirements: {joined_type_rules} ",
-                "Do not include markdown or any prose outside the JSON object.",
-            ]
-        )
+        return _build_l_response_system_instruction(prompt_profile=prompt_profile)
+    if prompt_profile.generation_mode == L_SITUATION_CONTEXTUAL_GENERATION_MODE:
+        return _build_l_situation_system_instruction(prompt_profile=prompt_profile)
+    if prompt_profile.generation_mode == R_BLANK_OUTLINE_GENERATION_MODE:
+        return _build_r_blank_system_instruction(prompt_profile=prompt_profile)
+    if prompt_profile.generation_mode == R_ORDER_OUTLINE_GENERATION_MODE:
+        return _build_r_order_system_instruction(prompt_profile=prompt_profile)
 
     skill_rule = (
         "For READING candidates, bodyText/passage and sentences are required."
@@ -682,9 +826,122 @@ def _system_instruction(*, prompt_profile: PromptProfile) -> str:
         "sentences must be an array of objects with id and text. "
         "Every evidenceSentenceId must point to an existing sentence id. "
         "ttsPlan must be a non-empty object when skill is LISTENING. "
-        "Example: {\"voice\":\"en-US-neutral\",\"pace\":\"normal\"}. "
+        'Example: {"voice":"en-US-neutral","pace":"normal"}. '
         f"TypeTag-specific requirements: {joined_type_rules} "
         "Do not omit required fields, and do not include markdown or surrounding prose."
+    )
+
+
+def _build_l_response_system_instruction(*, prompt_profile: PromptProfile) -> str:
+    joined_type_rules = " ".join(prompt_profile.instructions)
+    return "".join(
+        [
+            "Generate English-learning LISTENING response items and return strict JSON only. ",
+            "Top-level key must be candidates (array). ",
+            (
+                "Each candidate must include track, difficulty, typeTag, turns, "
+                "responsePromptSpeaker, correctResponseText, distractorResponseTexts, "
+                "evidenceTurnIndexes, whyCorrectKo, and whyWrongKoByOption. "
+            ),
+            (
+                "Do not include question, options, answerKey, explanation, "
+                "transcriptText, sentences, or ttsPlan. "
+            ),
+            "typeTag must be exactly L_RESPONSE. ",
+            "turns must contain exactly two objects with speaker and text. ",
+            "responsePromptSpeaker must equal the speaker of the final turn. ",
+            "correctResponseText must be the best short spoken-style reply to the final turn. ",
+            "distractorResponseTexts must contain exactly four distinct spoken-style replies. ",
+            (
+                "whyWrongKoByOption must contain keys B, C, D, and E only, "
+                "in the same order as distractorResponseTexts. "
+            ),
+            "Use evidenceTurnIndexes as 1-based indexes, and point only to existing turns. ",
+            f"TypeTag-specific requirements: {joined_type_rules} ",
+            "Do not include markdown or any prose outside the JSON object.",
+        ]
+    )
+
+
+def _build_l_situation_system_instruction(*, prompt_profile: PromptProfile) -> str:
+    joined_type_rules = " ".join(prompt_profile.instructions)
+    return "".join(
+        [
+            "Generate English-learning LISTENING situation items and return strict JSON only. ",
+            "Top-level key must be candidates (array). ",
+            (
+                "Each candidate must include track, difficulty, typeTag, settingSummary, "
+                "turns, impliedSituationLabel, contextElements, correctOptionText, "
+                "distractorOptionTexts, plausibleDistractorLabels, evidenceTurnIndexes, "
+                "contextInferenceScore, directCluePenalty, finalTurnOnlySolvable, "
+                "whyCorrectKo, and whyWrongKoByOption. "
+            ),
+            (
+                "Do not include question, options, answerKey, explanation, transcriptText, "
+                "sentences, or ttsPlan. "
+            ),
+            "typeTag must be exactly L_SITUATION. ",
+            "turns must contain at least three objects with speaker and text. ",
+            "contextElements must use request, offer, problem, or constraint labels. ",
+            "plausibleDistractorLabels must contain only B, C, D, and E. ",
+            "evidenceTurnIndexes must be 1-based indexes that point only to existing turns. ",
+            "finalTurnOnlySolvable must be false. ",
+            f"TypeTag-specific requirements: {joined_type_rules} ",
+            "Do not include markdown or any prose outside the JSON object.",
+        ]
+    )
+
+
+def _build_r_blank_system_instruction(*, prompt_profile: PromptProfile) -> str:
+    joined_type_rules = " ".join(prompt_profile.instructions)
+    return "".join(
+        [
+            "Generate English-learning READING blank items and return strict JSON only. ",
+            "Top-level key must be candidates (array). ",
+            (
+                "Each candidate must include track, difficulty, typeTag, contextBeforeBlank, "
+                "contextAfterBlank, keyIdeaMap, blankTargetProposition, correctBlankText, "
+                "distractorBlankTexts, discourseShiftLabel, paraphraseOnlyRisk, "
+                "requiresInferenceAcrossSentences, structureComplexityScore, "
+                "directCluePenalty, inferenceLoadScore, whyCorrectKo, and whyWrongKoByOption. "
+            ),
+            (
+                "Do not include question, options, answerKey, explanation, passage, "
+                "transcriptText, sentences, or ttsPlan. "
+            ),
+            "typeTag must be exactly R_BLANK. ",
+            "contextBeforeBlank and contextAfterBlank must contain sentence strings only. ",
+            "distractorBlankTexts must contain exactly four distinct choices. ",
+            "whyWrongKoByOption must contain keys B, C, D, and E only. ",
+            f"TypeTag-specific requirements: {joined_type_rules} ",
+            "Do not include markdown or any prose outside the JSON object.",
+        ]
+    )
+
+
+def _build_r_order_system_instruction(*, prompt_profile: PromptProfile) -> str:
+    joined_type_rules = " ".join(prompt_profile.instructions)
+    return "".join(
+        [
+            "Generate English-learning READING order items and return strict JSON only. ",
+            "Top-level key must be candidates (array). ",
+            (
+                "Each candidate must include track, difficulty, typeTag, introductionSentences, "
+                "segmentTexts, correctOrder, plausibleDistractorOrders, discourseRelationLabels, "
+                "cueWordOnlySolvable, transitionComplexityScore, structureComplexityScore, "
+                "directCluePenalty, whyCorrectKo, and whyWrongKoByOption. "
+            ),
+            (
+                "Do not include question, options, answerKey, explanation, passage, "
+                "transcriptText, sentences, or ttsPlan. "
+            ),
+            "typeTag must be exactly R_ORDER. ",
+            "segmentTexts must be an object with keys A, B, and C. ",
+            "correctOrder must contain A, B, and C exactly once. ",
+            "plausibleDistractorOrders must contain order strings like A-B-C. ",
+            f"TypeTag-specific requirements: {joined_type_rules} ",
+            "Do not include markdown or any prose outside the JSON object.",
+        ]
     )
 
 
@@ -692,11 +949,28 @@ def _resolve_prompt_profile(
     *, context: ContentGenerationContext, base_template_version: str
 ) -> PromptProfile:
     type_tags = tuple(dict.fromkeys(row.type_tag.value for row in context.target_matrix))
+    tracks = tuple(dict.fromkeys(row.track for row in context.target_matrix))
     skill_modes = {row.skill.value for row in context.target_matrix}
     if len(skill_modes) == 1:
         skill_mode = next(iter(skill_modes)).lower()
     else:
         skill_mode = "mixed"
+
+    if len(type_tags) == 1 and len(tracks) == 1:
+        dedicated_key = (tracks[0], ContentTypeTag(type_tags[0]))
+        dedicated_config = _TYPE_SPECIFIC_PROMPT_CONFIG.get(dedicated_key)
+        if dedicated_config is not None:
+            dedicated_instructions = cast(tuple[str, ...], dedicated_config["instructions"])
+            instructions = _DEFAULT_PROMPT_RULES + dedicated_instructions
+            return PromptProfile(
+                template_version=(f"{base_template_version}-{dedicated_config['template_suffix']}"),
+                skill_mode=skill_mode,
+                target_type_tags=type_tags,
+                instructions=instructions,
+                generation_mode=str(dedicated_config["generation_mode"]),
+                generation_profile=str(dedicated_config["generation_profile"]),
+                timeout_seconds=cast(int, dedicated_config["timeout_seconds"]),
+            )
 
     if len(type_tags) == 1 and type_tags[0] in _HARD_TYPETAG_TEMPLATE_SUFFIX:
         type_tag = type_tags[0]
@@ -723,7 +997,13 @@ def _resolve_prompt_profile(
     )
 
 
-def _post_json(*, url: str, headers: dict[str, str], payload: dict[str, Any]) -> str:
+def _post_json(
+    *,
+    url: str,
+    headers: dict[str, str],
+    payload: dict[str, Any],
+    timeout_seconds: int | None,
+) -> str:
     encoded_payload = json.dumps(payload, ensure_ascii=False).encode("utf-8")
     request = urllib_request.Request(  # noqa: S310
         url=url,
@@ -734,7 +1014,7 @@ def _post_json(*, url: str, headers: dict[str, str], payload: dict[str, Any]) ->
     try:
         with urllib_request.urlopen(  # noqa: S310
             request,
-            timeout=settings.ai_provider_http_timeout_seconds,
+            timeout=timeout_seconds or settings.ai_provider_http_timeout_seconds,
         ) as response:
             raw_body = response.read()
             body = raw_body if isinstance(raw_body, bytes) else bytes(raw_body)
@@ -809,6 +1089,12 @@ def _parse_generated_candidates(
 
     if prompt_profile.generation_mode == L_RESPONSE_GENERATION_MODE:
         return _parse_l_response_candidate_batch(raw_content)
+    if prompt_profile.generation_mode == L_SITUATION_CONTEXTUAL_GENERATION_MODE:
+        return _parse_l_situation_contextual_candidate_batch(raw_content)
+    if prompt_profile.generation_mode == R_BLANK_OUTLINE_GENERATION_MODE:
+        return _parse_r_blank_outline_candidate_batch(raw_content)
+    if prompt_profile.generation_mode == R_ORDER_OUTLINE_GENERATION_MODE:
+        return _parse_r_order_outline_candidate_batch(raw_content)
 
     compiled_payloads: list[dict[str, Any]] = []
     parsed: list[GeneratedContentCandidate] = []
@@ -824,6 +1110,7 @@ def _parse_generated_candidates(
         compiled_candidate_payloads=compiled_payloads,
         generation_mode="CANONICAL",
         compiler_version=None,
+        generation_profile=prompt_profile.generation_profile,
     )
 
 
@@ -840,8 +1127,7 @@ def _parse_generated_candidate_payload(raw_candidate: dict[str, Any]) -> Generat
         or raw_candidate.get("passageText")
     )
     transcript = _to_optional_str(
-        raw_candidate.get("transcript")
-        or raw_candidate.get("transcriptText")
+        raw_candidate.get("transcript") or raw_candidate.get("transcriptText")
     )
     turns = _parse_turns(raw_candidate.get("turns"))
     sentences = _parse_sentences(raw_candidate.get("sentences"))
@@ -870,10 +1156,7 @@ def _parse_generated_candidate_payload(raw_candidate: dict[str, Any]) -> Generat
         options=options,
         answer_key=_normalize_answer_key(question.get("answerKey") or question.get("answer")),
         explanation=str(
-            question.get("explanation")
-            or question.get("rationale")
-            or question.get("why")
-            or ""
+            question.get("explanation") or question.get("rationale") or question.get("why") or ""
         ),
         evidence_sentence_ids=_parse_evidence_sentence_ids(
             question.get("evidenceSentenceIds") or question.get("evidence"),
@@ -922,7 +1205,119 @@ def _parse_l_response_candidate_batch(raw_content: str) -> ParsedGeneratedCandid
         compiled_candidate_payloads=compiled_payloads,
         generation_mode=L_RESPONSE_GENERATION_MODE,
         compiler_version=L_RESPONSE_COMPILER_VERSION,
+        generation_profile=None,
     )
+
+
+def _parse_l_situation_contextual_candidate_batch(
+    raw_content: str,
+) -> ParsedGeneratedCandidateBatch:
+    try:
+        skeletons = parse_l_situation_contextual_candidates(raw_content)
+    except Exception as exc:
+        code = getattr(exc, "code", "OUTPUT_SCHEMA_INVALID")
+        message = getattr(exc, "message", str(exc))
+        raise AIProviderError(code=str(code), message=str(message), transient=False) from exc
+
+    raw_payloads = [serialize_l_situation_contextual_candidate(item) for item in skeletons]
+    compiled_payloads: list[dict[str, Any]] = []
+    parsed_candidates: list[GeneratedContentCandidate] = []
+    for candidate in skeletons:
+        try:
+            compiled_payload = compile_l_situation_contextual_candidate(candidate)
+        except Exception as exc:
+            code = getattr(exc, "code", "OUTPUT_DETERMINISTIC_COMPILE_FAILED")
+            message = getattr(exc, "message", str(exc))
+            raise AIProviderError(code=str(code), message=str(message), transient=False) from exc
+        compiled_payloads.append(compiled_payload)
+        parsed_candidates.append(_parse_generated_candidate_payload(compiled_payload))
+
+    return ParsedGeneratedCandidateBatch(
+        candidates=parsed_candidates,
+        raw_candidate_payloads=raw_payloads,
+        compiled_candidate_payloads=compiled_payloads,
+        generation_mode=L_SITUATION_CONTEXTUAL_GENERATION_MODE,
+        compiler_version=L_SITUATION_CONTEXTUAL_COMPILER_VERSION,
+        generation_profile=L_SITUATION_CONTEXTUAL_GENERATION_PROFILE,
+    )
+
+
+def _parse_r_blank_outline_candidate_batch(
+    raw_content: str,
+) -> ParsedGeneratedCandidateBatch:
+    try:
+        outlines = parse_r_blank_outline_candidates(raw_content)
+    except Exception as exc:
+        code = getattr(exc, "code", "OUTPUT_SCHEMA_INVALID")
+        message = getattr(exc, "message", str(exc))
+        raise AIProviderError(code=str(code), message=str(message), transient=False) from exc
+
+    raw_payloads = [serialize_r_blank_discourse_candidate(item) for item in outlines]
+    compiled_payloads: list[dict[str, Any]] = []
+    parsed_candidates: list[GeneratedContentCandidate] = []
+    for candidate in outlines:
+        try:
+            compiled_payload = compile_r_blank_discourse_candidate(candidate)
+        except Exception as exc:
+            code = getattr(exc, "code", "OUTPUT_DETERMINISTIC_COMPILE_FAILED")
+            message = getattr(exc, "message", str(exc))
+            raise AIProviderError(code=str(code), message=str(message), transient=False) from exc
+        compiled_payloads.append(compiled_payload)
+        parsed_candidates.append(_parse_generated_candidate_payload(compiled_payload))
+
+    return ParsedGeneratedCandidateBatch(
+        candidates=parsed_candidates,
+        raw_candidate_payloads=raw_payloads,
+        compiled_candidate_payloads=compiled_payloads,
+        generation_mode=R_BLANK_OUTLINE_GENERATION_MODE,
+        compiler_version=R_BLANK_OUTLINE_COMPILER_VERSION,
+        generation_profile=R_BLANK_OUTLINE_GENERATION_PROFILE,
+    )
+
+
+def _parse_r_order_outline_candidate_batch(
+    raw_content: str,
+) -> ParsedGeneratedCandidateBatch:
+    try:
+        outlines = parse_r_order_outline_candidates(raw_content)
+    except Exception as exc:
+        code = getattr(exc, "code", "OUTPUT_SCHEMA_INVALID")
+        message = getattr(exc, "message", str(exc))
+        raise AIProviderError(code=str(code), message=str(message), transient=False) from exc
+
+    raw_payloads = [serialize_r_order_discourse_candidate(item) for item in outlines]
+    compiled_payloads: list[dict[str, Any]] = []
+    parsed_candidates: list[GeneratedContentCandidate] = []
+    for candidate in outlines:
+        try:
+            compiled_payload = compile_r_order_discourse_candidate(candidate)
+        except Exception as exc:
+            code = getattr(exc, "code", "OUTPUT_DETERMINISTIC_COMPILE_FAILED")
+            message = getattr(exc, "message", str(exc))
+            raise AIProviderError(code=str(code), message=str(message), transient=False) from exc
+        compiled_payloads.append(compiled_payload)
+        parsed_candidates.append(_parse_generated_candidate_payload(compiled_payload))
+
+    return ParsedGeneratedCandidateBatch(
+        candidates=parsed_candidates,
+        raw_candidate_payloads=raw_payloads,
+        compiled_candidate_payloads=compiled_payloads,
+        generation_mode=R_ORDER_OUTLINE_GENERATION_MODE,
+        compiler_version=R_ORDER_OUTLINE_COMPILER_VERSION,
+        generation_profile=R_ORDER_OUTLINE_GENERATION_PROFILE,
+    )
+
+
+def _compiler_version_for_generation_mode(generation_mode: str) -> str | None:
+    if generation_mode == L_RESPONSE_GENERATION_MODE:
+        return L_RESPONSE_COMPILER_VERSION
+    if generation_mode == L_SITUATION_CONTEXTUAL_GENERATION_MODE:
+        return L_SITUATION_CONTEXTUAL_COMPILER_VERSION
+    if generation_mode == R_BLANK_OUTLINE_GENERATION_MODE:
+        return R_BLANK_OUTLINE_COMPILER_VERSION
+    if generation_mode == R_ORDER_OUTLINE_GENERATION_MODE:
+        return R_ORDER_OUTLINE_COMPILER_VERSION
+    return None
 
 
 def _to_optional_str(value: object) -> str | None:
@@ -1062,10 +1457,7 @@ def _parse_turns(value: object) -> list[dict[str, str]]:
         elif isinstance(item, dict):
             speaker = item.get("speaker") or item.get("speakerLabel") or item.get("role")
             text = (
-                item.get("text")
-                or item.get("utterance")
-                or item.get("content")
-                or item.get("line")
+                item.get("text") or item.get("utterance") or item.get("content") or item.get("line")
             )
         else:
             raise _output_error("OUTPUT_SCHEMA_INVALID", "Turn item must be an object.")
@@ -1133,10 +1525,7 @@ def _parse_evidence_sentence_ids(value: object) -> list[str]:
 
 
 def _parse_why_wrong_by_option(*, value: object, answer_key: str) -> dict[str, str]:
-    parsed = {
-        str(key): str(item)
-        for key, item in _parse_object(value, default={}).items()
-    }
+    parsed = {str(key): str(item) for key, item in _parse_object(value, default={}).items()}
     normalized_answer = _normalize_answer_key(answer_key)
     if normalized_answer and normalized_answer not in parsed:
         parsed[normalized_answer] = "정답 보기입니다."
@@ -1157,10 +1546,7 @@ def _normalize_option_label(value: object) -> str:
 
 
 def _sentences_from_turns(turns: list[dict[str, str]]) -> list[dict[str, str]]:
-    return [
-        {"id": f"s{index}", "text": turn["text"]}
-        for index, turn in enumerate(turns, start=1)
-    ]
+    return [{"id": f"s{index}", "text": turn["text"]} for index, turn in enumerate(turns, start=1)]
 
 
 def _output_error(code: str, message: str) -> AIProviderError:

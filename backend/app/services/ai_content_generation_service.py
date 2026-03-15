@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import unicodedata
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -396,6 +397,15 @@ def run_ai_content_generation_job(db: Session, *, job_id: UUID) -> AIContentJobE
         job.provider_name = provider_result.provider_name
         job.model_name = provider_result.model_name
         job.prompt_template_version = provider_result.prompt_template_version
+        existing_metadata = dict(job.metadata_json) if isinstance(job.metadata_json, dict) else {}
+        existing_metadata["generationMode"] = provider_result.generation_mode
+        if provider_result.compiler_version is not None:
+            existing_metadata["compilerVersion"] = provider_result.compiler_version
+        if provider_result.generation_profile is not None:
+            existing_metadata["generationProfile"] = provider_result.generation_profile
+        if provider_result.timeout_seconds is not None:
+            existing_metadata["timeoutSeconds"] = provider_result.timeout_seconds
+        job.metadata_json = existing_metadata
         job.input_artifact_object_key = artifact_store.put_text_with_object_key(
             object_key=_build_content_job_artifact_key(job_id=job.id, file_name="input.json"),
             body=provider_result.raw_prompt,
@@ -445,6 +455,8 @@ def run_ai_content_generation_job(db: Session, *, job_id: UUID) -> AIContentJobE
                     "difficulty": generated.difficulty,
                     "generationMode": provider_result.generation_mode,
                     "compilerVersion": provider_result.compiler_version,
+                    "generationProfile": provider_result.generation_profile,
+                    "timeoutSeconds": provider_result.timeout_seconds,
                     "rawCandidate": raw_candidate_payload,
                     "candidate": candidate_payload,
                     "validation": validation_report,
@@ -487,6 +499,8 @@ def run_ai_content_generation_job(db: Session, *, job_id: UUID) -> AIContentJobE
                 payload={
                     "generationMode": provider_result.generation_mode,
                     "compilerVersion": provider_result.compiler_version,
+                    "generationProfile": provider_result.generation_profile,
+                    "timeoutSeconds": provider_result.timeout_seconds,
                     "rawCandidate": raw_candidate_payload,
                     "compiledCandidate": candidate_payload,
                     "errors": validation_report["errors"],
@@ -499,9 +513,7 @@ def run_ai_content_generation_job(db: Session, *, job_id: UUID) -> AIContentJobE
             failure_message: str | None = None
             if validation_report["errors"]:
                 status_value = AIContentGenerationCandidateStatus.INVALID
-                failure_code = _map_candidate_validation_failure_code(
-                    validation_report["errors"]
-                )
+                failure_code = _map_candidate_validation_failure_code(validation_report["errors"])
                 failure_message = "; ".join(validation_report["errors"])[
                     :AI_CONTENT_FAILURE_MESSAGE_MAX_LENGTH
                 ]
@@ -574,6 +586,8 @@ def run_ai_content_generation_job(db: Session, *, job_id: UUID) -> AIContentJobE
                 "promptTemplateVersion": provider_result.prompt_template_version,
                 "generationMode": provider_result.generation_mode,
                 "compilerVersion": provider_result.compiler_version,
+                "generationProfile": provider_result.generation_profile,
+                "timeoutSeconds": provider_result.timeout_seconds,
                 "validCount": valid_count,
                 "invalidCount": invalid_count,
                 "candidates": snapshot_candidates,
@@ -816,16 +830,37 @@ def _validate_candidate_payload(candidate: GeneratedContentCandidate) -> dict[st
         elif candidate.type_tag == ContentTypeTag.L_SITUATION:
             if len(candidate.turns) < 2 or len(candidate.sentences) < 3:
                 errors.append("listening_situation_alignment_invalid")
+            if candidate.track == Track.H2 and len(candidate.turns) < 3:
+                errors.append("listening_situation_turn_count_insufficient")
+            if candidate.track == Track.H2:
+                if _listening_situation_final_turn_only_solvable(candidate):
+                    errors.append("listening_situation_final_turn_too_obvious")
+                if _listening_plausible_distractor_count(candidate) < 2:
+                    errors.append("listening_situation_plausible_distractors_too_few")
     else:
         passage_text = (candidate.passage or "").strip()
         if candidate.type_tag == ContentTypeTag.R_BLANK and "[BLANK]" not in passage_text:
             errors.append("reading_blank_marker_missing")
+        if candidate.type_tag == ContentTypeTag.R_BLANK and candidate.track == Track.H1:
+            if len(candidate.sentences) < 4 or _word_count(passage_text) < 130:
+                errors.append("reading_blank_length_too_short")
+            if not _has_discourse_shift(passage_text):
+                errors.append("reading_blank_discourse_shift_missing")
+            if _reading_blank_paraphrase_too_direct(candidate):
+                errors.append("reading_blank_paraphrase_too_direct")
         if candidate.type_tag == ContentTypeTag.R_INSERTION:
             required_markers = ("[1]", "[2]", "[3]", "[4]")
             if not all(marker in passage_text for marker in required_markers):
                 errors.append("reading_insertion_marker_missing")
         if candidate.type_tag == ContentTypeTag.R_ORDER and len(candidate.sentences) < 4:
             errors.append("reading_order_sentence_count_insufficient")
+        if candidate.type_tag == ContentTypeTag.R_ORDER and candidate.track == Track.H1:
+            if len(candidate.sentences) < 4 or _word_count(passage_text) < 130:
+                errors.append("reading_order_length_too_short")
+            if not _has_discourse_shift(passage_text):
+                errors.append("reading_order_discourse_relation_missing")
+            if _reading_order_plausible_distractor_count(candidate) < 2:
+                errors.append("reading_order_plausible_distractors_too_few")
         if candidate.type_tag == ContentTypeTag.R_SUMMARY and len(candidate.sentences) < 4:
             errors.append("reading_summary_sentence_count_insufficient")
         if candidate.type_tag == ContentTypeTag.R_VOCAB:
@@ -890,13 +925,21 @@ def _validate_candidate_payload(candidate: GeneratedContentCandidate) -> dict[st
 
 def _map_candidate_validation_failure_code(errors: list[str]) -> str:
     error_set = set(errors)
-    if "l_response_turn_count_invalid" in error_set:
+    if any(
+        error in error_set
+        for error in {
+            "l_response_turn_count_invalid",
+            "listening_situation_turn_count_insufficient",
+        }
+    ):
         return AIContentGenerationFailureCode.OUTPUT_INVALID_TURN_COUNT.value
     if any(
         error in error_set
         for error in {
             "l_response_option_duplicate",
             "answer_distractor_semantic_collision",
+            "listening_situation_plausible_distractors_too_few",
+            "reading_order_plausible_distractors_too_few",
         }
     ):
         return AIContentGenerationFailureCode.OUTPUT_INVALID_RESPONSE_OPTIONS.value
@@ -985,6 +1028,95 @@ def _contains_disallowed_text_unicode(value: str) -> bool:
         if category == "Cc" and char not in {"\n", "\r", "\t"}:
             return True
     return False
+
+
+def _word_count(text: str) -> int:
+    return len(re.findall(r"[A-Za-z0-9']+", text))
+
+
+def _has_discourse_shift(text: str) -> bool:
+    lowered = text.casefold()
+    return any(
+        marker in lowered
+        for marker in (
+            "however",
+            "although",
+            "while",
+            "but",
+            "therefore",
+            "as a result",
+            "instead",
+            "nonetheless",
+            "nevertheless",
+            "in contrast",
+            "because",
+        )
+    )
+
+
+def _normalize_option_surface(text: str) -> str:
+    normalized = unicodedata.normalize("NFKC", text).casefold()
+    normalized = re.sub(r"[^a-z0-9 ]+", " ", normalized)
+    return " ".join(normalized.split())
+
+
+def _reading_blank_paraphrase_too_direct(candidate: GeneratedContentCandidate) -> bool:
+    if len(candidate.sentences) < 2:
+        return True
+    option_tokens = set(_normalize_option_surface(candidate.options.get("A", "")).split())
+    if not option_tokens:
+        return True
+    adjacent_text = " ".join(
+        (
+            candidate.sentences[max(0, len(candidate.sentences) // 2 - 1)].get("text", ""),
+            candidate.sentences[
+                min(len(candidate.sentences) - 1, len(candidate.sentences) // 2)
+            ].get("text", ""),
+        )
+    )
+    adjacent_tokens = set(_normalize_option_surface(adjacent_text).split())
+    if not adjacent_tokens:
+        return True
+    overlap_ratio = len(option_tokens & adjacent_tokens) / max(1, len(option_tokens))
+    return overlap_ratio >= 0.72
+
+
+def _reading_order_plausible_distractor_count(candidate: GeneratedContentCandidate) -> int:
+    correct_order = _normalize_option_surface(candidate.options.get("A", ""))
+    count = 0
+    for label in ("B", "C", "D", "E"):
+        distractor = _normalize_option_surface(candidate.options.get(label, ""))
+        if not distractor or distractor == correct_order:
+            continue
+        if distractor.count(" ") == correct_order.count(" "):
+            count += 1
+    return count
+
+
+def _listening_plausible_distractor_count(candidate: GeneratedContentCandidate) -> int:
+    correct_tokens = set(_normalize_option_surface(candidate.options.get("A", "")).split())
+    count = 0
+    for label in ("B", "C", "D", "E"):
+        distractor_tokens = set(_normalize_option_surface(candidate.options.get(label, "")).split())
+        if not distractor_tokens or distractor_tokens == correct_tokens:
+            continue
+        overlap = len(correct_tokens & distractor_tokens) / max(1, len(correct_tokens))
+        if overlap >= 0.15:
+            count += 1
+    return count
+
+
+def _listening_situation_final_turn_only_solvable(candidate: GeneratedContentCandidate) -> bool:
+    if len(candidate.turns) < 3:
+        return True
+    prior_tokens = set()
+    for turn in candidate.turns[:-1]:
+        prior_tokens.update(_normalize_option_surface(turn.get("text", "")).split())
+    answer_tokens = set(_normalize_option_surface(candidate.options.get("A", "")).split())
+    if not answer_tokens:
+        return True
+    overlap = len(prior_tokens & answer_tokens) / max(1, len(answer_tokens))
+    return overlap < 0.12
 
 
 def _candidate_payload_for_artifact(candidate: GeneratedContentCandidate) -> dict[str, object]:
@@ -1176,6 +1308,22 @@ def _extract_generation_trace(
     job: AIContentGenerationJob,
     candidate: AIContentGenerationCandidate,
 ) -> dict[str, object] | None:
+    metadata = job.metadata_json if isinstance(job.metadata_json, dict) else {}
+    trace: dict[str, object] = {}
+    raw_generation_mode = metadata.get("generationMode")
+    if isinstance(raw_generation_mode, str) and raw_generation_mode.strip():
+        trace["generationMode"] = raw_generation_mode.strip()
+    raw_compiler_version = metadata.get("compilerVersion")
+    if isinstance(raw_compiler_version, str) and raw_compiler_version.strip():
+        trace["compilerVersion"] = raw_compiler_version.strip()
+    raw_generation_profile = metadata.get("generationProfile")
+    if isinstance(raw_generation_profile, str) and raw_generation_profile.strip():
+        trace["generationProfile"] = raw_generation_profile.strip()
+    raw_timeout_seconds = metadata.get("timeoutSeconds")
+    if isinstance(raw_timeout_seconds, int) and raw_timeout_seconds > 0:
+        trace["timeoutSeconds"] = raw_timeout_seconds
+    if trace:
+        return trace
     if (
         candidate.type_tag == ContentTypeTag.L_RESPONSE
         and isinstance(job.prompt_template_version, str)
