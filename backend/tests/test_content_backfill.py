@@ -801,11 +801,23 @@ def test_batch_publish_keeps_h1_single_warning_mode_and_surfaces_calibration_tra
         revision = db.get(ContentUnitRevision, revision_id)
         assert revision is not None
         revision.body_text = (
-            "Students often record questions in a notebook before revising a draft. "
-            "The habit helps them compare an early explanation with a later version. "
-            "When they revisit the notebook, they notice where evidence remains vague. "
-            "Careful revision eventually leads them to justify each claim more precisely. "
-            "Over time, the notebook becomes a record of how their reasoning improves."
+            "Students often record questions in a notebook before revising a draft, "
+            "and the notebook becomes a running log of claims, objections, and "
+            "evidence they may need later. "
+            "Rather than trusting the first explanation that sounds fluent, they "
+            "revisit early assumptions, compare them with newer examples, and note "
+            "where a convenient claim begins to drift away from the support they "
+            "actually collected. "
+            "The habit slows the first stage of planning, yet it also reveals which "
+            "reasons are sturdy and which ones collapse once another interpretation "
+            "is considered. "
+            "When learners return to the notebook after discussion, they can see how "
+            "a weak judgment was replaced by a more defensible one and why that "
+            "revision became necessary. "
+            "Over time, the notebook stops being a storage place for random thoughts "
+            "and starts functioning as a record of how evidence reshapes judgment. "
+            "Students who use it well do not merely finish cleaner drafts; they also "
+            "build a steadier method for questioning their own reasoning."
         )
         revision.metadata_json = {
             **revision.metadata_json,
@@ -816,35 +828,49 @@ def test_batch_publish_keeps_h1_single_warning_mode_and_surfaces_calibration_tra
                     "id": "s1",
                     "text": (
                         "Students often record questions in a notebook before revising "
-                        "a draft."
+                        "a draft, and the notebook becomes a running log of claims, "
+                        "objections, and evidence they may need later."
                     ),
                 },
                 {
                     "id": "s2",
                     "text": (
-                        "The habit helps them compare an early explanation with a "
-                        "later version."
+                        "Rather than trusting the first explanation that sounds "
+                        "fluent, they revisit early assumptions, compare them with "
+                        "newer examples, and note where a convenient claim begins to "
+                        "drift away from the support they actually collected."
                     ),
                 },
                 {
                     "id": "s3",
                     "text": (
-                        "When they revisit the notebook, they notice where evidence "
-                        "remains vague."
+                        "The habit slows the first stage of planning, yet it also "
+                        "reveals which reasons are sturdy and which ones collapse "
+                        "once another interpretation is considered."
                     ),
                 },
                 {
                     "id": "s4",
                     "text": (
-                        "Careful revision eventually leads them to justify each claim "
-                        "more precisely."
+                        "When learners return to the notebook after discussion, they "
+                        "can see how a weak judgment was replaced by a more "
+                        "defensible one and why that revision became necessary."
                     ),
                 },
                 {
                     "id": "s5",
                     "text": (
-                        "Over time, the notebook becomes a record of how their "
-                        "reasoning improves."
+                        "Over time, the notebook stops being a storage place for "
+                        "random thoughts and starts functioning as a record of how "
+                        "evidence reshapes judgment."
+                    ),
+                },
+                {
+                    "id": "s6",
+                    "text": (
+                        "Students who use it well do not merely finish cleaner "
+                        "drafts; they also build a steadier method for questioning "
+                        "their own reasoning."
                     ),
                 },
             ],
@@ -859,7 +885,7 @@ def test_batch_publish_keeps_h1_single_warning_mode_and_surfaces_calibration_tra
             **question.metadata_json,
             "typeTag": "R_BLANK",
             "difficulty": 2,
-            "evidenceSentenceIds": ["s3", "s4", "s5"],
+            "evidenceSentenceIds": ["s3", "s4", "s5", "s6"],
         }
         db.commit()
 
