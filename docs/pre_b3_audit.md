@@ -2033,3 +2033,315 @@ Next step:
   - `H1 / R_BLANK`
   - `H1 / R_ORDER`
   first, then re-audit readiness after publish
+
+## B2.6.21 calibrated inventory backfill with redesigned profiles
+
+`B2.6.21` executed live backfill against the three redesigned targets from
+`B2.6.20`.
+
+Execution order:
+
+1. `H2 / LISTENING / L_SITUATION`
+2. `H1 / READING / R_BLANK`
+3. `H1 / READING / R_ORDER`
+
+Fixed runtime policy:
+
+- model: `gpt-5-mini`
+- fallback: none
+- evaluation label: `b2-6-21-redesigned-profile-20260315`
+- dry-run first, then live execution
+- inventory increase counted only when `calibrationPass=true`
+
+### H2 / LISTENING / L_SITUATION
+
+Executed jobs:
+
+- `442e1d2d-b5f9-48e6-9729-8260d8fa06c8`
+  - target: difficulty `3`
+  - candidate count: `2`
+  - model: `gpt-5-mini`
+  - `fallbackTriggered = false`
+  - generation status: `SUCCEEDED`
+- `c4dcb5d5-996a-4335-a569-0ea239bd92a5`
+  - target: difficulty `4`
+  - candidate count: `1`
+  - model: `gpt-5-mini`
+  - `fallbackTriggered = false`
+  - generation status: `SUCCEEDED`
+
+Materialized drafts:
+
+- `236516cd-8a3e-469d-a041-8559e0003827`
+  - calibration score: `52`
+  - calibrated level: `STANDARD`
+  - pass: `false`
+  - fail reasons:
+    - `inference_load_below_track_baseline`
+    - `listening_situation_context_inference_too_low`
+- `067a3c96-ad3e-4e11-aa39-2c37f10494d9`
+  - calibration score: `50`
+  - calibrated level: `STANDARD`
+  - pass: `false`
+  - fail reasons:
+    - `inference_load_below_track_baseline`
+    - `length_too_short`
+    - `listening_situation_context_inference_too_low`
+- `496e4cc4-86cb-4b42-8cce-de9d1afa59ed`
+  - calibration score: `58`
+  - calibrated level: `HARD`
+  - pass: `true`
+  - published
+
+Public delivery confirmation:
+
+- public list confirmed for `496e4cc4-86cb-4b42-8cce-de9d1afa59ed`
+- public sync confirmed for `496e4cc4-86cb-4b42-8cce-de9d1afa59ed`
+- public detail confirmed for `496e4cc4-86cb-4b42-8cce-de9d1afa59ed`
+
+Efficiency comparison vs. pre-redesign (`B2.6.19`):
+
+- before
+  - VALID: `2 / 2 = 100%`
+  - materialized: `2 / 2 = 100%`
+  - calibrationPass: `0 / 2 = 0%`
+  - published: `0 / 2 = 0%`
+  - publishable item per dollar: `0`
+- after
+  - VALID: `3 / 3 = 100%`
+  - materialized: `3 / 3 = 100%`
+  - calibrationPass: `1 / 3 = 33.3%`
+  - published: `1 / 3 = 33.3%`
+  - publishable item per dollar: `226.757369`
+
+Interpretation:
+
+- this is the only target where the redesign produced real inventory growth
+- `H2 / L_SITUATION` is no longer missing from the published `H2` listening pool
+- the remaining blocked drafts still show the same core weakness:
+  `context inference` is better than before, but not yet consistently above the
+  `H2` baseline
+
+### H1 / READING / R_BLANK
+
+Executed jobs:
+
+- `661a33ac-5796-40b1-80be-8d0a907a1518`
+  - target: difficulty `2`
+  - candidate count: `2`
+  - model: `gpt-5-mini`
+  - `fallbackTriggered = false`
+  - generation status: `SUCCEEDED`
+- `d1cd8d61-dc9a-4c3f-b593-d3e6fff846bd`
+  - target: difficulty `3`
+  - candidate count: `2`
+  - model: `gpt-5-mini`
+  - `fallbackTriggered = false`
+  - generation status: `SUCCEEDED`
+
+Materialized drafts: `4`
+
+Publish result:
+
+- `0` published
+- all `4` drafts blocked by calibration / quality gate
+
+Representative fail patterns:
+
+- `88fdbaef-41ab-4ccd-a27f-0bb791f39969`
+  - score: `40`
+  - level: `STANDARD`
+  - pass: `false`
+  - warnings:
+    - `length_too_short`
+    - `reading_blank_discourse_marker_sparse`
+    - `reading_blank_inference_load_too_low`
+  - fail reasons:
+    - `length_too_short`
+    - `reading_blank_inference_load_too_low`
+- `7f50a646-7d93-47c5-b4c7-1007747b3276`
+  - score: `44`
+  - level: `STANDARD`
+  - pass: `false`
+  - warnings:
+    - `length_too_short`
+    - `reading_blank_discourse_marker_sparse`
+    - `reading_blank_structure_too_simple`
+  - fail reasons:
+    - `length_too_short`
+    - `reading_blank_structure_too_simple`
+
+Efficiency comparison vs. pre-redesign (`B2.6.19`):
+
+- before
+  - VALID: `2 / 2 = 100%`
+  - materialized: `2 / 2 = 100%`
+  - calibrationPass: `0 / 2 = 0%`
+  - published: `0 / 2 = 0%`
+  - publishable item per dollar: `0`
+- after
+  - VALID: `4 / 4 = 100%`
+  - materialized: `4 / 4 = 100%`
+  - calibrationPass: `0 / 4 = 0%`
+  - published: `0 / 4 = 0%`
+  - publishable item per dollar: `0`
+
+Interpretation:
+
+- the profile no longer fails because of raw transport instability
+- however it still does not clear the quality gate
+- compared with `B2.6.19`, the dominant failure reasons moved away from
+  `H1:EASY` and toward:
+  - `length_too_short`
+  - `reading_blank_discourse_marker_sparse`
+  - `reading_blank_structure_too_simple`
+- practical conclusion: the redesign did not yet solve the passage-length /
+  discourse-density problem
+
+### H1 / READING / R_ORDER
+
+Executed jobs:
+
+- `f17b4354-89b7-4c0b-a477-5c989effd33b`
+  - target: difficulty `2`
+  - candidate count: `2`
+  - model: `gpt-5-mini`
+  - `fallbackTriggered = false`
+  - generation status: `FAILED`
+  - error: `PROVIDER_TIMEOUT`
+- `5f1d2575-92d8-4bfb-94ee-9ffa2dcbcb03`
+  - target: difficulty `3`
+  - candidate count: `1`
+  - model: `gpt-5-mini`
+  - `fallbackTriggered = false`
+  - generation status: `SUCCEEDED`
+
+Materialized drafts:
+
+- `f17f743b-9bfe-45e6-b910-4b0832ab500f`
+  - score: `37`
+  - level: `EASY`
+  - pass: `false`
+  - fail reasons:
+    - `length_too_short`
+    - `reading_discourse_inference_too_low`
+    - `reading_order_structure_too_simple`
+    - `track_level_mismatch:H1:EASY`
+
+Publish result:
+
+- `0` published
+
+Efficiency comparison vs. pre-redesign (`B2.6.19`):
+
+- before
+  - VALID: `2 / 2 = 100%`
+  - materialized: `2 / 2 = 100%`
+  - calibrationPass: `0 / 2 = 0%`
+  - published: `0 / 2 = 0%`
+  - publishable item per dollar: `0`
+- after
+  - VALID: `1 / 3 = 33.3%`
+  - materialized: `1 / 3 = 33.3%`
+  - calibrationPass: `0 / 3 = 0%`
+  - published: `0 / 3 = 0%`
+  - publishable item per dollar: `0`
+
+Interpretation:
+
+- this target regressed operationally because one batch timed out
+- the surviving draft still remained too easy and too short
+- `direct clue / simple chronology` did not become a publishable `H1` item yet
+
+### Live-profile trace check
+
+This round exposed an important mismatch between the intended `B2.6.20`
+design and the live backfill path.
+
+Expected trace for the three redesigned targets:
+
+- `generationProfile`
+- `timeoutSeconds`
+- `generationMode`
+- `compilerVersion`
+- dedicated prompt template suffixes
+
+Observed in live materialized revisions:
+
+- `generationProfile = null`
+- `timeoutSeconds = null`
+- `generationMode = null`
+- `compilerVersion = null`
+- prompt template versions remained generic:
+  - `content-v1-listening-situation`
+  - `content-v1-reading-blank`
+  - `content-v1-reading-order`
+
+Interpretation:
+
+- the live backfill run behaved as if the generic hard-type prompt path was
+  still active
+- this means `B2.6.20` redesign logic was not fully reflected in the live
+  execution trace
+- therefore `H1 / R_BLANK` and `H1 / R_ORDER` results should be treated as
+  evidence that additional redesign or live-path wiring is still required
+
+### Before / after readiness summary
+
+- `M3`
+  - unchanged
+  - listening `15 -> 15`
+  - reading `11 -> 11`
+
+- `H1`
+  - Daily: `WARNING -> WARNING`
+  - Weekly: `READY -> READY`
+  - Monthly: `NOT_READY -> NOT_READY`
+  - published counts:
+    - LISTENING `12 -> 12`
+    - READING `11 -> 11`
+  - practical effect:
+    - deficits remain `R_BLANK`, `R_ORDER`
+
+- `H2`
+  - Daily: `WARNING -> WARNING`
+  - Weekly: `READY -> READY`
+  - Monthly: `NOT_READY -> NOT_READY`
+  - published counts:
+    - LISTENING `15 -> 16`
+    - READING `12 -> 12`
+  - practical effect:
+    - `L_SITUATION` is no longer missing
+    - the redesigned run produced one real `calibrationPass=true` inventory item
+
+### Remaining deficits after B2.6.21
+
+- `M3`
+  - listening missing: none
+  - reading missing: `R_ORDER`, `R_SUMMARY`
+- `H1`
+  - listening missing: none
+  - reading missing: `R_BLANK`, `R_ORDER`
+- `H2`
+  - listening missing: none
+  - reading missing: `R_ORDER`, `R_SUMMARY`, `R_VOCAB`
+
+### B2.6.21 conclusion
+
+- `H2 / L_SITUATION`
+  - improved materially
+  - one real `calibrationPass=true` publish succeeded
+- `H1 / R_BLANK`
+  - no inventory growth
+  - `too easy` pressure decreased, but `too short / discourse sparse` remains
+- `H1 / R_ORDER`
+  - no inventory growth
+  - timeout + `EASY` failure still block publish
+
+Practical next step:
+
+- `B2.6.20` needs a follow-up wiring / redesign pass for:
+  - `H1 / R_BLANK`
+  - `H1 / R_ORDER`
+- the next backfill round should only be run after the live generation path
+  proves it is actually using the dedicated quality profiles
