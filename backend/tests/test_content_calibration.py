@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+from pathlib import Path
 from textwrap import dedent
 
 from app.models.content_enums import ContentLifecycleStatus
@@ -12,110 +14,146 @@ from app.services.content_calibration_service import (
     evaluate_content_calibration,
 )
 
+_GOLD_SET_PATH = Path(__file__).resolve().parent / "fixtures" / "calibration_gold_set.json"
 
-def test_h2_reading_insertion_with_direct_clue_and_weak_structure_fails() -> None:
-    unit = _build_unit(track=Track.H2, skill=Skill.READING)
-    revision = _build_reading_revision(
-        track=Track.H2,
-        type_tag="R_INSERTION",
-        difficulty=3,
-        body_text=(
-            "Many people enjoy hiking because it offers physical exercise and time in nature. [1] "
-            "The trails can vary from easy forest paths to steep mountain climbs. [2] "
-            "Hiking also gives people a chance to observe wildlife in natural habitats. [3] "
-            "However, hikers should prepare carefully by bringing enough water and proper gear. [4]"
-        ),
-        sentences=[
-            "Many people enjoy hiking because it offers physical exercise and time in nature.",
-            "The trails can vary from easy forest paths to steep mountain climbs.",
-            "Hiking also gives people a chance to observe wildlife in natural habitats.",
-            "However, hikers should prepare carefully by bringing enough water and proper gear.",
-        ],
-    )
-    question = _build_question(
-        type_tag="R_INSERTION",
-        difficulty=3,
-        stem=(
-            "Where is the best place to insert the sentence "
-            "'Beyond these physical advantages, hiking can improve mental well-being'?"
-        ),
-        choices=("A", "B", "C", "D", "E"),
-    )
+
+def test_h2_near_fail_insertion_is_hard_block_candidate() -> None:
+    unit, revision, question, _ = _build_case_from_gold_fixture("h2_r_insertion_fail_1")
 
     result = evaluate_content_calibration(unit=unit, revision=revision, questions=[question])
 
     assert result.passed is False
+    assert "length_too_short" in result.fail_reasons
+    assert "direct_clue_too_strong" in result.fail_reasons
     assert result.calibrated_level in {
         ContentCalibrationLevel.TOO_EASY,
         ContentCalibrationLevel.EASY,
         ContentCalibrationLevel.STANDARD,
     }
-    assert result.fail_reasons
-    assert any(
-        reason in result.fail_reasons
-        for reason in (
-            "reading_insertion_single_slot_too_obvious",
-            "reading_insertion_direct_clue",
-            "track_level_mismatch:H2:STANDARD",
-            "inference_load_below_track_baseline",
-        )
+    assert result.quality_gate_version is not None
+
+
+def test_h2_h3_length_and_density_floor_fail_when_content_is_too_short() -> None:
+    short_cases = [
+        "h3_r_summary_fail_1",
+        "h3_l_long_talk_fail_1",
+    ]
+
+    for fixture_id in short_cases:
+        unit, revision, question, _ = _build_case_from_gold_fixture(fixture_id)
+        result = evaluate_content_calibration(unit=unit, revision=revision, questions=[question])
+
+        assert result.passed is False
+        assert "length_too_short" in result.fail_reasons
+        assert result.minimum_length_gate < 100
+
+
+def test_m3_h1_warning_budget_allows_single_warning_but_requires_override_after_budget() -> None:
+    h1_warning_only = evaluate_content_calibration(
+        unit=_build_unit(track=Track.H1, skill=Skill.READING),
+        revision=_build_reading_revision(
+            track=Track.H1,
+            type_tag="R_BLANK",
+            difficulty=2,
+            body_text=dedent(
+                """
+                Students often record questions in a notebook before revising a draft.
+                The habit helps them compare their first explanation with a later version.
+                When they revisit the notebook, they notice where evidence remains vague.
+                Careful revision eventually leads them to justify each claim more precisely.
+                Over time, the notebook becomes a record of how their reasoning improves.
+                """
+            ).strip(),
+            sentences=[
+                "Students often record questions in a notebook before revising a draft.",
+                "The habit helps them compare their first explanation with a later version.",
+                "When they revisit the notebook, they notice where evidence remains vague.",
+                "Careful revision eventually leads them to justify each claim more precisely.",
+                "Over time, the notebook becomes a record of how their reasoning improves.",
+            ],
+        ),
+        questions=[
+            _build_question(
+                type_tag="R_BLANK",
+                difficulty=2,
+                stem="Which statement best completes the blank in the passage?",
+                choices=(
+                    "The notebook encourages deliberate revision and clearer reasoning.",
+                    "The notebook should replace all teacher feedback immediately.",
+                    "Students improve only when they avoid early mistakes entirely.",
+                    "Revision matters less than writing quickly during class.",
+                    "Evidence becomes unnecessary once the first draft is finished.",
+                ),
+            )
+        ],
     )
+
+    assert h1_warning_only.passed is True
+    assert "reading_blank_discourse_marker_sparse" in h1_warning_only.warnings
+    assert h1_warning_only.override_required is False
+
+    h1_budget_exceeded = evaluate_content_calibration(
+        unit=_build_unit(track=Track.H1, skill=Skill.READING),
+            revision=_build_reading_revision(
+                track=Track.H1,
+                type_tag="R_ORDER",
+                difficulty=2,
+                body_text=(
+                    "Students join debate club because they want to feel better "
+                    "when they talk in class. "
+                    "They give short talks to other students and repeat the same "
+                    "simple points after each round. "
+                    "Teachers say the group answers a little more in class later. "
+                    "Many students come back the next year, but the passage gives only "
+                    "basic reasons for that change."
+                ),
+                sentences=[
+                    "Students join debate club because they want to feel better when "
+                    "they talk in class.",
+                    "They give short talks to other students and repeat the same "
+                    "simple points after each round.",
+                    "Teachers say the group answers a little more in class later.",
+                    "Many students come back the next year, but the passage gives "
+                    "only basic reasons for that change.",
+                ],
+            ),
+        questions=[
+            _build_question(
+                type_tag="R_ORDER",
+                difficulty=2,
+                stem="Which order best matches the flow of the passage?",
+                choices=(
+                    "A-B-C",
+                    "A-C-B",
+                    "B-A-C",
+                    "B-C-A",
+                    "C-A-B",
+                ),
+            )
+        ],
+    )
+
+    assert h1_budget_exceeded.passed is False
+    assert h1_budget_exceeded.override_required is True
+    assert "direct_clue_too_strong" not in h1_budget_exceeded.fail_reasons
+
+
+def test_gold_anchor_regression_cases_match_expected_pass_fail() -> None:
+    fixtures = _load_gold_fixtures()
+
+    for fixture in fixtures:
+        unit, revision, question, expected_levels = _build_case_from_fixture(fixture)
+        result = evaluate_content_calibration(unit=unit, revision=revision, questions=[question])
+
+        expected_pass = bool(fixture["expectedPass"])
+        if expected_pass:
+            assert result.passed is True, fixture["fixtureId"]
+        else:
+            assert result.passed is False, fixture["fixtureId"]
+        assert result.calibrated_level.value in expected_levels, fixture["fixtureId"]
 
 
 def test_track_representative_samples_align_with_expected_calibration_bands() -> None:
-    m3_body = dedent(
-        """
-        Lena brought a spare umbrella to work because it might rain.
-        When her coworker forgot theirs, Lena offered the spare one so they would not get wet.
-        Later she kept the spare umbrella in her locker in case she needed it again.
-        """
-    ).strip()
-    h1_body = dedent(
-        """
-        Students often think feedback is useful only after they make a mistake.
-        However, feedback can also guide planning before a task begins.
-        When learners compare early ideas with later revisions,
-        they notice patterns in their thinking.
-        As a result, they become more deliberate about setting goals
-        before the next assignment starts.
-        That process builds stronger self-monitoring habits over time.
-        """
-    ).strip()
-    h2_body = dedent(
-        """
-        Many people are drawn to hiking as it offers a synergistic blend
-        of rigorous physical exertion
-        and a profound opportunity to reconnect with the natural world. [1]
-        The difficulty of trails can vary substantially,
-        ranging from rudimentary forest paths to
-        grueling mountain ascents that demand significant stamina. [2]
-        Hiking also serves as an exceptional vantage point
-        for observing diverse wildlife in their
-        undisturbed habitats, fostering environmental awareness. [3]
-        Nonetheless, such benefits can only be fully realized
-        when preceded by meticulous preparation,
-        including the carriage of ample hydration and specialized gear. [4]
-        Consequently, experienced hikers evaluate both terrain and weather before departure.
-        """
-    ).strip()
-    h3_transcript = dedent(
-        """
-        Host: Today we will examine how urban wetlands function as ecological infrastructure.
-        Host: Although they were once regarded as wasted land,
-        contemporary planners increasingly
-        recognize their role in moderating floods and filtering pollutants.
-        Host: Researchers also note that wetlands preserve biodiversity
-        by supporting insects, birds,
-        and microorganisms that would otherwise disappear from dense cities.
-        Guest: Even so, policymakers face the difficult task
-        of reconciling short-term development
-        pressure with long-term ecological resilience.
-        Guest: That tension explains why restoration projects often require
-        both scientific evidence
-        and sustained public persuasion.
-        """
-    ).strip()
-
     samples = [
         (
             _build_unit(track=Track.M3, skill=Skill.READING),
@@ -123,13 +161,16 @@ def test_track_representative_samples_align_with_expected_calibration_bands() ->
                 track=Track.M3,
                 type_tag="R_VOCAB",
                 difficulty=1,
-                body_text=m3_body,
+                body_text=(
+                    "Lena brought a spare umbrella to work because it might rain. "
+                    "When her coworker forgot theirs, Lena offered the spare one so they "
+                    "would not get wet. Later she kept the spare umbrella in her locker "
+                    "in case she needed it again."
+                ),
                 sentences=[
                     "Lena brought a spare umbrella to work because it might rain.",
-                    (
-                        "When her coworker forgot theirs, Lena offered the spare one "
-                        "so they would not get wet."
-                    ),
+                    "When her coworker forgot theirs, Lena offered the spare one so "
+                    "they would not get wet.",
                     "Later she kept the spare umbrella in her locker in case she needed it again.",
                 ],
             ),
@@ -147,28 +188,33 @@ def test_track_representative_samples_align_with_expected_calibration_bands() ->
                 track=Track.H1,
                 type_tag="R_MAIN_IDEA",
                 difficulty=2,
-                body_text=h1_body,
+                body_text=dedent(
+                    """
+                    Students often think feedback is useful only after they make a mistake.
+                    However, feedback can also guide planning before a task begins.
+                    When learners compare early ideas with later revisions, they notice
+                    patterns in their thinking. As a result, they become more deliberate
+                    about setting goals before the next assignment starts.
+                    That process builds stronger self-monitoring habits over time.
+                    """
+                ).strip(),
                 sentences=[
-                        "Students often think feedback is useful only after they make a mistake.",
-                        "However, feedback can also guide planning before a task begins.",
-                        (
-                            "When learners compare early ideas with later revisions, they "
-                            "notice patterns in their thinking."
-                        ),
-                        (
-                            "As a result, they become more deliberate about setting goals "
-                            "before the next assignment starts."
-                        ),
-                        "That process builds stronger self-monitoring habits over time.",
-                    ],
-                ),
-                _build_question(
-                    type_tag="R_MAIN_IDEA",
-                    difficulty=2,
-                    stem="What does the passage suggest is the main purpose of feedback?",
-                    choices=(
-                        "Feedback supports planning and self-monitoring, not just correction.",
-                        "Students should avoid making mistakes before asking for feedback.",
+                    "Students often think feedback is useful only after they make a mistake.",
+                    "However, feedback can also guide planning before a task begins.",
+                    "When learners compare early ideas with later revisions, they "
+                    "notice patterns in their thinking.",
+                    "As a result, they become more deliberate about setting goals "
+                    "before the next assignment starts.",
+                    "That process builds stronger self-monitoring habits over time.",
+                ],
+            ),
+            _build_question(
+                type_tag="R_MAIN_IDEA",
+                difficulty=2,
+                stem="What does the passage suggest is the main purpose of feedback?",
+                choices=(
+                    "Feedback supports planning and self-monitoring, not just correction.",
+                    "Students should avoid mistakes before asking for feedback.",
                     "Teachers should rewrite students' work for them.",
                     "Planning matters less than revision in most classes.",
                     "Self-monitoring develops only through testing.",
@@ -176,154 +222,62 @@ def test_track_representative_samples_align_with_expected_calibration_bands() ->
             ),
             {ContentCalibrationLevel.STANDARD, ContentCalibrationLevel.HARD},
         ),
-        (
-            _build_unit(track=Track.H2, skill=Skill.READING),
-            _build_reading_revision(
-                track=Track.H2,
-                type_tag="R_INSERTION",
-                difficulty=3,
-                body_text=h2_body,
-                sentences=[
-                    (
-                        "Many people are drawn to hiking as it offers a synergistic "
-                        "blend of rigorous physical exertion and a profound opportunity "
-                        "to reconnect with the natural world."
-                    ),
-                    (
-                        "The difficulty of trails can vary substantially, ranging from "
-                        "rudimentary forest paths to grueling mountain ascents that "
-                        "demand significant stamina."
-                    ),
-                    (
-                        "Hiking also serves as an exceptional vantage point for "
-                        "observing diverse wildlife in their undisturbed habitats, "
-                        "fostering environmental awareness."
-                    ),
-                    (
-                        "Nonetheless, such benefits can only be fully realized when "
-                        "preceded by meticulous preparation, including the carriage of "
-                        "ample hydration and specialized gear."
-                    ),
-                    (
-                        "Consequently, experienced hikers evaluate both terrain and "
-                        "weather before departure."
-                    ),
-                ],
-            ),
-            _build_question(
-                type_tag="R_INSERTION",
-                difficulty=3,
-                stem=(
-                    "Where is the best place to insert the sentence about the "
-                    "psychological resilience built through hiking?"
-                ),
-                choices=(
-                    "Before sentence [1]",
-                    "Between sentence [1] and [2]",
-                    "Between sentence [2] and [3]",
-                    "Between sentence [3] and [4]",
-                    "After sentence [4]",
-                ),
-            ),
-            {ContentCalibrationLevel.HARD, ContentCalibrationLevel.KILLER},
-        ),
-        (
-            _build_unit(track=Track.H3, skill=Skill.LISTENING),
-            _build_listening_revision(
-                track=Track.H3,
-                type_tag="L_LONG_TALK",
-                difficulty=5,
-                transcript_text=h3_transcript,
-                turns=[
-                    (
-                        "Host",
-                        (
-                            "Today we will examine how urban wetlands function as "
-                            "ecological infrastructure."
-                        ),
-                    ),
-                    (
-                        "Host",
-                        (
-                            "Although they were once regarded as wasted land, "
-                            "contemporary planners increasingly recognize their role "
-                            "in moderating floods and filtering pollutants."
-                        ),
-                    ),
-                    (
-                        "Host",
-                        (
-                            "Researchers also note that wetlands preserve biodiversity "
-                            "by supporting insects, birds, and microorganisms that "
-                            "would otherwise disappear from dense cities."
-                        ),
-                    ),
-                    (
-                        "Guest",
-                        (
-                            "Even so, policymakers face the difficult task of "
-                            "reconciling short-term development pressure with "
-                            "long-term ecological resilience."
-                        ),
-                    ),
-                    (
-                        "Guest",
-                        (
-                            "That tension explains why restoration projects often "
-                            "require both scientific evidence and sustained public "
-                            "persuasion."
-                        ),
-                    ),
-                ],
-                sentences=[
-                    (
-                        "Today we will examine how urban wetlands function as "
-                        "ecological infrastructure."
-                    ),
-                    (
-                        "Although they were once regarded as wasted land, "
-                        "contemporary planners increasingly recognize their role in "
-                        "moderating floods and filtering pollutants."
-                    ),
-                    (
-                        "Researchers also note that wetlands preserve biodiversity by "
-                        "supporting insects, birds, and microorganisms that would "
-                        "otherwise disappear from dense cities."
-                    ),
-                    (
-                        "Even so, policymakers face the difficult task of reconciling "
-                        "short-term development pressure with long-term ecological "
-                        "resilience."
-                    ),
-                    (
-                        "That tension explains why restoration projects often require "
-                        "both scientific evidence and sustained public persuasion."
-                    ),
-                ],
-            ),
-            _build_question(
-                type_tag="L_LONG_TALK",
-                difficulty=5,
-                stem="What is the main point of the talk?",
-                choices=(
-                    (
-                        "Urban wetlands should be protected because they provide "
-                        "ecological and planning benefits."
-                    ),
-                    "Modern cities should replace wetlands with artificial lakes.",
-                    "Flood control is less effective than rapid construction in cities.",
-                    "Scientific evidence rarely affects environmental policy.",
-                    "Public persuasion is unnecessary in restoration projects.",
-                ),
-            ),
-            {ContentCalibrationLevel.HARD, ContentCalibrationLevel.KILLER},
-        ),
     ]
 
     for unit, revision, question, expected_levels in samples:
         result = evaluate_content_calibration(unit=unit, revision=revision, questions=[question])
-        assert result.passed is True
         assert result.calibrated_level in expected_levels
+
+
+def _build_case_from_gold_fixture(
+    fixture_id: str,
+) -> tuple[ContentUnit, ContentUnitRevision, ContentQuestion, set[str]]:
+    fixture = next(item for item in _load_gold_fixtures() if item["fixtureId"] == fixture_id)
+    return _build_case_from_fixture(fixture)
+
+
+def _build_case_from_fixture(
+    fixture: dict[str, object],
+) -> tuple[ContentUnit, ContentUnitRevision, ContentQuestion, set[str]]:
+    track = Track(str(fixture["track"]))
+    skill = Skill(str(fixture["skill"]))
+    type_tag = str(fixture["typeTag"])
+    difficulty = int(fixture["difficulty"])
+    expected_levels = {str(level) for level in fixture["expectedLevels"]}
+    unit = _build_unit(track=track, skill=skill)
+
+    if skill == Skill.READING:
+        revision = _build_reading_revision(
+            track=track,
+            type_tag=type_tag,
+            difficulty=difficulty,
+            body_text=str(fixture["bodyText"]),
+            sentences=[str(item) for item in fixture["sentences"]],
+        )
+    else:
+        revision = _build_listening_revision(
+            track=track,
+            type_tag=type_tag,
+            difficulty=difficulty,
+            transcript_text=str(fixture["transcriptText"]),
+            turns=[
+                (str(item[0]), str(item[1]))
+                for item in fixture["turns"]
+            ],
+            sentences=[str(item) for item in fixture["sentences"]],
+        )
+
+    question = _build_question(
+        type_tag=type_tag,
+        difficulty=difficulty,
+        stem=str(fixture["stem"]),
+        choices=tuple(str(choice) for choice in fixture["choices"]),
+    )
+    return unit, revision, question, expected_levels
+
+
+def _load_gold_fixtures() -> list[dict[str, object]]:
+    return json.loads(_GOLD_SET_PATH.read_text(encoding="utf-8"))
 
 
 def _build_unit(*, track: Track, skill: Skill) -> ContentUnit:

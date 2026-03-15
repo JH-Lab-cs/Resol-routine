@@ -775,10 +775,12 @@ def test_batch_publish_blocks_h2_calibration_fail_and_reports_reasons(
     assert failed_item["calibrationScore"] is not None
     assert failed_item["calibratedLevel"] is not None
     assert failed_item["calibrationFailReasons"]
+    assert failed_item["qualityGateVersion"] is not None
+    assert failed_item["overrideRequired"] is False
     assert failed_item["detail"]["code"] == "content_calibration_failed"
 
 
-def test_batch_publish_keeps_h1_warning_mode_and_surfaces_calibration_trace(
+def test_batch_publish_keeps_h1_single_warning_mode_and_surfaces_calibration_trace(
     db_session_factory,
 ) -> None:
     backfill_job_id = UUID("77777777-7777-7777-7777-777777777777")
@@ -788,7 +790,7 @@ def test_batch_publish_keeps_h1_warning_mode_and_surfaces_calibration_trace(
             external_id="backfill-calibration-warning",
             track=Track.H1,
             skill=Skill.READING,
-            type_tag="R_INSERTION",
+            type_tag="R_BLANK",
             difficulty=2,
             lifecycle_status=ContentLifecycleStatus.DRAFT,
             metadata_extra={
@@ -799,39 +801,50 @@ def test_batch_publish_keeps_h1_warning_mode_and_surfaces_calibration_trace(
         revision = db.get(ContentUnitRevision, revision_id)
         assert revision is not None
         revision.body_text = (
-            "Many students join debate club because it improves confidence.[1] "
-            "In addition, they learn to organize evidence before speaking in front of "
-            "others.[2] "
-            "For example, teachers say this habit helps students respond more carefully "
-            "in class.[3] "
-            "As a result, many students continue debate activities for several years.[4]"
+            "Students often record questions in a notebook before revising a draft. "
+            "The habit helps them compare an early explanation with a later version. "
+            "When they revisit the notebook, they notice where evidence remains vague. "
+            "Careful revision eventually leads them to justify each claim more precisely. "
+            "Over time, the notebook becomes a record of how their reasoning improves."
         )
         revision.metadata_json = {
             **revision.metadata_json,
+            "typeTag": "R_BLANK",
+            "difficulty": 2,
             "sentences": [
                 {
                     "id": "s1",
-                    "text": "Many students join debate club because it improves confidence.",
+                    "text": (
+                        "Students often record questions in a notebook before revising "
+                        "a draft."
+                    ),
                 },
                 {
                     "id": "s2",
                     "text": (
-                        "In addition, they learn to organize evidence before speaking in "
-                        "front of others."
+                        "The habit helps them compare an early explanation with a "
+                        "later version."
                     ),
                 },
                 {
                     "id": "s3",
                     "text": (
-                        "For example, teachers say this habit helps students respond more "
-                        "carefully in class."
+                        "When they revisit the notebook, they notice where evidence "
+                        "remains vague."
                     ),
                 },
                 {
                     "id": "s4",
                     "text": (
-                        "As a result, many students continue debate activities for several "
-                        "years."
+                        "Careful revision eventually leads them to justify each claim "
+                        "more precisely."
+                    ),
+                },
+                {
+                    "id": "s5",
+                    "text": (
+                        "Over time, the notebook becomes a record of how their "
+                        "reasoning improves."
                     ),
                 },
             ],
@@ -841,19 +854,12 @@ def test_batch_publish_keeps_h1_warning_mode_and_surfaces_calibration_trace(
             .filter(ContentQuestion.content_unit_revision_id == revision_id)
             .one()
         )
-        question.stem = "Where is the best place to insert the following sentence?"
-        question.choice_a = "Before sentence [1]"
-        question.choice_b = "Between sentence [1] and [2]"
-        question.choice_c = "Between sentence [2] and [3]"
-        question.choice_d = "Between sentence [3] and [4]"
-        question.choice_e = "The sentence does not fit anywhere in the paragraph."
+        question.stem = "Which statement best completes the blank in the passage?"
         question.metadata_json = {
             **question.metadata_json,
-            "insertedSentence": (
-                "Beyond these advantages, debate club can also strengthen leadership "
-                "skills."
-            ),
-            "evidenceSentenceIds": ["s1", "s2"],
+            "typeTag": "R_BLANK",
+            "difficulty": 2,
+            "evidenceSentenceIds": ["s3", "s4", "s5"],
         }
         db.commit()
 
@@ -886,11 +892,106 @@ def test_batch_publish_keeps_h1_warning_mode_and_surfaces_calibration_trace(
     assert result["processedCount"] == 1
     assert result["failedCount"] == 0
     item = result["items"][0]
-    assert item["calibrationPass"] is False
-    assert item["calibrationFailReasons"]
+    assert item["calibrationPass"] is True
+    assert "reading_blank_discourse_marker_sparse" in item["calibrationWarnings"]
+    assert item["overrideRequired"] is False
     assert revision is not None
     assert revision.lifecycle_status == ContentLifecycleStatus.PUBLISHED
-    assert revision.metadata_json["calibrationPass"] is False
+    assert revision.metadata_json["overrideRequired"] is False
+
+
+def test_batch_publish_blocks_h1_when_warning_budget_is_exceeded(
+    db_session_factory,
+) -> None:
+    backfill_job_id = UUID("88888888-8888-8888-8888-888888888888")
+    with db_session_factory() as db:
+        _, revision_id = _create_content_revision(
+            db,
+            external_id="backfill-calibration-budget-block",
+            track=Track.H1,
+            skill=Skill.READING,
+            type_tag="R_ORDER",
+            difficulty=2,
+            lifecycle_status=ContentLifecycleStatus.DRAFT,
+            metadata_extra={
+                "source": "content_readiness_backfill",
+                "generationJobId": str(backfill_job_id),
+            },
+        )
+        revision = db.get(ContentUnitRevision, revision_id)
+        assert revision is not None
+        revision.body_text = (
+            "Students join debate club because they want to feel better when they talk in class. "
+            "They give short talks to other students and repeat the same simple "
+            "points after each round. "
+            "Teachers say the group answers a little more in class later. "
+            "Many students come back the next year, but the passage gives only "
+            "basic reasons for that change."
+        )
+        revision.metadata_json = {
+            **revision.metadata_json,
+            "typeTag": "R_ORDER",
+            "difficulty": 2,
+            "sentences": [
+                {
+                    "id": "s1",
+                    "text": (
+                        "Students join debate club because they want to feel better "
+                        "when they talk in class."
+                    ),
+                },
+                {
+                    "id": "s2",
+                    "text": (
+                        "They give short talks to other students and repeat the same "
+                        "simple points after each round."
+                    ),
+                },
+                {
+                    "id": "s3",
+                    "text": "Teachers say the group answers a little more in class later.",
+                },
+                {
+                    "id": "s4",
+                    "text": (
+                        "Many students come back the next year, but the passage gives "
+                        "only basic reasons for that change."
+                    ),
+                },
+            ],
+        }
+        db.commit()
+
+    filters = ReviewerBatchFilter(
+        track=Track.H1,
+        skill=Skill.READING,
+        source="content_readiness_backfill",
+        generation_job_id=backfill_job_id,
+        limit=1,
+    )
+    with db_session_factory() as db:
+        batch_validate_content_revisions(
+            db,
+            filters=filters,
+            validator_version="ops-validator-v6",
+        )
+        batch_review_content_revisions(
+            db,
+            filters=filters,
+            reviewer_identity="ops:warning-budget",
+        )
+        result = batch_publish_content_revisions(
+            db,
+            filters=filters,
+            confirm=True,
+        )
+
+    assert result["processedCount"] == 0
+    assert result["failedCount"] == 1
+    failed_item = result["failedItems"][0]
+    assert failed_item["detail"]["code"] == "content_calibration_failed"
+    assert failed_item["overrideRequired"] is True
+    assert failed_item["qualityGateVersion"] is not None
 
 
 def test_b34_content_sync_gate_uses_backfill_plan_to_evaluate_entry(db_session_factory) -> None:
@@ -1074,6 +1175,107 @@ def _build_backfill_fixture(
                             "C": "노트 언급은 대화 흐름과 무관하다.",
                             "D": "복도 상황은 맥락상 적절한 응답이 아니다.",
                             "E": "포스터 언급은 현재 상황과 관련이 없다.",
+                        },
+                    },
+                },
+            }
+
+        if type_tag == "L_LONG_TALK":
+            turns = [
+                {
+                    "speaker": "Host",
+                    "text": (
+                        "Today we will examine why public memory of a city often depends "
+                        "on ordinary infrastructure rather than official monuments."
+                    ),
+                },
+                {
+                    "speaker": "Host",
+                    "text": (
+                        "Bridges, stations, and markets organize repeated movement, so "
+                        "residents attach personal routines to structures that planners may "
+                        "consider merely functional."
+                    ),
+                },
+                {
+                    "speaker": "Host",
+                    "text": (
+                        "When redevelopment removes those spaces, people often describe the "
+                        "loss not as architectural change but as the disappearance of "
+                        "familiar social timing."
+                    ),
+                },
+                {
+                    "speaker": "Guest",
+                    "text": (
+                        "That reaction explains why preservation debates are rarely about "
+                        "nostalgia alone; they are also arguments about which daily patterns "
+                        "deserve continuity."
+                    ),
+                },
+                {
+                    "speaker": "Guest",
+                    "text": (
+                        "In other words, infrastructure shapes civic identity because it "
+                        "stabilizes how strangers repeatedly encounter one another."
+                    ),
+                },
+            ]
+            return {
+                "body_text": None,
+                "transcript_text": " ".join(turn["text"] for turn in turns),
+                "title": "Listening long talk calibration fixture",
+                "metadata_json": {
+                    "typeTag": type_tag,
+                    "difficulty": difficulty,
+                    "turns": turns,
+                    "sentences": [
+                        {"id": f"s{index}", "text": turn["text"]}
+                        for index, turn in enumerate(turns, start=1)
+                    ],
+                },
+                "question": {
+                    "stem": "What can be inferred from the talk?",
+                    "choices": {
+                        "A": (
+                            "Preservation debates often concern the social routines that "
+                            "infrastructure makes possible."
+                        ),
+                        "B": (
+                            "Official monuments create stronger daily habits than "
+                            "transportation systems do."
+                        ),
+                        "C": (
+                            "Residents usually resist redevelopment only because of "
+                            "tourist income."
+                        ),
+                        "D": (
+                            "Planners rarely think about how people move through urban "
+                            "space."
+                        ),
+                        "E": (
+                            "Civic identity depends mainly on famous buildings designed by "
+                            "governments."
+                        ),
+                    },
+                    "correct_answer": "A",
+                    "explanation": (
+                        "The talk links preservation to the social routines that "
+                        "infrastructure supports."
+                    ),
+                    "metadata_json": {
+                        "typeTag": type_tag,
+                        "difficulty": difficulty,
+                        "evidenceSentenceIds": ["s4", "s5"],
+                        "whyCorrectKo": (
+                            "후반부에서 보존 논쟁이 일상적 동선과 사회적 "
+                            "연속성에 관한 것이라고 설명한다."
+                        ),
+                        "whyWrongKoByOption": {
+                            "B": "기념물이 더 강한 일상 습관을 만든다고 말하지 않는다.",
+                            "C": "관광 수입은 핵심 이유로 제시되지 않는다.",
+                            "D": "기획자가 이동을 전혀 고려하지 않는다고 단정하지 않는다.",
+                            "E": "유명 건축물만이 시민 정체성을 만든다고 하지 않는다.",
                         },
                     },
                 },

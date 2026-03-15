@@ -1058,7 +1058,7 @@ def test_archive_revision_already_archived_rejected(client: TestClient) -> None:
     assert second.json()["errorCode"] == "REVISION_ALREADY_ARCHIVED"
 
 
-def test_h2_publish_is_blocked_when_calibration_fails(client: TestClient) -> None:
+def test_h2_hard_type_publish_is_blocked_when_quality_gate_fails(client: TestClient) -> None:
     unit = _create_unit(
         client,
         external_id="calibration-h2-unit-001",
@@ -1113,37 +1113,45 @@ def test_h2_publish_is_blocked_when_calibration_fails(client: TestClient) -> Non
     assert body["errorCode"] == "content_calibration_failed"
     assert body["detail"]["calibrationPass"] is False
     assert body["detail"]["calibrationFailReasons"]
+    assert body["detail"]["qualityGateVersion"] is not None
+    assert body["detail"]["overrideRequired"] is False
     assert any(
-        reason.startswith("track_level_mismatch:H2")
-        or reason == "inference_load_below_track_baseline"
-        or reason == "reading_insertion_direct_clue"
+        reason in {
+            "length_too_short",
+            "direct_clue_too_strong",
+            "reading_insertion_direct_clue",
+            "reading_insertion_single_slot_too_obvious",
+        }
         for reason in body["detail"]["calibrationFailReasons"]
     )
 
 
-def test_h1_publish_allows_warning_mode_and_stores_calibration_trace(client: TestClient) -> None:
+def test_h1_publish_allows_single_warning_and_stores_quality_trace(client: TestClient) -> None:
     unit = _create_unit(
         client,
-        external_id="calibration-h1-unit-001",
+        external_id="calibration-h1-warning-unit-001",
         skill="READING",
         track="H1",
     )
     revision = _create_revision(
         client,
         unit_id=str(unit["id"]),
-        revision_code="calibration-h1-r1",
+        revision_code="calibration-h1-warning-r1",
         body_text=(
-            "Students should sleep early before an exam. "
-            "Rest helps them feel better the next morning."
+            "Students often record questions in a notebook before revising a draft. "
+            "The habit helps them compare an early explanation with a later version. "
+            "When they revisit the notebook, they notice where evidence remains vague. "
+            "Careful revision eventually leads them to justify each claim more precisely. "
+            "Over time, the notebook becomes a record of how their reasoning improves."
         ),
         transcript_text=None,
-        metadata_json={"typeTag": "R_MAIN_IDEA", "difficulty": 2},
+        metadata_json={"typeTag": "R_BLANK", "difficulty": 2},
         question_items=[
             _question_item(
                 question_code="Q001",
                 order_index=1,
-                stem="What is the main idea of the passage?",
-                metadata_json={"typeTag": "R_MAIN_IDEA", "difficulty": 2},
+                stem="Which statement best completes the blank in the passage?",
+                metadata_json={"typeTag": "R_BLANK", "difficulty": 2},
             )
         ],
     )
@@ -1174,9 +1182,68 @@ def test_h1_publish_allows_warning_mode_and_stores_calibration_trace(client: Tes
     assert lookup.status_code == 200, lookup.text
     body = lookup.json()
     assert body["calibration_score"] is not None
-    assert body["calibration_pass"] is False
-    assert body["calibration_fail_reasons"]
+    assert body["calibration_warnings"]
     assert body["calibration_rubric_version"] is not None
+    assert body["quality_gate_version"] is not None
+    assert body["override_required"] is False
+    assert "reading_blank_discourse_marker_sparse" in body["calibration_warnings"]
+
+
+def test_h1_publish_blocks_when_warning_budget_is_exceeded(client: TestClient) -> None:
+    unit = _create_unit(
+        client,
+        external_id="calibration-h1-budget-unit-001",
+        skill="READING",
+        track="H1",
+    )
+    revision = _create_revision(
+        client,
+        unit_id=str(unit["id"]),
+        revision_code="calibration-h1-budget-r1",
+        body_text=(
+            "Students join debate club because they want to feel better when they talk in class. "
+            "They give short talks to other students and repeat the same simple "
+            "points after each round. "
+            "Teachers say the group answers a little more in class later. "
+            "Many students come back the next year, but the passage gives only "
+            "basic reasons for that change."
+        ),
+        transcript_text=None,
+        metadata_json={"typeTag": "R_ORDER", "difficulty": 2},
+        question_items=[
+            _question_item(
+                question_code="Q001",
+                order_index=1,
+                stem="Which order best matches the flow of the passage?",
+                metadata_json={"typeTag": "R_ORDER", "difficulty": 2},
+            )
+        ],
+    )
+    _validate_revision(
+        client,
+        unit_id=str(unit["id"]),
+        revision_id=str(revision["id"]),
+        validator_version="validator-calibration-h1-budget",
+    )
+    _review_revision(
+        client,
+        unit_id=str(unit["id"]),
+        revision_id=str(revision["id"]),
+        reviewer_identity="reviewer-calibration-h1-budget",
+    )
+
+    publish = client.post(
+        f"/internal/content/units/{unit['id']}/publish",
+        json={"revision_id": revision["id"]},
+        headers=_internal_headers(),
+    )
+
+    assert publish.status_code == 409, publish.text
+    body = publish.json()
+    assert body["errorCode"] == "content_calibration_failed"
+    assert body["detail"]["overrideRequired"] is True
+    assert body["detail"]["qualityGateVersion"] is not None
+    assert "direct_clue_too_strong" not in body["detail"]["calibrationFailReasons"]
 
 
 def test_revision_list_filters_pagination_and_invalid_filter_value(client: TestClient) -> None:

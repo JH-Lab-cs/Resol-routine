@@ -1,0 +1,430 @@
+[
+  {
+    "fixtureId": "h2_r_insertion_pass_1",
+    "track": "H2",
+    "skill": "READING",
+    "typeTag": "R_INSERTION",
+    "difficulty": 3,
+    "expectedPass": true,
+    "expectedLevels": ["STANDARD", "HARD"],
+    "bodyText": "Urban planners increasingly discuss green roofs as a response to rising summer temperatures.[1] Some researchers emphasize that rooftop vegetation cools buildings by shading surfaces and slowing heat absorption.[2] Others note that the same installations can reduce runoff when storms strike dense commercial districts.[3] City officials, however, hesitate because long-term maintenance costs are difficult to estimate with confidence.[4] Residents often support the projects only after they see how green roofs improve both comfort and water management in nearby neighborhoods.[5] As a result, policy debates now compare ecological resilience with the meticulous budgeting that large retrofits require.[6] The broader question is whether substantial environmental benefits can justify the profound initial investment demanded by older urban districts.[7]",
+    "sentences": [
+      "Urban planners increasingly discuss green roofs as a response to rising summer temperatures.",
+      "Some researchers emphasize that rooftop vegetation cools buildings by shading surfaces and slowing heat absorption.",
+      "Others note that the same installations can reduce runoff when storms strike dense commercial districts.",
+      "City officials, however, hesitate because long-term maintenance costs are difficult to estimate with confidence.",
+      "Residents often support the projects only after they see how green roofs improve both comfort and water management in nearby neighborhoods.",
+      "As a result, policy debates now compare ecological resilience with the meticulous budgeting that large retrofits require.",
+      "The broader question is whether substantial environmental benefits can justify the profound initial investment demanded by older urban districts."
+    ],
+    "stem": "Where would the sentence about psychological relief from greener neighborhoods most effectively fit in the passage?",
+    "choices": [
+      "Before sentence [1]",
+      "Between sentence [1] and [2]",
+      "Between sentence [2] and [3]",
+      "Between sentence [3] and [4]",
+      "Between sentence [4] and [5]"
+    ]
+  },
+  {
+    "fixtureId": "h2_r_insertion_pass_2",
+    "track": "H2",
+    "skill": "READING",
+    "typeTag": "R_INSERTION",
+    "difficulty": 3,
+    "expectedPass": true,
+    "expectedLevels": ["STANDARD", "HARD"],
+    "bodyText": "Many schools now redesign libraries to support collaborative research rather than silent storage alone.[1] Designers compare how movable furniture changes discussion patterns during project work and whether quieter corners still sustain concentration.[2] Teachers also report that flexible spaces help students shift from private reading to shared problem solving without losing concentration.[3] Administrators remain cautious because renovation budgets must cover both technology upgrades and long-term staffing plans.[4] When pilot rooms accumulate usage data, schools can evaluate whether the contextual benefits justify converting older facilities on a larger scale.[5] That evidence matters because the most successful renovations balance collaboration, supervision, and sustained independent inquiry.[6]",
+    "sentences": [
+      "Many schools now redesign libraries to support collaborative research rather than silent storage alone.",
+      "Designers compare how movable furniture changes discussion patterns during project work and whether quieter corners still sustain concentration.",
+      "Teachers also report that flexible spaces help students shift from private reading to shared problem solving without losing concentration.",
+      "Administrators remain cautious because renovation budgets must cover both technology upgrades and long-term staffing plans.",
+      "When pilot rooms accumulate usage data, schools can evaluate whether the contextual benefits justify converting older facilities on a larger scale.",
+      "That evidence matters because the most successful renovations balance collaboration, supervision, and sustained independent inquiry."
+    ],
+    "stem": "Where would the sentence about quieter study zones remaining necessary most effectively fit in the passage?",
+    "choices": [
+      "Before sentence [1]",
+      "Between sentence [1] and [2]",
+      "Between sentence [2] and [3]",
+      "Between sentence [3] and [4]",
+      "Between sentence [4] and [5]"
+    ]
+  },
+  {
+    "fixtureId": "h2_r_insertion_fail_1",
+    "track": "H2",
+    "skill": "READING",
+    "typeTag": "R_INSERTION",
+    "difficulty": 3,
+    "expectedPass": false,
+    "expectedLevels": ["STANDARD", "EASY", "TOO_EASY"],
+    "bodyText": "Many people enjoy hiking because it offers physical exercise and time in nature.[1] Trails can range from easy forest paths to steep mountain climbs.[2] Hikers often notice birds and insects while they walk through quiet valleys.[3] They should still prepare carefully by carrying water and proper shoes.[4]",
+    "sentences": [
+      "Many people enjoy hiking because it offers physical exercise and time in nature.",
+      "Trails can range from easy forest paths to steep mountain climbs.",
+      "Hikers often notice birds and insects while they walk through quiet valleys.",
+      "They should still prepare carefully by carrying water and proper shoes."
+    ],
+    "stem": "Where is the best place to insert the sentence 'Beyond these physical advantages, hiking can improve mental well-being'?",
+    "choices": [
+      "Before sentence [1]",
+      "Between sentence [1] and [2]",
+      "Between sentence [2] and [3]",
+      "Between sentence [3] and [4]",
+      "The sentence does not fit anywhere in the paragraph."
+    ]
+  },
+  {
+    "fixtureId": "h2_r_insertion_fail_2",
+    "track": "H2",
+    "skill": "READING",
+    "typeTag": "R_INSERTION",
+    "difficulty": 3,
+    "expectedPass": false,
+    "expectedLevels": ["STANDARD", "EASY", "TOO_EASY"],
+    "bodyText": "Students like science clubs because experiments feel exciting.[1] Club meetings also help them make friends after school.[2] Teachers say the activities improve class participation.[3] Many students join again the next year.[4]",
+    "sentences": [
+      "Students like science clubs because experiments feel exciting.",
+      "Club meetings also help them make friends after school.",
+      "Teachers say the activities improve class participation.",
+      "Many students join again the next year."
+    ],
+    "stem": "Where is the best place to insert the sentence 'In addition, club work can strengthen leadership skills'?",
+    "choices": [
+      "Before sentence [1]",
+      "Between sentence [1] and [2]",
+      "Between sentence [2] and [3]",
+      "Between sentence [3] and [4]",
+      "The sentence does not fit anywhere in the paragraph."
+    ]
+  },
+  {
+    "fixtureId": "h2_l_situation_pass_1",
+    "track": "H2",
+    "skill": "LISTENING",
+    "typeTag": "L_SITUATION",
+    "difficulty": 3,
+    "expectedPass": true,
+    "expectedLevels": ["STANDARD", "HARD"],
+    "transcriptText": "Woman: The lobby is getting noisy again, and the next presentation starts in five minutes. Man: Then let's move the poster boards into the seminar room before the visitors arrive.",
+    "turns": [
+      ["Woman", "The lobby is getting noisy again, and the next presentation starts in five minutes."],
+      ["Man", "Then let's move the poster boards into the seminar room before the visitors arrive."]
+    ],
+    "sentences": [
+      "The lobby is getting noisy again, and the next presentation starts in five minutes.",
+      "Then let's move the poster boards into the seminar room before the visitors arrive."
+    ],
+    "stem": "What do the speakers' remarks suggest about the situation and their purpose?",
+    "choices": [
+      "They are preparing for an academic poster session.",
+      "They are buying tickets for a train trip.",
+      "They are returning books to a crowded library.",
+      "They are ordering lunch for office workers.",
+      "They are fixing a broken screen in a classroom."
+    ]
+  },
+  {
+    "fixtureId": "h2_l_situation_pass_2",
+    "track": "H2",
+    "skill": "LISTENING",
+    "typeTag": "L_SITUATION",
+    "difficulty": 3,
+    "expectedPass": true,
+    "expectedLevels": ["STANDARD", "HARD"],
+    "transcriptText": "Man: The volunteers have already labeled the seedlings, but the soil samples are still on the truck. Woman: Then we should unload them now, or the workshop participants will not have enough material for the afternoon field activity.",
+    "turns": [
+      ["Man", "The volunteers have already labeled the seedlings, but the soil samples are still on the truck."],
+      ["Woman", "Then we should unload them now, or the workshop participants will not have enough material for the afternoon field activity."]
+    ],
+    "sentences": [
+      "The volunteers have already labeled the seedlings, but the soil samples are still on the truck.",
+      "Then we should unload them now, or the workshop participants will not have enough material for the afternoon field activity."
+    ],
+    "stem": "What do the speakers' remarks suggest about the situation and their purpose?",
+    "choices": [
+      "They are organizing a field-based environmental workshop.",
+      "They are boarding a bus for a city tour.",
+      "They are rehearsing a drama performance.",
+      "They are cleaning a chemistry classroom after class.",
+      "They are discussing a meal delivery delay."
+    ]
+  },
+  {
+    "fixtureId": "h2_l_situation_fail_1",
+    "track": "H2",
+    "skill": "LISTENING",
+    "typeTag": "L_SITUATION",
+    "difficulty": 3,
+    "expectedPass": false,
+    "expectedLevels": ["STANDARD", "EASY", "TOO_EASY"],
+    "transcriptText": "Woman: We are in the library, and the return desk closes in two minutes. Man: Then give me the books now.",
+    "turns": [
+      ["Woman", "We are in the library, and the return desk closes in two minutes."],
+      ["Man", "Then give me the books now."]
+    ],
+    "sentences": [
+      "We are in the library, and the return desk closes in two minutes.",
+      "Then give me the books now."
+    ],
+    "stem": "What are the speakers talking about?",
+    "choices": [
+      "Returning books before the desk closes.",
+      "Borrowing skates for a winter trip.",
+      "Finding seats in a concert hall.",
+      "Ordering drinks at a cafe.",
+      "Repairing a computer in class."
+    ]
+  },
+  {
+    "fixtureId": "h2_l_situation_fail_2",
+    "track": "H2",
+    "skill": "LISTENING",
+    "typeTag": "L_SITUATION",
+    "difficulty": 3,
+    "expectedPass": false,
+    "expectedLevels": ["STANDARD", "EASY", "TOO_EASY"],
+    "transcriptText": "Man: The bus is here. Woman: Good, let's get on now.",
+    "turns": [
+      ["Man", "The bus is here."],
+      ["Woman", "Good, let's get on now."]
+    ],
+    "sentences": [
+      "The bus is here.",
+      "Good, let's get on now."
+    ],
+    "stem": "What is the most likely situation?",
+    "choices": [
+      "They are boarding a bus.",
+      "They are decorating a classroom.",
+      "They are opening a museum exhibition.",
+      "They are discussing an online survey.",
+      "They are comparing train schedules."
+    ]
+  },
+  {
+    "fixtureId": "h3_r_summary_pass_1",
+    "track": "H3",
+    "skill": "READING",
+    "typeTag": "R_SUMMARY",
+    "difficulty": 5,
+    "expectedPass": true,
+    "expectedLevels": ["HARD", "KILLER"],
+    "bodyText": "Public trust in scientific institutions rarely depends on data alone. Citizens often evaluate research through the lens of past policy failures, media framing, and assumptions about whose interests a study ultimately serves. For that reason, experts who want to persuade the public must explain not only what they found but also how uncertainty was handled throughout the investigation. When communication ignores those procedural details, skepticism can expand even when the underlying evidence is strong. The issue, then, is not simply whether science is accurate, but whether scientific reasoning is visible and accountable to the audience asked to accept it. Effective persuasion therefore requires transparent method as well as credible result. In that sense, scientific legitimacy is sustained by procedure as much as by conclusion. Transparent procedure becomes the bridge between specialized expertise and public judgment.",
+    "sentences": [
+      "Public trust in scientific institutions rarely depends on data alone.",
+      "Citizens often evaluate research through the lens of past policy failures, media framing, and assumptions about whose interests a study ultimately serves.",
+      "For that reason, experts who want to persuade the public must explain not only what they found but also how uncertainty was handled throughout the investigation.",
+      "When communication ignores those procedural details, skepticism can expand even when the underlying evidence is strong.",
+      "The issue, then, is not simply whether science is accurate, but whether scientific reasoning is visible and accountable to the audience asked to accept it.",
+      "Effective persuasion therefore requires transparent method as well as credible result.",
+      "In that sense, scientific legitimacy is sustained by procedure as much as by conclusion.",
+      "Transparent procedure becomes the bridge between specialized expertise and public judgment."
+    ],
+    "stem": "Which choice best summarizes the passage?",
+    "choices": [
+      "Public trust grows when scientific claims are paired with transparent reasoning about method and uncertainty.",
+      "Media reports should avoid discussing scientific disagreement because uncertainty weakens public confidence.",
+      "Citizens generally reject science because they misunderstand all statistical evidence.",
+      "Scientists must simplify research until all uncertainty disappears from public debate.",
+      "Policy failures matter less than personalities when people judge scientific work."
+    ]
+  },
+  {
+    "fixtureId": "h3_r_summary_pass_2",
+    "track": "H3",
+    "skill": "READING",
+    "typeTag": "R_SUMMARY",
+    "difficulty": 5,
+    "expectedPass": true,
+    "expectedLevels": ["HARD", "KILLER"],
+    "bodyText": "Organizations often praise innovation while quietly rewarding predictability. Employees therefore learn to present new ideas in ways that resemble familiar routines, even when the challenge they face requires a deeper structural response. This tension helps explain why institutions can appear adaptable during minor disruptions yet struggle when conditions change fundamentally. Real innovation is uncomfortable because it exposes the limits of procedures that previously seemed efficient. Unless leaders recognize that discomfort as evidence of learning rather than failure, they may preserve stability at the very moment when revision is most necessary. Institutional resilience, then, depends less on celebrating novelty than on tolerating the uncertainty that serious change creates. Durable reform begins when uncertainty is treated as diagnostic evidence rather than as an administrative threat.",
+    "sentences": [
+      "Organizations often praise innovation while quietly rewarding predictability.",
+      "Employees therefore learn to present new ideas in ways that resemble familiar routines, even when the challenge they face requires a deeper structural response.",
+      "This tension helps explain why institutions can appear adaptable during minor disruptions yet struggle when conditions change fundamentally.",
+      "Real innovation is uncomfortable because it exposes the limits of procedures that previously seemed efficient.",
+      "Unless leaders recognize that discomfort as evidence of learning rather than failure, they may preserve stability at the very moment when revision is most necessary.",
+      "Institutional resilience, then, depends less on celebrating novelty than on tolerating the uncertainty that serious change creates.",
+      "Durable reform begins when uncertainty is treated as diagnostic evidence rather than as an administrative threat."
+    ],
+    "stem": "Which choice best summarizes the passage?",
+    "choices": [
+      "Institutions remain resilient only when they accept the uncertainty that accompanies meaningful change.",
+      "Employees should avoid proposing new ideas until leaders fully approve them.",
+      "Predictable routines are always more efficient than innovation during crisis.",
+      "Minor disruptions require exactly the same response as structural change.",
+      "Leaders mainly fail because they celebrate novelty too often."
+    ]
+  },
+  {
+    "fixtureId": "h3_r_summary_fail_1",
+    "track": "H3",
+    "skill": "READING",
+    "typeTag": "R_SUMMARY",
+    "difficulty": 5,
+    "expectedPass": false,
+    "expectedLevels": ["STANDARD", "EASY", "TOO_EASY"],
+    "bodyText": "Reading every day can improve vocabulary. Students also become more comfortable with longer texts. Teachers therefore tell students to read often. Good reading habits help in many classes.",
+    "sentences": [
+      "Reading every day can improve vocabulary.",
+      "Students also become more comfortable with longer texts.",
+      "Teachers therefore tell students to read often.",
+      "Good reading habits help in many classes."
+    ],
+    "stem": "Which choice best summarizes the passage?",
+    "choices": [
+      "Daily reading helps students in school.",
+      "Libraries should stay open late every day.",
+      "Vocabulary matters only in language classes.",
+      "Teachers should stop assigning long texts.",
+      "Students read mainly for entertainment."
+    ]
+  },
+  {
+    "fixtureId": "h3_r_summary_fail_2",
+    "track": "H3",
+    "skill": "READING",
+    "typeTag": "R_SUMMARY",
+    "difficulty": 5,
+    "expectedPass": false,
+    "expectedLevels": ["STANDARD", "EASY", "TOO_EASY"],
+    "bodyText": "Online meetings save travel time. Workers can join from home. For this reason, many companies continue using video calls. Some teams meet in person when necessary.",
+    "sentences": [
+      "Online meetings save travel time.",
+      "Workers can join from home.",
+      "For this reason, many companies continue using video calls.",
+      "Some teams meet in person when necessary."
+    ],
+    "stem": "Which choice best summarizes the passage?",
+    "choices": [
+      "Companies keep using video calls because they are convenient.",
+      "Video meetings are always better than face-to-face discussions.",
+      "Travel time is unimportant in modern work settings.",
+      "Remote workers should never meet in person again.",
+      "Companies mainly use video calls to avoid paying employees."
+    ]
+  },
+  {
+    "fixtureId": "h3_l_long_talk_pass_1",
+    "track": "H3",
+    "skill": "LISTENING",
+    "typeTag": "L_LONG_TALK",
+    "difficulty": 5,
+    "expectedPass": true,
+    "expectedLevels": ["HARD", "KILLER"],
+    "transcriptText": "Host: Today we will examine why public memory of a city often depends on ordinary infrastructure rather than official monuments. Host: Bridges, stations, and markets organize repeated movement, so residents attach personal routines to structures that planners may consider merely functional. Host: When redevelopment removes those spaces, people often describe the loss not as architectural change but as the disappearance of familiar social timing. Guest: That reaction explains why preservation debates are rarely about nostalgia alone; they are also arguments about which daily patterns deserve continuity. Guest: In other words, infrastructure shapes civic identity because it stabilizes how strangers repeatedly encounter one another.",
+    "turns": [
+      ["Host", "Today we will examine why public memory of a city often depends on ordinary infrastructure rather than official monuments."],
+      ["Host", "Bridges, stations, and markets organize repeated movement, so residents attach personal routines to structures that planners may consider merely functional."],
+      ["Host", "When redevelopment removes those spaces, people often describe the loss not as architectural change but as the disappearance of familiar social timing."],
+      ["Guest", "That reaction explains why preservation debates are rarely about nostalgia alone; they are also arguments about which daily patterns deserve continuity."],
+      ["Guest", "In other words, infrastructure shapes civic identity because it stabilizes how strangers repeatedly encounter one another."]
+    ],
+    "sentences": [
+      "Today we will examine why public memory of a city often depends on ordinary infrastructure rather than official monuments.",
+      "Bridges, stations, and markets organize repeated movement, so residents attach personal routines to structures that planners may consider merely functional.",
+      "When redevelopment removes those spaces, people often describe the loss not as architectural change but as the disappearance of familiar social timing.",
+      "That reaction explains why preservation debates are rarely about nostalgia alone; they are also arguments about which daily patterns deserve continuity.",
+      "In other words, infrastructure shapes civic identity because it stabilizes how strangers repeatedly encounter one another."
+    ],
+    "stem": "What can be inferred from the talk?",
+    "choices": [
+      "Preservation debates often concern the social routines that infrastructure makes possible.",
+      "Official monuments create stronger daily habits than transportation systems do.",
+      "Residents usually resist redevelopment only because of tourist income.",
+      "Planners rarely think about how people move through urban space.",
+      "Civic identity depends mainly on famous buildings designed by governments."
+    ]
+  },
+  {
+    "fixtureId": "h3_l_long_talk_pass_2",
+    "track": "H3",
+    "skill": "LISTENING",
+    "typeTag": "L_LONG_TALK",
+    "difficulty": 5,
+    "expectedPass": true,
+    "expectedLevels": ["HARD", "KILLER"],
+    "transcriptText": "Lecturer: Historians once treated maps as passive records of territory. Lecturer: More recent scholarship argues that maps also instruct viewers which features deserve attention and which communities can be ignored. Lecturer: Because of that framing power, a map can influence political imagination before any policy is written. Student: So the issue is not only whether a map is accurate, but also what kind of world it trains people to consider normal. Lecturer: Exactly, and that is why critical cartography studies both representation and power at the same time.",
+    "turns": [
+      ["Lecturer", "Historians once treated maps as passive records of territory."],
+      ["Lecturer", "More recent scholarship argues that maps also instruct viewers which features deserve attention and which communities can be ignored."],
+      ["Lecturer", "Because of that framing power, a map can influence political imagination before any policy is written."],
+      ["Student", "So the issue is not only whether a map is accurate, but also what kind of world it trains people to consider normal."],
+      ["Lecturer", "Exactly, and that is why critical cartography studies both representation and power at the same time."]
+    ],
+    "sentences": [
+      "Historians once treated maps as passive records of territory.",
+      "More recent scholarship argues that maps also instruct viewers which features deserve attention and which communities can be ignored.",
+      "Because of that framing power, a map can influence political imagination before any policy is written.",
+      "So the issue is not only whether a map is accurate, but also what kind of world it trains people to consider normal.",
+      "Exactly, and that is why critical cartography studies both representation and power at the same time."
+    ],
+    "stem": "What does the lecture suggest about the role of maps in public thinking?",
+    "choices": [
+      "Maps shape political thinking because they highlight some realities while marginalizing others.",
+      "Historians mainly use maps to memorize place names from the past.",
+      "Political imagination depends more on speeches than on visual material.",
+      "Accurate maps always prevent unequal treatment of communities.",
+      "Critical cartography rejects all geographic data as unreliable."
+    ]
+  },
+  {
+    "fixtureId": "h3_l_long_talk_fail_1",
+    "track": "H3",
+    "skill": "LISTENING",
+    "typeTag": "L_LONG_TALK",
+    "difficulty": 5,
+    "expectedPass": false,
+    "expectedLevels": ["STANDARD", "EASY", "TOO_EASY"],
+    "transcriptText": "Host: Today I will tell you three facts about penguins. Host: Penguins cannot fly, but they swim well. Host: Many penguins live in cold places.",
+    "turns": [
+      ["Host", "Today I will tell you three facts about penguins."],
+      ["Host", "Penguins cannot fly, but they swim well."],
+      ["Host", "Many penguins live in cold places."]
+    ],
+    "sentences": [
+      "Today I will tell you three facts about penguins.",
+      "Penguins cannot fly, but they swim well.",
+      "Many penguins live in cold places."
+    ],
+    "stem": "What is the talk mainly about?",
+    "choices": [
+      "Basic facts about penguins.",
+      "Why penguins migrate to cities.",
+      "How scientists map wetlands.",
+      "Why museums preserve old bridges.",
+      "How cartography changes public memory."
+    ]
+  },
+  {
+    "fixtureId": "h3_l_long_talk_fail_2",
+    "track": "H3",
+    "skill": "LISTENING",
+    "typeTag": "L_LONG_TALK",
+    "difficulty": 5,
+    "expectedPass": false,
+    "expectedLevels": ["STANDARD", "EASY", "TOO_EASY"],
+    "transcriptText": "Speaker: The museum opens at nine. Speaker: Tickets are sold near the entrance. Speaker: Visitors should not take pictures in one room.",
+    "turns": [
+      ["Speaker", "The museum opens at nine."],
+      ["Speaker", "Tickets are sold near the entrance."],
+      ["Speaker", "Visitors should not take pictures in one room."]
+    ],
+    "sentences": [
+      "The museum opens at nine.",
+      "Tickets are sold near the entrance.",
+      "Visitors should not take pictures in one room."
+    ],
+    "stem": "What is the speaker mainly doing?",
+    "choices": [
+      "Giving simple visitor instructions.",
+      "Explaining how architecture shapes civic identity.",
+      "Arguing that public memory depends on infrastructure.",
+      "Comparing two historians' theories about maps.",
+      "Describing why redevelopment changes daily routines."
+    ]
+  }
+]
