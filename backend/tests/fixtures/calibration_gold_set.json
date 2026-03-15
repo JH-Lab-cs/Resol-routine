@@ -108,14 +108,16 @@
     "difficulty": 3,
     "expectedPass": true,
     "expectedLevels": ["STANDARD", "HARD"],
-    "transcriptText": "Woman: The lobby is getting noisy again, and the next presentation starts in five minutes. Man: Then let's move the poster boards into the seminar room before the visitors arrive.",
+    "transcriptText": "Woman: The lobby is getting noisy again, and the next presentation starts in five minutes, so our visitors will not hear the explanation clearly. Man: Then let's move the poster boards into the seminar room, but we still need someone to tell the speaker that the projector is already set up there. Woman: Good point. I'll warn the speaker now while you move the boards before the visitors arrive.",
     "turns": [
-      ["Woman", "The lobby is getting noisy again, and the next presentation starts in five minutes."],
-      ["Man", "Then let's move the poster boards into the seminar room before the visitors arrive."]
+      ["Woman", "The lobby is getting noisy again, and the next presentation starts in five minutes, so our visitors will not hear the explanation clearly."],
+      ["Man", "Then let's move the poster boards into the seminar room, but we still need someone to tell the speaker that the projector is already set up there."],
+      ["Woman", "Good point. I'll warn the speaker now while you move the boards before the visitors arrive."]
     ],
     "sentences": [
-      "The lobby is getting noisy again, and the next presentation starts in five minutes.",
-      "Then let's move the poster boards into the seminar room before the visitors arrive."
+      "The lobby is getting noisy again, and the next presentation starts in five minutes, so our visitors will not hear the explanation clearly.",
+      "Then let's move the poster boards into the seminar room, but we still need someone to tell the speaker that the projector is already set up there.",
+      "Good point. I'll warn the speaker now while you move the boards before the visitors arrive."
     ],
     "stem": "What do the speakers' remarks suggest about the situation and their purpose?",
     "choices": [
@@ -134,14 +136,16 @@
     "difficulty": 3,
     "expectedPass": true,
     "expectedLevels": ["STANDARD", "HARD"],
-    "transcriptText": "Man: The volunteers have already labeled the seedlings, but the soil samples are still on the truck. Woman: Then we should unload them now, or the workshop participants will not have enough material for the afternoon field activity.",
+    "transcriptText": "Man: The volunteers have already labeled the seedlings, but the soil samples are still on the truck and the field workshop begins right after lunch. Woman: Then we should unload them now, because the participants will need both the labels and the samples to compare different growing conditions. Man: I'll bring the samples inside while you explain the delay to the instructor and ask where the trays should be arranged.",
     "turns": [
-      ["Man", "The volunteers have already labeled the seedlings, but the soil samples are still on the truck."],
-      ["Woman", "Then we should unload them now, or the workshop participants will not have enough material for the afternoon field activity."]
+      ["Man", "The volunteers have already labeled the seedlings, but the soil samples are still on the truck and the field workshop begins right after lunch."],
+      ["Woman", "Then we should unload them now, because the participants will need both the labels and the samples to compare different growing conditions."],
+      ["Man", "I'll bring the samples inside while you explain the delay to the instructor and ask where the trays should be arranged."]
     ],
     "sentences": [
-      "The volunteers have already labeled the seedlings, but the soil samples are still on the truck.",
-      "Then we should unload them now, or the workshop participants will not have enough material for the afternoon field activity."
+      "The volunteers have already labeled the seedlings, but the soil samples are still on the truck and the field workshop begins right after lunch.",
+      "Then we should unload them now, because the participants will need both the labels and the samples to compare different growing conditions.",
+      "I'll bring the samples inside while you explain the delay to the instructor and ask where the trays should be arranged."
     ],
     "stem": "What do the speakers' remarks suggest about the situation and their purpose?",
     "choices": [

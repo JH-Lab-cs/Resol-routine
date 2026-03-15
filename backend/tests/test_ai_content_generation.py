@@ -32,6 +32,11 @@ from app.services.l_response_generation_service import (
     L_RESPONSE_COMPILER_VERSION,
     L_RESPONSE_GENERATION_MODE,
 )
+from app.services.type_specific_generation_quality_service import (
+    L_SITUATION_CONTEXTUAL_COMPILER_VERSION,
+    L_SITUATION_CONTEXTUAL_GENERATION_MODE,
+    L_SITUATION_CONTEXTUAL_GENERATION_PROFILE,
+)
 
 INTERNAL_API_KEY = "unit-test-internal-api-key-value"
 
@@ -267,8 +272,7 @@ def _valid_candidate(
         )
 
     transcript = (
-        "A: Could you summarize the key point?\n"
-        "B: We must verify evidence before deciding."
+        "A: Could you summarize the key point?\nB: We must verify evidence before deciding."
     )
     turns = [
         {"speaker": "A", "text": "Could you summarize the key point?"},
@@ -309,8 +313,7 @@ def _valid_candidate(
         options=options,
         answer_key="A",
         explanation=(
-            "Option A is correct because the response explicitly prioritizes "
-            "evidence verification."
+            "Option A is correct because the response explicitly prioritizes evidence verification."
         ),
         evidence_sentence_ids=["s2"],
         why_correct_ko="응답 화자가 근거 확인을 우선한다고 명시하므로 정답이 됩니다.",
@@ -898,6 +901,110 @@ def test_l_response_materialize_records_generation_mode_and_compiler_version(
         ).scalar_one()
         assert question.metadata_json["generationMode"] == L_RESPONSE_GENERATION_MODE
         assert question.metadata_json["compilerVersion"] == L_RESPONSE_COMPILER_VERSION
+
+
+def test_h2_l_situation_materialize_records_generation_profile_and_timeout(
+    client: TestClient,
+    db_session_factory,
+    monkeypatch: pytest.MonkeyPatch,
+    fake_ai_artifact_store: FakeAIArtifactStore,
+) -> None:
+    candidate = _valid_candidate(
+        skill=Skill.LISTENING,
+        type_tag=ContentTypeTag.L_SITUATION,
+        track=Track.H2,
+        difficulty=3,
+    )
+    line_1 = "Our group presentation is tomorrow morning, but the room is closed for repairs."
+    line_2 = "Then we need another room, and the media lab is free only after lunch."
+    line_3 = "I should ask the teacher whether we can change the presentation time."
+    candidate = replace(
+        candidate,
+        transcript=f"Mina: {line_1}\nJoon: {line_2}\nMina: {line_3}",
+        turns=[
+            {"speaker": "Mina", "text": line_1},
+            {"speaker": "Joon", "text": line_2},
+            {"speaker": "Mina", "text": line_3},
+        ],
+        sentences=[
+            {"id": "s1", "text": line_1},
+            {"id": "s2", "text": line_2},
+            {"id": "s3", "text": line_3},
+        ],
+        options={
+            "A": "Explain the room problem and ask to move the presentation.",
+            "B": "Wait in front of the closed room and hope it opens.",
+            "C": "Cancel the presentation without telling the teacher.",
+            "D": "Practice alone tonight and ignore the room issue.",
+            "E": "Borrow sports equipment from the gym office.",
+        },
+        evidence_sentence_ids=["s1", "s2", "s3"],
+        explanation=(
+            "Option A is correct because the listener must combine the room problem, "
+            "the time constraint, and the final intention."
+        ),
+    )
+
+    class LSituationProvider:
+        def generate_candidates(self, *, context) -> ContentGenerationResult:
+            del context
+            return ContentGenerationResult(
+                provider_name="fake",
+                model_name="gpt-5-mini",
+                prompt_template_version="content-v1-listening-situation-contextual",
+                raw_prompt=json.dumps({"requestId": "l-situation-trace"}),
+                raw_response=json.dumps({"candidates": ["contextual"]}),
+                candidates=[candidate],
+                generation_mode=L_SITUATION_CONTEXTUAL_GENERATION_MODE,
+                compiler_version=L_SITUATION_CONTEXTUAL_COMPILER_VERSION,
+                generation_profile=L_SITUATION_CONTEXTUAL_GENERATION_PROFILE,
+                timeout_seconds=60,
+            )
+
+    _patch_provider_builder(monkeypatch, LSituationProvider())
+
+    job = _create_job(
+        client,
+        request_id="content-job-l-situation-trace",
+        matrix=[
+            {
+                "track": "H2",
+                "skill": "LISTENING",
+                "typeTag": "L_SITUATION",
+                "difficulty": 3,
+                "count": 1,
+            }
+        ],
+    )
+    result = _run_job_once(db_session_factory, job_id=job["id"])
+    assert result.status == AIGenerationJobStatus.SUCCEEDED
+
+    candidate_id = client.get(
+        f"/internal/ai/content-generation/jobs/{job['id']}/candidates",
+        headers=_internal_headers(),
+    ).json()["items"][0]["id"]
+    materialize = client.post(
+        f"/internal/ai/content-generation/candidates/{candidate_id}/materialize-draft",
+        headers=_internal_headers(),
+    )
+    assert materialize.status_code == 200, materialize.text
+
+    with db_session_factory() as db:
+        revision = db.get(ContentUnitRevision, UUID(materialize.json()["contentRevisionId"]))
+        assert revision is not None
+        assert revision.metadata_json["generationMode"] == L_SITUATION_CONTEXTUAL_GENERATION_MODE
+        assert revision.metadata_json["compilerVersion"] == L_SITUATION_CONTEXTUAL_COMPILER_VERSION
+        assert (
+            revision.metadata_json["generationProfile"] == L_SITUATION_CONTEXTUAL_GENERATION_PROFILE
+        )
+        assert revision.metadata_json["timeoutSeconds"] == 60
+        question = db.execute(
+            select(ContentQuestion).where(ContentQuestion.content_unit_revision_id == revision.id)
+        ).scalar_one()
+        assert (
+            question.metadata_json["generationProfile"] == L_SITUATION_CONTEXTUAL_GENERATION_PROFILE
+        )
+        assert question.metadata_json["timeoutSeconds"] == 60
 
 
 def test_artifact_upload_failure_marks_job_failed(

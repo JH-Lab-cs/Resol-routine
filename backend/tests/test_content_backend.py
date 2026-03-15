@@ -250,9 +250,7 @@ def _question_item(
             "typeTag": "R_MAIN_IDEA",
             "difficulty": 2,
             "evidenceSentenceIds": ["s5", "s6"],
-            "whyCorrectKo": (
-                "지문은 피드백이 반성적 수정 습관을 길러 준다고 설명한다."
-            ),
+            "whyCorrectKo": ("지문은 피드백이 반성적 수정 습관을 길러 준다고 설명한다."),
             "whyWrongKoByOption": {
                 "B": "교사는 어려움을 제거해야 한다고 말하지 않는다.",
                 "C": "속도보다 반성적 수정이 중요하다고 한다.",
@@ -1116,7 +1114,8 @@ def test_h2_hard_type_publish_is_blocked_when_quality_gate_fails(client: TestCli
     assert body["detail"]["qualityGateVersion"] is not None
     assert body["detail"]["overrideRequired"] is False
     assert any(
-        reason in {
+        reason
+        in {
             "length_too_short",
             "direct_clue_too_strong",
             "reading_insertion_direct_clue",
@@ -1138,11 +1137,23 @@ def test_h1_publish_allows_single_warning_and_stores_quality_trace(client: TestC
         unit_id=str(unit["id"]),
         revision_code="calibration-h1-warning-r1",
         body_text=(
-            "Students often record questions in a notebook before revising a draft. "
-            "The habit helps them compare an early explanation with a later version. "
-            "When they revisit the notebook, they notice where evidence remains vague. "
-            "Careful revision eventually leads them to justify each claim more precisely. "
-            "Over time, the notebook becomes a record of how their reasoning improves."
+            "Students often record questions in a notebook before revising a draft, "
+            "and the notebook becomes a running log of claims, objections, and "
+            "evidence they may need later. "
+            "Rather than trusting the first explanation that sounds fluent, they "
+            "revisit early assumptions, compare them with newer examples, and note "
+            "where a convenient claim begins to drift away from the support they "
+            "actually collected. "
+            "The habit slows the first stage of planning, yet it also reveals which "
+            "reasons are sturdy and which ones collapse once another interpretation "
+            "is considered. "
+            "When learners return to the notebook after discussion, they can see how "
+            "a weak judgment was replaced by a more defensible one and why that "
+            "revision became necessary. "
+            "Over time, the notebook stops being a storage place for random thoughts "
+            "and starts functioning as a record of how evidence reshapes judgment. "
+            "Students who use it well do not merely finish cleaner drafts; they also "
+            "build a steadier method for questioning their own reasoning."
         ),
         transcript_text=None,
         metadata_json={"typeTag": "R_BLANK", "difficulty": 2},

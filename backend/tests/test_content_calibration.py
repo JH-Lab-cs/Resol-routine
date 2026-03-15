@@ -57,19 +57,57 @@ def test_m3_h1_warning_budget_allows_single_warning_but_requires_override_after_
             difficulty=2,
             body_text=dedent(
                 """
-                Students often record questions in a notebook before revising a draft.
-                The habit helps them compare their first explanation with a later version.
-                When they revisit the notebook, they notice where evidence remains vague.
-                Careful revision eventually leads them to justify each claim more precisely.
-                Over time, the notebook becomes a record of how their reasoning improves.
+                Students often record questions in a notebook before revising a draft,
+                and the notebook becomes a running log of claims, objections, and
+                evidence they may need later.
+                Rather than trusting the first explanation that sounds fluent, they
+                revisit early assumptions, compare them with newer examples, and note
+                where a convenient claim begins to drift away from the support they
+                actually collected.
+                The habit slows the first stage of planning, yet it also reveals which
+                reasons are sturdy and which ones collapse once another interpretation
+                is considered.
+                When learners return to the notebook after discussion, they can see how
+                a weak judgment was replaced by a more defensible one and why that
+                revision became necessary.
+                Over time, the notebook stops being a storage place for random thoughts
+                and starts functioning as a record of how evidence reshapes judgment.
+                Students who use it well do not merely finish cleaner drafts; they also
+                build a steadier method for questioning their own reasoning.
                 """
             ).strip(),
             sentences=[
-                "Students often record questions in a notebook before revising a draft.",
-                "The habit helps them compare their first explanation with a later version.",
-                "When they revisit the notebook, they notice where evidence remains vague.",
-                "Careful revision eventually leads them to justify each claim more precisely.",
-                "Over time, the notebook becomes a record of how their reasoning improves.",
+                (
+                    "Students often record questions in a notebook before revising "
+                    "a draft, and the notebook becomes a running log of claims, "
+                    "objections, and evidence they may need later."
+                ),
+                (
+                    "Rather than trusting the first explanation that sounds "
+                    "fluent, they revisit early assumptions, compare them with "
+                    "newer examples, and note where a convenient claim begins to "
+                    "drift away from the support they actually collected."
+                ),
+                (
+                    "The habit slows the first stage of planning, yet it also "
+                    "reveals which reasons are sturdy and which ones collapse "
+                    "once another interpretation is considered."
+                ),
+                (
+                    "When learners return to the notebook after discussion, they "
+                    "can see how a weak judgment was replaced by a more "
+                    "defensible one and why that revision became necessary."
+                ),
+                (
+                    "Over time, the notebook stops being a storage place for "
+                    "random thoughts and starts functioning as a record of how "
+                    "evidence reshapes judgment."
+                ),
+                (
+                    "Students who use it well do not merely finish cleaner "
+                    "drafts; they also build a steadier method for questioning "
+                    "their own reasoning."
+                ),
             ],
         ),
         questions=[
@@ -94,29 +132,29 @@ def test_m3_h1_warning_budget_allows_single_warning_but_requires_override_after_
 
     h1_budget_exceeded = evaluate_content_calibration(
         unit=_build_unit(track=Track.H1, skill=Skill.READING),
-            revision=_build_reading_revision(
-                track=Track.H1,
-                type_tag="R_ORDER",
-                difficulty=2,
-                body_text=(
-                    "Students join debate club because they want to feel better "
-                    "when they talk in class. "
-                    "They give short talks to other students and repeat the same "
-                    "simple points after each round. "
-                    "Teachers say the group answers a little more in class later. "
-                    "Many students come back the next year, but the passage gives only "
-                    "basic reasons for that change."
-                ),
-                sentences=[
-                    "Students join debate club because they want to feel better when "
-                    "they talk in class.",
-                    "They give short talks to other students and repeat the same "
-                    "simple points after each round.",
-                    "Teachers say the group answers a little more in class later.",
-                    "Many students come back the next year, but the passage gives "
-                    "only basic reasons for that change.",
-                ],
+        revision=_build_reading_revision(
+            track=Track.H1,
+            type_tag="R_ORDER",
+            difficulty=2,
+            body_text=(
+                "Students join debate club because they want to feel better "
+                "when they talk in class. "
+                "They give short talks to other students and repeat the same "
+                "simple points after each round. "
+                "Teachers say the group answers a little more in class later. "
+                "Many students come back the next year, but the passage gives only "
+                "basic reasons for that change."
             ),
+            sentences=[
+                "Students join debate club because they want to feel better when "
+                "they talk in class.",
+                "They give short talks to other students and repeat the same "
+                "simple points after each round.",
+                "Teachers say the group answers a little more in class later.",
+                "Many students come back the next year, but the passage gives "
+                "only basic reasons for that change.",
+            ],
+        ),
         questions=[
             _build_question(
                 type_tag="R_ORDER",
@@ -260,10 +298,7 @@ def _build_case_from_fixture(
             type_tag=type_tag,
             difficulty=difficulty,
             transcript_text=str(fixture["transcriptText"]),
-            turns=[
-                (str(item[0]), str(item[1]))
-                for item in fixture["turns"]
-            ],
+            turns=[(str(item[0]), str(item[1])) for item in fixture["turns"]],
             sentences=[str(item) for item in fixture["sentences"]],
         )
 
