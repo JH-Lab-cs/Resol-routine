@@ -1767,3 +1767,216 @@ The published revision was confirmed in public delivery:
 - `H2`
   - listening missing: `L_SITUATION`
   - reading missing: `R_ORDER`, `R_SUMMARY`, `R_VOCAB`
+
+## 19. B2.6.19 Calibrated Inventory Backfill
+
+`B2.6.19` was executed under the phase-2 quality policy frozen in `B2.6.18`.
+This round counted inventory growth only when a revision reached:
+
+- schema valid
+- calibration pass
+- quality gate pass
+- published state
+
+Warning-only drafts were not counted as inventory growth, even on `M3/H1`.
+
+### Runtime note
+
+- the local queue still showed intermittent dispatch lag, so the live batches
+  were executed through the same worker service path used by the queue worker
+- the default `AI_PROVIDER_HTTP_TIMEOUT_SECONDS=20` again distorted several
+  runs into `PROVIDER_TIMEOUT`
+- for the reading retries, the runtime timeout was raised to `60` seconds so
+  the result reflected content quality rather than transport noise
+- `H1/H2 L_SITUATION` also showed that first-attempt timeout output was not
+  always the final truth; those jobs later completed on retry and had to be
+  materialized/reviewed explicitly
+
+### Executed batches
+
+- `M3 / LISTENING / L_SITUATION / difficulty 1`
+  - generation job id: `9327a99a-5a14-48b3-9a46-63fd5bace440`
+  - model used: `gpt-5-mini`
+  - `fallbackTriggered = false`
+  - generation status: `SUCCEEDED`
+  - published revisions:
+    - `8c6744fa-a497-41b9-a017-4e80cb3c0c8d`
+      - calibration score: `45`
+      - calibrated level: `STANDARD`
+      - pass: `true`
+      - warnings: `[]`
+    - `c73636e3-9578-4915-8c12-7dec072574d8`
+      - calibration score: `41`
+      - calibrated level: `STANDARD`
+      - pass: `true`
+      - warnings: `[]`
+  - publish result:
+    - `2` published
+    - publishable item per dollar: `700.525394`
+
+- `H1 / LISTENING / L_SITUATION / difficulty 2`
+  - generation job id: `3f4ebdb1-b7ac-4d6a-96a8-bbc8176894eb`
+  - model used: `gpt-5-mini`
+  - `fallbackTriggered = false`
+  - generation status after retry: `SUCCEEDED`
+  - published revision:
+    - `6fdb5ca4-b6a4-43ce-89d6-026516a8ee4f`
+      - calibration score: `52`
+      - calibrated level: `STANDARD`
+      - pass: `true`
+      - warnings: `[]`
+  - blocked companion draft:
+    - `70e2c65a-a9a4-495e-bb82-cf000100317c`
+      - calibrated level: `STANDARD`
+      - pass: `false`
+      - fail reasons:
+        - `inference_load_below_track_baseline`
+        - `listening_situation_context_inference_too_low`
+  - publish result:
+    - `1` published
+    - publishable item per dollar: `350.262697`
+
+- `H2 / LISTENING / L_SITUATION / difficulty 3`
+  - generation job id: `fff96cc2-3617-4b0f-9e43-d28f0ae9628d`
+  - model used: `gpt-5-mini`
+  - `fallbackTriggered = false`
+  - generation status after retry: `SUCCEEDED`
+  - materialized drafts:
+    - `a70b1001-6863-4d67-a99c-22e4ccb97799`
+      - calibration score: `50`
+      - calibrated level: `STANDARD`
+      - pass: `false`
+    - `df9fe64f-fa21-49aa-ad59-e66482c780dc`
+      - calibration score: `42`
+      - calibrated level: `STANDARD`
+      - pass: `false`
+  - repeated fail reasons:
+    - `inference_load_below_track_baseline`
+    - `listening_situation_context_inference_too_low`
+  - publish result:
+    - fail-close block
+    - `0` published
+
+- `H1 / READING / R_BLANK / difficulty 2`
+  - generation job id: `ec2c3431-f7b8-4d73-b0b4-6a259073e205`
+  - model used: `gpt-5-mini`
+  - `fallbackTriggered = false`
+  - runtime override: `AI_PROVIDER_HTTP_TIMEOUT_SECONDS=60`
+  - generation status: `SUCCEEDED`
+  - materialized drafts:
+    - `f175d86c-24ca-4028-aee2-07f155f13525`
+      - calibration score: not high enough for publish
+      - calibrated level: `STANDARD`
+      - pass: `false`
+      - fail reasons:
+        - `inference_load_below_track_baseline`
+    - `f139380d-5a18-401b-ac40-5d7dcb035c20`
+      - calibrated level: `EASY`
+      - pass: `false`
+      - fail reasons:
+        - `structure_complexity_below_track_baseline`
+        - `track_level_mismatch:H1:EASY`
+  - publish result:
+    - `0` published
+
+- `H1 / READING / R_ORDER / difficulty 2`
+  - generation job id: `4970db59-16ef-4b0e-a35f-bba328feeb07`
+  - model used: `gpt-5-mini`
+  - `fallbackTriggered = false`
+  - runtime override: `AI_PROVIDER_HTTP_TIMEOUT_SECONDS=60`
+  - generation status: `SUCCEEDED`
+  - materialized drafts:
+    - `ae3f4e95-da7b-4e42-84fb-4c17c171eb35`
+      - calibration score: `33`
+      - calibrated level: `EASY`
+      - pass: `false`
+    - `ced58ea7-a33b-4609-8eb2-e66b66d67e50`
+      - calibration score: `37`
+      - calibrated level: `EASY`
+      - pass: `false`
+  - repeated fail reasons:
+    - `inference_load_below_track_baseline`
+    - `track_level_mismatch:H1:EASY`
+    - `length_too_short`
+  - publish result:
+    - `0` published
+
+### Public delivery confirmation
+
+The newly published calibrated revisions were verified in public delivery:
+
+- `M3 / L_SITUATION`
+  - public detail confirmed for `8c6744fa-a497-41b9-a017-4e80cb3c0c8d`
+  - public sync membership confirmed
+- `H1 / L_SITUATION`
+  - public list membership confirmed
+  - public sync membership confirmed
+  - public detail confirmed for `6fdb5ca4-b6a4-43ce-89d6-026516a8ee4f`
+
+### Before / after readiness summary
+
+- `M3`
+  - Daily: `WARNING -> WARNING`
+  - Weekly: `WARNING -> WARNING`
+  - Monthly: `NOT_READY -> NOT_READY`
+  - published counts:
+    - LISTENING `13 -> 15`
+    - READING `11 -> 11`
+  - practical effect:
+    - `L_SITUATION` is no longer missing
+    - listening missing typeTags reduced from `L_SITUATION` to none
+    - Daily still remains `WARNING` because the track is still short on depth
+      and reading-side calibrated inventory
+
+- `H1`
+  - Daily: `WARNING -> WARNING`
+  - Weekly: `READY -> READY`
+  - Monthly: `NOT_READY -> NOT_READY`
+  - published counts:
+    - LISTENING `11 -> 12`
+    - READING `11 -> 11`
+  - practical effect:
+    - `L_SITUATION` is no longer missing
+    - reading deficits remain `R_BLANK`, `R_ORDER`
+    - the round added one more calibration-pass inventory item without relying
+      on fallback
+
+- `H2`
+  - Daily: `WARNING -> WARNING`
+  - Weekly: `READY -> READY`
+  - Monthly: `NOT_READY -> NOT_READY`
+  - published counts:
+    - LISTENING `15 -> 15`
+    - READING `12 -> 12`
+  - practical effect:
+    - `L_SITUATION` is still missing
+    - hard-block policy worked as intended
+    - low-inference situation items were not allowed through
+
+- `H3`
+  - unchanged
+
+### Round 19 conclusion
+
+- `B2.6.19` produced real calibration-pass inventory growth again
+- the quality gate is now doing the right thing in both directions:
+  - `M3/H1` can still add good inventory when it genuinely clears the gate
+  - `H2` fail-close blocks weak situation items even when they are schema-valid
+- the main blocker for the remaining deficits is now clearer:
+  - `L_SITUATION` needs stronger context inference at `H2`
+  - `R_BLANK` and `R_ORDER` still skew too easy/too short for `H1`
+- future backfill rounds should keep separating:
+  - transport noise (`PROVIDER_TIMEOUT`)
+  - true quality-gate failures
+
+### Remaining deficits after B2.6.19
+
+- `M3`
+  - listening missing: none
+  - reading missing: `R_ORDER`, `R_SUMMARY`
+- `H1`
+  - listening missing: none
+  - reading missing: `R_BLANK`, `R_ORDER`
+- `H2`
+  - listening missing: `L_SITUATION`
+  - reading missing: `R_ORDER`, `R_SUMMARY`, `R_VOCAB`
