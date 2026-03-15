@@ -1,6 +1,6 @@
 # PRE-B3 Audit And Policy Freeze
 
-Last updated: 2026-03-13
+Last updated: 2026-03-15
 
 ## Scope
 
@@ -20,13 +20,26 @@ product behavior by itself.
 - `schema valid` is no longer treated as sufficient for publishability
 - every publish attempt now runs a track calibration evaluation
 - `M3/H1`
-  - warning mode allowed
-  - calibration fail is stored and surfaced but does not hard-block publish
+  - warning mode is limited by a warning budget
+  - warning count `<= 1` may still publish with reviewer approval
+  - warning count `>= 2` sets `overrideRequired = true`
+  - `length_too_short` and `direct_clue_too_strong` are immediate block reasons
 - `H2/H3`
-  - calibration fail hard-blocks publish
+  - hard typeTags are fail-close
+  - current fail-close set:
+    - `R_INSERTION`
+    - `R_ORDER`
+    - `R_SUMMARY`
+    - `L_SITUATION`
+    - `L_LONG_TALK`
 - calibration metadata is stored in revision `metadata_json`
-- after `B2.6.16`, inventory depth matters only when the generated items also
-  clear the calibration gate
+- quality gate metadata is now also stored:
+  - `qualityGateVersion`
+  - `overrideRequired`
+- a gold anchor regression set exists at:
+  - `backend/tests/fixtures/calibration_gold_set.json`
+- after `B2.6.18`, inventory depth matters only when the generated items also
+  clear the calibration and quality gates
 
 ## B3.4 Minimum Gate
 

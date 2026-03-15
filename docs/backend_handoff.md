@@ -265,6 +265,7 @@ This document is the backend handoff baseline for the next chat/session.
   - schema valid
   - lifecycle traceability gate satisfied
   - calibration gate satisfied
+  - quality hard gate satisfied
 - Calibration metadata is stored in revision `metadata_json`:
   - `calibrationScore`
   - `calibratedLevel`
@@ -272,12 +273,27 @@ This document is the backend handoff baseline for the next chat/session.
   - `calibrationWarnings`
   - `calibrationFailReasons`
   - `calibrationRubricVersion`
+  - `qualityGateVersion`
+  - `overrideRequired`
 - Track policy:
-  - `M3/H1`: warning mode allowed, reviewer may still publish
-  - `H2/H3`: calibration fail blocks publish
+  - `M3/H1`
+    - warning budget `<= 1`: reviewer may still publish
+    - warning budget `>= 2`: `overrideRequired = true`
+    - `length_too_short` / `direct_clue_too_strong` are immediate block reasons
+  - `H2/H3`
+    - hard typeTags are fail-close
+    - current fail-close set:
+      - `R_INSERTION`
+      - `R_ORDER`
+      - `R_SUMMARY`
+      - `L_SITUATION`
+      - `L_LONG_TALK`
+    - non-hard typeTags stay shadow-evaluated until promoted
 - Reviewer tooling must surface calibration results through:
   - `GET /internal/content/revisions/{revision_id}`
   - `batch-publish` failed items
+- Gold anchor regression fixtures live at:
+  - `backend/tests/fixtures/calibration_gold_set.json`
 - Quantity is no longer enough on its own. A generated item only improves
   inventory when it also passes calibration.
   - default mode is dry-run

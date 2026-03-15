@@ -100,8 +100,33 @@ Evaluation label:
 - `L_RESPONSE` dedicated mode has now produced a live publishable item with
   `gpt-5-mini`, so fallback remains disabled
 - Even when a model path is schema-valid, the item still needs to pass the
-  publish-time track calibration gate. Hard-deficit model routing does not
-  bypass calibration.
+  publish-time track calibration and quality gates. Hard-deficit model routing
+  does not bypass quality policy.
+
+## Calibration/Quality Gate Coupling
+
+- `schema valid != publishable`
+- `publishable = schema valid + calibration pass + quality gate pass`
+- Current calibration rubric version:
+  - `2026-03-15-b2.6.18`
+- Current quality gate version:
+  - `2026-03-15-b2.6.18`
+- `H2/H3` fail-close typeTags:
+  - `R_INSERTION`
+  - `R_ORDER`
+  - `R_SUMMARY`
+  - `L_SITUATION`
+  - `L_LONG_TALK`
+- `M3/H1` warning budget:
+  - warning count `<= 1`: reviewer publish allowed
+  - warning count `>= 2`: `overrideRequired = true`
+  - `length_too_short` / `direct_clue_too_strong` are immediate block reasons
+- Gold anchor regression fixtures:
+  - `backend/tests/fixtures/calibration_gold_set.json`
+
+This means backfill quality now depends on both model routing and the
+post-generation hard gate. `B2.6.19` should only count inventory that clears
+both.
 
 ## L_RESPONSE Dedicated Generation Mode
 
