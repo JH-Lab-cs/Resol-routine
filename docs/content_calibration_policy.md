@@ -39,8 +39,8 @@ Question calibration levels are fixed as:
 
 Rubric / quality gate versions:
 
-- `calibrationRubricVersion = 2026-03-15-b2.6.18`
-- `qualityGateVersion = 2026-03-15-b2.6.18`
+- `calibrationRubricVersion = 2026-03-15-b2.6.20`
+- `qualityGateVersion = 2026-03-15-b2.6.20`
 
 ## Calibration Metrics
 
@@ -102,6 +102,12 @@ can collect trace data without over-blocking inventory.
 ### READING / `R_BLANK`
 
 - H2/H3 fail when inference load is too low
+- `H1` dedicated discourse profile now also requires:
+  - at least `4` context sentences
+  - `130+` words after compile
+  - explicit discourse shift
+  - non-paraphrase blank target
+  - higher structure baseline
 - simple paraphrase-only blanks are not publishable for upper tracks
 
 ### READING / `R_ORDER`, `R_SUMMARY`, `R_VOCAB`
@@ -109,6 +115,11 @@ can collect trace data without over-blocking inventory.
 - H2/H3 require discourse or semantic inference
 - direct lexical clue patterns are penalized
 - H2/H3 `R_ORDER` / `R_SUMMARY` require a minimum sentence floor and discourse transition load
+- `H1 / R_ORDER` dedicated discourse profile now also requires:
+  - `130+` words after compile
+  - non-list-like discourse flow
+  - at least one explicit discourse relation
+  - at least two plausible distractor orders
 
 ### LISTENING / `L_RESPONSE`
 
@@ -127,6 +138,11 @@ can collect trace data without over-blocking inventory.
 - H1/H2/H3 require contextual inference
 - surface clue dependence is penalized
 - direct-clue-only resolution is not publishable
+- `H2 / L_SITUATION` dedicated contextual profile now also requires:
+  - minimum `3` turns
+  - `request/offer/problem/constraint` mix with at least two elements
+  - final-turn-only solutions blocked at generation time
+  - at least two plausible distractors
 
 ## Gold Anchor Set
 
@@ -141,6 +157,14 @@ The initial anchor coverage includes pass/fail fixtures for:
 - `H3 / R_SUMMARY`
 - `H3 / L_LONG_TALK`
 
+`B2.6.20` keeps this anchor set and upgrades the `H2 / L_SITUATION` pass
+fixtures to the new three-turn contextual baseline so the evaluator does not
+drift back to the older two-turn direct pattern.
+
+`B2.6.20` also keeps the longer provider timeout scoped to the dedicated
+generation profiles only. The default runtime timeout remains unchanged for the
+rest of the catalog.
+
 These fixtures are regression anchors. The evaluator must keep passing the pass
 cases and keep failing the fail cases.
 
@@ -150,3 +174,5 @@ cases and keep failing the fail cases.
   rubric version, quality gate version, and override requirement
 - quantity is secondary to quality-gated publishability
 - `B2.6.19` backfill only counts inventory that clears this gate
+- `B2.6.21` should backfill only the inventory that clears both calibration and
+  the dedicated quality profiles above

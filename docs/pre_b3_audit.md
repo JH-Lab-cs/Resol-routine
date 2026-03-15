@@ -1980,3 +1980,56 @@ The newly published calibrated revisions were verified in public delivery:
 - `H2`
   - listening missing: `L_SITUATION`
   - reading missing: `R_ORDER`, `R_SUMMARY`, `R_VOCAB`
+
+## B2.6.20 dedicated generation quality redesign
+
+This ticket did not run a new inventory batch. It hardened the generation path
+for the three remaining quality-sensitive deficits before the next calibrated
+backfill round.
+
+Dedicated quality profiles added:
+
+- `H2 / LISTENING / L_SITUATION`
+  - dedicated contextual skeleton profile
+  - minimum `3` turns
+  - explicit context-element mix
+  - final-turn-only resolution blocked before publish
+- `H1 / READING / R_BLANK`
+  - dedicated discourse-outline profile
+  - minimum `130+` words after compile
+  - paraphrase-only blanks rejected before publish
+- `H1 / READING / R_ORDER`
+  - dedicated discourse-outline profile
+  - minimum `130+` words after compile
+  - simple chronology / cue-word-only orderings rejected before publish
+
+Traceability added to generated jobs and compiled revisions:
+
+- `generationProfile`
+- `timeoutSeconds`
+- `promptTemplateVersion`
+- existing calibration / quality gate trace remains required
+
+Runtime policy:
+
+- default provider timeout remains unchanged
+- the longer `60s` timeout is now scoped only to:
+  - `H2_L_SITUATION_CONTEXTUAL`
+  - `H1_R_BLANK_DISCOURSE`
+  - `H1_R_ORDER_DISCOURSE`
+
+Practical effect:
+
+- `H2 / L_SITUATION` should no longer rely on short two-turn direct dialogues
+- `H1 / R_BLANK` and `H1 / R_ORDER` should no longer succeed with short,
+  shallow, direct-clue drafts
+- the next backfill round must count only inventory that clears these dedicated
+  profiles in addition to the existing calibration and quality gates
+
+Next step:
+
+- `B2.6.21` should run calibrated backfill against:
+  - `H2 / L_SITUATION`
+  - `H1 / R_BLANK`
+  - `H1 / R_ORDER`
+  first, then re-audit readiness after publish

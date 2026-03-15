@@ -31,6 +31,25 @@ The following typeTags use dedicated hardened prompt templates:
   - `R_SUMMARY -> content-v1-reading-summary`
   - `R_VOCAB -> content-v1-reading-vocab`
 
+The following track-specific quality profiles now override the generic hard
+template path:
+
+- `H2 / L_SITUATION -> content-v1-listening-situation-contextual`
+  - generation mode: `L_SITUATION_CONTEXTUAL_SKELETON`
+  - generation profile: `H2_L_SITUATION_CONTEXTUAL`
+  - timeout override: `60s`
+- `H1 / R_BLANK -> content-v1-reading-blank-discourse`
+  - generation mode: `R_BLANK_DISCOURSE_OUTLINE`
+  - generation profile: `H1_R_BLANK_DISCOURSE`
+  - timeout override: `60s`
+- `H1 / R_ORDER -> content-v1-reading-order-discourse`
+  - generation mode: `R_ORDER_DISCOURSE_OUTLINE`
+  - generation profile: `H1_R_ORDER_DISCOURSE`
+  - timeout override: `60s`
+
+These timeout overrides are profile-local only. The global provider timeout
+does not change for other typeTags.
+
 Prompt hardening requirements:
 
 - strict JSON only
@@ -108,9 +127,9 @@ Evaluation label:
 - `schema valid != publishable`
 - `publishable = schema valid + calibration pass + quality gate pass`
 - Current calibration rubric version:
-  - `2026-03-15-b2.6.18`
+  - `2026-03-15-b2.6.20`
 - Current quality gate version:
-  - `2026-03-15-b2.6.18`
+  - `2026-03-15-b2.6.20`
 - `H2/H3` fail-close typeTags:
   - `R_INSERTION`
   - `R_ORDER`
@@ -154,6 +173,34 @@ The server then compiles the final canonical payload deterministically:
 
 This keeps the default model on `gpt-5-mini` while making the strict JSON
 contract substantially smaller and more validator-friendly.
+
+## Dedicated Quality Profiles
+
+`B2.6.20` adds type-specific generation redesign for the three remaining
+quality-sensitive deficits:
+
+- `H2 / L_SITUATION`
+  - contextual skeleton only
+  - minimum 3 turns
+  - final-turn-only solutions are invalid
+  - at least 2 plausible distractors required
+- `H1 / R_BLANK`
+  - discourse outline only
+  - minimum 130+ words after compile
+  - paraphrase-only blanks are invalid
+  - discourse shift must be explicit
+- `H1 / R_ORDER`
+  - discourse outline only
+  - minimum 130+ words after compile
+  - simple chronology / cue-word-only ordering is invalid
+  - at least 2 plausible distractor orders required
+
+These profiles do not change the default model. They narrow the generation task
+so `gpt-5-mini` is more likely to clear the publish-time quality gate.
+
+The next operational step after this redesign is `B2.6.21`, which should only
+count inventory that clears both the calibration gate and these dedicated
+profiles.
 
 ## Operational Notes
 
