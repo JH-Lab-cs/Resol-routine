@@ -1,0 +1,4579 @@
+{
+  "version": "korean-exam-policy-v1",
+  "families": {
+    "official_high1": {
+      "description": "High-school year 1 official exam baseline.",
+      "baseGradeStyle": "H1",
+      "supportedGrades": [
+        "H1"
+      ],
+      "bandAdjustments": {
+        "wordCountBand": {
+          "multiplier": 1.0,
+          "minDelta": 0,
+          "targetDelta": 0,
+          "maxDelta": 0
+        },
+        "sentenceCountBand": {
+          "multiplier": 1.0,
+          "minDelta": 0,
+          "targetDelta": 0,
+          "maxDelta": 0
+        },
+        "wordsPerSentenceBand": {
+          "multiplier": 1.0,
+          "minDelta": 0,
+          "targetDelta": 0,
+          "maxDelta": 0
+        }
+      },
+      "axisOverrides": {
+        "wordCount": 0,
+        "syntaxDepth": 0,
+        "abstractionLevel": 0,
+        "evidenceDistance": 0,
+        "referentAmbiguity": 0,
+        "distractorOverlap": 0,
+        "discourseDensity": 0,
+        "clueDirectness": 0
+      }
+    },
+    "official_high2": {
+      "description": "High-school year 2 official exam baseline.",
+      "baseGradeStyle": "H2",
+      "supportedGrades": [
+        "H2"
+      ],
+      "bandAdjustments": {
+        "wordCountBand": {
+          "multiplier": 1.0,
+          "minDelta": 0,
+          "targetDelta": 0,
+          "maxDelta": 0
+        },
+        "sentenceCountBand": {
+          "multiplier": 1.0,
+          "minDelta": 0,
+          "targetDelta": 0,
+          "maxDelta": 0
+        },
+        "wordsPerSentenceBand": {
+          "multiplier": 1.0,
+          "minDelta": 0,
+          "targetDelta": 0,
+          "maxDelta": 0
+        }
+      },
+      "axisOverrides": {
+        "wordCount": 0,
+        "syntaxDepth": 0,
+        "abstractionLevel": 0,
+        "evidenceDistance": 0,
+        "referentAmbiguity": 0,
+        "distractorOverlap": 0,
+        "discourseDensity": 0,
+        "clueDirectness": 0
+      }
+    },
+    "official_high3": {
+      "description": "High-school year 3 official exam baseline with transparent vocabulary and clear logic.",
+      "baseGradeStyle": "H3",
+      "supportedGrades": [
+        "H3"
+      ],
+      "bandAdjustments": {
+        "wordCountBand": {
+          "multiplier": 1.0,
+          "minDelta": 0,
+          "targetDelta": 0,
+          "maxDelta": 0
+        },
+        "sentenceCountBand": {
+          "multiplier": 1.0,
+          "minDelta": 0,
+          "targetDelta": 0,
+          "maxDelta": 0
+        },
+        "wordsPerSentenceBand": {
+          "multiplier": 1.0,
+          "minDelta": 0,
+          "targetDelta": 0,
+          "maxDelta": 0
+        }
+      },
+      "axisOverrides": {
+        "wordCount": 0,
+        "syntaxDepth": 0,
+        "abstractionLevel": 0,
+        "evidenceDistance": 0,
+        "referentAmbiguity": 0,
+        "distractorOverlap": 0,
+        "discourseDensity": 0,
+        "clueDirectness": 0
+      }
+    },
+    "official_high3_hard": {
+      "description": "High-school year 3 hard official mode: similar length, higher abstraction and clue distance.",
+      "baseGradeStyle": "H3",
+      "supportedGrades": [
+        "H3"
+      ],
+      "bandAdjustments": {
+        "wordCountBand": {
+          "multiplier": 1.03,
+          "minDelta": 0,
+          "targetDelta": 0,
+          "maxDelta": 0
+        },
+        "sentenceCountBand": {
+          "multiplier": 1.0,
+          "minDelta": 0,
+          "targetDelta": 0,
+          "maxDelta": 0
+        },
+        "wordsPerSentenceBand": {
+          "multiplier": 1.0,
+          "minDelta": 1,
+          "targetDelta": 1,
+          "maxDelta": 1
+        }
+      },
+      "axisOverrides": {
+        "wordCount": 0,
+        "syntaxDepth": 1,
+        "abstractionLevel": 1,
+        "evidenceDistance": 1,
+        "referentAmbiguity": 1,
+        "distractorOverlap": 1,
+        "discourseDensity": 1,
+        "clueDirectness": 1
+      }
+    },
+    "indepth_high3": {
+      "description": "High-school year 3 in-depth mode: compressed but more abstract, with stronger distractor traps.",
+      "baseGradeStyle": "H3",
+      "supportedGrades": [
+        "H3"
+      ],
+      "bandAdjustments": {
+        "wordCountBand": {
+          "multiplier": 0.97,
+          "minDelta": 0,
+          "targetDelta": 0,
+          "maxDelta": 0
+        },
+        "sentenceCountBand": {
+          "multiplier": 1.0,
+          "minDelta": 0,
+          "targetDelta": 0,
+          "maxDelta": 0
+        },
+        "wordsPerSentenceBand": {
+          "multiplier": 1.0,
+          "minDelta": 2,
+          "targetDelta": 2,
+          "maxDelta": 2
+        }
+      },
+      "axisOverrides": {
+        "wordCount": 0,
+        "syntaxDepth": 1,
+        "abstractionLevel": 1,
+        "evidenceDistance": 1,
+        "referentAmbiguity": 1,
+        "distractorOverlap": 1,
+        "discourseDensity": 1,
+        "clueDirectness": 1
+      }
+    },
+    "middle3_official": {
+      "description": "Middle-school official family, also used as the default school-style family for middle1 and middle2.",
+      "baseGradeStyle": "middle3_official",
+      "supportedGrades": [
+        "middle1",
+        "middle2",
+        "middle3_official"
+      ],
+      "bandAdjustments": {
+        "wordCountBand": {
+          "multiplier": 1.0,
+          "minDelta": 0,
+          "targetDelta": 0,
+          "maxDelta": 0
+        },
+        "sentenceCountBand": {
+          "multiplier": 1.0,
+          "minDelta": 0,
+          "targetDelta": 0,
+          "maxDelta": 0
+        },
+        "wordsPerSentenceBand": {
+          "multiplier": 1.0,
+          "minDelta": 0,
+          "targetDelta": 0,
+          "maxDelta": 0
+        }
+      },
+      "axisOverrides": {
+        "wordCount": 0,
+        "syntaxDepth": 0,
+        "abstractionLevel": 0,
+        "evidenceDistance": 0,
+        "referentAmbiguity": 0,
+        "distractorOverlap": 0,
+        "discourseDensity": 0,
+        "clueDirectness": 0
+      }
+    },
+    "middle3_bridge": {
+      "description": "Bridge family toward high1 with 0.85~0.95 length and slightly higher inference load.",
+      "baseGradeStyle": "middle3_bridge",
+      "supportedGrades": [
+        "middle3_bridge"
+      ],
+      "bandAdjustments": {
+        "wordCountBand": {
+          "multiplier": 1.0,
+          "minDelta": 0,
+          "targetDelta": 0,
+          "maxDelta": 0
+        },
+        "sentenceCountBand": {
+          "multiplier": 1.0,
+          "minDelta": 0,
+          "targetDelta": 0,
+          "maxDelta": 0
+        },
+        "wordsPerSentenceBand": {
+          "multiplier": 1.0,
+          "minDelta": 0,
+          "targetDelta": 0,
+          "maxDelta": 0
+        }
+      },
+      "axisOverrides": {
+        "wordCount": 0,
+        "syntaxDepth": 0,
+        "abstractionLevel": 0,
+        "evidenceDistance": 0,
+        "referentAmbiguity": 0,
+        "distractorOverlap": 0,
+        "discourseDensity": 0,
+        "clueDirectness": 0
+      }
+    }
+  },
+  "subtypes": {
+    "L_PURPOSE": {
+      "skill": "LISTENING",
+      "canonicalTypeTag": "L_INTENT",
+      "bandProfileKey": "l_short_inference",
+      "axisProfileKey": "listen_intent",
+      "allowedDiscourseModes": [
+        "dialogue",
+        "practical_notice",
+        "email_letter"
+      ],
+      "description": "L Purpose"
+    },
+    "L_OPINION": {
+      "skill": "LISTENING",
+      "canonicalTypeTag": "L_INTENT",
+      "bandProfileKey": "l_short_inference",
+      "axisProfileKey": "listen_intent",
+      "allowedDiscourseModes": [
+        "dialogue",
+        "email_letter",
+        "biography"
+      ],
+      "description": "L Opinion"
+    },
+    "L_GIST": {
+      "skill": "LISTENING",
+      "canonicalTypeTag": "L_GIST",
+      "bandProfileKey": "l_short_inference",
+      "axisProfileKey": "listen_gist",
+      "allowedDiscourseModes": [
+        "dialogue",
+        "expository",
+        "practical_notice"
+      ],
+      "description": "L Gist"
+    },
+    "L_PICTURE_MATCH": {
+      "skill": "LISTENING",
+      "canonicalTypeTag": "L_DETAIL",
+      "bandProfileKey": "l_short_surface",
+      "axisProfileKey": "listen_detail",
+      "allowedDiscourseModes": [
+        "dialogue",
+        "practical_notice",
+        "biography"
+      ],
+      "description": "L Picture Match"
+    },
+    "L_ACTION": {
+      "skill": "LISTENING",
+      "canonicalTypeTag": "L_DETAIL",
+      "bandProfileKey": "l_short_surface",
+      "axisProfileKey": "listen_detail",
+      "allowedDiscourseModes": [
+        "dialogue",
+        "practical_notice"
+      ],
+      "description": "L Action"
+    },
+    "L_PRICE_CALC": {
+      "skill": "LISTENING",
+      "canonicalTypeTag": "L_DETAIL",
+      "bandProfileKey": "l_short_surface",
+      "axisProfileKey": "listen_detail",
+      "allowedDiscourseModes": [
+        "dialogue",
+        "practical_notice"
+      ],
+      "description": "L Price Calc"
+    },
+    "L_REASON": {
+      "skill": "LISTENING",
+      "canonicalTypeTag": "L_INTENT",
+      "bandProfileKey": "l_short_inference",
+      "axisProfileKey": "listen_intent",
+      "allowedDiscourseModes": [
+        "dialogue",
+        "email_letter",
+        "biography"
+      ],
+      "description": "L Reason"
+    },
+    "L_MENTION_CHECK": {
+      "skill": "LISTENING",
+      "canonicalTypeTag": "L_DETAIL",
+      "bandProfileKey": "l_short_surface",
+      "axisProfileKey": "listen_detail",
+      "allowedDiscourseModes": [
+        "dialogue",
+        "practical_notice",
+        "email_letter"
+      ],
+      "description": "L Mention Check"
+    },
+    "L_CONTENT_MATCH": {
+      "skill": "LISTENING",
+      "canonicalTypeTag": "L_DETAIL",
+      "bandProfileKey": "l_short_surface",
+      "axisProfileKey": "listen_detail",
+      "allowedDiscourseModes": [
+        "dialogue",
+        "practical_notice",
+        "email_letter"
+      ],
+      "description": "L Content Match"
+    },
+    "L_TABLE_SELECTION": {
+      "skill": "LISTENING",
+      "canonicalTypeTag": "L_DETAIL",
+      "bandProfileKey": "l_short_surface",
+      "axisProfileKey": "listen_detail",
+      "allowedDiscourseModes": [
+        "dialogue",
+        "practical_notice"
+      ],
+      "description": "L Table Selection"
+    },
+    "L_SHORT_RESPONSE": {
+      "skill": "LISTENING",
+      "canonicalTypeTag": "L_RESPONSE",
+      "bandProfileKey": "l_response_short",
+      "axisProfileKey": "listen_response",
+      "allowedDiscourseModes": [
+        "dialogue"
+      ],
+      "description": "L Short Response"
+    },
+    "L_LONG_RESPONSE": {
+      "skill": "LISTENING",
+      "canonicalTypeTag": "L_RESPONSE",
+      "bandProfileKey": "l_response_short",
+      "axisProfileKey": "listen_response",
+      "allowedDiscourseModes": [
+        "dialogue",
+        "email_letter"
+      ],
+      "description": "L Long Response"
+    },
+    "L_SITUATION": {
+      "skill": "LISTENING",
+      "canonicalTypeTag": "L_SITUATION",
+      "bandProfileKey": "l_situation_contextual",
+      "axisProfileKey": "listen_situation",
+      "allowedDiscourseModes": [
+        "dialogue",
+        "email_letter"
+      ],
+      "description": "L Situation"
+    },
+    "L_LONG_TALK_TOPIC": {
+      "skill": "LISTENING",
+      "canonicalTypeTag": "L_LONG_TALK",
+      "bandProfileKey": "l_long_talk_topic",
+      "axisProfileKey": "listen_long_talk_topic",
+      "allowedDiscourseModes": [
+        "expository",
+        "biography",
+        "academic_argument",
+        "mixed_expository_narrative"
+      ],
+      "description": "L Long Talk Topic"
+    },
+    "L_LONG_TALK_DETAIL": {
+      "skill": "LISTENING",
+      "canonicalTypeTag": "L_LONG_TALK",
+      "bandProfileKey": "l_long_talk_detail",
+      "axisProfileKey": "listen_long_talk_detail",
+      "allowedDiscourseModes": [
+        "expository",
+        "biography",
+        "academic_argument",
+        "mixed_expository_narrative"
+      ],
+      "description": "L Long Talk Detail"
+    },
+    "R_PURPOSE": {
+      "skill": "READING",
+      "canonicalTypeTag": "R_INFERENCE",
+      "bandProfileKey": "r_short_prompt_q18",
+      "axisProfileKey": "read_purpose",
+      "allowedDiscourseModes": [
+        "email_letter",
+        "expository",
+        "practical_notice"
+      ],
+      "description": "R Purpose"
+    },
+    "R_TONE_MOOD": {
+      "skill": "READING",
+      "canonicalTypeTag": "R_INFERENCE",
+      "bandProfileKey": "r_short_prompt_q18",
+      "axisProfileKey": "read_tone",
+      "allowedDiscourseModes": [
+        "email_letter",
+        "narrative",
+        "biography"
+      ],
+      "description": "R Tone Mood"
+    },
+    "R_CLAIM": {
+      "skill": "READING",
+      "canonicalTypeTag": "R_MAIN_IDEA",
+      "bandProfileKey": "r_short_prompt_q18",
+      "axisProfileKey": "read_claim",
+      "allowedDiscourseModes": [
+        "expository",
+        "academic_argument",
+        "mixed_expository_narrative"
+      ],
+      "description": "R Claim"
+    },
+    "R_UNDERLINED_MEANING": {
+      "skill": "READING",
+      "canonicalTypeTag": "R_VOCAB",
+      "bandProfileKey": "r_underlined_q21",
+      "axisProfileKey": "read_underlined",
+      "allowedDiscourseModes": [
+        "expository",
+        "academic_argument",
+        "narrative"
+      ],
+      "description": "R Underlined Meaning"
+    },
+    "R_MAIN_IDEA": {
+      "skill": "READING",
+      "canonicalTypeTag": "R_MAIN_IDEA",
+      "bandProfileKey": "r_short_prompt_q18",
+      "axisProfileKey": "read_main",
+      "allowedDiscourseModes": [
+        "expository",
+        "biography",
+        "mixed_expository_narrative"
+      ],
+      "description": "R Main Idea"
+    },
+    "R_TITLE": {
+      "skill": "READING",
+      "canonicalTypeTag": "R_MAIN_IDEA",
+      "bandProfileKey": "r_short_prompt_q18",
+      "axisProfileKey": "read_title",
+      "allowedDiscourseModes": [
+        "expository",
+        "biography",
+        "mixed_expository_narrative"
+      ],
+      "description": "R Title"
+    },
+    "R_CHART_MATCH": {
+      "skill": "READING",
+      "canonicalTypeTag": "R_DETAIL",
+      "bandProfileKey": "r_notice_chart",
+      "axisProfileKey": "read_notice_chart",
+      "allowedDiscourseModes": [
+        "practical_notice",
+        "expository"
+      ],
+      "description": "R Chart Match"
+    },
+    "R_FACT_MATCH": {
+      "skill": "READING",
+      "canonicalTypeTag": "R_DETAIL",
+      "bandProfileKey": "r_notice_chart",
+      "axisProfileKey": "read_fact",
+      "allowedDiscourseModes": [
+        "practical_notice",
+        "expository",
+        "biography"
+      ],
+      "description": "R Fact Match"
+    },
+    "R_NOTICE_MISMATCH": {
+      "skill": "READING",
+      "canonicalTypeTag": "R_DETAIL",
+      "bandProfileKey": "r_notice_chart",
+      "axisProfileKey": "read_notice_chart",
+      "allowedDiscourseModes": [
+        "practical_notice",
+        "email_letter"
+      ],
+      "description": "R Notice Mismatch"
+    },
+    "R_NOTICE_MATCH": {
+      "skill": "READING",
+      "canonicalTypeTag": "R_DETAIL",
+      "bandProfileKey": "r_notice_chart",
+      "axisProfileKey": "read_notice_chart",
+      "allowedDiscourseModes": [
+        "practical_notice",
+        "email_letter"
+      ],
+      "description": "R Notice Match"
+    },
+    "R_GRAMMAR": {
+      "skill": "READING",
+      "canonicalTypeTag": "R_BLANK",
+      "bandProfileKey": "r_notice_chart",
+      "axisProfileKey": "read_grammar",
+      "allowedDiscourseModes": [
+        "expository",
+        "narrative",
+        "email_letter"
+      ],
+      "description": "R Grammar"
+    },
+    "R_VOCAB": {
+      "skill": "READING",
+      "canonicalTypeTag": "R_VOCAB",
+      "bandProfileKey": "r_underlined_q21",
+      "axisProfileKey": "read_vocab",
+      "allowedDiscourseModes": [
+        "expository",
+        "narrative",
+        "academic_argument"
+      ],
+      "description": "R Vocab"
+    },
+    "R_BLANK": {
+      "skill": "READING",
+      "canonicalTypeTag": "R_BLANK",
+      "bandProfileKey": "r_blank_q31_34",
+      "axisProfileKey": "read_blank",
+      "allowedDiscourseModes": [
+        "expository",
+        "academic_argument",
+        "mixed_expository_narrative",
+        "narrative"
+      ],
+      "description": "R Blank"
+    },
+    "R_IRRELEVANT": {
+      "skill": "READING",
+      "canonicalTypeTag": "R_INFERENCE",
+      "bandProfileKey": "r_blank_q31_34",
+      "axisProfileKey": "read_irrelevant",
+      "allowedDiscourseModes": [
+        "expository",
+        "biography",
+        "mixed_expository_narrative"
+      ],
+      "description": "R Irrelevant"
+    },
+    "R_ORDER": {
+      "skill": "READING",
+      "canonicalTypeTag": "R_ORDER",
+      "bandProfileKey": "r_order_insertion_q36_39",
+      "axisProfileKey": "read_order",
+      "allowedDiscourseModes": [
+        "expository",
+        "narrative",
+        "mixed_expository_narrative",
+        "biography"
+      ],
+      "description": "R Order"
+    },
+    "R_INSERTION": {
+      "skill": "READING",
+      "canonicalTypeTag": "R_INSERTION",
+      "bandProfileKey": "r_order_insertion_q36_39",
+      "axisProfileKey": "read_insertion",
+      "allowedDiscourseModes": [
+        "expository",
+        "academic_argument",
+        "mixed_expository_narrative",
+        "biography"
+      ],
+      "description": "R Insertion"
+    },
+    "R_SUMMARY": {
+      "skill": "READING",
+      "canonicalTypeTag": "R_SUMMARY",
+      "bandProfileKey": "r_order_insertion_q36_39",
+      "axisProfileKey": "read_summary",
+      "allowedDiscourseModes": [
+        "expository",
+        "academic_argument",
+        "mixed_expository_narrative"
+      ],
+      "description": "R Summary"
+    },
+    "R_LONG_PASSAGE_INFO": {
+      "skill": "READING",
+      "canonicalTypeTag": "R_DETAIL",
+      "bandProfileKey": "r_long_info_q41_42",
+      "axisProfileKey": "read_long_info",
+      "allowedDiscourseModes": [
+        "expository",
+        "academic_argument",
+        "mixed_expository_narrative"
+      ],
+      "description": "R Long Passage Info"
+    },
+    "R_LONG_PASSAGE_NARRATIVE": {
+      "skill": "READING",
+      "canonicalTypeTag": "R_INFERENCE",
+      "bandProfileKey": "r_long_narrative_q43_45",
+      "axisProfileKey": "read_long_narrative",
+      "allowedDiscourseModes": [
+        "narrative",
+        "biography",
+        "mixed_expository_narrative"
+      ],
+      "description": "R Long Passage Narrative"
+    }
+  },
+  "gradeStyles": {
+    "middle1": {
+      "description": "Short, direct, concrete, with the key clue inside one sentence.",
+      "cognitiveLoad": "low",
+      "connectorStyle": "direct"
+    },
+    "middle2": {
+      "description": "Slightly longer with basic inference beginning to appear.",
+      "cognitiveLoad": "low-mid",
+      "connectorStyle": "direct"
+    },
+    "middle3_official": {
+      "description": "Official middle3 style close to entry-level high1, but with direct connectors preserved.",
+      "cognitiveLoad": "mid",
+      "connectorStyle": "explicit"
+    },
+    "middle3_bridge": {
+      "description": "Bridge style toward high1 at 0.85~0.95 length with compressed 31/36/38 variants allowed.",
+      "cognitiveLoad": "mid",
+      "connectorStyle": "explicit-to-mixed"
+    },
+    "H1": {
+      "description": "Standard-centered with explicit connectors and partial restatement distractors.",
+      "cognitiveLoad": "mid-high",
+      "connectorStyle": "explicit"
+    },
+    "H2": {
+      "description": "Hard-centered with referent tracking and stronger penalties for direct clues.",
+      "cognitiveLoad": "high",
+      "connectorStyle": "mixed"
+    },
+    "H3": {
+      "description": "Hard to killer with more abstraction, paraphrase distance, and compressed logic.",
+      "cognitiveLoad": "very-high",
+      "connectorStyle": "compressed"
+    }
+  },
+  "discourseModes": {
+    "practical_notice": {
+      "description": "Instructional or notice-like language with short surface cues.",
+      "bandAdjustments": {
+        "wordCountBand": {
+          "multiplier": 0.88,
+          "minDelta": 0,
+          "targetDelta": 0,
+          "maxDelta": 0
+        },
+        "sentenceCountBand": {
+          "multiplier": 1.0,
+          "minDelta": -1,
+          "targetDelta": -1,
+          "maxDelta": -1
+        },
+        "wordsPerSentenceBand": {
+          "multiplier": 1.0,
+          "minDelta": -2,
+          "targetDelta": -2,
+          "maxDelta": -2
+        }
+      },
+      "axisAdjustments": {
+        "wordCount": 0,
+        "syntaxDepth": -1,
+        "abstractionLevel": -1,
+        "evidenceDistance": -1,
+        "referentAmbiguity": -1,
+        "distractorOverlap": 0,
+        "discourseDensity": -1,
+        "clueDirectness": -1
+      }
+    },
+    "email_letter": {
+      "description": "Personal address, sender-receiver framing, explicit discourse connectors.",
+      "bandAdjustments": {
+        "wordCountBand": {
+          "multiplier": 0.95,
+          "minDelta": 0,
+          "targetDelta": 0,
+          "maxDelta": 0
+        },
+        "sentenceCountBand": {
+          "multiplier": 1.0,
+          "minDelta": 0,
+          "targetDelta": 0,
+          "maxDelta": 0
+        },
+        "wordsPerSentenceBand": {
+          "multiplier": 1.0,
+          "minDelta": -1,
+          "targetDelta": -1,
+          "maxDelta": -1
+        }
+      },
+      "axisAdjustments": {
+        "wordCount": 0,
+        "syntaxDepth": 0,
+        "abstractionLevel": 0,
+        "evidenceDistance": 0,
+        "referentAmbiguity": 1,
+        "distractorOverlap": 0,
+        "discourseDensity": 0,
+        "clueDirectness": 0
+      }
+    },
+    "biography": {
+      "description": "Event progression with chronology and reference tracking.",
+      "bandAdjustments": {
+        "wordCountBand": {
+          "multiplier": 1.02,
+          "minDelta": 0,
+          "targetDelta": 0,
+          "maxDelta": 0
+        },
+        "sentenceCountBand": {
+          "multiplier": 1.0,
+          "minDelta": 0,
+          "targetDelta": 0,
+          "maxDelta": 0
+        },
+        "wordsPerSentenceBand": {
+          "multiplier": 1.0,
+          "minDelta": 0,
+          "targetDelta": 0,
+          "maxDelta": 0
+        }
+      },
+      "axisAdjustments": {
+        "wordCount": 0,
+        "syntaxDepth": 0,
+        "abstractionLevel": 0,
+        "evidenceDistance": 0,
+        "referentAmbiguity": 1,
+        "distractorOverlap": 0,
+        "discourseDensity": 1,
+        "clueDirectness": 0
+      }
+    },
+    "expository": {
+      "description": "Informational explanation with explicit logic markers.",
+      "bandAdjustments": {
+        "wordCountBand": {
+          "multiplier": 1.0,
+          "minDelta": 0,
+          "targetDelta": 0,
+          "maxDelta": 0
+        },
+        "sentenceCountBand": {
+          "multiplier": 1.0,
+          "minDelta": 0,
+          "targetDelta": 0,
+          "maxDelta": 0
+        },
+        "wordsPerSentenceBand": {
+          "multiplier": 1.0,
+          "minDelta": 0,
+          "targetDelta": 0,
+          "maxDelta": 0
+        }
+      },
+      "axisAdjustments": {
+        "wordCount": 0,
+        "syntaxDepth": 0,
+        "abstractionLevel": 1,
+        "evidenceDistance": 0,
+        "referentAmbiguity": 0,
+        "distractorOverlap": 0,
+        "discourseDensity": 1,
+        "clueDirectness": 0
+      }
+    },
+    "narrative": {
+      "description": "Story-like progression with reference chaining and temporal cues.",
+      "bandAdjustments": {
+        "wordCountBand": {
+          "multiplier": 1.03,
+          "minDelta": 0,
+          "targetDelta": 0,
+          "maxDelta": 0
+        },
+        "sentenceCountBand": {
+          "multiplier": 1.0,
+          "minDelta": 0,
+          "targetDelta": 0,
+          "maxDelta": 0
+        },
+        "wordsPerSentenceBand": {
+          "multiplier": 1.0,
+          "minDelta": 0,
+          "targetDelta": 0,
+          "maxDelta": 0
+        }
+      },
+      "axisAdjustments": {
+        "wordCount": 0,
+        "syntaxDepth": 0,
+        "abstractionLevel": 0,
+        "evidenceDistance": 1,
+        "referentAmbiguity": 1,
+        "distractorOverlap": 0,
+        "discourseDensity": 1,
+        "clueDirectness": 1
+      }
+    },
+    "dialogue": {
+      "description": "Turn-based exchange with shorter utterances and local context setup.",
+      "bandAdjustments": {
+        "wordCountBand": {
+          "multiplier": 0.92,
+          "minDelta": 0,
+          "targetDelta": 0,
+          "maxDelta": 0
+        },
+        "sentenceCountBand": {
+          "multiplier": 1.0,
+          "minDelta": 1,
+          "targetDelta": 1,
+          "maxDelta": 1
+        },
+        "wordsPerSentenceBand": {
+          "multiplier": 1.0,
+          "minDelta": -2,
+          "targetDelta": -2,
+          "maxDelta": -2
+        }
+      },
+      "axisAdjustments": {
+        "wordCount": 0,
+        "syntaxDepth": -1,
+        "abstractionLevel": -1,
+        "evidenceDistance": 0,
+        "referentAmbiguity": 1,
+        "distractorOverlap": 0,
+        "discourseDensity": 0,
+        "clueDirectness": 0
+      }
+    },
+    "academic_argument": {
+      "description": "Claim-evidence-rebuttal structure with dense transitions and abstract nouns.",
+      "bandAdjustments": {
+        "wordCountBand": {
+          "multiplier": 1.08,
+          "minDelta": 0,
+          "targetDelta": 0,
+          "maxDelta": 0
+        },
+        "sentenceCountBand": {
+          "multiplier": 1.0,
+          "minDelta": 0,
+          "targetDelta": 0,
+          "maxDelta": 0
+        },
+        "wordsPerSentenceBand": {
+          "multiplier": 1.0,
+          "minDelta": 2,
+          "targetDelta": 2,
+          "maxDelta": 2
+        }
+      },
+      "axisAdjustments": {
+        "wordCount": 0,
+        "syntaxDepth": 1,
+        "abstractionLevel": 1,
+        "evidenceDistance": 1,
+        "referentAmbiguity": 0,
+        "distractorOverlap": 1,
+        "discourseDensity": 1,
+        "clueDirectness": 1
+      }
+    },
+    "mixed_expository_narrative": {
+      "description": "Hybrid passage blending exposition and episode-based support.",
+      "bandAdjustments": {
+        "wordCountBand": {
+          "multiplier": 1.05,
+          "minDelta": 0,
+          "targetDelta": 0,
+          "maxDelta": 0
+        },
+        "sentenceCountBand": {
+          "multiplier": 1.0,
+          "minDelta": 0,
+          "targetDelta": 0,
+          "maxDelta": 0
+        },
+        "wordsPerSentenceBand": {
+          "multiplier": 1.0,
+          "minDelta": 1,
+          "targetDelta": 1,
+          "maxDelta": 1
+        }
+      },
+      "axisAdjustments": {
+        "wordCount": 0,
+        "syntaxDepth": 0,
+        "abstractionLevel": 1,
+        "evidenceDistance": 1,
+        "referentAmbiguity": 1,
+        "distractorOverlap": 0,
+        "discourseDensity": 1,
+        "clueDirectness": 1
+      }
+    }
+  },
+  "bands": {
+    "profiles": {
+      "r_short_prompt_q18": {
+        "description": "r short prompt q18",
+        "gradeBands": {
+          "middle1": {
+            "wordCountBand": {
+              "min": 55,
+              "target": 68,
+              "max": 82
+            },
+            "sentenceCountBand": {
+              "min": 3,
+              "target": 4,
+              "max": 4
+            },
+            "wordsPerSentenceBand": {
+              "min": 14,
+              "target": 18,
+              "max": 23
+            }
+          },
+          "middle2": {
+            "wordCountBand": {
+              "min": 67,
+              "target": 84,
+              "max": 101
+            },
+            "sentenceCountBand": {
+              "min": 3,
+              "target": 4,
+              "max": 5
+            },
+            "wordsPerSentenceBand": {
+              "min": 16,
+              "target": 19,
+              "max": 24
+            }
+          },
+          "middle3_official": {
+            "wordCountBand": {
+              "min": 78,
+              "target": 98,
+              "max": 118
+            },
+            "sentenceCountBand": {
+              "min": 4,
+              "target": 4,
+              "max": 5
+            },
+            "wordsPerSentenceBand": {
+              "min": 18,
+              "target": 21,
+              "max": 25
+            }
+          },
+          "middle3_bridge": {
+            "wordCountBand": {
+              "min": 84,
+              "target": 105,
+              "max": 126
+            },
+            "sentenceCountBand": {
+              "min": 4,
+              "target": 5,
+              "max": 5
+            },
+            "wordsPerSentenceBand": {
+              "min": 18,
+              "target": 22,
+              "max": 26
+            }
+          },
+          "H1": {
+            "wordCountBand": {
+              "min": 91,
+              "target": 114,
+              "max": 137
+            },
+            "sentenceCountBand": {
+              "min": 4,
+              "target": 5,
+              "max": 6
+            },
+            "wordsPerSentenceBand": {
+              "min": 18,
+              "target": 23,
+              "max": 28
+            }
+          },
+          "H2": {
+            "wordCountBand": {
+              "min": 99,
+              "target": 114,
+              "max": 129
+            },
+            "sentenceCountBand": {
+              "min": 4,
+              "target": 5,
+              "max": 6
+            },
+            "wordsPerSentenceBand": {
+              "min": 19,
+              "target": 23,
+              "max": 29
+            }
+          },
+          "H3": {
+            "wordCountBand": {
+              "min": 105,
+              "target": 114,
+              "max": 122
+            },
+            "sentenceCountBand": {
+              "min": 4,
+              "target": 5,
+              "max": 6
+            },
+            "wordsPerSentenceBand": {
+              "min": 20,
+              "target": 23,
+              "max": 30
+            }
+          }
+        },
+        "officialAnchorRanges": {
+          "H1": {
+            "slot": "18",
+            "range": [
+              91,
+              137
+            ]
+          },
+          "H2": {
+            "slot": "18",
+            "range": [
+              99,
+              129
+            ]
+          },
+          "H3": {
+            "slot": "18",
+            "range": [
+              105,
+              122
+            ]
+          }
+        }
+      },
+      "r_underlined_q21": {
+        "description": "r underlined q21",
+        "gradeBands": {
+          "middle1": {
+            "wordCountBand": {
+              "min": 81,
+              "target": 96,
+              "max": 110
+            },
+            "sentenceCountBand": {
+              "min": 4,
+              "target": 4,
+              "max": 5
+            },
+            "wordsPerSentenceBand": {
+              "min": 16,
+              "target": 20,
+              "max": 25
+            }
+          },
+          "middle2": {
+            "wordCountBand": {
+              "min": 100,
+              "target": 118,
+              "max": 136
+            },
+            "sentenceCountBand": {
+              "min": 4,
+              "target": 5,
+              "max": 5
+            },
+            "wordsPerSentenceBand": {
+              "min": 18,
+              "target": 22,
+              "max": 27
+            }
+          },
+          "middle3_official": {
+            "wordCountBand": {
+              "min": 116,
+              "target": 137,
+              "max": 158
+            },
+            "sentenceCountBand": {
+              "min": 4,
+              "target": 5,
+              "max": 6
+            },
+            "wordsPerSentenceBand": {
+              "min": 20,
+              "target": 24,
+              "max": 29
+            }
+          },
+          "middle3_bridge": {
+            "wordCountBand": {
+              "min": 124,
+              "target": 146,
+              "max": 169
+            },
+            "sentenceCountBand": {
+              "min": 5,
+              "target": 5,
+              "max": 6
+            },
+            "wordsPerSentenceBand": {
+              "min": 21,
+              "target": 25,
+              "max": 30
+            }
+          },
+          "H1": {
+            "wordCountBand": {
+              "min": 135,
+              "target": 160,
+              "max": 184
+            },
+            "sentenceCountBand": {
+              "min": 5,
+              "target": 6,
+              "max": 7
+            },
+            "wordsPerSentenceBand": {
+              "min": 22,
+              "target": 27,
+              "max": 32
+            }
+          },
+          "H2": {
+            "wordCountBand": {
+              "min": 150,
+              "target": 165,
+              "max": 180
+            },
+            "sentenceCountBand": {
+              "min": 5,
+              "target": 6,
+              "max": 7
+            },
+            "wordsPerSentenceBand": {
+              "min": 23,
+              "target": 28,
+              "max": 33
+            }
+          },
+          "H3": {
+            "wordCountBand": {
+              "min": 151,
+              "target": 172,
+              "max": 193
+            },
+            "sentenceCountBand": {
+              "min": 5,
+              "target": 6,
+              "max": 7
+            },
+            "wordsPerSentenceBand": {
+              "min": 24,
+              "target": 29,
+              "max": 34
+            }
+          }
+        },
+        "officialAnchorRanges": {
+          "H1": {
+            "slot": "21",
+            "range": [
+              135,
+              184
+            ]
+          },
+          "H2": {
+            "slot": "21",
+            "range": [
+              150,
+              180
+            ]
+          },
+          "H3": {
+            "slot": "21",
+            "range": [
+              151,
+              193
+            ]
+          }
+        }
+      },
+      "r_blank_q31_34": {
+        "description": "r blank q31 34",
+        "gradeBands": {
+          "middle1": {
+            "wordCountBand": {
+              "min": 74,
+              "target": 89,
+              "max": 104
+            },
+            "sentenceCountBand": {
+              "min": 4,
+              "target": 4,
+              "max": 5
+            },
+            "wordsPerSentenceBand": {
+              "min": 16,
+              "target": 21,
+              "max": 27
+            }
+          },
+          "middle2": {
+            "wordCountBand": {
+              "min": 91,
+              "target": 110,
+              "max": 129
+            },
+            "sentenceCountBand": {
+              "min": 4,
+              "target": 5,
+              "max": 5
+            },
+            "wordsPerSentenceBand": {
+              "min": 18,
+              "target": 23,
+              "max": 29
+            }
+          },
+          "middle3_official": {
+            "wordCountBand": {
+              "min": 106,
+              "target": 128,
+              "max": 150
+            },
+            "sentenceCountBand": {
+              "min": 4,
+              "target": 5,
+              "max": 6
+            },
+            "wordsPerSentenceBand": {
+              "min": 20,
+              "target": 24,
+              "max": 31
+            }
+          },
+          "middle3_bridge": {
+            "wordCountBand": {
+              "min": 113,
+              "target": 136,
+              "max": 160
+            },
+            "sentenceCountBand": {
+              "min": 5,
+              "target": 5,
+              "max": 6
+            },
+            "wordsPerSentenceBand": {
+              "min": 21,
+              "target": 25,
+              "max": 32
+            }
+          },
+          "H1": {
+            "wordCountBand": {
+              "min": 123,
+              "target": 148,
+              "max": 174
+            },
+            "sentenceCountBand": {
+              "min": 5,
+              "target": 6,
+              "max": 7
+            },
+            "wordsPerSentenceBand": {
+              "min": 22,
+              "target": 26,
+              "max": 33
+            }
+          },
+          "H2": {
+            "wordCountBand": {
+              "min": 127,
+              "target": 155,
+              "max": 183
+            },
+            "sentenceCountBand": {
+              "min": 5,
+              "target": 6,
+              "max": 7
+            },
+            "wordsPerSentenceBand": {
+              "min": 23,
+              "target": 27,
+              "max": 34
+            }
+          },
+          "H3": {
+            "wordCountBand": {
+              "min": 140,
+              "target": 158,
+              "max": 175
+            },
+            "sentenceCountBand": {
+              "min": 5,
+              "target": 6,
+              "max": 7
+            },
+            "wordsPerSentenceBand": {
+              "min": 24,
+              "target": 28,
+              "max": 35
+            }
+          }
+        },
+        "officialAnchorRanges": {
+          "H1": {
+            "slot": "31~34",
+            "range": [
+              123,
+              174
+            ]
+          },
+          "H2": {
+            "slot": "31~34",
+            "range": [
+              127,
+              183
+            ]
+          },
+          "H3": {
+            "slot": "31~34",
+            "range": [
+              140,
+              175
+            ]
+          }
+        }
+      },
+      "r_order_insertion_q36_39": {
+        "description": "r order insertion q36 39",
+        "gradeBands": {
+          "middle1": {
+            "wordCountBand": {
+              "min": 92,
+              "target": 100,
+              "max": 107
+            },
+            "sentenceCountBand": {
+              "min": 4,
+              "target": 4,
+              "max": 5
+            },
+            "wordsPerSentenceBand": {
+              "min": 17,
+              "target": 22,
+              "max": 28
+            }
+          },
+          "middle2": {
+            "wordCountBand": {
+              "min": 114,
+              "target": 123,
+              "max": 132
+            },
+            "sentenceCountBand": {
+              "min": 4,
+              "target": 5,
+              "max": 5
+            },
+            "wordsPerSentenceBand": {
+              "min": 19,
+              "target": 24,
+              "max": 30
+            }
+          },
+          "middle3_official": {
+            "wordCountBand": {
+              "min": 132,
+              "target": 142,
+              "max": 153
+            },
+            "sentenceCountBand": {
+              "min": 5,
+              "target": 5,
+              "max": 6
+            },
+            "wordsPerSentenceBand": {
+              "min": 21,
+              "target": 25,
+              "max": 31
+            }
+          },
+          "middle3_bridge": {
+            "wordCountBand": {
+              "min": 142,
+              "target": 153,
+              "max": 164
+            },
+            "sentenceCountBand": {
+              "min": 5,
+              "target": 6,
+              "max": 6
+            },
+            "wordsPerSentenceBand": {
+              "min": 22,
+              "target": 26,
+              "max": 32
+            }
+          },
+          "H1": {
+            "wordCountBand": {
+              "min": 154,
+              "target": 166,
+              "max": 178
+            },
+            "sentenceCountBand": {
+              "min": 5,
+              "target": 6,
+              "max": 7
+            },
+            "wordsPerSentenceBand": {
+              "min": 23,
+              "target": 27,
+              "max": 33
+            }
+          },
+          "H2": {
+            "wordCountBand": {
+              "min": 141,
+              "target": 164,
+              "max": 186
+            },
+            "sentenceCountBand": {
+              "min": 5,
+              "target": 6,
+              "max": 7
+            },
+            "wordsPerSentenceBand": {
+              "min": 24,
+              "target": 28,
+              "max": 34
+            }
+          },
+          "H3": {
+            "wordCountBand": {
+              "min": 160,
+              "target": 177,
+              "max": 194
+            },
+            "sentenceCountBand": {
+              "min": 6,
+              "target": 6,
+              "max": 7
+            },
+            "wordsPerSentenceBand": {
+              "min": 25,
+              "target": 29,
+              "max": 35
+            }
+          }
+        },
+        "officialAnchorRanges": {
+          "H1": {
+            "slot": "36~39",
+            "range": [
+              154,
+              178
+            ]
+          },
+          "H2": {
+            "slot": "36~39",
+            "range": [
+              141,
+              186
+            ]
+          },
+          "H3": {
+            "slot": "36~39",
+            "range": [
+              160,
+              194
+            ]
+          }
+        }
+      },
+      "r_long_info_q41_42": {
+        "description": "r long info q41 42",
+        "gradeBands": {
+          "middle1": {
+            "wordCountBand": {
+              "min": 128,
+              "target": 146,
+              "max": 165
+            },
+            "sentenceCountBand": {
+              "min": 6,
+              "target": 7,
+              "max": 8
+            },
+            "wordsPerSentenceBand": {
+              "min": 20,
+              "target": 26,
+              "max": 32
+            }
+          },
+          "middle2": {
+            "wordCountBand": {
+              "min": 158,
+              "target": 181,
+              "max": 204
+            },
+            "sentenceCountBand": {
+              "min": 7,
+              "target": 8,
+              "max": 9
+            },
+            "wordsPerSentenceBand": {
+              "min": 22,
+              "target": 28,
+              "max": 34
+            }
+          },
+          "middle3_official": {
+            "wordCountBand": {
+              "min": 184,
+              "target": 210,
+              "max": 236
+            },
+            "sentenceCountBand": {
+              "min": 7,
+              "target": 8,
+              "max": 9
+            },
+            "wordsPerSentenceBand": {
+              "min": 24,
+              "target": 30,
+              "max": 36
+            }
+          },
+          "middle3_bridge": {
+            "wordCountBand": {
+              "min": 197,
+              "target": 225,
+              "max": 253
+            },
+            "sentenceCountBand": {
+              "min": 8,
+              "target": 9,
+              "max": 10
+            },
+            "wordsPerSentenceBand": {
+              "min": 25,
+              "target": 31,
+              "max": 37
+            }
+          },
+          "H1": {
+            "wordCountBand": {
+              "min": 214,
+              "target": 244,
+              "max": 275
+            },
+            "sentenceCountBand": {
+              "min": 8,
+              "target": 9,
+              "max": 10
+            },
+            "wordsPerSentenceBand": {
+              "min": 26,
+              "target": 32,
+              "max": 38
+            }
+          },
+          "H2": {
+            "wordCountBand": {
+              "min": 221,
+              "target": 239,
+              "max": 257
+            },
+            "sentenceCountBand": {
+              "min": 8,
+              "target": 9,
+              "max": 10
+            },
+            "wordsPerSentenceBand": {
+              "min": 27,
+              "target": 33,
+              "max": 39
+            }
+          },
+          "H3": {
+            "wordCountBand": {
+              "min": 236,
+              "target": 256,
+              "max": 275
+            },
+            "sentenceCountBand": {
+              "min": 9,
+              "target": 10,
+              "max": 11
+            },
+            "wordsPerSentenceBand": {
+              "min": 28,
+              "target": 34,
+              "max": 40
+            }
+          }
+        },
+        "officialAnchorRanges": {
+          "H1": {
+            "slot": "41~42",
+            "range": [
+              214,
+              275
+            ]
+          },
+          "H2": {
+            "slot": "41~42",
+            "range": [
+              221,
+              257
+            ]
+          },
+          "H3": {
+            "slot": "41~42",
+            "range": [
+              236,
+              275
+            ]
+          }
+        }
+      },
+      "r_long_narrative_q43_45": {
+        "description": "r long narrative q43 45",
+        "gradeBands": {
+          "middle1": {
+            "wordCountBand": {
+              "min": 182,
+              "target": 187,
+              "max": 192
+            },
+            "sentenceCountBand": {
+              "min": 8,
+              "target": 9,
+              "max": 10
+            },
+            "wordsPerSentenceBand": {
+              "min": 22,
+              "target": 28,
+              "max": 34
+            }
+          },
+          "middle2": {
+            "wordCountBand": {
+              "min": 224,
+              "target": 230,
+              "max": 237
+            },
+            "sentenceCountBand": {
+              "min": 9,
+              "target": 10,
+              "max": 11
+            },
+            "wordsPerSentenceBand": {
+              "min": 24,
+              "target": 30,
+              "max": 36
+            }
+          },
+          "middle3_official": {
+            "wordCountBand": {
+              "min": 261,
+              "target": 268,
+              "max": 275
+            },
+            "sentenceCountBand": {
+              "min": 10,
+              "target": 11,
+              "max": 12
+            },
+            "wordsPerSentenceBand": {
+              "min": 26,
+              "target": 32,
+              "max": 38
+            }
+          },
+          "middle3_bridge": {
+            "wordCountBand": {
+              "min": 279,
+              "target": 286,
+              "max": 294
+            },
+            "sentenceCountBand": {
+              "min": 10,
+              "target": 11,
+              "max": 12
+            },
+            "wordsPerSentenceBand": {
+              "min": 27,
+              "target": 33,
+              "max": 39
+            }
+          },
+          "H1": {
+            "wordCountBand": {
+              "min": 303,
+              "target": 312,
+              "max": 320
+            },
+            "sentenceCountBand": {
+              "min": 11,
+              "target": 12,
+              "max": 13
+            },
+            "wordsPerSentenceBand": {
+              "min": 28,
+              "target": 34,
+              "max": 40
+            }
+          },
+          "H2": {
+            "wordCountBand": {
+              "min": 285,
+              "target": 325,
+              "max": 365
+            },
+            "sentenceCountBand": {
+              "min": 11,
+              "target": 12,
+              "max": 13
+            },
+            "wordsPerSentenceBand": {
+              "min": 29,
+              "target": 35,
+              "max": 41
+            }
+          },
+          "H3": {
+            "wordCountBand": {
+              "min": 346,
+              "target": 372,
+              "max": 398
+            },
+            "sentenceCountBand": {
+              "min": 12,
+              "target": 13,
+              "max": 14
+            },
+            "wordsPerSentenceBand": {
+              "min": 30,
+              "target": 36,
+              "max": 42
+            }
+          }
+        },
+        "officialAnchorRanges": {
+          "H1": {
+            "slot": "43~45",
+            "range": [
+              303,
+              320
+            ]
+          },
+          "H2": {
+            "slot": "43~45",
+            "range": [
+              285,
+              365
+            ]
+          },
+          "H3": {
+            "slot": "43~45",
+            "range": [
+              346,
+              398
+            ]
+          }
+        }
+      },
+      "r_notice_chart": {
+        "description": "r notice chart",
+        "gradeBands": {
+          "middle1": {
+            "wordCountBand": {
+              "min": 47,
+              "target": 59,
+              "max": 71
+            },
+            "sentenceCountBand": {
+              "min": 2,
+              "target": 3,
+              "max": 4
+            },
+            "wordsPerSentenceBand": {
+              "min": 10,
+              "target": 16,
+              "max": 22
+            }
+          },
+          "middle2": {
+            "wordCountBand": {
+              "min": 58,
+              "target": 72,
+              "max": 87
+            },
+            "sentenceCountBand": {
+              "min": 3,
+              "target": 4,
+              "max": 4
+            },
+            "wordsPerSentenceBand": {
+              "min": 12,
+              "target": 18,
+              "max": 23
+            }
+          },
+          "middle3_official": {
+            "wordCountBand": {
+              "min": 67,
+              "target": 84,
+              "max": 101
+            },
+            "sentenceCountBand": {
+              "min": 3,
+              "target": 4,
+              "max": 5
+            },
+            "wordsPerSentenceBand": {
+              "min": 13,
+              "target": 19,
+              "max": 24
+            }
+          },
+          "middle3_bridge": {
+            "wordCountBand": {
+              "min": 72,
+              "target": 90,
+              "max": 109
+            },
+            "sentenceCountBand": {
+              "min": 4,
+              "target": 4,
+              "max": 5
+            },
+            "wordsPerSentenceBand": {
+              "min": 14,
+              "target": 20,
+              "max": 25
+            }
+          },
+          "H1": {
+            "wordCountBand": {
+              "min": 78,
+              "target": 98,
+              "max": 118
+            },
+            "sentenceCountBand": {
+              "min": 4,
+              "target": 5,
+              "max": 6
+            },
+            "wordsPerSentenceBand": {
+              "min": 15,
+              "target": 21,
+              "max": 26
+            }
+          },
+          "H2": {
+            "wordCountBand": {
+              "min": 84,
+              "target": 105,
+              "max": 126
+            },
+            "sentenceCountBand": {
+              "min": 4,
+              "target": 5,
+              "max": 6
+            },
+            "wordsPerSentenceBand": {
+              "min": 16,
+              "target": 22,
+              "max": 27
+            }
+          },
+          "H3": {
+            "wordCountBand": {
+              "min": 90,
+              "target": 111,
+              "max": 132
+            },
+            "sentenceCountBand": {
+              "min": 4,
+              "target": 5,
+              "max": 6
+            },
+            "wordsPerSentenceBand": {
+              "min": 17,
+              "target": 23,
+              "max": 28
+            }
+          }
+        }
+      },
+      "l_short_surface": {
+        "description": "l short surface",
+        "gradeBands": {
+          "middle1": {
+            "wordCountBand": {
+              "min": 18,
+              "target": 26,
+              "max": 34
+            },
+            "sentenceCountBand": {
+              "min": 2,
+              "target": 2,
+              "max": 3
+            },
+            "wordsPerSentenceBand": {
+              "min": 7,
+              "target": 11,
+              "max": 15
+            }
+          },
+          "middle2": {
+            "wordCountBand": {
+              "min": 24,
+              "target": 33,
+              "max": 42
+            },
+            "sentenceCountBand": {
+              "min": 2,
+              "target": 3,
+              "max": 3
+            },
+            "wordsPerSentenceBand": {
+              "min": 8,
+              "target": 12,
+              "max": 16
+            }
+          },
+          "middle3_official": {
+            "wordCountBand": {
+              "min": 28,
+              "target": 38,
+              "max": 48
+            },
+            "sentenceCountBand": {
+              "min": 3,
+              "target": 3,
+              "max": 4
+            },
+            "wordsPerSentenceBand": {
+              "min": 9,
+              "target": 13,
+              "max": 17
+            }
+          },
+          "middle3_bridge": {
+            "wordCountBand": {
+              "min": 32,
+              "target": 43,
+              "max": 54
+            },
+            "sentenceCountBand": {
+              "min": 3,
+              "target": 4,
+              "max": 4
+            },
+            "wordsPerSentenceBand": {
+              "min": 10,
+              "target": 14,
+              "max": 18
+            }
+          },
+          "H1": {
+            "wordCountBand": {
+              "min": 36,
+              "target": 49,
+              "max": 62
+            },
+            "sentenceCountBand": {
+              "min": 3,
+              "target": 4,
+              "max": 5
+            },
+            "wordsPerSentenceBand": {
+              "min": 11,
+              "target": 15,
+              "max": 19
+            }
+          },
+          "H2": {
+            "wordCountBand": {
+              "min": 42,
+              "target": 56,
+              "max": 70
+            },
+            "sentenceCountBand": {
+              "min": 4,
+              "target": 4,
+              "max": 5
+            },
+            "wordsPerSentenceBand": {
+              "min": 12,
+              "target": 16,
+              "max": 20
+            }
+          },
+          "H3": {
+            "wordCountBand": {
+              "min": 48,
+              "target": 63,
+              "max": 78
+            },
+            "sentenceCountBand": {
+              "min": 4,
+              "target": 5,
+              "max": 6
+            },
+            "wordsPerSentenceBand": {
+              "min": 13,
+              "target": 17,
+              "max": 21
+            }
+          }
+        }
+      },
+      "l_short_inference": {
+        "description": "l short inference",
+        "gradeBands": {
+          "middle1": {
+            "wordCountBand": {
+              "min": 24,
+              "target": 32,
+              "max": 40
+            },
+            "sentenceCountBand": {
+              "min": 2,
+              "target": 3,
+              "max": 3
+            },
+            "wordsPerSentenceBand": {
+              "min": 8,
+              "target": 12,
+              "max": 16
+            }
+          },
+          "middle2": {
+            "wordCountBand": {
+              "min": 30,
+              "target": 40,
+              "max": 50
+            },
+            "sentenceCountBand": {
+              "min": 3,
+              "target": 3,
+              "max": 4
+            },
+            "wordsPerSentenceBand": {
+              "min": 9,
+              "target": 13,
+              "max": 17
+            }
+          },
+          "middle3_official": {
+            "wordCountBand": {
+              "min": 36,
+              "target": 47,
+              "max": 58
+            },
+            "sentenceCountBand": {
+              "min": 3,
+              "target": 4,
+              "max": 4
+            },
+            "wordsPerSentenceBand": {
+              "min": 10,
+              "target": 14,
+              "max": 18
+            }
+          },
+          "middle3_bridge": {
+            "wordCountBand": {
+              "min": 40,
+              "target": 53,
+              "max": 66
+            },
+            "sentenceCountBand": {
+              "min": 4,
+              "target": 4,
+              "max": 5
+            },
+            "wordsPerSentenceBand": {
+              "min": 11,
+              "target": 15,
+              "max": 19
+            }
+          },
+          "H1": {
+            "wordCountBand": {
+              "min": 48,
+              "target": 62,
+              "max": 76
+            },
+            "sentenceCountBand": {
+              "min": 4,
+              "target": 5,
+              "max": 5
+            },
+            "wordsPerSentenceBand": {
+              "min": 12,
+              "target": 16,
+              "max": 20
+            }
+          },
+          "H2": {
+            "wordCountBand": {
+              "min": 56,
+              "target": 72,
+              "max": 88
+            },
+            "sentenceCountBand": {
+              "min": 4,
+              "target": 5,
+              "max": 6
+            },
+            "wordsPerSentenceBand": {
+              "min": 13,
+              "target": 17,
+              "max": 21
+            }
+          },
+          "H3": {
+            "wordCountBand": {
+              "min": 62,
+              "target": 79,
+              "max": 96
+            },
+            "sentenceCountBand": {
+              "min": 5,
+              "target": 5,
+              "max": 6
+            },
+            "wordsPerSentenceBand": {
+              "min": 14,
+              "target": 18,
+              "max": 22
+            }
+          }
+        }
+      },
+      "l_response_short": {
+        "description": "l response short",
+        "gradeBands": {
+          "middle1": {
+            "wordCountBand": {
+              "min": 12,
+              "target": 19,
+              "max": 26
+            },
+            "sentenceCountBand": {
+              "min": 2,
+              "target": 2,
+              "max": 2
+            },
+            "wordsPerSentenceBand": {
+              "min": 6,
+              "target": 9,
+              "max": 12
+            }
+          },
+          "middle2": {
+            "wordCountBand": {
+              "min": 16,
+              "target": 23,
+              "max": 30
+            },
+            "sentenceCountBand": {
+              "min": 2,
+              "target": 2,
+              "max": 3
+            },
+            "wordsPerSentenceBand": {
+              "min": 7,
+              "target": 10,
+              "max": 13
+            }
+          },
+          "middle3_official": {
+            "wordCountBand": {
+              "min": 18,
+              "target": 26,
+              "max": 34
+            },
+            "sentenceCountBand": {
+              "min": 2,
+              "target": 3,
+              "max": 3
+            },
+            "wordsPerSentenceBand": {
+              "min": 8,
+              "target": 11,
+              "max": 14
+            }
+          },
+          "middle3_bridge": {
+            "wordCountBand": {
+              "min": 22,
+              "target": 30,
+              "max": 38
+            },
+            "sentenceCountBand": {
+              "min": 3,
+              "target": 3,
+              "max": 3
+            },
+            "wordsPerSentenceBand": {
+              "min": 9,
+              "target": 12,
+              "max": 15
+            }
+          },
+          "H1": {
+            "wordCountBand": {
+              "min": 24,
+              "target": 33,
+              "max": 42
+            },
+            "sentenceCountBand": {
+              "min": 3,
+              "target": 3,
+              "max": 4
+            },
+            "wordsPerSentenceBand": {
+              "min": 10,
+              "target": 13,
+              "max": 16
+            }
+          },
+          "H2": {
+            "wordCountBand": {
+              "min": 28,
+              "target": 38,
+              "max": 48
+            },
+            "sentenceCountBand": {
+              "min": 3,
+              "target": 4,
+              "max": 4
+            },
+            "wordsPerSentenceBand": {
+              "min": 11,
+              "target": 14,
+              "max": 17
+            }
+          },
+          "H3": {
+            "wordCountBand": {
+              "min": 30,
+              "target": 41,
+              "max": 52
+            },
+            "sentenceCountBand": {
+              "min": 4,
+              "target": 4,
+              "max": 4
+            },
+            "wordsPerSentenceBand": {
+              "min": 12,
+              "target": 15,
+              "max": 18
+            }
+          }
+        }
+      },
+      "l_situation_contextual": {
+        "description": "l situation contextual",
+        "gradeBands": {
+          "middle1": {
+            "wordCountBand": {
+              "min": 26,
+              "target": 35,
+              "max": 44
+            },
+            "sentenceCountBand": {
+              "min": 2,
+              "target": 3,
+              "max": 3
+            },
+            "wordsPerSentenceBand": {
+              "min": 8,
+              "target": 12,
+              "max": 16
+            }
+          },
+          "middle2": {
+            "wordCountBand": {
+              "min": 32,
+              "target": 44,
+              "max": 56
+            },
+            "sentenceCountBand": {
+              "min": 3,
+              "target": 3,
+              "max": 4
+            },
+            "wordsPerSentenceBand": {
+              "min": 9,
+              "target": 14,
+              "max": 18
+            }
+          },
+          "middle3_official": {
+            "wordCountBand": {
+              "min": 40,
+              "target": 53,
+              "max": 66
+            },
+            "sentenceCountBand": {
+              "min": 3,
+              "target": 4,
+              "max": 4
+            },
+            "wordsPerSentenceBand": {
+              "min": 10,
+              "target": 15,
+              "max": 19
+            }
+          },
+          "middle3_bridge": {
+            "wordCountBand": {
+              "min": 46,
+              "target": 60,
+              "max": 74
+            },
+            "sentenceCountBand": {
+              "min": 3,
+              "target": 4,
+              "max": 5
+            },
+            "wordsPerSentenceBand": {
+              "min": 11,
+              "target": 16,
+              "max": 20
+            }
+          },
+          "H1": {
+            "wordCountBand": {
+              "min": 54,
+              "target": 71,
+              "max": 88
+            },
+            "sentenceCountBand": {
+              "min": 3,
+              "target": 4,
+              "max": 5
+            },
+            "wordsPerSentenceBand": {
+              "min": 12,
+              "target": 17,
+              "max": 22
+            }
+          },
+          "H2": {
+            "wordCountBand": {
+              "min": 68,
+              "target": 88,
+              "max": 108
+            },
+            "sentenceCountBand": {
+              "min": 3,
+              "target": 4,
+              "max": 5
+            },
+            "wordsPerSentenceBand": {
+              "min": 13,
+              "target": 18,
+              "max": 23
+            }
+          },
+          "H3": {
+            "wordCountBand": {
+              "min": 76,
+              "target": 97,
+              "max": 118
+            },
+            "sentenceCountBand": {
+              "min": 4,
+              "target": 5,
+              "max": 6
+            },
+            "wordsPerSentenceBand": {
+              "min": 14,
+              "target": 19,
+              "max": 24
+            }
+          }
+        }
+      },
+      "l_long_talk_topic": {
+        "description": "l long talk topic",
+        "gradeBands": {
+          "middle1": {
+            "wordCountBand": {
+              "min": 58,
+              "target": 75,
+              "max": 92
+            },
+            "sentenceCountBand": {
+              "min": 4,
+              "target": 5,
+              "max": 6
+            },
+            "wordsPerSentenceBand": {
+              "min": 12,
+              "target": 16,
+              "max": 20
+            }
+          },
+          "middle2": {
+            "wordCountBand": {
+              "min": 70,
+              "target": 90,
+              "max": 110
+            },
+            "sentenceCountBand": {
+              "min": 5,
+              "target": 6,
+              "max": 7
+            },
+            "wordsPerSentenceBand": {
+              "min": 13,
+              "target": 17,
+              "max": 21
+            }
+          },
+          "middle3_official": {
+            "wordCountBand": {
+              "min": 82,
+              "target": 104,
+              "max": 126
+            },
+            "sentenceCountBand": {
+              "min": 5,
+              "target": 6,
+              "max": 7
+            },
+            "wordsPerSentenceBand": {
+              "min": 14,
+              "target": 18,
+              "max": 22
+            }
+          },
+          "middle3_bridge": {
+            "wordCountBand": {
+              "min": 92,
+              "target": 115,
+              "max": 138
+            },
+            "sentenceCountBand": {
+              "min": 6,
+              "target": 7,
+              "max": 8
+            },
+            "wordsPerSentenceBand": {
+              "min": 15,
+              "target": 19,
+              "max": 23
+            }
+          },
+          "H1": {
+            "wordCountBand": {
+              "min": 104,
+              "target": 130,
+              "max": 156
+            },
+            "sentenceCountBand": {
+              "min": 6,
+              "target": 7,
+              "max": 8
+            },
+            "wordsPerSentenceBand": {
+              "min": 16,
+              "target": 20,
+              "max": 24
+            }
+          },
+          "H2": {
+            "wordCountBand": {
+              "min": 126,
+              "target": 155,
+              "max": 184
+            },
+            "sentenceCountBand": {
+              "min": 7,
+              "target": 8,
+              "max": 9
+            },
+            "wordsPerSentenceBand": {
+              "min": 17,
+              "target": 21,
+              "max": 25
+            }
+          },
+          "H3": {
+            "wordCountBand": {
+              "min": 146,
+              "target": 176,
+              "max": 206
+            },
+            "sentenceCountBand": {
+              "min": 8,
+              "target": 9,
+              "max": 10
+            },
+            "wordsPerSentenceBand": {
+              "min": 18,
+              "target": 22,
+              "max": 26
+            }
+          }
+        }
+      },
+      "l_long_talk_detail": {
+        "description": "l long talk detail",
+        "gradeBands": {
+          "middle1": {
+            "wordCountBand": {
+              "min": 64,
+              "target": 81,
+              "max": 98
+            },
+            "sentenceCountBand": {
+              "min": 4,
+              "target": 5,
+              "max": 6
+            },
+            "wordsPerSentenceBand": {
+              "min": 12,
+              "target": 17,
+              "max": 21
+            }
+          },
+          "middle2": {
+            "wordCountBand": {
+              "min": 76,
+              "target": 97,
+              "max": 118
+            },
+            "sentenceCountBand": {
+              "min": 5,
+              "target": 6,
+              "max": 7
+            },
+            "wordsPerSentenceBand": {
+              "min": 13,
+              "target": 18,
+              "max": 22
+            }
+          },
+          "middle3_official": {
+            "wordCountBand": {
+              "min": 90,
+              "target": 113,
+              "max": 136
+            },
+            "sentenceCountBand": {
+              "min": 6,
+              "target": 7,
+              "max": 8
+            },
+            "wordsPerSentenceBand": {
+              "min": 14,
+              "target": 19,
+              "max": 23
+            }
+          },
+          "middle3_bridge": {
+            "wordCountBand": {
+              "min": 102,
+              "target": 125,
+              "max": 148
+            },
+            "sentenceCountBand": {
+              "min": 6,
+              "target": 7,
+              "max": 8
+            },
+            "wordsPerSentenceBand": {
+              "min": 15,
+              "target": 20,
+              "max": 24
+            }
+          },
+          "H1": {
+            "wordCountBand": {
+              "min": 116,
+              "target": 143,
+              "max": 170
+            },
+            "sentenceCountBand": {
+              "min": 7,
+              "target": 8,
+              "max": 9
+            },
+            "wordsPerSentenceBand": {
+              "min": 16,
+              "target": 21,
+              "max": 25
+            }
+          },
+          "H2": {
+            "wordCountBand": {
+              "min": 138,
+              "target": 168,
+              "max": 198
+            },
+            "sentenceCountBand": {
+              "min": 8,
+              "target": 9,
+              "max": 10
+            },
+            "wordsPerSentenceBand": {
+              "min": 17,
+              "target": 22,
+              "max": 26
+            }
+          },
+          "H3": {
+            "wordCountBand": {
+              "min": 156,
+              "target": 190,
+              "max": 224
+            },
+            "sentenceCountBand": {
+              "min": 9,
+              "target": 10,
+              "max": 11
+            },
+            "wordsPerSentenceBand": {
+              "min": 18,
+              "target": 23,
+              "max": 27
+            }
+          }
+        }
+      }
+    }
+  },
+  "rules": {
+    "axisProfiles": {
+      "listen_detail": {
+        "description": "listen detail",
+        "gradeAxes": {
+          "middle1": {
+            "wordCount": 1,
+            "syntaxDepth": 1,
+            "abstractionLevel": 1,
+            "evidenceDistance": 1,
+            "referentAmbiguity": 1,
+            "distractorOverlap": 1,
+            "discourseDensity": 1,
+            "clueDirectness": 1
+          },
+          "middle2": {
+            "wordCount": 2,
+            "syntaxDepth": 2,
+            "abstractionLevel": 1,
+            "evidenceDistance": 1,
+            "referentAmbiguity": 1,
+            "distractorOverlap": 2,
+            "discourseDensity": 1,
+            "clueDirectness": 1
+          },
+          "middle3_official": {
+            "wordCount": 2,
+            "syntaxDepth": 2,
+            "abstractionLevel": 1,
+            "evidenceDistance": 1,
+            "referentAmbiguity": 1,
+            "distractorOverlap": 2,
+            "discourseDensity": 1,
+            "clueDirectness": 1
+          },
+          "middle3_bridge": {
+            "wordCount": 2,
+            "syntaxDepth": 2,
+            "abstractionLevel": 1,
+            "evidenceDistance": 1,
+            "referentAmbiguity": 1,
+            "distractorOverlap": 3,
+            "discourseDensity": 2,
+            "clueDirectness": 1
+          },
+          "H1": {
+            "wordCount": 3,
+            "syntaxDepth": 3,
+            "abstractionLevel": 2,
+            "evidenceDistance": 2,
+            "referentAmbiguity": 1,
+            "distractorOverlap": 3,
+            "discourseDensity": 2,
+            "clueDirectness": 1
+          },
+          "H2": {
+            "wordCount": 3,
+            "syntaxDepth": 4,
+            "abstractionLevel": 3,
+            "evidenceDistance": 3,
+            "referentAmbiguity": 2,
+            "distractorOverlap": 4,
+            "discourseDensity": 3,
+            "clueDirectness": 3
+          },
+          "H3": {
+            "wordCount": 4,
+            "syntaxDepth": 5,
+            "abstractionLevel": 4,
+            "evidenceDistance": 4,
+            "referentAmbiguity": 3,
+            "distractorOverlap": 5,
+            "discourseDensity": 4,
+            "clueDirectness": 4
+          }
+        }
+      },
+      "listen_intent": {
+        "description": "listen intent",
+        "gradeAxes": {
+          "middle1": {
+            "wordCount": 1,
+            "syntaxDepth": 1,
+            "abstractionLevel": 1,
+            "evidenceDistance": 1,
+            "referentAmbiguity": 1,
+            "distractorOverlap": 2,
+            "discourseDensity": 1,
+            "clueDirectness": 1
+          },
+          "middle2": {
+            "wordCount": 2,
+            "syntaxDepth": 2,
+            "abstractionLevel": 2,
+            "evidenceDistance": 2,
+            "referentAmbiguity": 1,
+            "distractorOverlap": 3,
+            "discourseDensity": 2,
+            "clueDirectness": 2
+          },
+          "middle3_official": {
+            "wordCount": 2,
+            "syntaxDepth": 2,
+            "abstractionLevel": 2,
+            "evidenceDistance": 2,
+            "referentAmbiguity": 2,
+            "distractorOverlap": 3,
+            "discourseDensity": 2,
+            "clueDirectness": 2
+          },
+          "middle3_bridge": {
+            "wordCount": 2,
+            "syntaxDepth": 2,
+            "abstractionLevel": 2,
+            "evidenceDistance": 2,
+            "referentAmbiguity": 2,
+            "distractorOverlap": 4,
+            "discourseDensity": 3,
+            "clueDirectness": 2
+          },
+          "H1": {
+            "wordCount": 3,
+            "syntaxDepth": 3,
+            "abstractionLevel": 3,
+            "evidenceDistance": 3,
+            "referentAmbiguity": 2,
+            "distractorOverlap": 4,
+            "discourseDensity": 3,
+            "clueDirectness": 2
+          },
+          "H2": {
+            "wordCount": 3,
+            "syntaxDepth": 4,
+            "abstractionLevel": 4,
+            "evidenceDistance": 4,
+            "referentAmbiguity": 3,
+            "distractorOverlap": 5,
+            "discourseDensity": 4,
+            "clueDirectness": 4
+          },
+          "H3": {
+            "wordCount": 4,
+            "syntaxDepth": 5,
+            "abstractionLevel": 5,
+            "evidenceDistance": 5,
+            "referentAmbiguity": 4,
+            "distractorOverlap": 5,
+            "discourseDensity": 5,
+            "clueDirectness": 5
+          }
+        }
+      },
+      "listen_gist": {
+        "description": "listen gist",
+        "gradeAxes": {
+          "middle1": {
+            "wordCount": 1,
+            "syntaxDepth": 1,
+            "abstractionLevel": 1,
+            "evidenceDistance": 1,
+            "referentAmbiguity": 1,
+            "distractorOverlap": 2,
+            "discourseDensity": 2,
+            "clueDirectness": 1
+          },
+          "middle2": {
+            "wordCount": 2,
+            "syntaxDepth": 2,
+            "abstractionLevel": 2,
+            "evidenceDistance": 2,
+            "referentAmbiguity": 1,
+            "distractorOverlap": 3,
+            "discourseDensity": 3,
+            "clueDirectness": 2
+          },
+          "middle3_official": {
+            "wordCount": 2,
+            "syntaxDepth": 2,
+            "abstractionLevel": 2,
+            "evidenceDistance": 2,
+            "referentAmbiguity": 2,
+            "distractorOverlap": 3,
+            "discourseDensity": 3,
+            "clueDirectness": 2
+          },
+          "middle3_bridge": {
+            "wordCount": 2,
+            "syntaxDepth": 2,
+            "abstractionLevel": 2,
+            "evidenceDistance": 2,
+            "referentAmbiguity": 2,
+            "distractorOverlap": 4,
+            "discourseDensity": 4,
+            "clueDirectness": 2
+          },
+          "H1": {
+            "wordCount": 3,
+            "syntaxDepth": 3,
+            "abstractionLevel": 3,
+            "evidenceDistance": 3,
+            "referentAmbiguity": 2,
+            "distractorOverlap": 4,
+            "discourseDensity": 4,
+            "clueDirectness": 2
+          },
+          "H2": {
+            "wordCount": 3,
+            "syntaxDepth": 4,
+            "abstractionLevel": 4,
+            "evidenceDistance": 4,
+            "referentAmbiguity": 3,
+            "distractorOverlap": 5,
+            "discourseDensity": 5,
+            "clueDirectness": 4
+          },
+          "H3": {
+            "wordCount": 4,
+            "syntaxDepth": 5,
+            "abstractionLevel": 5,
+            "evidenceDistance": 5,
+            "referentAmbiguity": 4,
+            "distractorOverlap": 5,
+            "discourseDensity": 5,
+            "clueDirectness": 5
+          }
+        }
+      },
+      "listen_response": {
+        "description": "listen response",
+        "gradeAxes": {
+          "middle1": {
+            "wordCount": 1,
+            "syntaxDepth": 1,
+            "abstractionLevel": 1,
+            "evidenceDistance": 2,
+            "referentAmbiguity": 2,
+            "distractorOverlap": 2,
+            "discourseDensity": 1,
+            "clueDirectness": 2
+          },
+          "middle2": {
+            "wordCount": 1,
+            "syntaxDepth": 2,
+            "abstractionLevel": 2,
+            "evidenceDistance": 3,
+            "referentAmbiguity": 2,
+            "distractorOverlap": 3,
+            "discourseDensity": 2,
+            "clueDirectness": 3
+          },
+          "middle3_official": {
+            "wordCount": 1,
+            "syntaxDepth": 2,
+            "abstractionLevel": 2,
+            "evidenceDistance": 3,
+            "referentAmbiguity": 3,
+            "distractorOverlap": 3,
+            "discourseDensity": 2,
+            "clueDirectness": 3
+          },
+          "middle3_bridge": {
+            "wordCount": 1,
+            "syntaxDepth": 2,
+            "abstractionLevel": 2,
+            "evidenceDistance": 3,
+            "referentAmbiguity": 3,
+            "distractorOverlap": 4,
+            "discourseDensity": 3,
+            "clueDirectness": 3
+          },
+          "H1": {
+            "wordCount": 2,
+            "syntaxDepth": 3,
+            "abstractionLevel": 3,
+            "evidenceDistance": 4,
+            "referentAmbiguity": 3,
+            "distractorOverlap": 4,
+            "discourseDensity": 3,
+            "clueDirectness": 3
+          },
+          "H2": {
+            "wordCount": 2,
+            "syntaxDepth": 4,
+            "abstractionLevel": 4,
+            "evidenceDistance": 5,
+            "referentAmbiguity": 4,
+            "distractorOverlap": 5,
+            "discourseDensity": 4,
+            "clueDirectness": 5
+          },
+          "H3": {
+            "wordCount": 3,
+            "syntaxDepth": 5,
+            "abstractionLevel": 5,
+            "evidenceDistance": 5,
+            "referentAmbiguity": 5,
+            "distractorOverlap": 5,
+            "discourseDensity": 5,
+            "clueDirectness": 5
+          }
+        }
+      },
+      "listen_situation": {
+        "description": "listen situation",
+        "gradeAxes": {
+          "middle1": {
+            "wordCount": 1,
+            "syntaxDepth": 1,
+            "abstractionLevel": 1,
+            "evidenceDistance": 2,
+            "referentAmbiguity": 2,
+            "distractorOverlap": 2,
+            "discourseDensity": 2,
+            "clueDirectness": 2
+          },
+          "middle2": {
+            "wordCount": 2,
+            "syntaxDepth": 2,
+            "abstractionLevel": 2,
+            "evidenceDistance": 3,
+            "referentAmbiguity": 2,
+            "distractorOverlap": 3,
+            "discourseDensity": 3,
+            "clueDirectness": 3
+          },
+          "middle3_official": {
+            "wordCount": 2,
+            "syntaxDepth": 2,
+            "abstractionLevel": 2,
+            "evidenceDistance": 3,
+            "referentAmbiguity": 3,
+            "distractorOverlap": 3,
+            "discourseDensity": 3,
+            "clueDirectness": 3
+          },
+          "middle3_bridge": {
+            "wordCount": 2,
+            "syntaxDepth": 2,
+            "abstractionLevel": 2,
+            "evidenceDistance": 3,
+            "referentAmbiguity": 3,
+            "distractorOverlap": 4,
+            "discourseDensity": 4,
+            "clueDirectness": 3
+          },
+          "H1": {
+            "wordCount": 3,
+            "syntaxDepth": 3,
+            "abstractionLevel": 3,
+            "evidenceDistance": 4,
+            "referentAmbiguity": 3,
+            "distractorOverlap": 4,
+            "discourseDensity": 4,
+            "clueDirectness": 3
+          },
+          "H2": {
+            "wordCount": 3,
+            "syntaxDepth": 4,
+            "abstractionLevel": 4,
+            "evidenceDistance": 5,
+            "referentAmbiguity": 4,
+            "distractorOverlap": 5,
+            "discourseDensity": 5,
+            "clueDirectness": 5
+          },
+          "H3": {
+            "wordCount": 4,
+            "syntaxDepth": 5,
+            "abstractionLevel": 5,
+            "evidenceDistance": 5,
+            "referentAmbiguity": 5,
+            "distractorOverlap": 5,
+            "discourseDensity": 5,
+            "clueDirectness": 5
+          }
+        }
+      },
+      "listen_long_talk_topic": {
+        "description": "listen long talk topic",
+        "gradeAxes": {
+          "middle1": {
+            "wordCount": 2,
+            "syntaxDepth": 2,
+            "abstractionLevel": 2,
+            "evidenceDistance": 2,
+            "referentAmbiguity": 1,
+            "distractorOverlap": 2,
+            "discourseDensity": 2,
+            "clueDirectness": 2
+          },
+          "middle2": {
+            "wordCount": 3,
+            "syntaxDepth": 3,
+            "abstractionLevel": 3,
+            "evidenceDistance": 3,
+            "referentAmbiguity": 1,
+            "distractorOverlap": 3,
+            "discourseDensity": 3,
+            "clueDirectness": 3
+          },
+          "middle3_official": {
+            "wordCount": 3,
+            "syntaxDepth": 3,
+            "abstractionLevel": 3,
+            "evidenceDistance": 3,
+            "referentAmbiguity": 2,
+            "distractorOverlap": 3,
+            "discourseDensity": 3,
+            "clueDirectness": 3
+          },
+          "middle3_bridge": {
+            "wordCount": 3,
+            "syntaxDepth": 3,
+            "abstractionLevel": 3,
+            "evidenceDistance": 3,
+            "referentAmbiguity": 2,
+            "distractorOverlap": 4,
+            "discourseDensity": 4,
+            "clueDirectness": 3
+          },
+          "H1": {
+            "wordCount": 4,
+            "syntaxDepth": 4,
+            "abstractionLevel": 4,
+            "evidenceDistance": 4,
+            "referentAmbiguity": 2,
+            "distractorOverlap": 4,
+            "discourseDensity": 4,
+            "clueDirectness": 3
+          },
+          "H2": {
+            "wordCount": 4,
+            "syntaxDepth": 5,
+            "abstractionLevel": 5,
+            "evidenceDistance": 5,
+            "referentAmbiguity": 3,
+            "distractorOverlap": 5,
+            "discourseDensity": 5,
+            "clueDirectness": 5
+          },
+          "H3": {
+            "wordCount": 5,
+            "syntaxDepth": 5,
+            "abstractionLevel": 5,
+            "evidenceDistance": 5,
+            "referentAmbiguity": 4,
+            "distractorOverlap": 5,
+            "discourseDensity": 5,
+            "clueDirectness": 5
+          }
+        }
+      },
+      "listen_long_talk_detail": {
+        "description": "listen long talk detail",
+        "gradeAxes": {
+          "middle1": {
+            "wordCount": 2,
+            "syntaxDepth": 2,
+            "abstractionLevel": 2,
+            "evidenceDistance": 3,
+            "referentAmbiguity": 2,
+            "distractorOverlap": 2,
+            "discourseDensity": 2,
+            "clueDirectness": 2
+          },
+          "middle2": {
+            "wordCount": 3,
+            "syntaxDepth": 3,
+            "abstractionLevel": 3,
+            "evidenceDistance": 4,
+            "referentAmbiguity": 2,
+            "distractorOverlap": 3,
+            "discourseDensity": 3,
+            "clueDirectness": 3
+          },
+          "middle3_official": {
+            "wordCount": 3,
+            "syntaxDepth": 3,
+            "abstractionLevel": 3,
+            "evidenceDistance": 4,
+            "referentAmbiguity": 3,
+            "distractorOverlap": 3,
+            "discourseDensity": 3,
+            "clueDirectness": 3
+          },
+          "middle3_bridge": {
+            "wordCount": 3,
+            "syntaxDepth": 3,
+            "abstractionLevel": 3,
+            "evidenceDistance": 4,
+            "referentAmbiguity": 3,
+            "distractorOverlap": 4,
+            "discourseDensity": 4,
+            "clueDirectness": 3
+          },
+          "H1": {
+            "wordCount": 4,
+            "syntaxDepth": 4,
+            "abstractionLevel": 4,
+            "evidenceDistance": 5,
+            "referentAmbiguity": 3,
+            "distractorOverlap": 4,
+            "discourseDensity": 4,
+            "clueDirectness": 3
+          },
+          "H2": {
+            "wordCount": 4,
+            "syntaxDepth": 5,
+            "abstractionLevel": 5,
+            "evidenceDistance": 5,
+            "referentAmbiguity": 4,
+            "distractorOverlap": 5,
+            "discourseDensity": 5,
+            "clueDirectness": 5
+          },
+          "H3": {
+            "wordCount": 5,
+            "syntaxDepth": 5,
+            "abstractionLevel": 5,
+            "evidenceDistance": 5,
+            "referentAmbiguity": 5,
+            "distractorOverlap": 5,
+            "discourseDensity": 5,
+            "clueDirectness": 5
+          }
+        }
+      },
+      "read_purpose": {
+        "description": "read purpose",
+        "gradeAxes": {
+          "middle1": {
+            "wordCount": 1,
+            "syntaxDepth": 1,
+            "abstractionLevel": 1,
+            "evidenceDistance": 1,
+            "referentAmbiguity": 1,
+            "distractorOverlap": 2,
+            "discourseDensity": 1,
+            "clueDirectness": 1
+          },
+          "middle2": {
+            "wordCount": 2,
+            "syntaxDepth": 2,
+            "abstractionLevel": 2,
+            "evidenceDistance": 2,
+            "referentAmbiguity": 1,
+            "distractorOverlap": 3,
+            "discourseDensity": 2,
+            "clueDirectness": 2
+          },
+          "middle3_official": {
+            "wordCount": 2,
+            "syntaxDepth": 2,
+            "abstractionLevel": 2,
+            "evidenceDistance": 2,
+            "referentAmbiguity": 2,
+            "distractorOverlap": 3,
+            "discourseDensity": 2,
+            "clueDirectness": 2
+          },
+          "middle3_bridge": {
+            "wordCount": 2,
+            "syntaxDepth": 2,
+            "abstractionLevel": 2,
+            "evidenceDistance": 2,
+            "referentAmbiguity": 2,
+            "distractorOverlap": 4,
+            "discourseDensity": 3,
+            "clueDirectness": 2
+          },
+          "H1": {
+            "wordCount": 3,
+            "syntaxDepth": 3,
+            "abstractionLevel": 3,
+            "evidenceDistance": 3,
+            "referentAmbiguity": 2,
+            "distractorOverlap": 4,
+            "discourseDensity": 3,
+            "clueDirectness": 2
+          },
+          "H2": {
+            "wordCount": 3,
+            "syntaxDepth": 4,
+            "abstractionLevel": 4,
+            "evidenceDistance": 4,
+            "referentAmbiguity": 3,
+            "distractorOverlap": 5,
+            "discourseDensity": 4,
+            "clueDirectness": 4
+          },
+          "H3": {
+            "wordCount": 4,
+            "syntaxDepth": 5,
+            "abstractionLevel": 5,
+            "evidenceDistance": 5,
+            "referentAmbiguity": 4,
+            "distractorOverlap": 5,
+            "discourseDensity": 5,
+            "clueDirectness": 5
+          }
+        }
+      },
+      "read_tone": {
+        "description": "read tone",
+        "gradeAxes": {
+          "middle1": {
+            "wordCount": 1,
+            "syntaxDepth": 1,
+            "abstractionLevel": 1,
+            "evidenceDistance": 1,
+            "referentAmbiguity": 2,
+            "distractorOverlap": 2,
+            "discourseDensity": 1,
+            "clueDirectness": 2
+          },
+          "middle2": {
+            "wordCount": 2,
+            "syntaxDepth": 2,
+            "abstractionLevel": 2,
+            "evidenceDistance": 2,
+            "referentAmbiguity": 2,
+            "distractorOverlap": 3,
+            "discourseDensity": 2,
+            "clueDirectness": 3
+          },
+          "middle3_official": {
+            "wordCount": 2,
+            "syntaxDepth": 2,
+            "abstractionLevel": 2,
+            "evidenceDistance": 2,
+            "referentAmbiguity": 3,
+            "distractorOverlap": 3,
+            "discourseDensity": 2,
+            "clueDirectness": 3
+          },
+          "middle3_bridge": {
+            "wordCount": 2,
+            "syntaxDepth": 2,
+            "abstractionLevel": 2,
+            "evidenceDistance": 2,
+            "referentAmbiguity": 3,
+            "distractorOverlap": 4,
+            "discourseDensity": 3,
+            "clueDirectness": 3
+          },
+          "H1": {
+            "wordCount": 3,
+            "syntaxDepth": 3,
+            "abstractionLevel": 3,
+            "evidenceDistance": 3,
+            "referentAmbiguity": 3,
+            "distractorOverlap": 4,
+            "discourseDensity": 3,
+            "clueDirectness": 3
+          },
+          "H2": {
+            "wordCount": 3,
+            "syntaxDepth": 4,
+            "abstractionLevel": 4,
+            "evidenceDistance": 4,
+            "referentAmbiguity": 4,
+            "distractorOverlap": 5,
+            "discourseDensity": 4,
+            "clueDirectness": 5
+          },
+          "H3": {
+            "wordCount": 4,
+            "syntaxDepth": 5,
+            "abstractionLevel": 5,
+            "evidenceDistance": 5,
+            "referentAmbiguity": 5,
+            "distractorOverlap": 5,
+            "discourseDensity": 5,
+            "clueDirectness": 5
+          }
+        }
+      },
+      "read_claim": {
+        "description": "read claim",
+        "gradeAxes": {
+          "middle1": {
+            "wordCount": 1,
+            "syntaxDepth": 2,
+            "abstractionLevel": 2,
+            "evidenceDistance": 1,
+            "referentAmbiguity": 1,
+            "distractorOverlap": 2,
+            "discourseDensity": 2,
+            "clueDirectness": 1
+          },
+          "middle2": {
+            "wordCount": 2,
+            "syntaxDepth": 3,
+            "abstractionLevel": 3,
+            "evidenceDistance": 2,
+            "referentAmbiguity": 1,
+            "distractorOverlap": 3,
+            "discourseDensity": 3,
+            "clueDirectness": 2
+          },
+          "middle3_official": {
+            "wordCount": 2,
+            "syntaxDepth": 3,
+            "abstractionLevel": 3,
+            "evidenceDistance": 2,
+            "referentAmbiguity": 2,
+            "distractorOverlap": 3,
+            "discourseDensity": 3,
+            "clueDirectness": 2
+          },
+          "middle3_bridge": {
+            "wordCount": 2,
+            "syntaxDepth": 3,
+            "abstractionLevel": 3,
+            "evidenceDistance": 2,
+            "referentAmbiguity": 2,
+            "distractorOverlap": 4,
+            "discourseDensity": 4,
+            "clueDirectness": 2
+          },
+          "H1": {
+            "wordCount": 3,
+            "syntaxDepth": 4,
+            "abstractionLevel": 4,
+            "evidenceDistance": 3,
+            "referentAmbiguity": 2,
+            "distractorOverlap": 4,
+            "discourseDensity": 4,
+            "clueDirectness": 2
+          },
+          "H2": {
+            "wordCount": 3,
+            "syntaxDepth": 5,
+            "abstractionLevel": 5,
+            "evidenceDistance": 4,
+            "referentAmbiguity": 3,
+            "distractorOverlap": 5,
+            "discourseDensity": 5,
+            "clueDirectness": 4
+          },
+          "H3": {
+            "wordCount": 4,
+            "syntaxDepth": 5,
+            "abstractionLevel": 5,
+            "evidenceDistance": 5,
+            "referentAmbiguity": 4,
+            "distractorOverlap": 5,
+            "discourseDensity": 5,
+            "clueDirectness": 5
+          }
+        }
+      },
+      "read_underlined": {
+        "description": "read underlined",
+        "gradeAxes": {
+          "middle1": {
+            "wordCount": 1,
+            "syntaxDepth": 2,
+            "abstractionLevel": 2,
+            "evidenceDistance": 2,
+            "referentAmbiguity": 2,
+            "distractorOverlap": 2,
+            "discourseDensity": 1,
+            "clueDirectness": 2
+          },
+          "middle2": {
+            "wordCount": 2,
+            "syntaxDepth": 3,
+            "abstractionLevel": 3,
+            "evidenceDistance": 3,
+            "referentAmbiguity": 2,
+            "distractorOverlap": 3,
+            "discourseDensity": 2,
+            "clueDirectness": 3
+          },
+          "middle3_official": {
+            "wordCount": 2,
+            "syntaxDepth": 3,
+            "abstractionLevel": 3,
+            "evidenceDistance": 3,
+            "referentAmbiguity": 3,
+            "distractorOverlap": 3,
+            "discourseDensity": 2,
+            "clueDirectness": 3
+          },
+          "middle3_bridge": {
+            "wordCount": 2,
+            "syntaxDepth": 3,
+            "abstractionLevel": 3,
+            "evidenceDistance": 3,
+            "referentAmbiguity": 3,
+            "distractorOverlap": 4,
+            "discourseDensity": 3,
+            "clueDirectness": 3
+          },
+          "H1": {
+            "wordCount": 3,
+            "syntaxDepth": 4,
+            "abstractionLevel": 4,
+            "evidenceDistance": 4,
+            "referentAmbiguity": 3,
+            "distractorOverlap": 4,
+            "discourseDensity": 3,
+            "clueDirectness": 3
+          },
+          "H2": {
+            "wordCount": 3,
+            "syntaxDepth": 5,
+            "abstractionLevel": 5,
+            "evidenceDistance": 5,
+            "referentAmbiguity": 4,
+            "distractorOverlap": 5,
+            "discourseDensity": 4,
+            "clueDirectness": 5
+          },
+          "H3": {
+            "wordCount": 4,
+            "syntaxDepth": 5,
+            "abstractionLevel": 5,
+            "evidenceDistance": 5,
+            "referentAmbiguity": 5,
+            "distractorOverlap": 5,
+            "discourseDensity": 5,
+            "clueDirectness": 5
+          }
+        }
+      },
+      "read_main": {
+        "description": "read main",
+        "gradeAxes": {
+          "middle1": {
+            "wordCount": 1,
+            "syntaxDepth": 2,
+            "abstractionLevel": 2,
+            "evidenceDistance": 2,
+            "referentAmbiguity": 1,
+            "distractorOverlap": 2,
+            "discourseDensity": 2,
+            "clueDirectness": 1
+          },
+          "middle2": {
+            "wordCount": 2,
+            "syntaxDepth": 3,
+            "abstractionLevel": 3,
+            "evidenceDistance": 3,
+            "referentAmbiguity": 1,
+            "distractorOverlap": 3,
+            "discourseDensity": 3,
+            "clueDirectness": 2
+          },
+          "middle3_official": {
+            "wordCount": 2,
+            "syntaxDepth": 3,
+            "abstractionLevel": 3,
+            "evidenceDistance": 3,
+            "referentAmbiguity": 2,
+            "distractorOverlap": 3,
+            "discourseDensity": 3,
+            "clueDirectness": 2
+          },
+          "middle3_bridge": {
+            "wordCount": 2,
+            "syntaxDepth": 3,
+            "abstractionLevel": 3,
+            "evidenceDistance": 3,
+            "referentAmbiguity": 2,
+            "distractorOverlap": 4,
+            "discourseDensity": 4,
+            "clueDirectness": 2
+          },
+          "H1": {
+            "wordCount": 3,
+            "syntaxDepth": 4,
+            "abstractionLevel": 4,
+            "evidenceDistance": 4,
+            "referentAmbiguity": 2,
+            "distractorOverlap": 4,
+            "discourseDensity": 4,
+            "clueDirectness": 2
+          },
+          "H2": {
+            "wordCount": 3,
+            "syntaxDepth": 5,
+            "abstractionLevel": 5,
+            "evidenceDistance": 5,
+            "referentAmbiguity": 3,
+            "distractorOverlap": 5,
+            "discourseDensity": 5,
+            "clueDirectness": 4
+          },
+          "H3": {
+            "wordCount": 4,
+            "syntaxDepth": 5,
+            "abstractionLevel": 5,
+            "evidenceDistance": 5,
+            "referentAmbiguity": 4,
+            "distractorOverlap": 5,
+            "discourseDensity": 5,
+            "clueDirectness": 5
+          }
+        }
+      },
+      "read_title": {
+        "description": "read title",
+        "gradeAxes": {
+          "middle1": {
+            "wordCount": 1,
+            "syntaxDepth": 1,
+            "abstractionLevel": 2,
+            "evidenceDistance": 2,
+            "referentAmbiguity": 1,
+            "distractorOverlap": 2,
+            "discourseDensity": 1,
+            "clueDirectness": 1
+          },
+          "middle2": {
+            "wordCount": 2,
+            "syntaxDepth": 2,
+            "abstractionLevel": 3,
+            "evidenceDistance": 3,
+            "referentAmbiguity": 1,
+            "distractorOverlap": 3,
+            "discourseDensity": 2,
+            "clueDirectness": 2
+          },
+          "middle3_official": {
+            "wordCount": 2,
+            "syntaxDepth": 2,
+            "abstractionLevel": 3,
+            "evidenceDistance": 3,
+            "referentAmbiguity": 2,
+            "distractorOverlap": 3,
+            "discourseDensity": 2,
+            "clueDirectness": 2
+          },
+          "middle3_bridge": {
+            "wordCount": 2,
+            "syntaxDepth": 2,
+            "abstractionLevel": 3,
+            "evidenceDistance": 3,
+            "referentAmbiguity": 2,
+            "distractorOverlap": 4,
+            "discourseDensity": 3,
+            "clueDirectness": 2
+          },
+          "H1": {
+            "wordCount": 3,
+            "syntaxDepth": 3,
+            "abstractionLevel": 4,
+            "evidenceDistance": 4,
+            "referentAmbiguity": 2,
+            "distractorOverlap": 4,
+            "discourseDensity": 3,
+            "clueDirectness": 2
+          },
+          "H2": {
+            "wordCount": 3,
+            "syntaxDepth": 4,
+            "abstractionLevel": 5,
+            "evidenceDistance": 5,
+            "referentAmbiguity": 3,
+            "distractorOverlap": 5,
+            "discourseDensity": 4,
+            "clueDirectness": 4
+          },
+          "H3": {
+            "wordCount": 4,
+            "syntaxDepth": 5,
+            "abstractionLevel": 5,
+            "evidenceDistance": 5,
+            "referentAmbiguity": 4,
+            "distractorOverlap": 5,
+            "discourseDensity": 5,
+            "clueDirectness": 5
+          }
+        }
+      },
+      "read_notice_chart": {
+        "description": "read notice chart",
+        "gradeAxes": {
+          "middle1": {
+            "wordCount": 1,
+            "syntaxDepth": 1,
+            "abstractionLevel": 1,
+            "evidenceDistance": 1,
+            "referentAmbiguity": 1,
+            "distractorOverlap": 1,
+            "discourseDensity": 1,
+            "clueDirectness": 1
+          },
+          "middle2": {
+            "wordCount": 1,
+            "syntaxDepth": 1,
+            "abstractionLevel": 1,
+            "evidenceDistance": 2,
+            "referentAmbiguity": 1,
+            "distractorOverlap": 2,
+            "discourseDensity": 1,
+            "clueDirectness": 1
+          },
+          "middle3_official": {
+            "wordCount": 1,
+            "syntaxDepth": 1,
+            "abstractionLevel": 1,
+            "evidenceDistance": 2,
+            "referentAmbiguity": 2,
+            "distractorOverlap": 2,
+            "discourseDensity": 1,
+            "clueDirectness": 1
+          },
+          "middle3_bridge": {
+            "wordCount": 1,
+            "syntaxDepth": 1,
+            "abstractionLevel": 1,
+            "evidenceDistance": 2,
+            "referentAmbiguity": 2,
+            "distractorOverlap": 3,
+            "discourseDensity": 2,
+            "clueDirectness": 1
+          },
+          "H1": {
+            "wordCount": 2,
+            "syntaxDepth": 2,
+            "abstractionLevel": 2,
+            "evidenceDistance": 3,
+            "referentAmbiguity": 2,
+            "distractorOverlap": 3,
+            "discourseDensity": 2,
+            "clueDirectness": 1
+          },
+          "H2": {
+            "wordCount": 2,
+            "syntaxDepth": 3,
+            "abstractionLevel": 3,
+            "evidenceDistance": 4,
+            "referentAmbiguity": 3,
+            "distractorOverlap": 4,
+            "discourseDensity": 3,
+            "clueDirectness": 3
+          },
+          "H3": {
+            "wordCount": 3,
+            "syntaxDepth": 4,
+            "abstractionLevel": 4,
+            "evidenceDistance": 5,
+            "referentAmbiguity": 4,
+            "distractorOverlap": 5,
+            "discourseDensity": 4,
+            "clueDirectness": 4
+          }
+        }
+      },
+      "read_fact": {
+        "description": "read fact",
+        "gradeAxes": {
+          "middle1": {
+            "wordCount": 1,
+            "syntaxDepth": 1,
+            "abstractionLevel": 1,
+            "evidenceDistance": 1,
+            "referentAmbiguity": 1,
+            "distractorOverlap": 1,
+            "discourseDensity": 1,
+            "clueDirectness": 1
+          },
+          "middle2": {
+            "wordCount": 1,
+            "syntaxDepth": 2,
+            "abstractionLevel": 1,
+            "evidenceDistance": 2,
+            "referentAmbiguity": 1,
+            "distractorOverlap": 2,
+            "discourseDensity": 2,
+            "clueDirectness": 1
+          },
+          "middle3_official": {
+            "wordCount": 1,
+            "syntaxDepth": 2,
+            "abstractionLevel": 1,
+            "evidenceDistance": 2,
+            "referentAmbiguity": 2,
+            "distractorOverlap": 2,
+            "discourseDensity": 2,
+            "clueDirectness": 1
+          },
+          "middle3_bridge": {
+            "wordCount": 1,
+            "syntaxDepth": 2,
+            "abstractionLevel": 1,
+            "evidenceDistance": 2,
+            "referentAmbiguity": 2,
+            "distractorOverlap": 3,
+            "discourseDensity": 3,
+            "clueDirectness": 1
+          },
+          "H1": {
+            "wordCount": 2,
+            "syntaxDepth": 3,
+            "abstractionLevel": 2,
+            "evidenceDistance": 3,
+            "referentAmbiguity": 2,
+            "distractorOverlap": 3,
+            "discourseDensity": 3,
+            "clueDirectness": 1
+          },
+          "H2": {
+            "wordCount": 2,
+            "syntaxDepth": 4,
+            "abstractionLevel": 3,
+            "evidenceDistance": 4,
+            "referentAmbiguity": 3,
+            "distractorOverlap": 4,
+            "discourseDensity": 4,
+            "clueDirectness": 3
+          },
+          "H3": {
+            "wordCount": 3,
+            "syntaxDepth": 5,
+            "abstractionLevel": 4,
+            "evidenceDistance": 5,
+            "referentAmbiguity": 4,
+            "distractorOverlap": 5,
+            "discourseDensity": 5,
+            "clueDirectness": 4
+          }
+        }
+      },
+      "read_grammar": {
+        "description": "read grammar",
+        "gradeAxes": {
+          "middle1": {
+            "wordCount": 1,
+            "syntaxDepth": 1,
+            "abstractionLevel": 1,
+            "evidenceDistance": 1,
+            "referentAmbiguity": 1,
+            "distractorOverlap": 1,
+            "discourseDensity": 1,
+            "clueDirectness": 1
+          },
+          "middle2": {
+            "wordCount": 1,
+            "syntaxDepth": 2,
+            "abstractionLevel": 1,
+            "evidenceDistance": 2,
+            "referentAmbiguity": 1,
+            "distractorOverlap": 2,
+            "discourseDensity": 1,
+            "clueDirectness": 2
+          },
+          "middle3_official": {
+            "wordCount": 1,
+            "syntaxDepth": 2,
+            "abstractionLevel": 1,
+            "evidenceDistance": 2,
+            "referentAmbiguity": 2,
+            "distractorOverlap": 2,
+            "discourseDensity": 1,
+            "clueDirectness": 2
+          },
+          "middle3_bridge": {
+            "wordCount": 1,
+            "syntaxDepth": 2,
+            "abstractionLevel": 1,
+            "evidenceDistance": 2,
+            "referentAmbiguity": 2,
+            "distractorOverlap": 3,
+            "discourseDensity": 2,
+            "clueDirectness": 2
+          },
+          "H1": {
+            "wordCount": 2,
+            "syntaxDepth": 3,
+            "abstractionLevel": 2,
+            "evidenceDistance": 3,
+            "referentAmbiguity": 2,
+            "distractorOverlap": 3,
+            "discourseDensity": 2,
+            "clueDirectness": 2
+          },
+          "H2": {
+            "wordCount": 2,
+            "syntaxDepth": 4,
+            "abstractionLevel": 3,
+            "evidenceDistance": 4,
+            "referentAmbiguity": 3,
+            "distractorOverlap": 4,
+            "discourseDensity": 3,
+            "clueDirectness": 4
+          },
+          "H3": {
+            "wordCount": 3,
+            "syntaxDepth": 5,
+            "abstractionLevel": 4,
+            "evidenceDistance": 5,
+            "referentAmbiguity": 4,
+            "distractorOverlap": 5,
+            "discourseDensity": 4,
+            "clueDirectness": 5
+          }
+        }
+      },
+      "read_vocab": {
+        "description": "read vocab",
+        "gradeAxes": {
+          "middle1": {
+            "wordCount": 1,
+            "syntaxDepth": 1,
+            "abstractionLevel": 2,
+            "evidenceDistance": 2,
+            "referentAmbiguity": 2,
+            "distractorOverlap": 2,
+            "discourseDensity": 1,
+            "clueDirectness": 2
+          },
+          "middle2": {
+            "wordCount": 2,
+            "syntaxDepth": 2,
+            "abstractionLevel": 3,
+            "evidenceDistance": 3,
+            "referentAmbiguity": 2,
+            "distractorOverlap": 3,
+            "discourseDensity": 2,
+            "clueDirectness": 3
+          },
+          "middle3_official": {
+            "wordCount": 2,
+            "syntaxDepth": 2,
+            "abstractionLevel": 3,
+            "evidenceDistance": 3,
+            "referentAmbiguity": 3,
+            "distractorOverlap": 3,
+            "discourseDensity": 2,
+            "clueDirectness": 3
+          },
+          "middle3_bridge": {
+            "wordCount": 2,
+            "syntaxDepth": 2,
+            "abstractionLevel": 3,
+            "evidenceDistance": 3,
+            "referentAmbiguity": 3,
+            "distractorOverlap": 4,
+            "discourseDensity": 3,
+            "clueDirectness": 3
+          },
+          "H1": {
+            "wordCount": 3,
+            "syntaxDepth": 3,
+            "abstractionLevel": 4,
+            "evidenceDistance": 4,
+            "referentAmbiguity": 3,
+            "distractorOverlap": 4,
+            "discourseDensity": 3,
+            "clueDirectness": 3
+          },
+          "H2": {
+            "wordCount": 3,
+            "syntaxDepth": 4,
+            "abstractionLevel": 5,
+            "evidenceDistance": 5,
+            "referentAmbiguity": 4,
+            "distractorOverlap": 5,
+            "discourseDensity": 4,
+            "clueDirectness": 5
+          },
+          "H3": {
+            "wordCount": 4,
+            "syntaxDepth": 5,
+            "abstractionLevel": 5,
+            "evidenceDistance": 5,
+            "referentAmbiguity": 5,
+            "distractorOverlap": 5,
+            "discourseDensity": 5,
+            "clueDirectness": 5
+          }
+        }
+      },
+      "read_blank": {
+        "description": "read blank",
+        "gradeAxes": {
+          "middle1": {
+            "wordCount": 1,
+            "syntaxDepth": 2,
+            "abstractionLevel": 2,
+            "evidenceDistance": 2,
+            "referentAmbiguity": 2,
+            "distractorOverlap": 2,
+            "discourseDensity": 2,
+            "clueDirectness": 2
+          },
+          "middle2": {
+            "wordCount": 2,
+            "syntaxDepth": 3,
+            "abstractionLevel": 3,
+            "evidenceDistance": 3,
+            "referentAmbiguity": 2,
+            "distractorOverlap": 3,
+            "discourseDensity": 3,
+            "clueDirectness": 3
+          },
+          "middle3_official": {
+            "wordCount": 2,
+            "syntaxDepth": 3,
+            "abstractionLevel": 3,
+            "evidenceDistance": 3,
+            "referentAmbiguity": 3,
+            "distractorOverlap": 3,
+            "discourseDensity": 3,
+            "clueDirectness": 3
+          },
+          "middle3_bridge": {
+            "wordCount": 2,
+            "syntaxDepth": 3,
+            "abstractionLevel": 3,
+            "evidenceDistance": 3,
+            "referentAmbiguity": 3,
+            "distractorOverlap": 4,
+            "discourseDensity": 4,
+            "clueDirectness": 3
+          },
+          "H1": {
+            "wordCount": 3,
+            "syntaxDepth": 4,
+            "abstractionLevel": 3,
+            "evidenceDistance": 4,
+            "referentAmbiguity": 3,
+            "distractorOverlap": 4,
+            "discourseDensity": 4,
+            "clueDirectness": 3
+          },
+          "H2": {
+            "wordCount": 3,
+            "syntaxDepth": 5,
+            "abstractionLevel": 5,
+            "evidenceDistance": 5,
+            "referentAmbiguity": 4,
+            "distractorOverlap": 5,
+            "discourseDensity": 5,
+            "clueDirectness": 5
+          },
+          "H3": {
+            "wordCount": 4,
+            "syntaxDepth": 5,
+            "abstractionLevel": 5,
+            "evidenceDistance": 5,
+            "referentAmbiguity": 5,
+            "distractorOverlap": 5,
+            "discourseDensity": 5,
+            "clueDirectness": 5
+          }
+        }
+      },
+      "read_irrelevant": {
+        "description": "read irrelevant",
+        "gradeAxes": {
+          "middle1": {
+            "wordCount": 1,
+            "syntaxDepth": 2,
+            "abstractionLevel": 2,
+            "evidenceDistance": 2,
+            "referentAmbiguity": 2,
+            "distractorOverlap": 2,
+            "discourseDensity": 2,
+            "clueDirectness": 2
+          },
+          "middle2": {
+            "wordCount": 2,
+            "syntaxDepth": 3,
+            "abstractionLevel": 3,
+            "evidenceDistance": 3,
+            "referentAmbiguity": 2,
+            "distractorOverlap": 3,
+            "discourseDensity": 3,
+            "clueDirectness": 3
+          },
+          "middle3_official": {
+            "wordCount": 2,
+            "syntaxDepth": 3,
+            "abstractionLevel": 3,
+            "evidenceDistance": 3,
+            "referentAmbiguity": 3,
+            "distractorOverlap": 3,
+            "discourseDensity": 3,
+            "clueDirectness": 3
+          },
+          "middle3_bridge": {
+            "wordCount": 2,
+            "syntaxDepth": 3,
+            "abstractionLevel": 3,
+            "evidenceDistance": 3,
+            "referentAmbiguity": 3,
+            "distractorOverlap": 4,
+            "discourseDensity": 4,
+            "clueDirectness": 3
+          },
+          "H1": {
+            "wordCount": 3,
+            "syntaxDepth": 4,
+            "abstractionLevel": 4,
+            "evidenceDistance": 4,
+            "referentAmbiguity": 3,
+            "distractorOverlap": 4,
+            "discourseDensity": 4,
+            "clueDirectness": 3
+          },
+          "H2": {
+            "wordCount": 3,
+            "syntaxDepth": 5,
+            "abstractionLevel": 5,
+            "evidenceDistance": 5,
+            "referentAmbiguity": 4,
+            "distractorOverlap": 5,
+            "discourseDensity": 5,
+            "clueDirectness": 5
+          },
+          "H3": {
+            "wordCount": 4,
+            "syntaxDepth": 5,
+            "abstractionLevel": 5,
+            "evidenceDistance": 5,
+            "referentAmbiguity": 5,
+            "distractorOverlap": 5,
+            "discourseDensity": 5,
+            "clueDirectness": 5
+          }
+        }
+      },
+      "read_order": {
+        "description": "read order",
+        "gradeAxes": {
+          "middle1": {
+            "wordCount": 1,
+            "syntaxDepth": 2,
+            "abstractionLevel": 2,
+            "evidenceDistance": 2,
+            "referentAmbiguity": 2,
+            "distractorOverlap": 2,
+            "discourseDensity": 2,
+            "clueDirectness": 2
+          },
+          "middle2": {
+            "wordCount": 2,
+            "syntaxDepth": 3,
+            "abstractionLevel": 3,
+            "evidenceDistance": 3,
+            "referentAmbiguity": 2,
+            "distractorOverlap": 3,
+            "discourseDensity": 3,
+            "clueDirectness": 3
+          },
+          "middle3_official": {
+            "wordCount": 2,
+            "syntaxDepth": 3,
+            "abstractionLevel": 3,
+            "evidenceDistance": 3,
+            "referentAmbiguity": 3,
+            "distractorOverlap": 3,
+            "discourseDensity": 3,
+            "clueDirectness": 3
+          },
+          "middle3_bridge": {
+            "wordCount": 2,
+            "syntaxDepth": 3,
+            "abstractionLevel": 3,
+            "evidenceDistance": 3,
+            "referentAmbiguity": 3,
+            "distractorOverlap": 4,
+            "discourseDensity": 4,
+            "clueDirectness": 3
+          },
+          "H1": {
+            "wordCount": 3,
+            "syntaxDepth": 4,
+            "abstractionLevel": 3,
+            "evidenceDistance": 4,
+            "referentAmbiguity": 3,
+            "distractorOverlap": 4,
+            "discourseDensity": 4,
+            "clueDirectness": 3
+          },
+          "H2": {
+            "wordCount": 3,
+            "syntaxDepth": 5,
+            "abstractionLevel": 5,
+            "evidenceDistance": 5,
+            "referentAmbiguity": 4,
+            "distractorOverlap": 5,
+            "discourseDensity": 5,
+            "clueDirectness": 5
+          },
+          "H3": {
+            "wordCount": 4,
+            "syntaxDepth": 5,
+            "abstractionLevel": 5,
+            "evidenceDistance": 5,
+            "referentAmbiguity": 5,
+            "distractorOverlap": 5,
+            "discourseDensity": 5,
+            "clueDirectness": 5
+          }
+        }
+      },
+      "read_insertion": {
+        "description": "read insertion",
+        "gradeAxes": {
+          "middle1": {
+            "wordCount": 1,
+            "syntaxDepth": 2,
+            "abstractionLevel": 2,
+            "evidenceDistance": 2,
+            "referentAmbiguity": 2,
+            "distractorOverlap": 3,
+            "discourseDensity": 2,
+            "clueDirectness": 2
+          },
+          "middle2": {
+            "wordCount": 2,
+            "syntaxDepth": 3,
+            "abstractionLevel": 3,
+            "evidenceDistance": 3,
+            "referentAmbiguity": 2,
+            "distractorOverlap": 4,
+            "discourseDensity": 3,
+            "clueDirectness": 3
+          },
+          "middle3_official": {
+            "wordCount": 2,
+            "syntaxDepth": 3,
+            "abstractionLevel": 3,
+            "evidenceDistance": 3,
+            "referentAmbiguity": 3,
+            "distractorOverlap": 4,
+            "discourseDensity": 3,
+            "clueDirectness": 3
+          },
+          "middle3_bridge": {
+            "wordCount": 2,
+            "syntaxDepth": 3,
+            "abstractionLevel": 3,
+            "evidenceDistance": 3,
+            "referentAmbiguity": 3,
+            "distractorOverlap": 5,
+            "discourseDensity": 4,
+            "clueDirectness": 3
+          },
+          "H1": {
+            "wordCount": 3,
+            "syntaxDepth": 4,
+            "abstractionLevel": 3,
+            "evidenceDistance": 4,
+            "referentAmbiguity": 3,
+            "distractorOverlap": 5,
+            "discourseDensity": 4,
+            "clueDirectness": 3
+          },
+          "H2": {
+            "wordCount": 3,
+            "syntaxDepth": 5,
+            "abstractionLevel": 5,
+            "evidenceDistance": 5,
+            "referentAmbiguity": 4,
+            "distractorOverlap": 5,
+            "discourseDensity": 5,
+            "clueDirectness": 5
+          },
+          "H3": {
+            "wordCount": 4,
+            "syntaxDepth": 5,
+            "abstractionLevel": 5,
+            "evidenceDistance": 5,
+            "referentAmbiguity": 5,
+            "distractorOverlap": 5,
+            "discourseDensity": 5,
+            "clueDirectness": 5
+          }
+        }
+      },
+      "read_summary": {
+        "description": "read summary",
+        "gradeAxes": {
+          "middle1": {
+            "wordCount": 1,
+            "syntaxDepth": 2,
+            "abstractionLevel": 3,
+            "evidenceDistance": 2,
+            "referentAmbiguity": 2,
+            "distractorOverlap": 2,
+            "discourseDensity": 2,
+            "clueDirectness": 3
+          },
+          "middle2": {
+            "wordCount": 2,
+            "syntaxDepth": 3,
+            "abstractionLevel": 4,
+            "evidenceDistance": 3,
+            "referentAmbiguity": 2,
+            "distractorOverlap": 3,
+            "discourseDensity": 3,
+            "clueDirectness": 4
+          },
+          "middle3_official": {
+            "wordCount": 2,
+            "syntaxDepth": 3,
+            "abstractionLevel": 4,
+            "evidenceDistance": 3,
+            "referentAmbiguity": 3,
+            "distractorOverlap": 3,
+            "discourseDensity": 3,
+            "clueDirectness": 4
+          },
+          "middle3_bridge": {
+            "wordCount": 2,
+            "syntaxDepth": 3,
+            "abstractionLevel": 4,
+            "evidenceDistance": 3,
+            "referentAmbiguity": 3,
+            "distractorOverlap": 4,
+            "discourseDensity": 4,
+            "clueDirectness": 4
+          },
+          "H1": {
+            "wordCount": 3,
+            "syntaxDepth": 4,
+            "abstractionLevel": 4,
+            "evidenceDistance": 4,
+            "referentAmbiguity": 3,
+            "distractorOverlap": 4,
+            "discourseDensity": 4,
+            "clueDirectness": 4
+          },
+          "H2": {
+            "wordCount": 3,
+            "syntaxDepth": 5,
+            "abstractionLevel": 5,
+            "evidenceDistance": 5,
+            "referentAmbiguity": 4,
+            "distractorOverlap": 5,
+            "discourseDensity": 5,
+            "clueDirectness": 5
+          },
+          "H3": {
+            "wordCount": 4,
+            "syntaxDepth": 5,
+            "abstractionLevel": 5,
+            "evidenceDistance": 5,
+            "referentAmbiguity": 5,
+            "distractorOverlap": 5,
+            "discourseDensity": 5,
+            "clueDirectness": 5
+          }
+        }
+      },
+      "read_long_info": {
+        "description": "read long info",
+        "gradeAxes": {
+          "middle1": {
+            "wordCount": 2,
+            "syntaxDepth": 2,
+            "abstractionLevel": 2,
+            "evidenceDistance": 2,
+            "referentAmbiguity": 2,
+            "distractorOverlap": 2,
+            "discourseDensity": 2,
+            "clueDirectness": 2
+          },
+          "middle2": {
+            "wordCount": 3,
+            "syntaxDepth": 3,
+            "abstractionLevel": 3,
+            "evidenceDistance": 3,
+            "referentAmbiguity": 2,
+            "distractorOverlap": 3,
+            "discourseDensity": 3,
+            "clueDirectness": 3
+          },
+          "middle3_official": {
+            "wordCount": 3,
+            "syntaxDepth": 3,
+            "abstractionLevel": 3,
+            "evidenceDistance": 3,
+            "referentAmbiguity": 3,
+            "distractorOverlap": 3,
+            "discourseDensity": 3,
+            "clueDirectness": 3
+          },
+          "middle3_bridge": {
+            "wordCount": 3,
+            "syntaxDepth": 3,
+            "abstractionLevel": 3,
+            "evidenceDistance": 3,
+            "referentAmbiguity": 3,
+            "distractorOverlap": 4,
+            "discourseDensity": 4,
+            "clueDirectness": 3
+          },
+          "H1": {
+            "wordCount": 4,
+            "syntaxDepth": 4,
+            "abstractionLevel": 4,
+            "evidenceDistance": 4,
+            "referentAmbiguity": 3,
+            "distractorOverlap": 4,
+            "discourseDensity": 4,
+            "clueDirectness": 3
+          },
+          "H2": {
+            "wordCount": 4,
+            "syntaxDepth": 5,
+            "abstractionLevel": 5,
+            "evidenceDistance": 5,
+            "referentAmbiguity": 4,
+            "distractorOverlap": 5,
+            "discourseDensity": 5,
+            "clueDirectness": 5
+          },
+          "H3": {
+            "wordCount": 5,
+            "syntaxDepth": 5,
+            "abstractionLevel": 5,
+            "evidenceDistance": 5,
+            "referentAmbiguity": 5,
+            "distractorOverlap": 5,
+            "discourseDensity": 5,
+            "clueDirectness": 5
+          }
+        }
+      },
+      "read_long_narrative": {
+        "description": "read long narrative",
+        "gradeAxes": {
+          "middle1": {
+            "wordCount": 2,
+            "syntaxDepth": 2,
+            "abstractionLevel": 2,
+            "evidenceDistance": 3,
+            "referentAmbiguity": 3,
+            "distractorOverlap": 2,
+            "discourseDensity": 2,
+            "clueDirectness": 2
+          },
+          "middle2": {
+            "wordCount": 3,
+            "syntaxDepth": 3,
+            "abstractionLevel": 3,
+            "evidenceDistance": 4,
+            "referentAmbiguity": 3,
+            "distractorOverlap": 3,
+            "discourseDensity": 3,
+            "clueDirectness": 3
+          },
+          "middle3_official": {
+            "wordCount": 3,
+            "syntaxDepth": 3,
+            "abstractionLevel": 3,
+            "evidenceDistance": 4,
+            "referentAmbiguity": 4,
+            "distractorOverlap": 3,
+            "discourseDensity": 3,
+            "clueDirectness": 3
+          },
+          "middle3_bridge": {
+            "wordCount": 3,
+            "syntaxDepth": 3,
+            "abstractionLevel": 3,
+            "evidenceDistance": 4,
+            "referentAmbiguity": 4,
+            "distractorOverlap": 4,
+            "discourseDensity": 4,
+            "clueDirectness": 3
+          },
+          "H1": {
+            "wordCount": 4,
+            "syntaxDepth": 4,
+            "abstractionLevel": 4,
+            "evidenceDistance": 5,
+            "referentAmbiguity": 4,
+            "distractorOverlap": 4,
+            "discourseDensity": 4,
+            "clueDirectness": 3
+          },
+          "H2": {
+            "wordCount": 4,
+            "syntaxDepth": 5,
+            "abstractionLevel": 5,
+            "evidenceDistance": 5,
+            "referentAmbiguity": 5,
+            "distractorOverlap": 5,
+            "discourseDensity": 5,
+            "clueDirectness": 5
+          },
+          "H3": {
+            "wordCount": 5,
+            "syntaxDepth": 5,
+            "abstractionLevel": 5,
+            "evidenceDistance": 5,
+            "referentAmbiguity": 5,
+            "distractorOverlap": 5,
+            "discourseDensity": 5,
+            "clueDirectness": 5
+          }
+        }
+      }
+    }
+  },
+  "mappings": {
+    "subtypeToCanonicalTypeTag": {
+      "L_PURPOSE": "L_INTENT",
+      "L_OPINION": "L_INTENT",
+      "L_GIST": "L_GIST",
+      "L_PICTURE_MATCH": "L_DETAIL",
+      "L_ACTION": "L_DETAIL",
+      "L_PRICE_CALC": "L_DETAIL",
+      "L_REASON": "L_INTENT",
+      "L_MENTION_CHECK": "L_DETAIL",
+      "L_CONTENT_MATCH": "L_DETAIL",
+      "L_TABLE_SELECTION": "L_DETAIL",
+      "L_SHORT_RESPONSE": "L_RESPONSE",
+      "L_LONG_RESPONSE": "L_RESPONSE",
+      "L_SITUATION": "L_SITUATION",
+      "L_LONG_TALK_TOPIC": "L_LONG_TALK",
+      "L_LONG_TALK_DETAIL": "L_LONG_TALK",
+      "R_PURPOSE": "R_INFERENCE",
+      "R_TONE_MOOD": "R_INFERENCE",
+      "R_CLAIM": "R_MAIN_IDEA",
+      "R_UNDERLINED_MEANING": "R_VOCAB",
+      "R_MAIN_IDEA": "R_MAIN_IDEA",
+      "R_TITLE": "R_MAIN_IDEA",
+      "R_CHART_MATCH": "R_DETAIL",
+      "R_FACT_MATCH": "R_DETAIL",
+      "R_NOTICE_MISMATCH": "R_DETAIL",
+      "R_NOTICE_MATCH": "R_DETAIL",
+      "R_GRAMMAR": "R_BLANK",
+      "R_VOCAB": "R_VOCAB",
+      "R_BLANK": "R_BLANK",
+      "R_IRRELEVANT": "R_INFERENCE",
+      "R_ORDER": "R_ORDER",
+      "R_INSERTION": "R_INSERTION",
+      "R_SUMMARY": "R_SUMMARY",
+      "R_LONG_PASSAGE_INFO": "R_DETAIL",
+      "R_LONG_PASSAGE_NARRATIVE": "R_INFERENCE"
+    },
+    "defaultFamilyByGrade": {
+      "middle1": "middle3_official",
+      "middle2": "middle3_official",
+      "middle3_official": "middle3_official",
+      "middle3_bridge": "middle3_bridge",
+      "H1": "official_high1",
+      "H2": "official_high2",
+      "H3": "official_high3"
+    }
+  }
+}
