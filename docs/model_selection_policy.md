@@ -202,6 +202,39 @@ The next operational step after this redesign is `B2.6.21`, which should only
 count inventory that clears both the calibration gate and these dedicated
 profiles.
 
+## Korean Exam Style Policy Freeze
+
+`B2.6.22` does not change the model-selection baseline.
+
+- default model remains `gpt-5-mini`
+- approved fallback remains limited to:
+  - `L_LONG_TALK -> gpt-4.1-mini`
+  - `R_INSERTION -> gpt-4.1-mini`
+
+What changes is the generation-style policy frozen at:
+
+- `backend/shared/generation/korean_exam_generation_policy_v1.json`
+- loader: `backend/app/services/generation_policy_service.py`
+- reference: `docs/korean_exam_generation_policy.md`
+
+This policy separates:
+
+- subtype taxonomy
+- grade style
+- discourse mode
+- family mode
+
+and defines:
+
+- `wordCountBand`
+- `sentenceCountBand`
+- `wordsPerSentenceBand`
+- eight difficulty axes
+
+The model policy therefore stays fixed, while the exam-style target becomes
+more precise. `B2.6.23` is the stage that should wire this policy into the live
+generator path.
+
 ## Operational Notes
 
 - Fallback must remain limited to the approved hard typeTags.

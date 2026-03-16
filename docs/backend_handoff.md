@@ -446,3 +446,39 @@ This document is the backend handoff baseline for the next chat/session.
   - `AGENTS.md`
 - Operations and CI/release rules:
   - `docs/operations.md`
+- Korean exam generation policy freeze:
+  - JSON: `backend/shared/generation/korean_exam_generation_policy_v1.json`
+  - loader: `backend/app/services/generation_policy_service.py`
+  - guide: `docs/korean_exam_generation_policy.md`
+
+## N. Korean Exam Style Generation Policy
+
+`B2.6.22` freezes a generator-facing policy layer separate from the publish-time
+calibration layer.
+
+Use this policy when the generator needs to know:
+
+- subtype taxonomy below canonical type tags
+- grade-style differences
+- discourse-mode differences
+- family-mode overrides (`official`, `official_hard`, `indepth`, bridge)
+
+Do not collapse the policy into one average length by track.
+
+The loader resolves:
+
+- `grade_style`
+- `subtype`
+- `discourse_mode`
+- optional `family`
+
+and returns normalized:
+
+- `wordCountBand`
+- `sentenceCountBand`
+- `wordsPerSentenceBand`
+- difficulty axes
+- canonical typeTag mapping
+
+This is frozen policy only. `B2.6.23` is the next stage that should wire the
+live generator path to consume it directly.

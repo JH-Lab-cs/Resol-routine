@@ -168,6 +168,33 @@ rest of the catalog.
 These fixtures are regression anchors. The evaluator must keep passing the pass
 cases and keep failing the fail cases.
 
+## Upstream Korean Exam Style Policy
+
+`B2.6.22` freezes a separate upstream generation-style policy at:
+
+- `backend/shared/generation/korean_exam_generation_policy_v1.json`
+- loader: `backend/app/services/generation_policy_service.py`
+- design note: `docs/korean_exam_generation_policy.md`
+
+This policy does not replace publish-time calibration. It defines the intended
+exam-style target before generation:
+
+- `grade × subtype × discourse_mode`
+- family modes:
+  - `official_high1`
+  - `official_high2`
+  - `official_high3`
+  - `official_high3_hard`
+  - `indepth_high3`
+  - `middle3_official`
+  - `middle3_bridge`
+
+The important rule is unchanged:
+
+- grade difficulty is not controlled by one average length
+- length is only one part of quality
+- calibration still decides whether the generated item is publishable
+
 ## Operational Effect
 
 - reviewer surfaces must show calibration score, level, warnings, fail reasons,
@@ -176,3 +203,5 @@ cases and keep failing the fail cases.
 - `B2.6.19` backfill only counts inventory that clears this gate
 - `B2.6.21` should backfill only the inventory that clears both calibration and
   the dedicated quality profiles above
+- `B2.6.23` should harden the live generator to consume the upstream Korean
+  exam policy directly before the next calibrated backfill round

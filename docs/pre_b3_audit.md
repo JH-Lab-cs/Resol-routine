@@ -2345,3 +2345,47 @@ Practical next step:
   - `H1 / R_ORDER`
 - the next backfill round should only be run after the live generation path
   proves it is actually using the dedicated quality profiles
+
+## B2.6.22 korean exam subtype / grade-style generation policy freeze
+
+`B2.6.22` does not add inventory. It freezes the next upstream policy layer for
+generator hardening.
+
+Frozen artifacts:
+
+- policy JSON:
+  - `backend/shared/generation/korean_exam_generation_policy_v1.json`
+- loader:
+  - `backend/app/services/generation_policy_service.py`
+- policy guide:
+  - `docs/korean_exam_generation_policy.md`
+
+Frozen policy points:
+
+- subtype taxonomy now expands below canonical type tags
+- generator planning must use:
+  - `grade × subtype × discourse_mode`
+- family modes are separated:
+  - `official_high1`
+  - `official_high2`
+  - `official_high3`
+  - `official_high3_hard`
+  - `indepth_high3`
+  - `middle3_official`
+  - `middle3_bridge`
+- difficulty is not controlled by average word count alone
+- the frozen axes are:
+  - `wordCount`
+  - `syntaxDepth`
+  - `abstractionLevel`
+  - `evidenceDistance`
+  - `referentAmbiguity`
+  - `distractorOverlap`
+  - `discourseDensity`
+  - `clueDirectness`
+
+Operational interpretation:
+
+- `B2.6.23` should consume this policy in the live generator path
+- `B2.6.24` should only count inventory that was generated against this policy
+- this ticket closes the policy-freeze step, not the live-generation wiring step
